@@ -132,7 +132,7 @@ git remote add origin <URL-del-repositorio>
 git push -u origin main
 ```
 
-Esos pasos corresponden al responsable; esta entrega no configura ni publica el remoto. En GitHub, abra **Actions → CI → ejecución** para ver los trabajos. La sección **Artifacts** de esa ejecución permite descargar `backend-reportes` (JaCoCo y Surefire), que se publica incluso si falla la verificación cuando hay reportes disponibles, con retención de 7 días. Dentro del artefacto, abra `jacoco/index.html` para consultar la cobertura.
+Esos pasos corresponden al responsable; esta entrega no configura ni publica el remoto. En GitHub, abra **Actions → CI → ejecución** para ver los trabajos. La sección **Artifacts** de esa ejecución permite descargar `backend-reportes` (JaCoCo y Surefire), que se publica incluso si falla la verificación cuando hay reportes disponibles, con retención de 7 días. Dentro del artefacto, abra `site/jacoco/index.html` para consultar la cobertura.
 
 La ejecución real queda pendiente hasta que exista el remoto (P-04). [Evidencias de T-04](docs/pruebas/t-04.md).
 
