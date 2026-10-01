@@ -53,7 +53,7 @@ La [plantilla de variables](tools/barberturno.env.example) separa desarrollo/pru
 | `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD`, `BT_ADMIN_NOMBRE` | Administrador inicial |
 | `BT_COOKIE_SECURE` | `false` por defecto en dev/test; debe ser `true` en producción |
 
-Los perfiles común, `dev`, `test`, `demo` y `prod` están configurados. La autenticación y la creación del administrador corresponden a T-10; véase [arquitectura §9](docs/arquitectura.md#9-configuración-y-entornos).
+Los perfiles común, `dev`, `test`, `demo` y `prod` están configurados. La autenticación y la creación del administrador están implementadas (T-10); véase [arquitectura §9](docs/arquitectura.md#9-configuración-y-entornos).
 
 ## Arranque y pruebas del backend
 
@@ -67,11 +67,29 @@ Set-Location backend
 .\mvnw.cmd spring-boot:run '-Dspring-boot.run.profiles=dev'
 ```
 
-La API usa `http://localhost:8080`; `GET /actuator/health` devuelve exactamente `{"status":"UP"}` sin detalles. En `dev`, Swagger está en `http://localhost:8080/swagger-ui.html` y OpenAPI en `/v3/api-docs`; ambos están deshabilitados por defecto en los demás perfiles. La API restante devuelve 401 sin autenticación. La seguridad provisional no crea sesiones, usuarios automáticos ni contraseñas en logs y deniega todas las escrituras. CSRF está desactivado provisionalmente: la protección definitiva para JWT en cookie corresponde a T-10.
+La API usa `http://localhost:8080`; `GET /actuator/health` devuelve exactamente `{"status":"UP"}` sin detalles. En `dev`, Swagger está en `http://localhost:8080/swagger-ui.html` y OpenAPI en `/v3/api-docs`; ambos están deshabilitados por defecto en los demás perfiles. La autenticación usa JWT HS256 de ocho horas en la cookie HttpOnly BT_SESION y CSRF para toda escritura. GET /api/auth/sesion devuelve 401 sin sesión y emite XSRF-TOKEN; con sesión devuelve la identidad pública. Las demás rutas de API siguen cerradas hasta su tarea. No se crean sesiones HTTP ni se registran contraseñas o tokens.
 
-`verify` ejecuta tanto `*Test` como `*IT` con el perfil `test` y PostgreSQL real. Reportes: `backend/target/surefire-reports/` y `backend/target/site/jacoco/index.html`; el umbral de cobertura se incorpora en T-09. El perfil `demo` se activa junto con `dev`, pero sus datos se implementarán en T-32. En Linux/macOS use `./mvnw`; está marcado como ejecutable en Git.
+`verify` ejecuta tanto `*Test` como `*IT` con el perfil `test` y PostgreSQL real. Reportes: `backend/target/surefire-reports/` y `backend/target/site/jacoco/index.html`; el umbral de cobertura de reservations y scheduling es ≥ 70 % (T-09). El perfil `demo` se activa junto con `dev`, pero sus datos se implementarán en T-32. En Linux/macOS use `./mvnw`; está marcado como ejecutable en Git.
 
-Después de `verify`, puede arrancar el jar en desarrollo desde la raíz del repositorio:
+### Obtener una sesión en desarrollo
+
+Primero consulte `GET /api/auth/sesion` y conserve la cookie `XSRF-TOKEN` aunque la respuesta sea 401. Envíe su valor en `X-XSRF-TOKEN` junto con la cookie al registrar o iniciar sesión:
+
+```http
+POST /api/auth/registro
+Content-Type: application/json
+X-XSRF-TOKEN: <valor de la cookie XSRF-TOKEN>
+
+{"nombre":"Cliente de prueba","correo":"cliente@ejemplo.test","telefono":"999111222","password":"ClaveCliente123","aceptaPrivacidad":true}
+```
+
+El ejemplo es exclusivamente ficticio. El registro responde 201 y fija `BT_SESION`; conserve ambas cookies para las siguientes solicitudes. `POST /api/auth/login` recibe `{"correo":"cliente@ejemplo.test","password":"ClaveCliente123"}` y responde 200. El JWT solo se acepta por cookie. `POST /api/auth/logout`, también con CSRF, responde 204 y borra `BT_SESION`, incluso si ya había caducado. Angular envía automáticamente XSRF en el mismo origen; las pantallas se implementan en T-12.
+
+Para crear el administrador inicial, configure `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD` (RN-25) y `BT_ADMIN_NOMBRE` en el entorno o en su archivo local privado antes de arrancar en `dev`. Solo se crea si no existe un ADMIN activo; no requiere teléfono ni cambio de contraseña. Si faltan valores en dev/test, se informa sin crear una cuenta. Nunca hay credenciales administrativas predeterminadas.
+
+`BT_JWT_SECRET` es Base64 y debe decodificar al menos 32 bytes. Si se omite en dev/test se genera una clave aleatoria al arrancar: las sesiones caducan al reiniciar. En producción es obligatorio. Cinco fallos consecutivos bloquean la cuenta durante quince minutos, con mensajes genéricos.
+
+Después de erify, puede arrancar el jar en desarrollo desde la raíz del repositorio:
 
 ```powershell
 & "$env:JAVA_HOME\bin\java.exe" -jar backend/target/barberturno-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
@@ -105,9 +123,9 @@ La búsqueda recursiva permite que fnm encuentre `.node-version` también desde 
 
 Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra las denegaciones en `frontend/package.json` (`allowScripts`); para aprobar uno, primero se documenta el motivo en DA-19 y luego se ejecuta `npm install-scripts approve <paquete>` desde `frontend/`.
 
-La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Con la seguridad provisional de T-02, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
+La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Sin una sesión, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
 
-La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. La emisión de la cookie y la protección definitiva del servidor corresponden a T-10; las pantallas de negocio empiezan en T-12.
+La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor ya emite la cookie y verifica la cabecera (T-10); las pantallas de negocio empiezan en T-12.
 
 Calidad del frontend, con Node activo y desde `frontend/`:
 
