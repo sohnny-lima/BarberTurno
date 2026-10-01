@@ -27,6 +27,19 @@ class NegocioExceptionTest {
         assertThatThrownBy(() -> error.detalles().clear()).isInstanceOf(UnsupportedOperationException.class);
     }
 
+    @Test
+    void construir_validacionPorCampos_copiaListaSinPermitirModificarla() {
+        var campos = new java.util.ArrayList<ManejadorErrores.ErrorCampo>();
+        campos.add(new ManejadorErrores.ErrorCampo("passwordActual", "No se pudo verificar."));
+        var error = new NegocioException("No se pudo cambiar la contraseña.", campos);
+        campos.clear();
+        assertThat(error.codigo()).isEqualTo(ErrorCodigo.VALIDACION);
+        assertThat(error.detalles()).isEmpty();
+        assertThat(error.errores()).containsExactly(
+                new ManejadorErrores.ErrorCampo("passwordActual", "No se pudo verificar."));
+        assertThatThrownBy(() -> error.errores().clear()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"type", "title", "status", "detail", "instance", "codigo", "errores"})
     void construir_extensionReservada_rechaza(String propiedad) {

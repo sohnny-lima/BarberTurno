@@ -23,7 +23,7 @@ class AuthCookieSecureIT {
     @BeforeEach void preparar() { LimpiezaBaseDatos.limpiar(jdbc); }
     @AfterEach void limpiar() { LimpiezaBaseDatos.limpiar(jdbc); }
 
-    @Test void cookie_seguraConfigurada_seAplicaASesionCsrfYLogout() throws Exception {
+    @Test void cookie_seguraConfigurada_seAplicaASesionCsrfCambioPasswordYLogout() throws Exception {
         Cookie xsrf = mvc.perform(get("/api/auth/sesion").secure(true))
                 .andExpect(status().isUnauthorized()).andReturn().getResponse().getCookie("XSRF-TOKEN");
         assertThat(xsrf).isNotNull();
@@ -42,6 +42,19 @@ class AuthCookieSecureIT {
         assertThat(sesion.getMaxAge()).isEqualTo(28800);
         assertThat(sesion.getPath()).isEqualTo("/");
         assertThat(sesion.getAttribute("SameSite")).isEqualTo("Strict");
+        r = mvc.perform(put("/api/auth/password").secure(true).cookie(xsrf, sesion)
+                .header("X-XSRF-TOKEN", xsrf.getValue()).contentType("application/json")
+                .content("""
+                        {"passwordActual":"ClaveCliente123","passwordNueva":"OtraClave456"}
+                        """)).andExpect(status().isNoContent()).andReturn();
+        sesion = r.getResponse().getCookie("BT_SESION");
+        assertThat(sesion).isNotNull();
+        assertThat(sesion.getSecure()).isTrue();
+        assertThat(sesion.isHttpOnly()).isTrue();
+        assertThat(sesion.getMaxAge()).isEqualTo(28800);
+        assertThat(sesion.getPath()).isEqualTo("/");
+        assertThat(sesion.getAttribute("SameSite")).isEqualTo("Strict");
+        mvc.perform(get("/api/perfil").secure(true).cookie(sesion)).andExpect(status().isOk());
         r = mvc.perform(post("/api/auth/logout").secure(true).cookie(xsrf, sesion)
                 .header("X-XSRF-TOKEN", xsrf.getValue())).andExpect(status().isNoContent()).andReturn();
         Cookie borrada = r.getResponse().getCookie("BT_SESION");

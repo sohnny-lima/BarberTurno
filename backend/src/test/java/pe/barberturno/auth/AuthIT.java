@@ -254,7 +254,7 @@ class AuthIT {
         mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.rol").value(rol.name()));
         mvc.perform(conCsrf(put("/api/auth/password")).cookie(sesion))
-                .andExpect(status().isNotFound()); // Ruta preparada, sin implementar T-11.
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
         mvc.perform(conCsrf(put("/api/auth/password"))).andExpect(status().isUnauthorized());
     }
 
@@ -265,8 +265,8 @@ class AuthIT {
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(true));
-        mvc.perform(get("/api/perfil").cookie(sesion)).andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.codigo").value("PROHIBIDO")); // Aún cerrada hasta T-11.
+        mvc.perform(get("/api/perfil").cookie(sesion)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.rol").value("BARBERO"));
     }
 
     @Test void sesion_adminConPerfilBarbero_devuelvePerfilOpcionalYRolVigente() throws Exception {
