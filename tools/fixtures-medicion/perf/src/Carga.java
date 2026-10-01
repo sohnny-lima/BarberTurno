@@ -1,0 +1,3 @@
+/* carga */
+class Carga {
+}

@@ -1,0 +1,39 @@
+{
+  "lenguajes": {
+    "Java": { "producto": 15, "pruebas": 6, "carga": 3, "total": 21 },
+    "TS": { "producto": 10, "pruebas": 3, "carga": 0, "total": 13 },
+    "HTML": { "producto": 5, "pruebas": 0, "carga": 0, "total": 5 },
+    "SCSS": { "producto": 5, "pruebas": 0, "carga": 0, "total": 5 },
+    "CSS": { "producto": 5, "pruebas": 0, "carga": 0, "total": 5 },
+    "SQL": { "producto": 4, "pruebas": 0, "carga": 0, "total": 4 }
+  },
+  "totales": { "producto": 44, "pruebas": 9, "carga": 3, "total": 53 },
+  "porcentajeJavaConPruebas": 39.62264150943396,
+  "porcentajeJavaSinPruebas": 34.09090909090909,
+  "archivos": [
+    { "ruta": "backend/src/main/Casos.java", "lenguaje": "Java", "clase": "producto", "lineas": 14 },
+    { "ruta": "backend/src/main/esquema.sql", "lenguaje": "SQL", "clase": "producto", "lineas": 4 },
+    { "ruta": "backend/src/main/MarcaSexta.java", "lenguaje": "Java", "clase": "producto", "lineas": 1 },
+    { "ruta": "backend/src/test/CasosTest.java", "lenguaje": "Java", "clase": "pruebas", "lineas": 3 },
+    { "ruta": "frontend/src/casos.spec.ts", "lenguaje": "TS", "clase": "pruebas", "lineas": 1 },
+    { "ruta": "frontend/src/casos.ts", "lenguaje": "TS", "clase": "producto", "lineas": 8 },
+    { "ruta": "frontend/src/estilos.css", "lenguaje": "CSS", "clase": "producto", "lineas": 5 },
+    { "ruta": "frontend/src/estilos.scss", "lenguaje": "SCSS", "clase": "producto", "lineas": 5 },
+    { "ruta": "frontend/src/pagina.html", "lenguaje": "HTML", "clase": "producto", "lineas": 5 },
+    { "ruta": "frontend/src/solo-cadena.ts", "lenguaje": "TS", "clase": "producto", "lineas": 2 },
+    { "ruta": "frontend/src/vacio.ts", "lenguaje": "TS", "clase": "producto", "lineas": 0 },
+    { "ruta": "frontend/e2e/reserva.ts", "lenguaje": "TS", "clase": "pruebas", "lineas": 2 },
+    { "ruta": "perf/Carga.java", "lenguaje": "Java", "clase": "carga", "lineas": 1 },
+    { "ruta": "perf/src/Carga.java", "lenguaje": "Java", "clase": "carga", "lineas": 2 }
+  ],
+  "excluidos": [
+    { "ruta": "backend/src/main/config.yml", "motivo": "Extensión fuera del cálculo" },
+    { "ruta": "backend/src/main/Generado.java", "motivo": "Marca de generado en las primeras cinco líneas" },
+    { "ruta": "backend/src/main/MarcaQuinta.java", "motivo": "Marca de generado en las primeras cinco líneas" },
+    { "ruta": "frontend/src/autogenerado.ts", "motivo": "Marca de generado en las primeras cinco líneas" },
+    { "ruta": "frontend/src/config.json", "motivo": "Extensión fuera del cálculo" },
+    { "ruta": "frontend/src/docs/", "motivo": "Dependencias, salida, documentación o datos locales" },
+    { "ruta": "frontend/src/theme-colors.scss", "motivo": "Generado explícito: schematic de Angular Material" }
+  ],
+  "ausentes": []
+}
