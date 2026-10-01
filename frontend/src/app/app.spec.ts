@@ -1,20 +1,19 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
-import { appConfig } from './app.config';
+import { provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { routes } from './app.routes';
 
 describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-      providers: appConfig.providers,
-    }).compileComponents();
-  });
-
-  it('muestra el título BarberTurno en la barra de Material', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-
-    const elemento = fixture.nativeElement as HTMLElement;
-    expect(elemento.querySelector('mat-toolbar h1')?.textContent).toBe('BarberTurno');
+  it('muestra BarberTurno y el formulario en la ruta de ingreso', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+    });
+    const harness = await RouterTestingHarness.create('/ingresar');
+    expect(harness.routeNativeElement?.querySelector('mat-toolbar')?.textContent).toContain(
+      'BarberTurno',
+    );
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Iniciar sesión');
   });
 });

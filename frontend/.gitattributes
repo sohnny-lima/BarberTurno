@@ -1,0 +1,2 @@
+# El encargo T-12 exige LF también para el script PowerShell de comprobación.
+*.ps1 text eol=lf

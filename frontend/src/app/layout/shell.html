@@ -1,0 +1,45 @@
+<a class="saltar" href="#contenido">Saltar al contenido</a>
+<header>
+  <mat-toolbar>
+    @if (movil()) {
+      <button
+        mat-button
+        (click)="menu.toggle()"
+        [attr.aria-expanded]="menu.opened"
+        aria-controls="menu-principal"
+      >
+        Menú
+      </button>
+    }
+    <span class="marca">BarberTurno</span>
+    @if (sesion.usuario(); as usuario) {
+      <span class="identidad">{{ usuario.nombre }} · {{ nombreRol() }}</span>
+      <span hidden aria-hidden="true" data-contador-avisos></span>
+      <button mat-button (click)="salir()" [disabled]="saliendo()">
+        {{ saliendo() ? 'Saliendo…' : 'Salir' }}
+      </button>
+    }
+  </mat-toolbar>
+</header>
+<mat-sidenav-container>
+  <mat-sidenav #menu id="menu-principal" [mode]="movil() ? 'over' : 'side'" [opened]="!movil()">
+    <nav aria-label="Navegación principal">
+      <mat-nav-list>
+        @for (enlace of enlaces(); track enlace.ruta) {
+          <a
+            mat-list-item
+            [routerLink]="enlace.ruta"
+            routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
+            (click)="movil() && menu.close()"
+            >{{ enlace.texto }}</a
+          >
+        }
+      </mat-nav-list>
+    </nav>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <main id="contenido" tabindex="-1"><router-outlet /></main>
+    <footer>BarberTurno · Una sede en Huamanga · Proyecto académico con datos ficticios</footer>
+  </mat-sidenav-content>
+</mat-sidenav-container>
