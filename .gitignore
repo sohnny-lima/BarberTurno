@@ -1,0 +1,38 @@
+# Java y Maven
+target/
+*.class
+
+# Node y Angular
+node_modules/
+dist/
+.angular/
+coverage/
+playwright-report/
+test-results/
+
+# IDE y archivos del sistema
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+
+# Secretos y configuración local
+.env*
+backend/.env.local
+.local/
+*.pem
+*.key
+*.p12
+*.pfx
+pgpass.conf
+.pgpass
+
+# Logs
+*.log

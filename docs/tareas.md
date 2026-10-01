@@ -1,0 +1,297 @@
+# BarberTurno — Plan de tareas de implementación
+
+> Versión 1.0 · 01/10/2026 · Preparado por Claude Code (arquitecto) para Codex (implementación y pruebas)
+> Antes de cada tarea, leer: [../AGENTS.md](../AGENTS.md), [requisitos.md](requisitos.md) y [arquitectura.md](arquitectura.md).
+
+## Cómo usar este plan
+
+1. Ejecutar las tareas **en orden**. Una tarea puede empezar cuando todas sus dependencias están en **Hecha**.
+2. Cada tarea es un incremento que compila, pasa las pruebas y no deja nada a medias. Si resulta demasiado grande, se divide en subtareas `T-xx.a`, `T-xx.b` dentro de esta misma tabla.
+3. Al terminar, actualizar la tabla de estado (estado, fecha y commit) y anotar en "Notas de cierre" cualquier desviación, decisión menor o deuda técnica.
+4. Si una tarea obliga a cambiar un contrato de API, el modelo de datos o una regla de negocio, **parar y anotarlo como bloqueo** para que el arquitecto actualice los documentos (ver AGENTS.md §4).
+
+### Definición de Hecho (aplica a todas las tareas)
+- [ ] Se cumplen los criterios de aceptación de la tarea.
+- [ ] Las pruebas indicadas están escritas y pasan: `cd backend && ./mvnw verify` y/o `cd frontend && npm run lint && npm test -- --watch=false && npm run build`.
+- [ ] No baja la cobertura del dominio (umbral de JaCoCo activo desde T-09).
+- [ ] Javadoc en las clases públicas nuevas de dominio y de servicio (RA-05).
+- [ ] No hay secretos, credenciales reales ni datos personales reales en el repositorio.
+- [ ] Hay un commit con un mensaje Conventional Commit que referencia la tarea (`feat(reservas): crear reserva con control de concurrencia [T-20]`).
+- [ ] Están actualizados `docs/tareas.md` (estado) y, si aplica, el README.
+
+### Calendario orientativo (según el Gantt del APF2 [Drawio:Gantt])
+| Fase | Tareas | Ventana objetivo |
+|---|---|---|
+| 0 Fundaciones | T-01 … T-05 | 02/10 – 08/10 |
+| 1 Datos y dominio | T-06 … T-09 | 06/10 – 14/10 |
+| 2 Identidad | T-10 … T-12 | 13/10 – 22/10 |
+| 3 Catálogo y horarios | T-13 … T-18 | 20/10 – 03/11 |
+| 4 Reservas y concurrencia | T-19 … T-28 | 03/11 – 24/11 |
+| 5 Reportes y administración | T-29 … T-32 | 24/11 – 01/12 |
+| 6 Calidad y entrega | T-33 … T-37 | 01/12 – 18/12 (entrega propuesta: 20/12) |
+
+---
+
+## Tabla de estado
+
+| ID | Tarea | Prio | Depende de | Estado | Fecha | Commit |
+|---|---|---|---|---|---|---|
+| T-01 | Repositorio Git y estructura base | M | — | En curso | 01/10/2026 | |
+| T-02 | Esqueleto backend Spring Boot 4.1 | M | T-01 | Pendiente | | |
+| T-03 | Esqueleto frontend Angular 22 | M | T-01 | Pendiente | | |
+| T-04 | Integración continua | M | T-02, T-03 | Pendiente | | |
+| T-05 | Medición del % de Java | M | T-02, T-03 | Pendiente | | |
+| T-06 | Esquema Flyway V1 y pruebas de restricciones | M | T-02 | Pendiente | | |
+| T-07 | Entidades JPA y repositorios | M | T-06 | Pendiente | | |
+| T-08 | Infraestructura común (errores, tiempo, paginación) | M | T-02 | Pendiente | | |
+| T-09 | Reglas de dominio puras + umbral JaCoCo | M | T-07, T-08 | Pendiente | | |
+| T-10 | Autenticación backend | M | T-07, T-08 | Pendiente | | |
+| T-11 | Perfil y cambio de contraseña backend | M | T-10 | Pendiente | | |
+| T-12 | Shell, autenticación y perfil en el frontend (P01) | M | T-03, T-11 | Pendiente | | |
+| T-13 | Servicios backend (RF-04) | M | T-10 | Pendiente | | |
+| T-14 | Barberos backend (RF-05) | M | T-10 | Pendiente | | |
+| T-15 | Jornadas backend (RF-06) | M | T-09, T-14 | Pendiente | | |
+| T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | Pendiente | | |
+| T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | Pendiente | | |
+| T-18 | Horarios y bloqueos en el frontend (P07) | M | T-17, T-16 | Pendiente | | |
+| T-19 | Disponibilidad backend (RF-07) | M | T-09, T-13, T-16 | Pendiente | | |
+| T-20 | Crear reserva con control de concurrencia (RF-08) | M | T-19 | Pendiente | | |
+| T-21 | Consulta de reservas y autorización (RF-11, RF-13) | M | T-20 | Pendiente | | |
+| T-22 | Cancelación (RF-10) | M | T-21 | Pendiente | | |
+| T-23 | Reprogramación (RF-09) | M | T-22 | Pendiente | | |
+| T-24 | Transiciones de estado (RF-12) | M | T-21 | Pendiente | | |
+| T-25 | API de auditoría y avisos (RF-16, RF-17) | M | T-24 | Pendiente | | |
+| T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | Pendiente | | |
+| T-27 | Mis citas y avisos en el frontend (P03) | M | T-26, T-23, T-25 | Pendiente | | |
+| T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Pendiente | | |
+| T-29 | Reportes backend (RF-14) | M | T-21 | Pendiente | | |
+| T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | Pendiente | | |
+| T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Pendiente | | |
+| T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Pendiente | | |
+| T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
+| T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
+| T-35 | Prueba de carga (RNF-01) | S | T-32 | Pendiente | | |
+| T-36 | Respaldo y restauración (RNF-09) | M | T-33 | Pendiente | | |
+| T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
+
+Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
+
+---
+
+## Fase 0 — Fundaciones
+
+### T-01 · Repositorio Git y estructura base
+- **Objetivo:** dejar el repositorio versionado con la estructura de [arquitectura §3](arquitectura.md#3-estructura-del-repositorio).
+- **Alcance:** `git init -b main`; `.gitignore` (Java/Maven `target/`, Node `node_modules/`, `dist/`, `.angular/`, IDE, `.env*`, `*.log`, `backend/.env.local`); `.gitattributes` (`* text=auto eol=lf`, `*.cmd`/`*.bat`/`*.ps1` con `eol=crlf`, binarios `*.pdf *.docx *.xlsx *.png` como `binary`); `.editorconfig` (UTF-8, LF, 4 espacios en Java, 2 en TS/HTML/SCSS/JSON/YAML); `README.md` (qué es, requisitos de entorno: JDK 21, Node 24, PostgreSQL 18 en :5433; cómo arrancar; enlaces a docs); `tools/db-local.sql` (crea el rol `barberturno` con contraseña de desarrollo y las bases `barberturno` y `barberturno_test`, ambas con ese rol como dueño). Carpetas vacías con `.gitkeep` donde haga falta (`docs/pruebas/`).
+- **Archivos:** raíz del repositorio, `tools/db-local.sql`, `docs/pruebas/.gitkeep`.
+- **Criterios de aceptación:** `git status` limpio tras el commit inicial, que incluye `docs/apf2/` **sin modificaciones** y los documentos de esta etapa (AGENTS.md, CLAUDE.md, docs/*.md). `psql -p 5433 -U postgres -f tools/db-local.sql` es idempotente (se puede ejecutar dos veces sin errores).
+- **Pruebas:** ejecutar el script SQL dos veces; `git check-ignore` sobre `backend/target` y `frontend/node_modules`.
+
+### T-02 · Esqueleto backend Spring Boot 4.1
+- **Objetivo:** un backend que arranca contra PostgreSQL y tiene una prueba de contexto en verde.
+- **Alcance:** generar con **Spring Initializr** (Boot **4.1.1**, Java **21**, Maven, Jar, grupo `pe.barberturno`, artefacto `barberturno`) con estas dependencias: Spring Web MVC, Validation, Data JPA, PostgreSQL Driver, Flyway (+ `flyway-database-postgresql`), Security, OAuth2 Resource Server, Actuator. Añadir `springdoc-openapi-starter-webmvc-ui` 3.1.x (verificar que funciona con 4.1.1 y anotar la versión elegida), los starters de pruebas que proponga Initializr y el plugin JaCoCo (aún sin umbral). Crear `application.yml` y los perfiles `dev`, `test`, `demo` y `prod` según [arquitectura §9](arquitectura.md#9-configuración-y-entornos); `spring.jpa.open-in-view=false`, `ddl-auto=validate`, `connection-init-sql: SET lock_timeout = '5s'`, `server.forward-headers-strategy=framework`. Una `SecurityConfig` provisional que permita `/actuator/health` y deniegue el resto. Un bean `Clock` con la zona `America/Lima`.
+- **Archivos:** `backend/**`.
+- **Criterios de aceptación:** `./mvnw verify` pasa en local con el perfil `test` (base `barberturno_test` en :5433); `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` arranca y `GET /actuator/health` → `{"status":"UP"}`. Sin Lombok.
+- **Pruebas:** `BarberTurnoApplicationIT` (carga el contexto); prueba MockMvc de `/actuator/health` (200) y de una ruta cualquiera de `/api` (401).
+
+### T-03 · Esqueleto frontend Angular 22
+- **Objetivo:** una SPA vacía, compilable y con la herramienta de calidad configurada.
+- **Prerrequisito de entorno:** Node **24 LTS** instalado (Node 20 no es compatible con Angular 22). Si no se puede instalar, marcar la tarea como `Bloqueada` y avisar.
+- **Alcance:** `npx @angular/cli@22 new frontend` (standalone, SCSS, routing, sin SSR); Angular Material 22 con un tema propio (paleta navy `#173c4d` / teal `#087f8c`, la del prototipo [Proto]); `angular-eslint` + Prettier; `proxy.conf.json` (`/api` → `http://localhost:8080`); `npm start` con proxy. Estructura de carpetas `core/ shared/ layout/ features/` de [arquitectura §4.2](arquitectura.md#42-frontend-angular-22-componentes-standalone-signals-sin-zonejs); `provideHttpClient(withXsrfConfiguration(...))` con los nombres por defecto `XSRF-TOKEN`/`X-XSRF-TOKEN`; `lang="es"` y locale `es-PE` registrado.
+- **Archivos:** `frontend/**`.
+- **Criterios de aceptación:** `npm run lint`, `npm test -- --watch=false` y `npm run build` pasan; la página inicial muestra "BarberTurno" con el tema aplicado.
+- **Pruebas:** la prueba de `AppComponent` generada, adaptada.
+
+### T-04 · Integración continua
+- **Objetivo:** cada push y cada PR compilan y prueban ambos proyectos.
+- **Alcance:** `.github/workflows/ci.yml` con dos trabajos. **backend:** Temurin 21, servicio `postgres:18` (usuario, contraseña y base de datos de prueba por variables), `./mvnw -B verify -Dspring.profiles.active=test` con la URL del servicio y el reporte JaCoCo publicado como artefacto. **frontend:** Node 24, `npm ci`, lint, test y build. Caché de Maven y npm.
+- **Criterios de aceptación:** el YAML es válido (comprobar con `actionlint` si está disponible). El README documenta cómo activar la CI al crear el remoto (pendiente P-04).
+- **Pruebas:** ejecución local equivalente de los comandos. La ejecución real queda pendiente hasta que exista el remoto.
+
+### T-05 · Medición del % de Java
+- **Objetivo:** cumplir RA-02 y RA-03 con una medición reproducible desde el principio.
+- **Alcance:** `tools/medir-java.mjs` (Node, sin dependencias) según [arquitectura §12](arquitectura.md#12-medición-del-porcentaje-de-java-ra-02). Cuenta líneas no vacías y no comentadas de `.java`, `.ts`, `.html`, `.scss`/`.css` y `.sql` en `backend/src`, `frontend/src`, `frontend/e2e` y `perf/src`. Excluye `node_modules`, `target`, `dist`, `.angular` y los archivos generados. Clasifica como prueba los archivos bajo `src/test`, `*.spec.ts` y `e2e/`. Por defecto escribe una tabla Markdown en la salida estándar y, con `--escribir`, la añade a `docs/pruebas/medicion-java.md`.
+- **Criterios de aceptación:** muestra el % con y sin pruebas y el desglose por lenguaje; con el esqueleto da cifras coherentes.
+- **Pruebas:** un directorio de fixtures en `tools/fixtures-medicion/` con conteos conocidos (comentarios de línea y de bloque, líneas vacías) y una ejecución que compruebe el resultado esperado (`node tools/medir-java.mjs --verificar-fixtures`).
+
+---
+
+## Fase 1 — Datos y dominio
+
+### T-06 · Esquema Flyway V1 y pruebas de restricciones
+- **Objetivo:** el esquema completo de [arquitectura §5.1](arquitectura.md#51-ddl-de-referencia-v1__esquema_inicialsql) con sus garantías verificadas.
+- **Alcance:** `db/migration/V1__esquema_inicial.sql` (DDL tal como está documentado; si hace falta algún ajuste, anotarlo en las notas de cierre).
+- **Criterios de aceptación:** Flyway migra una base vacía; `\d reserva` muestra las 2 restricciones `EXCLUDE`.
+- **Pruebas (`EsquemaIT`, JDBC directo):** (1) dos reservas del mismo barbero que se solapan → `23P01`; (2) contiguas 10:00–10:30 y 10:30–11:00 → OK (CP-04); (3) solapada con una `CANCELADA` → OK; (4) mismo cliente con dos barberos a la vez → `23P01` (CP-13); (5) `fin` incoherente con la duración → `23514`; (6) correo con mayúsculas → `23514`; (7) servicio con duración 25 → `23514`; (8) jornada con `hora_inicio >= hora_fin` → `23514`.
+
+### T-07 · Entidades JPA y repositorios
+- **Objetivo:** el mapeo de todas las tablas, validado por Hibernate.
+- **Alcance:** las entidades `Usuario`, `Barbero`, `Servicio`, `Jornada`, `Bloqueo`, `Reserva` (`@Version`), `AuditoriaReserva` (`jsonb`) y `Notificacion`, en sus módulos ([arquitectura §4.1](arquitectura.md#41-backend-paquete-raíz-pebarberturno)); enumerados `Rol`, `EstadoReserva`, `AccionAuditoria`; repositorios Spring Data con las consultas que se necesitan ya: `BarberoRepository.bloquearPorIds(ids)` (`@Lock(PESSIMISTIC_WRITE)` + `ORDER BY id`), `UsuarioRepository.bloquearPorId`, `ReservaRepository.bloquearPorId`, `ReservaRepository.buscarSolapamientos(barberoId, inicio, fin, excluirId)` (estado ≠ CANCELADA, `inicio < :fin AND fin > :inicio`), `buscarSolapamientosCliente(...)`, `contarFuturasQueOcupan(clienteId, ahora)`, `BloqueoRepository.buscarQueSeCruzan(...)`. Utilidad de pruebas `LimpiezaBaseDatos` (`TRUNCATE … RESTART IDENTITY CASCADE` de todas las tablas excepto `flyway_schema_history`).
+- **Criterios de aceptación:** el contexto arranca con `ddl-auto=validate`; las entidades no tienen setters públicos innecesarios y los cambios de estado pasan por métodos de dominio (p. ej., `reserva.cancelar(...)`).
+- **Pruebas:** `RepositoriosIT`: guardar y leer cada entidad; `buscarSolapamientos` con casos de contigüidad, solape y cancelada; el bloqueo `FOR UPDATE` hace esperar a una segunda transacción (prueba con dos hilos y temporizador).
+
+### T-08 · Infraestructura común (errores, tiempo, paginación)
+- **Objetivo:** las piezas transversales que usan todos los módulos.
+- **Alcance:** `ErrorCodigo` (catálogo de [arquitectura §6.2](arquitectura.md#62-catálogo-de-códigos-de-error)), `NegocioException(codigo, mensaje, detalles)`, `ManejadorErrores` (`@RestControllerAdvice` → `ProblemDetail` con `codigo`, `errores[]`; traducción de `MethodArgumentNotValidException`, `ObjectOptimisticLockingFailureException` → `VERSION_DESACTUALIZADA`, `DataIntegrityViolationException` según SQLState y nombre de la restricción → `FRANJA_NO_DISPONIBLE` / `CLIENTE_CON_RESERVA_SOLAPADA` / `CORREO_DUPLICADO` / `NOMBRE_DUPLICADO`, `55P03`/`40P01` → 503 `RECURSO_OCUPADO`, `AccessDeniedException` → 403; las excepciones no controladas dan 500 sin traza al cliente y quedan registradas en el log); `TiempoNegocio` (`ZONA = America/Lima`, `inicioDelDia(LocalDate)`, `aLima(Instant)`, `diaIso(Instant)`); `PaginaDto<T>`; `UsuarioActual` (lo resuelve a partir del JWT; de momento un stub).
+- **Criterios de aceptación:** toda respuesta de error tiene la forma de §6.1; ningún error expone trazas ni SQL.
+- **Pruebas:** `ManejadorErroresTest` (un caso por cada traducción); `TiempoNegocioTest` (medianoche de Lima = 05:00Z; día ISO).
+
+### T-09 · Reglas de dominio puras + umbral JaCoCo
+- **Objetivo:** el núcleo de reglas, sin Spring y totalmente probado.
+- **Alcance:** `ReglasTemporales` (porte del anexo [Java] con `calcularFin`, `seSolapan` y `puedeModificar`, que ahora recibe la anticipación por parámetro y aplica RN-08: un administrador solo puede antes del inicio y con motivo de ≥ 5 caracteres); `EstadoReserva` con `transicionesPermitidas()`, `ocupaFranja()`, `esTerminal()`; `PoliticaTransiciones` (RN-11 y RN-12: quién y cuándo); `CalculadoraFranjas` ([arquitectura §8.2](arquitectura.md#82-cálculo-de-disponibilidad-calculadorafranjas-función-pura)); `PoliticaPassword` (RN-25). Configurar el umbral de JaCoCo (líneas ≥ 70 % en `reservations` y `scheduling`) en `verify`.
+- **Criterios de aceptación:** cobertura del 100 % de líneas en estas clases; los Javadoc conservan el estilo del anexo (`@author`, `@version`, `@param`, `@return`, `@throws`).
+- **Pruebas:** los **7 casos del anexo** [Java] + límites (exactamente 2 h, 1 h 59 min, admin sin motivo, admin después del inicio); la tabla completa de transiciones (6 × 6 estados) por rol; `CalculadoraFranjas` con: jornada partida 09–13 y 14–18 [Corrida:Datos_base], rejilla de 10, servicio de 30 que no cabe al final del intervalo, bloqueo de 16–17, reserva 10:00–10:30 que deja 10:30 libre, `ahora` = 28/09 09:00 que excluye las anteriores, horizonte, `excluirReservaId`.
+
+---
+
+## Fase 2 — Identidad
+
+### T-10 · Autenticación backend
+- **Objetivo:** RF-01, RF-02 y RNF-03 completos ([arquitectura §7](arquitectura.md#7-autenticación-sesión-y-permisos)).
+- **Alcance:** `AuthController` (`/api/auth/sesion`, `/registro`, `/login`, `/logout`); `JwtService` (`NimbusJwtEncoder`/`Decoder` HS256 con `BT_JWT_SECRET`, claims `sub`, `rol`, `tv`, `exp` 8 h); cookie `BT_SESION` (`HttpOnly`, `SameSite=Strict`, `Secure` configurable); `BearerTokenResolver` que lee la cookie; validador de `activo` + `token_version`; CSRF con `CookieCsrfTokenRepository` (configuración SPA de Spring Security 7); BCrypt (coste 12); intentos fallidos y bloqueo de 15 min; `AdminInicialRunner`; `SecurityFilterChain` con las reglas por ruta de la matriz §7.2 (las rutas que aún no existen quedan como `denyAll` o se completan en cada tarea); regla `CAMBIO_PASSWORD_REQUERIDO`; `UsuarioActual` real.
+- **Criterios de aceptación:** el registro normaliza el correo a minúsculas y exige `aceptaPrivacidad=true` (guarda `privacidad_aceptada_en`); el login con credenciales erróneas devuelve siempre el mismo mensaje; las peticiones de escritura sin la cabecera XSRF → 403; ningún DTO expone `passwordHash`.
+- **Pruebas (`AuthIT`):** CP-01 (registro válido; correo duplicado con otras mayúsculas → 409; teléfono inválido, contraseña débil o sin consentimiento → 400); login correcto, la cookie tiene sus atributos; logout; token manipulado o expirado → 401; usuario desactivado con token vigente → 401; CP-14 (5 fallos → bloqueo; con el `Clock` adelantado 15 min se desbloquea); admin inicial creado una sola vez; POST sin CSRF → 403.
+
+### T-11 · Perfil y cambio de contraseña backend
+- **Objetivo:** RF-03 y RF-15.
+- **Alcance:** `PerfilController` (`GET`/`PUT /api/perfil`; el correo no se edita); `PUT /api/auth/password` (verifica la actual y la política; incrementa `token_version`; emite una cookie nueva; pone `debe_cambiar_password=false`).
+- **Criterios de aceptación:** un usuario con `debe_cambiar_password` recibe 403 `CAMBIO_PASSWORD_REQUERIDO` en el resto de la API, pero puede llamar a `/api/auth/**` y `GET /api/perfil`.
+- **Pruebas (`PerfilIT`):** actualizar el nombre y el teléfono; intentar cambiar el correo (se ignora o da 400, documentar cuál); contraseña actual incorrecta → 400; CP-17 (la cookie anterior deja de valer tras el cambio).
+
+### T-12 · Shell, autenticación y perfil en el frontend (P01)
+- **Objetivo:** el primer recorrido de extremo a extremo: entrar, registrarse, editar el perfil y salir.
+- **Alcance:** `SesionService` (signal `usuario`, `cargar()` desde `/api/auth/sesion` al arrancar con `provideAppInitializer`); `authGuard`, `rolGuard(roles)`, guard de cambio obligatorio; interceptor de errores (401 → `/ingresar`, mensajes de `ProblemDetail.detail` en un snackbar; los errores 400 se muestran por campo); layout con barra superior (nombre, rol, contador de avisos que se conecta en T-27, salir) y navegación por rol (prototipo: Cliente → Reservar, Mis citas, Mi cuenta; Barbero → Agenda, Mi cuenta; Admin → todo); páginas `ingresar`, `registro` (con la casilla de privacidad y un enlace al aviso), `cambiar-password` y `perfil`; pipe `fechaLima`; modelos TS de los DTO de sesión y perfil.
+- **Criterios de aceptación:** el diseño es usable a 360 px (menú adaptable); todos los campos tienen `label`; tras entrar se redirige según el rol; con `debeCambiarPassword` solo se puede ir a cambiar la contraseña.
+- **Pruebas:** Vitest para `SesionService`, los guards (redirecciones por rol) y el interceptor (401 → navegación); pipe `fechaLima` con el navegador en otra zona horaria (se simula con `TZ` en Vitest).
+
+---
+
+## Fase 3 — Catálogo y horarios
+
+### T-13 · Servicios backend (RF-04)
+- **Alcance:** `ServicioController` y `ServicioService` según §6.3; validaciones (nombre único sin distinguir mayúsculas, duración de 10–180 en múltiplos de 10, precio ≥ 0 con 2 decimales); `GET` público solo con activos; `incluirInactivos` solo para ADMIN.
+- **Criterios de aceptación:** desactivar no toca las reservas; editar el precio no altera `precio_ref` (se comprueba en T-20/T-32).
+- **Pruebas (`ServicioIT`):** CRUD como ADMIN; CLIENTE o BARBERO → 403 en las escrituras; acceso público al listado de activos; nombre duplicado → 409; duración 25 → 400.
+
+### T-14 · Barberos backend (RF-05)
+- **Alcance:** `BarberoController` y `BarberoService` según §6.3. Crear = usuario BARBERO (correo único, `passwordTemporal` que cumpla la política, `debe_cambiar_password=true`) + barbero, o bien vincular un ADMIN existente (`usuarioId`). Editar el nombre, el teléfono y la especialidad. Desactivar: `barbero.activo=false` y, si el rol es BARBERO, `usuario.activo=false` + `token_version++`; la respuesta incluye `reservasFuturasVigentes`. Reactivar revierte ambos. Límite de 10 activos (RN-19).
+- **Pruebas (`BarberoIT`):** crear y entrar como el nuevo barbero (obligado a cambiar la contraseña); el 11.º activo → 422 `LIMITE_BARBEROS_ACTIVOS`; desactivar → no aparece en `GET /api/barberos` público y su sesión se revoca; vincular un ADMIN; CP-08 (parte de barberos: las reservas existentes se conservan; se comprueba en T-32).
+
+### T-15 · Jornadas backend (RF-06)
+- **Alcance:** `GET`/`PUT /api/barberos/{id}/jornadas` (reemplazo atómico de la semana). Validación: cada intervalo con inicio < fin; sin solapes en el mismo día; día de 1–7. Bloquea el barbero (②), carga sus reservas **futuras** que ocupan franja y comprueba que cada una cabe entera en un intervalo de su día ISO en Lima; si no, 409 `CONFLICTO_CON_RESERVAS` con los ids.
+- **Pruebas (`JornadaIT`):** las reservas que hacen falta se insertan con el repositorio (T-07), porque la API de reservas aún no existe. CP-16 (solapados o invertidos → 400, la jornada anterior se conserva); CP-07 (reducir la jornada del jueves dejando fuera BT-101 → 409); una jornada válida se reemplaza entera; el BARBERO puede leer la suya pero no escribirla; las reservas pasadas no bloquean el cambio.
+
+### T-16 · Bloqueos backend (RF-06; RF-20 opcional)
+- **Alcance:** `GET`/`POST /api/barberos/{id}/bloqueos`, `DELETE /api/bloqueos/{id}`. Validación: inicio < fin, inicio ≥ ahora y motivo obligatorio. Bloquea el barbero (②) y comprueba las reservas que ocupan franja que se cruzan → 409 `CONFLICTO_CON_RESERVAS`. *(Opcional C)* `POST /api/bloqueos/lote`: bloquea todos los barberos en orden de id y es atómico (si uno falla, ninguno se crea).
+- **Pruebas (`BloqueoIT`):** reservas preparadas con el repositorio, como en T-15. Escenario del [LEEME]: el bloqueo del 01/10 de 10:10–10:20 cruza BT-101 → 409; el de 16:00–17:00 → 201; bloqueo en el pasado → 422 `INICIO_EN_PASADO`; **concurrencia:** un bloqueo y una reserva simultáneos que se cruzan → solo uno tiene éxito (este caso se activa cuando exista T-20 y se deja anotado aquí).
+
+### T-17 · Administración de servicios y barberos en el frontend (P05, P06)
+- **Alcance:** `/admin/servicios` (tabla de Material con activos e inactivos, diálogo de alta y edición con validaciones espejo, activar/desactivar con confirmación) y `/admin/barberos` (listado, alta con contraseña temporal que se muestra una vez para comunicarla, edición, desactivar mostrando el aviso "Tiene N reservas futuras: gestiónelas en la agenda").
+- **Criterios de aceptación:** se corresponden con [Drawio:A1-P05/P06]; el error 409 de nombre o correo duplicado se muestra en el campo; usable a 360 px.
+- **Pruebas:** Vitest de los servicios de API y de los formularios (validadores); una prueba del diálogo de desactivación con el aviso.
+
+### T-18 · Horarios y bloqueos en el frontend (P07)
+- **Alcance:** `/admin/horarios`: selector de barbero; editor semanal (por día, lista de intervalos con añadir y quitar; "copiar lunes a días laborables" como atajo); guardar → `PUT` (un 409 muestra las reservas en conflicto); lista de bloqueos por rango con alta y borrado. *(Si se implementó RF-20)* casilla "aplicar a todos los barberos activos".
+- **Criterios de aceptación:** se corresponde con [Drawio:A1-P07]; el descanso se representa como el hueco entre intervalos con un texto de ayuda; los mensajes de conflicto son claros.
+- **Pruebas:** Vitest del editor de intervalos (validación de solapes en el cliente, que es solo de experiencia de usuario) y del mapeo al DTO.
+
+---
+
+## Fase 4 — Reservas y concurrencia
+
+### T-19 · Disponibilidad backend (RF-07)
+- **Alcance:** `DisponibilidadService.consultarFranjas(servicioId, barberoId, fecha, excluirReservaId?)` y `validarFranja(barberoId, inicio, fin, excluirId)` sobre `CalculadoraFranjas`; `GET /api/disponibilidad` público (con `excluirReservaId` solo si la sesión tiene permiso sobre esa reserva). Fecha fuera de `[hoy, hoy + horizonte]` → lista vacía (consulta) o 422 (validación). *(Opcional C, RF-21)* `barberoId` omitido → todas las franjas de los barberos activos con `barberoIds`.
+- **Criterios de aceptación:** las franjas que devuelve son exactamente las que `validarFranja` acepta (la misma lógica); servicio o barbero inactivo → 422 `RECURSO_INACTIVO`.
+- **Pruebas (`DisponibilidadIT`):** el escenario del 01/10 con Carlos (jornada 09–13 y 14–18, BT-101 10:00–10:30, K1 16–17) → no aparecen 10:00, 10:10 ni 10:20 para un servicio de 30 min, sí aparece 10:30, no hay franjas entre 13:00 y 14:00 ni entre 16:00 y 17:00; consulta sin sesión → 200; fecha pasada → vacío.
+
+### T-20 · Crear reserva con control de concurrencia (RF-08)
+- **Alcance:** `ReservaService.crear` según [arquitectura §8.1](arquitectura.md#81-secuencia-de-creación-reservaservicecrear-transactional) (orden de bloqueos ① ②, revalidación posterior al bloqueo, solape del cliente, límite de 3, estado según `confirmacion-manual`, `saveAndFlush`, auditoría `CREAR` y avisos de RN-15 en la misma transacción); `AuditoriaService.registrarCambio` y `NotificacionService.notificar` (solo escritura en esta tarea); `POST /api/reservas`; `ReservaDto` con `codigo` y `permisos`.
+- **Criterios de aceptación:** se guardan `precio_ref` y `duracion_ref`; si falla la auditoría o el aviso, se revierte todo (prueba con un fallo forzado); un BARBERO → 403.
+- **Pruebas:** `ReservaCrearIT`: caso válido (201, 1 auditoría, avisos al cliente y al barbero); franja ocupada → 409; contiguas → 201 + 201 (CP-04); CP-13; CP-15; fuera de jornada, rejilla o horizonte, en el pasado, servicio inactivo → 422. **`ConcurrenciaReservaIT` (CP-03):** 10 hilos con un `CountDownLatch` crean la misma franja (clientes distintos) → exactamente 1 éxito y 9 `FRANJA_NO_DISPONIBLE`, repetido 20 veces; franjas que se solapan parcialmente (10:00 y 10:10) en paralelo → 1 éxito; reserva frente a bloqueo en paralelo (completa la prueba de T-16); **red de seguridad:** un INSERT por JDBC que se salta el servicio también es rechazado por `EXCLUDE`.
+
+### T-21 · Consulta de reservas y autorización (RF-11, RF-13)
+- **Alcance:** `ReservaConsultaService` + `ReservaAutorizacion`; `GET /api/reservas/mias`, `GET /api/reservas` (al BARBERO se le fuerza su `barberoId`; el ADMIN filtra), `GET /api/reservas/{id}`. Orden por `inicio`, paginación, filtros de §6.3. El teléfono del cliente solo se incluye para el personal. `permisos` se calcula con `ReglasTemporales` y `PoliticaTransiciones`.
+- **Pruebas (`ReservaConsultaIT`):** **CP-02**: el cliente A pide una reserva de B → 404, y la lista de A no contiene las de B; el barbero Carlos no ve las de Miguel (404 y filtro forzado); el ADMIN ve todas; agenda semanal de lunes a domingo; `permisos.cancelar=false` cuando faltan < 2 h para el cliente.
+
+### T-22 · Cancelación (RF-10)
+- **Alcance:** `POST /api/reservas/{id}/cancelacion` según §8.1 (bloqueo ③, versión, estado `PENDIENTE`/`CONFIRMADA`, RN-07/RN-08, motivo opcional para el cliente y obligatorio para el admin, `excepcional=true` si el admin actúa a < 2 h); auditoría `CANCELAR` y avisos.
+- **Pruebas (`CancelacionIT`, CP-06):** el cliente cancela a 3 h → 200 y la franja vuelve a estar disponible (se comprueba en la disponibilidad); el cliente a 1 h 59 min → 422 `FUERA_DE_POLITICA`; exactamente a 2 h → 200; el admin a 30 min sin motivo → 422 `MOTIVO_REQUERIDO` y con motivo → 200 `excepcional`; el admin después del inicio → 422; cancelar dos veces → 409; versión antigua → 409; un BARBERO → 403/404.
+
+### T-23 · Reprogramación (RF-09)
+- **Alcance:** `POST /api/reservas/{id}/reprogramacion` según §8.1 (solo `CONFIRMADA`; puede cambiar de barbero; bloqueos ① + ② de ambos barberos ordenados + ③; se conservan el servicio, `precio_ref` y `duracion_ref`; auditoría con los datos anterior y nuevo; avisos al cliente y a los barberos anterior y nuevo).
+- **Pruebas (`ReprogramacionIT`):** **CP-05**: mover a una franja ocupada → 409 y la reserva original queda **idéntica** (inicio, barbero, versión, sin auditoría nueva); mover a una franja libre → 200 con el mismo precio aunque el catálogo haya cambiado; desplazar 10 min solapando consigo misma → OK (`excluirId`); cambiar de barbero; una `PENDIENTE` → 409 `TRANSICION_INVALIDA`; regla de 2 h; **concurrencia:** una reprogramación A→B en paralelo con otra B→A entre dos barberos no se interbloquea (termina en < 5 s y al menos una tiene éxito); reprogramación frente a creación hacia la misma franja → 1 éxito.
+
+### T-24 · Transiciones de estado (RF-12)
+- **Alcance:** `POST /api/reservas/{id}/transiciones` (`CONFIRMADA`, `EN_ATENCION`, `COMPLETADA`, `NO_ASISTIO`) aplicando `EstadoReserva` + `PoliticaTransiciones` (rol, barbero asignado, ventanas de RN-12); bloqueo ③; versión; auditoría (`CONFIRMAR`/`INICIAR`/`COMPLETAR`/`NO_ASISTIO`) y avisos.
+- **Pruebas (`TransicionesIT`, CP-09):** el flujo completo PENDIENTE→CONFIRMADA→EN_ATENCION→COMPLETADA por el barbero asignado; otro barbero → 404; un CLIENTE → 403; `NO_ASISTIO` antes de la hora → 422 `FUERA_DE_VENTANA`; `EN_ATENCION` 16 min antes → 422 y 15 min antes → 200; repetir `COMPLETADA` → 409; versión antigua → 409; transición desde un estado terminal → 409.
+
+### T-25 · API de auditoría y avisos (RF-16, RF-17)
+- **Alcance:** `GET /api/reservas/{id}/auditoria` (ADMIN y barbero asignado); `NotificacionController` (`GET` paginado, `conteo`, marcar una o todas como leídas, siempre del usuario actual).
+- **Pruebas (`AuditoriaAvisosIT`, CP-18):** tras crear, confirmar y cancelar, la auditoría tiene las 3 entradas en orden con su actor; los avisos llegan a los destinatarios de RN-15; el cliente A no puede marcar un aviso de B (404); el contador se actualiza.
+
+### T-26 · Reserva guiada en el frontend (P02)
+- **Alcance:** `/reservar` como asistente de 3 pasos [Drawio:A1-P02], [Proto]: ① servicio (tarjetas con duración y precio, "pago presencial") y profesional; ② fecha (datepicker de hoy a hoy + 30) y franjas como chips seleccionables; ③ revisar (servicio, barbero, fecha, intervalo, precio, aviso de "cambios hasta 2 h antes") y confirmar. Sin sesión, al confirmar se redirige a `/ingresar` y se vuelve con la selección conservada. Ante `FRANJA_NO_DISPONIBLE` se muestra el mensaje, **se recargan las franjas** y se vuelve al paso ②. Modo reprogramación (`/reservar?reprogramar=<id>`): servicio fijo, se usa `excluirReservaId` y se llama a `/reprogramacion` con la `version`.
+- **Criterios de aceptación:** ≤ 5 interacciones principales para reservar (RNF-06); botón de confirmar deshabilitado mientras se envía (evita el doble envío); estados vacíos ("No hay franjas disponibles. Prueba otra fecha o profesional").
+- **Pruebas:** Vitest del store del asistente (transiciones de paso, conservar la selección tras el login, manejo del 409 que recarga las franjas).
+
+### T-27 · Mis citas y avisos en el frontend (P03)
+- **Alcance:** `/mis-citas`: próximas e historial con filtros (fechas y estado; desde > hasta muestra un error); tarjeta con `codigo`, servicio, barbero, intervalo, precio y estado (chip); botones Reprogramar y Cancelar **según `permisos`** del DTO, con el aviso "Faltan menos de dos horas. Contacta al administrador" cuando no se permite [Drawio:A1-P03]; diálogo de cancelación con motivo opcional; panel de avisos con "marcar como leídos"; contador en la barra superior (al navegar + cada 60 s).
+- **Pruebas:** Vitest del componente de tarjeta (botones según `permisos`) y del servicio de avisos (sondeo con temporizadores falsos).
+
+### T-28 · Agenda en el frontend (P04)
+- **Alcance:** `/agenda`: vista Día / Semana (lunes a domingo), fecha y barbero (el ADMIN puede elegir "Todos"; el BARBERO solo ve el suyo); filas ordenadas con cliente, teléfono, servicio, intervalo y estado; acciones según `permisos.transiciones` (Confirmar, Iniciar atención, Completar, No asistió) con confirmación; "Ver cambios" abre un diálogo de auditoría; el ADMIN puede además Reprogramar y Cancelar con motivo obligatorio [Drawio:A1-P04].
+- **Pruebas:** Vitest del cálculo de la semana (lunes a domingo, cruce de mes) y de los botones según los permisos.
+
+---
+
+## Fase 5 — Reportes y administración
+
+### T-29 · Reportes backend (RF-14)
+- **Alcance:** `GET /api/reportes/resumen` (solo ADMIN) con consultas agregadas (`GROUP BY` de estado, servicio y barbero) sobre `inicio` en `[desde 00:00 Lima, hasta+1 00:00 Lima)`; todos los estados aparecen aunque cuenten 0; rango > 366 días o desde > hasta → 400.
+- **Pruebas (`ReporteIT`, CP-10):** con datos conocidos, la suma por estado = la suma por servicio = la suma por barbero = el total = `totalElementos` de `GET /api/reservas` con los mismos filtros; un CLIENTE → 403; frontera de día en Lima (una reserva a las 23:30 de Lima cuenta en ese día).
+
+### T-30 · Reportes en el frontend (P08)
+- **Alcance:** `/admin/reportes`: filtros de periodo, servicio y profesional; tarjetas de total y de cada estado; desglose por servicio y por profesional; tabla del historial operativo paginada (reutiliza `GET /api/reservas`) [Drawio:A1-P08].
+- **Pruebas:** Vitest de la validación del rango y del mapeo del resumen a las tarjetas.
+
+### T-31 · Reserva asistida y gestión de usuarios (RF-18, RF-19) — *Should*
+- **Alcance backend:** `clienteId` en `POST /api/reservas` (solo ADMIN, sin el límite RN-20, actor = admin); `GET /api/usuarios`, `POST /api/usuarios/{id}/restablecer-password` (genera una temporal aleatoria de 12 caracteres que cumple la política, `debe_cambiar_password=true`, `token_version++`) y `PATCH /api/usuarios/{id}/estado`. **Frontend:** `/admin/usuarios` (buscar, restablecer y mostrar la temporal una sola vez, activar o desactivar) y el modo "reservar para cliente" en `/reservar` (selector de cliente para el ADMIN).
+- **Pruebas:** `ReservaAsistidaIT` (CP-19), `UsuarioAdminIT` (CP-17 para el restablecimiento); Vitest del selector de cliente.
+
+### T-32 · Datos de demostración y corrida manual automatizada
+- **Alcance:** `DatosDemoRunner` (`@Profile("demo")`, idempotente) con el escenario del prototipo y la corrida: usuarios Ana, Luis (clientes), Carlos y Miguel (barberos), admin; servicios Corte clásico (30', S/ 25) y Barba (20', S/ 20); jornadas de lunes a sábado de 09–13 y 14–18; bloqueo K1 del 01/10 de 16–17; reservas equivalentes a BT-100…BT-104 del prototipo [Proto] con sus estados. Las contraseñas de la demo se toman de variables de entorno o se documentan como valores solo para la demo. Prueba `CorridaManualIT` que reproduce los **8 pasos de la corrida** [Corrida:Verificacion], [Inf p. 36] contra la API, con el `Clock` en el 28/09/2026 09:00 y avanzándolo al 01/10 para el paso 6.
+- **Criterios de aceptación:** la conciliación final coincide: 3 reservas (1 cancelada, 1 completada, 1 confirmada), 8 auditorías y 8 avisos al cliente, `precio_ref` S/ 25 tras cambiar S1 a S/ 30. **Nota:** con RN-15, el barbero recibe avisos adicionales; la prueba verifica los 8 avisos al cliente de la corrida y documenta los adicionales.
+- **Pruebas:** `CorridaManualIT`; arranque con `dev,demo` dos veces sin duplicados.
+
+---
+
+## Fase 6 — Calidad y entrega
+
+### T-33 · Empaquetado y endurecimiento de producción
+- **Alcance:** perfil Maven `con-frontend` que ejecuta `npm ci && npm run build` y copia `frontend/dist/frontend/browser` a `target/classes/static`; `SpaController` que reenvía a `index.html` las rutas que no son API ni archivo; cabeceras (HSTS, CSP compatible con Angular —documentar si hace falta un `nonce` o `'unsafe-inline'` para estilos—, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`); el perfil `prod` falla al arrancar si falta alguna variable o si el `BT_JWT_SECRET` es corto; Swagger desactivado en `prod`; logs sin datos sensibles (revisar que no se registran contraseñas, tokens ni correos completos); `docs/despliegue.md` con los pasos para cualquier host con Java 21 + PostgreSQL 18 y TLS (P-03).
+- **Pruebas:** `SpaForwardIT` (`/agenda` → index; `/api/x` → 404/401 de la API; `/main.js` → archivo); `CabecerasSeguridadIT`; arrancar el jar con `prod` y variables de prueba.
+
+### T-34 · E2E, responsive, compatibilidad y accesibilidad
+- **Alcance:** Playwright en `frontend/e2e` contra el jar con `demo` + `Clock` fijo (propiedad `barberturno.reloj-fijo` **solo** en los perfiles `demo`/`test`); proyectos Chromium y Firefox con viewports de 360 × 800 y 1440 × 900; zona horaria del navegador distinta de Lima (p. ej., `Europe/Madrid`) para verificar RNF-13. Escenarios = el recorrido sugerido del [LEEME]: el cliente reserva el 01/10, ve su aviso, reprograma y cancela; BT-104 a < 2 h no se puede cambiar; el barbero inicia y completa una atención y confirma BT-100; el admin edita un servicio, cambia una jornada, el bloqueo de 10:10–10:20 se rechaza y el de 16–17 se acepta; reportes por rango. Comprobación con `@axe-core/playwright` (sin violaciones *serious* ni *critical*).
+- **Pruebas:** la propia suite; informe HTML guardado en `docs/pruebas/e2e/`.
+
+### T-35 · Prueba de carga (RNF-01) — *Should*
+- **Alcance:** `perf/` (proyecto Maven con Gatling, DSL Java). Simulación: 50 usuarios concurrentes durante 5 min consultando `GET /api/disponibilidad` con fechas y barberos aleatorios + un 10 % de creaciones de reserva; datos con 10 barberos y 30 días de reservas generados por el perfil `demo` ampliado o por un script SQL de carga. Aserción: p95 ≤ 2000 ms y errores < 1 % (los 409 esperados no cuentan como error).
+- **Pruebas:** informe guardado en `docs/pruebas/carga/` con el hardware y la versión.
+
+### T-36 · Respaldo y restauración (RNF-09)
+- **Alcance:** `tools/respaldo.sh` (`pg_dump -Fc` con fecha en el nombre y retención de 14 días) y `tools/restaurar.sh` (restaura en una base nueva y verifica el conteo de tablas); ejemplos de programación (cron / Programador de tareas de Windows); el procedimiento y el ensayo cronometrado en `docs/pruebas/recuperacion.md`.
+- **Criterios de aceptación:** un ensayo real en local: respaldar la base `demo`, restaurarla en `barberturno_restore`, conteos iguales y tiempo registrado (≤ 4 h).
+
+### T-37 · Evidencias de aceptación y cierre documental
+- **Alcance:** `docs/pruebas/aceptacion.md` con CP-01…CP-19: fecha, commit, entradas, resultado observado y evidencia (la prueba automatizada que lo cubre o una captura); CP-11 con la plantilla de la sesión de usabilidad para 5 participantes (tiempo, pasos, errores); la medición final de % Java (T-05) y la cobertura JaCoCo; actualizar el README con el recorrido para la sustentación.
+- **Criterios de aceptación:** cada RF y RNF de la matriz de trazabilidad (requisitos §9) tiene al menos una evidencia o queda justificado como pendiente.
+
+---
+
+## Notas de cierre por tarea
+_(Codex añade aquí, al cerrar cada tarea: desviaciones respecto al plan, decisiones menores tomadas, deuda técnica y sugerencias para el arquitecto.)_
+
+| Tarea | Fecha | Nota |
+|---|---|---|
+| | | |

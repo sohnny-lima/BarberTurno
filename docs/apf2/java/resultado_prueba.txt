@@ -1,0 +1,8 @@
+CORRECTO: Fin según duración
+CORRECTO: Solapamiento parcial
+CORRECTO: Franjas contiguas permitidas
+CORRECTO: Límite exacto de dos horas
+CORRECTO: Rechazo antes del mínimo
+CORRECTO: Excepción administrativa requiere motivo
+CORRECTO: Duración inválida rechazada
+Resultado: 7 comprobaciones correctas. Alcance: clase de ejemplo.

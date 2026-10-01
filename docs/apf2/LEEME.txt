@@ -1,0 +1,72 @@
+BARBERTURNO — AVANCE DE PROYECTO FINAL 2
+Sohnny Walter Lima Infanzón
+Curso Integrador I Sistemas Software — Sección 20058
+Entrega: jueves 1 de octubre de 2026, 22:30, hora de Lima.
+
+CONTENIDO
+- APF2_BarberTurno_Informe.pdf: informe de 37 páginas.
+- APF2_BarberTurno_Informe.docx: versión editable del mismo informe.
+- BarberTurno_APF2_Mockups_y_Diagramas.drawio: 24 pantallas, Canvas, Gantt,
+  proceso, clases y modelo de datos, todos editables.
+- BarberTurno_Prototipo.html: demostración navegable con datos ficticios.
+- BarberTurno_Corrida_Manual.xlsx: datos, recorrido y verificación del modelo.
+- java/: clase ReservaService, prueba y resultado de siete comprobaciones.
+- javadoc/index.html: documentación HTML generada con Javadoc.
+
+ABRIR EL PROTOTIPO
+1. Extrae el ZIP a una carpeta.
+2. Abre BarberTurno_Prototipo.html con un navegador de escritorio.
+3. Usa Ingresar como cliente o Cambiar perfil demo.
+4. Recorre los perfiles Cliente, Barbero Carlos y Administrador.
+5. Reiniciar demo recupera los datos de ejemplo.
+
+La fecha del escenario está fijada en 28/09/2026 a las 09:00 de Lima para
+demostrar de forma reproducible el límite de cancelación. Los cambios se
+guardan en el navegador cuando permite almacenamiento local. Si no lo
+permite, se conservan durante la sesión de la página.
+
+RECORRIDO SUGERIDO PARA EXPONER
+- Cliente: reservar el 01/10, elegir un horario libre, revisar y confirmar.
+- Mis citas: comprobar el aviso, reprogramar y cancelar una cita futura.
+- BT-104: observar que el cliente no puede cambiar una cita a menos de 2 h.
+- Barbero: abrir la agenda del 28/09 e iniciar y completar una atención.
+  Cambiar a Semana para ver BT-100 pendiente y confirmar la solicitud.
+- Administrador: editar un servicio, cambiar la jornada de un día y crear
+  un bloqueo. Un bloqueo del 01/10 de 10:10 a 10:20 cruza BT-101 y se rechaza.
+- Reportes: cambiar el rango de fechas y comprobar los conteos.
+- Simular franja ocupada: introduce otro cliente ficticio en la franja y
+  muestra el conflicto. No representa una prueba concurrente del backend.
+
+MOCKUPS EDITABLES
+Abre https://app.diagrams.net/ y elige abrir un archivo desde el dispositivo.
+Selecciona BarberTurno_APF2_Mockups_y_Diagramas.drawio.
+Cada pestaña A1-P01 a A3-P08 representa una pantalla. A1 es la alternativa
+seleccionada. Los botones de navegación enlazan las páginas del archivo.
+Las pestañas finales contienen los cinco diagramas o esquemas.
+
+ALCANCE Y VALIDACIÓN
+El caso de negocio, los nombres del personal, los precios y las reservas
+son propuestas o ejemplos académicos. La validación con un representante
+del negocio sigue pendiente.
+
+El prototipo simula las interacciones en HTML y JavaScript. No es la
+implementación Spring Boot ni demuestra seguridad, rendimiento, respaldo
+o concurrencia del producto final. El porcentaje Java del informe es una
+estimación que debe verificarse al implementar.
+
+Se verificaron nueve escenarios de lógica JavaScript con un DOM simulado.
+No se pudo ejecutar la revisión visual del HTML en un navegador en el
+entorno de creación. Ábrelo y ensaya el recorrido antes de sustentar.
+El informe Word y PDF sí fue renderizado y revisado visualmente.
+
+El guion de sustentación y las preguntas de defensa están en las
+secciones 16 y 17 del informe. La nota final depende también de la
+sustentación y de cualquier indicación adicional del docente.
+
+ANEXO JAVA
+Con JDK 17 desde la carpeta extraída:
+javac -encoding UTF-8 -d clases java/ReservaService.java java/ReservaServicePrueba.java
+java -cp clases ReservaServicePrueba
+javadoc -encoding UTF-8 -charset UTF-8 -author -version -d javadoc java/ReservaService.java
+
+Para consultar la documentación incluida, abrir javadoc/index.html.
