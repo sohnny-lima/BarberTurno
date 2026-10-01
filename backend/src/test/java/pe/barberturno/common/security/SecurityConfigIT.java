@@ -55,8 +55,19 @@ class SecurityConfigIT {
     }
 
     @Test
+    void solicitarApi_real_sinSesion_exponePendienteProblemDetailParaT10() throws Exception {
+        MvcResult resultado = mockMvc.perform(get("/api/auth/sesion"))
+                .andExpect(status().isUnauthorized()).andReturn();
+        assertThat(resultado.getResponse().getContentAsString()).isEmpty();
+        assertThat(resultado.getResponse().getContentType()).isNull();
+    }
+
+    @Test
     @WithMockUser(roles = "ADMIN")
     void solicitarApi_conUsuarioSimulado_tambienSeDeniegaDuranteElEsqueleto() throws Exception {
-        mockMvc.perform(get("/api/cualquier-ruta")).andExpect(status().isForbidden());
+        MvcResult resultado = mockMvc.perform(get("/api/cualquier-ruta"))
+                .andExpect(status().isForbidden()).andReturn();
+        assertThat(resultado.getResponse().getContentAsString()).isEmpty();
+        assertThat(resultado.getResponse().getContentType()).isNull();
     }
 }
