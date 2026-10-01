@@ -123,7 +123,7 @@ El workflow [CI](.github/workflows/ci.yml) se ejecuta con cada push a cualquier 
 - **Backend:** Temurin 21, caché de Maven y PostgreSQL `postgres:18`; ejecuta `./mvnw -B -ntp verify` con el perfil `test` y las variables de conexión del servicio efímero.
 - **Frontend:** Node tomado de `.node-version`, caché de npm y `npm ci`, `npm run lint`, `npm run format:check`, `npm test -- --watch=false` y `npm run build`. `allowScripts` conserva la denegación de scripts de instalación (DA-19); el lock incluye los binarios opcionales de Linux.
 
-El flujo solo requiere permiso de lectura del repositorio, cancela las ejecuciones anteriores de la misma rama y tiene límites de tiempo por trabajo. No requiere secretos de GitHub ni el archivo `.local/barberturno.env`: la contraseña del servicio de pruebas es una credencial efímera exclusiva de la CI.
+El flujo solo requiere permiso de lectura del repositorio, cancela las ejecuciones anteriores del mismo evento y rama y tiene límites de tiempo por trabajo. Los dos pasos de checkout usan `persist-credentials: false` y no conservan credenciales después de descargar el código. No requiere secretos de GitHub ni el archivo `.local/barberturno.env`: la contraseña del servicio de pruebas es una credencial efímera exclusiva de la CI.
 
 Para activarlo, el responsable debe completar **P-04**: crear el repositorio en GitHub, añadirlo como remoto y realizar el primer push desde la raíz:
 
