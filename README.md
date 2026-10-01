@@ -40,9 +40,9 @@ Para automatizar la autenticación administrativa, puede usar un archivo local `
 
 ## Configuración de la aplicación
 
-Los perfiles `dev` y `test` importan `optional:file:../.local/barberturno.env[.properties]`: ejecute Maven desde `backend/`. Use formato `CLAVE=valor`, sin `export` ni comillas. Las variables de entorno prevalecen sobre el archivo. `prod` exige las ocho variables de la tabla y no importa secretos locales; tampoco debe combinarse con `dev`, `test` o `demo`. La convención anterior `backend/.env.local` queda sustituida por DA-17.
+Los perfiles `dev` y `test` importan las rutas opcionales `../.local/barberturno.env[.properties]` y `./.local/barberturno.env[.properties]`. Así el archivo se carga al ejecutar Maven desde `backend/` o el jar desde la raíz del repositorio. Use formato `CLAVE=valor`, sin `export` ni comillas. Las variables de entorno prevalecen sobre el archivo. `prod` exige las ocho variables de la tabla y no importa secretos locales; tampoco debe combinarse con `dev`, `test` o `demo`. La convención anterior `backend/.env.local` queda sustituida por DA-17.
 
-La [plantilla de variables](tools/barberturno.env.example) contiene únicamente marcadores y datos ficticios. Edite su archivo local sin sobrescribir la contraseña ya generada. En local conviene omitir `BT_DB_URL`: `dev` elige `barberturno` y `test` elige `barberturno_test`.
+La [plantilla de variables](tools/barberturno.env.example) separa desarrollo/pruebas de producción y contiene únicamente marcadores y datos ficticios. Las claves exclusivas de producción están comentadas: no las active en `.local/`, para evitar secretos de ejemplo y cookies `Secure` en desarrollo HTTP. Edite su archivo local sin sobrescribir la contraseña ya generada. En local conviene omitir `BT_DB_URL`: `dev` elige `barberturno` y `test` elige `barberturno_test`.
 
 | Variable | Uso |
 |---|---|
@@ -71,7 +71,13 @@ La API usa `http://localhost:8080`; `GET /actuator/health` devuelve exactamente 
 
 `verify` ejecuta tanto `*Test` como `*IT` con el perfil `test` y PostgreSQL real. Reportes: `backend/target/surefire-reports/` y `backend/target/site/jacoco/index.html`; el umbral de cobertura se incorpora en T-09. El perfil `demo` se activa junto con `dev`, pero sus datos se implementarán en T-32. En Linux/macOS use `./mvnw`; está marcado como ejecutable en Git.
 
-Después de `verify`, el jar está en `backend/target/barberturno-0.0.1-SNAPSHOT.jar`. Desde `backend/`:
+Después de `verify`, puede arrancar el jar en desarrollo desde la raíz del repositorio:
+
+```powershell
+& "$env:JAVA_HOME\bin\java.exe" -jar backend/target/barberturno-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
+```
+
+Detenga el servidor con Ctrl+C. Para comprobar producción, desde `backend/`:
 
 ```powershell
 & "$env:JAVA_HOME\bin\java.exe" -jar target/barberturno-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod

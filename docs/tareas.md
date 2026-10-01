@@ -74,7 +74,7 @@
 | T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | Pendiente | | |
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
 | T-38 | Actualizar el PostgreSQL 18 local a la última menor (18.6) | S | — (recomendada antes de T-06) | Pendiente | | |
-| T-39 | Ajustes menores del esqueleto backend (revisión de T-02) | S | T-02 (recomendada antes de T-04) | Pendiente | | |
+| T-39 | Ajustes menores del esqueleto backend (revisión de T-02) | S | T-02 (recomendada antes de T-04) | En curso | 01/10/2026 | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
