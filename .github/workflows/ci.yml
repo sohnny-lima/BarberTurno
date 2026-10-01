@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: barberturno_test
+          POSTGRES_USER: barberturno
+          # Credencial efímera solo para la CI, sin relación con los secretos locales.
+          POSTGRES_PASSWORD: barberturno_ci_efimera
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U barberturno -d barberturno_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v7
+      - name: Preparar Java 21 y la caché de Maven
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Verificar el backend con PostgreSQL real
+        run: ./mvnw -B -ntp verify
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          BT_DB_URL: jdbc:postgresql://localhost:5432/barberturno_test
+          BT_DB_USER: barberturno
+          BT_DB_PASSWORD: barberturno_ci_efimera
+      - name: Publicar cobertura y resultados de pruebas
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-reportes
+          path: |
+            backend/target/site/jacoco/
+            backend/target/surefire-reports/
+          retention-days: 7
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v7
+      - name: Preparar Node y la caché de npm
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar las dependencias del lock
+        run: npm ci
+      - name: Comprobar lint
+        run: npm run lint
+      - name: Comprobar el formato
+        run: npm run format:check
+      - name: Ejecutar las pruebas
+        run: npm test -- --watch=false
+      - name: Compilar para producción
+        run: npm run build

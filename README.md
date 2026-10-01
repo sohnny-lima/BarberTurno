@@ -116,6 +116,26 @@ npm run build
 
 E2E (`npx playwright test`) se incorporará en T-34 y la medición de Java (`node tools/medir-java.mjs`, desde la raíz) en T-05.
 
+## Integración continua
+
+El workflow [CI](.github/workflows/ci.yml) se ejecuta con cada push a cualquier rama y cada pull request. Dos trabajos independientes en Ubuntu verifican el proyecto:
+
+- **Backend:** Temurin 21, caché de Maven y PostgreSQL `postgres:18`; ejecuta `./mvnw -B -ntp verify` con el perfil `test` y las variables de conexión del servicio efímero.
+- **Frontend:** Node tomado de `.node-version`, caché de npm y `npm ci`, `npm run lint`, `npm run format:check`, `npm test -- --watch=false` y `npm run build`. `allowScripts` conserva la denegación de scripts de instalación (DA-19); el lock incluye los binarios opcionales de Linux.
+
+El flujo solo requiere permiso de lectura del repositorio, cancela las ejecuciones anteriores de la misma rama y tiene límites de tiempo por trabajo. No requiere secretos de GitHub ni el archivo `.local/barberturno.env`: la contraseña del servicio de pruebas es una credencial efímera exclusiva de la CI.
+
+Para activarlo, el responsable debe completar **P-04**: crear el repositorio en GitHub, añadirlo como remoto y realizar el primer push desde la raíz:
+
+```powershell
+git remote add origin <URL-del-repositorio>
+git push -u origin main
+```
+
+Esos pasos corresponden al responsable; esta entrega no configura ni publica el remoto. En GitHub, abra **Actions → CI → ejecución** para ver los trabajos. La sección **Artifacts** de esa ejecución permite descargar `backend-reportes` (JaCoCo y Surefire), que se publica incluso si falla la verificación cuando hay reportes disponibles, con retención de 7 días. Dentro del artefacto, abra `jacoco/index.html` para consultar la cobertura.
+
+La ejecución real queda pendiente hasta que exista el remoto (P-04). [Evidencias de T-04](docs/pruebas/t-04.md).
+
 ## Organización y trabajo
 
 - [AGENTS.md](AGENTS.md): responsabilidades, autonomía y convenciones comunes.
