@@ -123,13 +123,18 @@ public class Reserva {
     }
 
     /**
-     * Cambia el estado; el servicio aplica la política de transición de T-09.
+     * Cambia el estado preservando RN-10; el servicio verifica primero actor y ventana.
      * @param estado estado de destino
      * @param actualizadoEn instante del cambio
+     * @throws NullPointerException si falta el destino o el instante
+     * @throws IllegalStateException si RN-10 no permite la transición
      */
     public void cambiarEstado(EstadoReserva estado, Instant actualizadoEn) {
         Objects.requireNonNull(estado, "estado");
         Objects.requireNonNull(actualizadoEn, "actualizadoEn");
+        if (!this.estado.puedePasarA(estado)) {
+            throw new IllegalStateException("Transición de reserva inválida.");
+        }
         this.estado = estado;
         this.actualizadoEn = actualizadoEn;
     }
