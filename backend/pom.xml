@@ -18,6 +18,7 @@
     <argLine />
     <springdoc.version>3.1.1</springdoc.version>
     <jacoco.version>0.8.15</jacoco.version>
+    <jacoco.dominio.minimo>0.70</jacoco.dominio.minimo>
   </properties>
   <dependencies>
     <dependency>
@@ -148,6 +149,31 @@
             <goals>
               <goal>report</goal>
             </goals>
+          </execution>
+          <execution>
+            <id>check-dominio</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>pe.barberturno.reservations*</include>
+                    <include>pe.barberturno.scheduling*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.dominio.minimo}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>
