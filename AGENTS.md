@@ -81,6 +81,7 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 - Rama principal `main`. Ramas `tarea/T-XX-...`. Commits pequeños con Conventional Commits:
   `feat(reservas): …`, `fix(auth): …`, `test(concurrencia): …`, `docs: …`, `chore(ci): …`, `refactor(scheduling): …`; con la referencia `[T-XX]` al final del asunto.
 - Nunca subir `.env*`, secretos, `target/`, `node_modules/` ni `dist/`.
+- No crear etiquetas (tags) ni ramas que no sean `tarea/T-XX-…` sin que se pidan. Tras el `merge --no-ff`, se permite un único commit `docs` en `main` para anotar el hash del merge en `tareas.md` y en la evidencia.
 - Finales de línea LF (ver `.gitattributes`); UTF-8 en todo.
 
 ## 7. Comandos y entorno
@@ -98,7 +99,7 @@ Entorno de referencia (comprobado el 01/10/2026 en la revisión de T-01):
 - Windows 11. JDK 21 (Temurin 21.0.8) en `C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot`. Hay otros JDK instalados (17, 22, 24): fijar `JAVA_HOME` a la 21 antes de usar `mvnw`.
 - **PostgreSQL 18.0** en el puerto **5433** (servicio `postgresql-x64-18`). Hay un PostgreSQL 17 en el 5432 que **no** se usa, y el `psql` del PATH es el cliente 17: usar `C:\Program Files\PostgreSQL\18\bin\psql.exe`. La actualización a la última menor (18.6) es la tarea T-38 (DA-16).
 - Git 2.45. `.git` pertenece a la cuenta `CodexSandboxOffline`; Git funciona porque `safe.directory` incluye solo esta ruta (configuración global del usuario).
-- **Node (revisado en T-02):** el del sistema es 20.19.0 (nvm de Herd); nvm tiene además 24.0.2 y 22.22.0, y fnm 1.38.1 tiene 22.16.0. **Ninguno cumple** Angular 22.2 (`^22.22.3 || ^24.15.0 || >=26`). Para el frontend se usa **Node 24.21.0 con fnm** (DA-18): `fnm install 24.21.0` y, en cada sesión de PowerShell, `fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression` (lee `.node-version`). No cambiar el Node global ni usar `nvm use`. Ejecutable: `C:\Users\limas\AppData\Local\Microsoft\WinGet\Packages\Schniz.fnm_Microsoft.Winget.Source_8wekyb3d8bbwe\fnm.exe`.
+- **Node (revisado en T-02):** el del sistema es 20.19.0 (nvm de Herd); nvm tiene además 24.0.2 y 22.22.0, y fnm 1.38.1 tiene 22.16.0. **Ninguno cumple** Angular 22.2 (`^22.22.3 || ^24.15.0 || >=26`). Para el frontend se usa **Node 24.21.0 con fnm** (DA-18): `fnm install 24.21.0` y, en cada sesión de PowerShell, `fnm env --use-on-cd --version-file-strategy recursive --shell powershell | Out-String | Invoke-Expression` seguido de `fnm use`. La estrategia `recursive` hace falta para que fnm encuentre el `.node-version` de la raíz desde `frontend/` (hallazgo de T-03). Scripts de instalación de npm: ver DA-19. No cambiar el Node global ni usar `nvm use`. Ejecutable: `C:\Users\limas\AppData\Local\Microsoft\WinGet\Packages\Schniz.fnm_Microsoft.Winget.Source_8wekyb3d8bbwe\fnm.exe`.
 - Maven no está instalado: usar siempre el wrapper. Docker no está instalado: las pruebas usan el PostgreSQL local (DA-10).
 - Generar proyectos (Spring Initializr) y descargar dependencias (Maven Central, npm) requiere red. Si el entorno aislado no la tiene, pedir la escalación o marcar la tarea como `Bloqueada`; nunca escribir de memoria las coordenadas de las dependencias.
 
