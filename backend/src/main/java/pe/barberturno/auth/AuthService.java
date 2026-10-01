@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,12 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.auth.dto.*;
 import pe.barberturno.common.error.*;
+import pe.barberturno.common.error.ManejadorErrores.ErrorCampo;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.scheduling.BarberoRepository;
 import pe.barberturno.users.*;
 
 /**
- * Registro, autenticación y creación idempotente del administrador inicial.
+ * Registro, autenticación, cambio de contraseña y administrador inicial idempotente.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -141,6 +143,37 @@ public class AuthService {
         Usuario admin = usuarios.saveAndFlush(new Usuario(nombre, normalizar(correo), null,
                 passwords.encode(password), Rol.ADMIN, null, ahora));
         LOG.info("Registro de administrador inicial id={}.", admin.getId());
+    }
+
+    /** Cambia la credencial bajo el mismo bloqueo usado por login.
+     * @param id identidad autenticada
+     * @param datos credencial actual y nueva propuesta
+     * @return usuario con hash y versión nuevos para renovar la cookie
+     * @throws NegocioException si la identidad no está activa o las credenciales son inválidas */
+    @Transactional
+    public Usuario cambiarPassword(long id, CambiarPasswordDto datos) {
+        Usuario usuario = usuarios.bloquearPorId(id).filter(Usuario::isActivo)
+                .orElseThrow(() -> new NegocioException(ErrorCodigo.NO_AUTENTICADO,
+                        "Se requiere una sesión válida."));
+        if (!coincide(datos.passwordActual(), usuario.getPasswordHash())) {
+            throw new NegocioException("No se pudo cambiar la contraseña.",
+                    List.of(new ErrorCampo("passwordActual", "No se pudo verificar la contraseña actual.")));
+        }
+        var errores = politica.validar(datos.passwordNueva()).stream()
+                .map(incumplimiento -> new ErrorCampo("passwordNueva", switch (incumplimiento) {
+                    case OBLIGATORIA -> "La contraseña nueva es obligatoria.";
+                    case LONGITUD -> "Debe tener entre 8 y 72 caracteres.";
+                    case BYTES_UTF8 -> "Debe ocupar como máximo 72 bytes UTF-8.";
+                    case LETRA -> "Debe incluir al menos una letra.";
+                    case DIGITO -> "Debe incluir al menos un dígito.";
+                })).toList();
+        if (!errores.isEmpty()) throw new NegocioException("Revise la contraseña nueva.", errores);
+        if (coincide(datos.passwordNueva(), usuario.getPasswordHash())) {
+            throw new NegocioException("Revise la contraseña nueva.",
+                    List.of(new ErrorCampo("passwordNueva", "Debe ser distinta de la contraseña actual.")));
+        }
+        usuario.cambiarPassword(passwords.encode(datos.passwordNueva()), false, clock.instant());
+        return usuario;
     }
 
     private boolean coincide(String password, String hash) {

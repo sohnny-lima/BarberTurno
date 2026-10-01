@@ -8,7 +8,7 @@ import pe.barberturno.auth.dto.*;
 import pe.barberturno.common.security.UsuarioActual;
 import pe.barberturno.users.Usuario;
 
-/** Endpoints de sesión mediante cookies; el cambio de contraseña corresponde a T-11. */
+/** Endpoints de sesión y cambio de contraseña mediante cookies. */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -36,6 +36,13 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<UsuarioSesionDto> login(@Valid @RequestBody LoginDto datos) {
         return respuesta(auth.login(datos), HttpStatus.OK);
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<Void> cambiarPassword(@Valid @RequestBody CambiarPasswordDto datos) {
+        Usuario usuario = auth.cambiarPassword(actual.id(), datos);
+        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,
+                cookie(jwt.emitir(usuario)).maxAge(JwtService.VIGENCIA).build().toString()).build();
     }
 
     @PostMapping("/logout")

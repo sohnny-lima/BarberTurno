@@ -4,12 +4,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import pe.barberturno.common.error.ErrorCodigo;
 
 /**
@@ -43,7 +45,16 @@ public class SecurityConfig {
         csrf.setCookieCustomizer(cookie -> cookie.path("/").sameSite("Strict").secure(cookieSecure));
         http.sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(AbstractHttpConfigurer::disable)
-                .csrf(config -> config.spa().csrfTokenRepository(csrf))
+                .csrf(config -> config.spa().csrfTokenRepository(csrf)
+                        .withObjectPostProcessor(new ObjectPostProcessor<CsrfFilter>() {
+                            @Override
+                            public <O extends CsrfFilter> O postProcess(O filtro) {
+                                // El resource server excluye bearer de CSRF por defecto.
+                                // Con JWT en cookie toda escritura sigue necesitando CSRF.
+                                filtro.setRequireCsrfProtectionMatcher(CsrfFilter.DEFAULT_CSRF_MATCHER);
+                                return filtro;
+                            }
+                        }))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -67,6 +78,8 @@ public class SecurityConfig {
                             "/api/auth/logout").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();
+                    permisos.requestMatchers(HttpMethod.PUT, "/api/perfil").authenticated();
                     permisos.anyRequest().denyAll();
                 });
         return http.build();

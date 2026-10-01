@@ -94,6 +94,18 @@ public class Usuario {
     }
 
     /**
+     * Actualiza los campos editables sin alterar correo ni datos de acceso.
+     * @param nombre nombre validado
+     * @param telefono teléfono validado, opcional para el personal
+     * @param actualizadoEn instante aportado por el reloj del servicio
+     */
+    public void actualizarPerfil(String nombre, String telefono, Instant actualizadoEn) {
+        this.nombre = Objects.requireNonNull(nombre, "nombre");
+        this.telefono = telefono;
+        this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
+    }
+
+    /**
      * Registra un fallo; el servicio decide cuándo y cuánto bloquear.
      * @param bloqueadoHasta vencimiento del bloqueo o null
      * @param actualizadoEn instante del cambio

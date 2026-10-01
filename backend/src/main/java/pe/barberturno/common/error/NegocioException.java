@@ -1,8 +1,10 @@
 package pe.barberturno.common.error;
 
 import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import pe.barberturno.common.error.ManejadorErrores.ErrorCampo;
 
 /**
  * Rechazo previsto de negocio; sus detalles deben ser aptos para el cliente.
@@ -12,6 +14,7 @@ import java.util.Set;
 public class NegocioException extends RuntimeException {
     private static final Set<String> RESERVADAS = Set.of(
             "type", "title", "status", "detail", "instance", "codigo", "errores");
+    private final List<ErrorCampo> errores;
     private final ErrorCodigo codigo;
     private final Map<String, Object> detalles;
 
@@ -32,11 +35,27 @@ public class NegocioException extends RuntimeException {
     public NegocioException(ErrorCodigo codigo, String detalle, Map<String, Object> detalles) {
         super(Objects.requireNonNull(detalle));
         this.codigo = Objects.requireNonNull(codigo);
+        this.errores = List.of();
         this.detalles = Map.copyOf(detalles);
         if (this.detalles.keySet().stream().anyMatch(RESERVADAS::contains)) {
             throw new IllegalArgumentException("Las extensiones no pueden sustituir el formato de error.");
         }
     }
+
+    /**
+     * Validación de servicio con campos tipados, sin permitir extensiones reservadas.
+     * @param detalle explicación pública sin valores rechazados
+     * @param errores campos y mensajes públicos; se copia la lista
+     */
+    public NegocioException(String detalle, List<ErrorCampo> errores) {
+        super(Objects.requireNonNull(detalle));
+        this.codigo = ErrorCodigo.VALIDACION;
+        this.detalles = Map.of();
+        this.errores = List.copyOf(errores);
+    }
+
+    /** @return campos inválidos, sin valores rechazados */
+    public List<ErrorCampo> errores() { return errores; }
 
     /** @return código estable */
     public ErrorCodigo codigo() { return codigo; }
