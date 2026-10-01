@@ -2,6 +2,7 @@ package pe.barberturno.common.error;
 
 import java.net.URI;
 import java.sql.SQLException;
+import org.postgresql.util.PSQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -222,30 +223,17 @@ public class ManejadorErrores {
         return ErrorCodigo.CONFLICTO;
     }
 
-    // El driver tiene alcance runtime en el POM. La reflexión se limita a sus
-    // accesores públicos; no se analiza el texto localizado del error.
     private boolean esPostgres(SQLException sql) {
-        for (Class<?> tipo = sql.getClass(); tipo != null; tipo = tipo.getSuperclass()) {
-            if ("org.postgresql.util.PSQLException".equals(tipo.getName())) {
-                return true;
-            }
-        }
-        return false;
+        return sql instanceof PSQLException;
     }
 
     private String restriccion(SQLException postgres) {
-        try {
-            Object servidor = postgres.getClass().getMethod("getServerErrorMessage").invoke(postgres);
-            if (servidor != null) {
-                Object nombre = servidor.getClass().getMethod("getConstraint").invoke(servidor);
-                return nombre instanceof String texto ? texto : "";
-            }
-        } catch (ReflectiveOperationException excepcion) {
-            // Sin metadatos disponibles solo se permite el conflicto genérico.
+        if (postgres instanceof PSQLException p && p.getServerErrorMessage() != null) {
+            String nombre = p.getServerErrorMessage().getConstraint();
+            return nombre == null ? "" : nombre;
         }
         return "";
     }
-
     private Throwable trazaSegura(Throwable original) {
         Set<Throwable> visitadas = Collections.newSetFromMap(new IdentityHashMap<>());
         Throwable raiz = null;

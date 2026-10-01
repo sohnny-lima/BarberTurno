@@ -45,7 +45,7 @@
 | T-07 | Entidades JPA y repositorios | M | T-06 | Hecha · revisión: Aprobada | 01/10/2026 | `82f7c1b`, `f8050c9`, `7eea2c9`; merge `359d8a4`; registro por asunto (ver evidencia) |
 | T-08 | Infraestructura común (errores, tiempo, paginación) | M | T-02 | Hecha · revisión: Aprobada con observaciones | 01/10/2026 | `31f1d68`, `c9cad56`, `fe68f54`; merge `4bef042`; registro por asunto (ver evidencia) |
 | T-09 | Reglas de dominio puras + umbral JaCoCo | M | T-07, T-08 | Hecha · revisión: Aprobada | 01/10/2026 | `0827b44`, `9e2302d`, `65561d5`; cierre `7d7a8f94ddecb4d41f3d20ea4980399b1da8dce6`; merge `f7b90cfbae81c1019483622eabfcb2d085d85490`; registro por asunto (ver evidencia) |
-| T-10 | Autenticación backend | M | T-07, T-08 | Pendiente | | |
+| T-10 | Autenticación backend | M | T-07, T-08 | En curso | 01/10/2026 | |
 | T-11 | Perfil y cambio de contraseña backend | M | T-10 | Pendiente | | |
 | T-12 | Shell, autenticación y perfil en el frontend (P01) | M | T-03, T-11 | Pendiente | | |
 | T-13 | Servicios backend (RF-04) | M | T-10 | Pendiente | | |
