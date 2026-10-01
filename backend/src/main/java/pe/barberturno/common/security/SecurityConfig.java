@@ -80,6 +80,10 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/perfil").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/servicios").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/servicios").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PUT, "/api/servicios/{id}").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PATCH, "/api/servicios/{id}/estado").hasRole("ADMIN");
                     permisos.anyRequest().denyAll();
                 });
         return http.build();
