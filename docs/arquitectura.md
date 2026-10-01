@@ -331,6 +331,8 @@ Notas de diseño:
 | 409 | `TRANSICION_INVALIDA`, `VERSION_DESACTUALIZADA` | RN-10 o RN-11; `@Version` o versión enviada distinta. |
 | 422 | `FUERA_DE_POLITICA` | Menos de 2 h para el cliente (RN-07) o la cita ya empezó (RN-08). |
 | 422 | `MOTIVO_REQUERIDO`, `FUERA_DE_HORARIO`, `FUERA_DE_HORIZONTE`, `INICIO_EN_PASADO`, `RECURSO_INACTIVO`, `LIMITE_RESERVAS_ACTIVAS`, `LIMITE_BARBEROS_ACTIVOS`, `FUERA_DE_VENTANA` | Reglas RN-05/06/08/12/19/20. |
+| 409 | `CONFLICTO` | Cualquier otra violación de integridad no traducida a un código específico. No expone el nombre de la restricción. *(Añadido el 01/10/2026 al preparar T-08.)* |
+| 500 | `ERROR_INTERNO` | Error no controlado. Mensaje genérico; la traza solo va al log, sin datos sensibles. *(Añadido el 01/10/2026.)* |
 | 503 | `RECURSO_OCUPADO` | `lock_timeout` (SQLState `55P03`) o interbloqueo (`40P01`). La interfaz sugiere reintentar. |
 
 ### 6.3 Endpoints
@@ -489,7 +491,7 @@ Para cada intervalo `[a, b)`: para `t = a; t + duracion ≤ b; t += rejilla` →
 
 Variables de entorno: `BT_DB_URL`, `BT_DB_USER`, `BT_DB_PASSWORD`, `BT_JWT_SECRET` (≥ 32 bytes, Base64), `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD`, `BT_ADMIN_NOMBRE`, `BT_COOKIE_SECURE`. Los parámetros de negocio están en `barberturno.reservas.*` (requisitos §4) y se enlazan con un `@ConfigurationProperties` record validado. **Nunca** se suben secretos al repositorio.
 
-**Secretos locales (DA-17):** van en `.local/barberturno.env` (raíz del repositorio, carpeta ignorada por Git), en formato `CLAVE=valor`, que es compatible con `.properties`. **Solo** los perfiles `dev` y `test` lo importan con `spring.config.import: optional:file:../.local/barberturno.env[.properties]` (ruta relativa a `backend/`, que es el directorio de trabajo de Maven). Las variables del sistema tienen prioridad, así que la CI y producción no dependen de ese archivo. `prod` **no** lo importa. Una plantilla sin valores reales (`tools/barberturno.env.example`) documenta las claves. Las credenciales administrativas de PostgreSQL van aparte, en `.local/pgpass.conf` (con `PGPASSFILE`), y la aplicación no las usa nunca.
+**Secretos locales (DA-17):** van en `.local/barberturno.env` (raíz del repositorio, carpeta ignorada por Git), en formato `CLAVE=valor`, que es compatible con `.properties`. **Solo** los perfiles `dev` y `test` lo importan con `spring.config.import`, mediante dos rutas opcionales: `optional:file:../.local/barberturno.env[.properties]` (cuando el directorio de trabajo es `backend/`, como en Maven) y `optional:file:./.local/barberturno.env[.properties]` (cuando es la raíz, como en un IDE). La segunda se añadió en T-39. Las variables del sistema tienen prioridad, así que la CI y producción no dependen de ese archivo. `prod` **no** lo importa. Una plantilla sin valores reales (`tools/barberturno.env.example`) documenta las claves. Las credenciales administrativas de PostgreSQL van aparte, en `.local/pgpass.conf` (con `PGPASSFILE`), y la aplicación no las usa nunca.
 
 Preparación local (una vez): `"C:\Program Files\PostgreSQL\18\bin\psql.exe" -X -h localhost -p 5433 -U postgres -d postgres -f tools/db-local.sql`. El script crea el rol `barberturno` (LOGIN, sin privilegios administrativos, contraseña pedida por `\password`, SCRAM-SHA-256) y las bases de datos `barberturno` y `barberturno_test` con ese rol como dueño. Es idempotente. Usar el cliente 18: el `psql` del PATH es el 17.
 
