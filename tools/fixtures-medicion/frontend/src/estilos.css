@@ -1,0 +1,7 @@
+// En CSS esta línea cuenta como código.
+.a {
+    content: "http://localhost:8080/*"; /* comentario */
+    /* bloque
+    multilínea */
+    color: red;
+}

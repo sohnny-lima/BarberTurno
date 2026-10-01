@@ -114,7 +114,23 @@ npm run build
 
 `npm run format` aplica Prettier únicamente al frontend. El build deja la SPA en `frontend/dist/frontend/browser/index.html`; dependencias, caché, cobertura y salida quedan ignoradas por Git. `package-lock.json` está versionado. [Evidencias de T-03](docs/pruebas/t-03.md).
 
-E2E (`npx playwright test`) se incorporará en T-34 y la medición de Java (`node tools/medir-java.mjs`, desde la raíz) en T-05.
+E2E (`npx playwright test`) se incorporará en T-34.
+
+## Medición del porcentaje de Java
+
+Desde la raíz, con Node 20 o 24 (sin instalar dependencias):
+
+```powershell
+node tools/medir-java.mjs
+node tools/medir-java.mjs --json
+node tools/medir-java.mjs --escribir
+node tools/medir-java.mjs --verificar-fixtures
+node --test tools/verificar-medicion.test.mjs
+```
+
+El medidor de T-05 cuenta LOC físicas sin comentarios ni líneas vacías de Java, TS, HTML, SCSS/CSS y SQL en `backend/src`, `frontend/src`, `frontend/e2e` y `perf/`. Informa Java con y sin pruebas; la carga es un subconjunto de pruebas y se desglosa aparte. Las exclusiones aparecen con su motivo, incluida la paleta generada de Material. `--json` incluye el detalle por archivo; `--escribir` añade una sección fechada a la [medición acumulada](docs/pruebas/medicion-java.md), y puede combinarse con `--json`.
+
+Las plantillas TS se cuentan como literales opacos, sin analizar sus interpolaciones; el analizador no interpreta regex TS ni dollar quoting SQL. El commit identifica HEAD; se cuenta el árbol de trabajo, por lo que conviene medir sin cambios en las fuentes. La interpretación final de RA-02 corresponde al docente (P-02). [Evidencia de T-05](docs/pruebas/t-05.md).
 
 ## Integración continua
 
