@@ -32,6 +32,8 @@ Si `psql` no está en el PATH, o apunta al cliente 17, use el ejecutable 18:
 
 Introduzca la contraseña de `postgres` cuando se solicite. Al crear el rol `barberturno` (o si ya existe sin contraseña), el script solicita dos veces una contraseña de desarrollo para ese rol mediante `\password`, sin mostrarla. Consérvela fuera del repositorio y úsela posteriormente como `BT_DB_PASSWORD`.
 
+En la preparación de este equipo se generó una contraseña aleatoria y se conservó únicamente en `.local/barberturno.env`, ignorado por Git. Ese archivo contiene `BT_DB_PASSWORD` y no se carga automáticamente; utilícelo localmente para configurar la sesión del backend sin compartir su contenido.
+
 El script crea únicamente lo que falta: el rol de aplicación sin privilegios administrativos y las bases `barberturno` y `barberturno_test`, ambas propiedad de ese rol. Puede ejecutarlo dos veces para comprobar la idempotencia. Conserva los datos y las contraseñas existentes; si una base ya tiene otro dueño o el rol tiene permisos incompatibles, se detiene para su revisión. No crea tablas: las migraciones Flyway corresponden a T-06.
 
 Para automatizar la autenticación administrativa, puede usar un archivo local `.local/pgpass.conf` (ignorado por Git) y definir `$env:PGPASSFILE` con su ruta absoluta. El formato de una entrada es `localhost:5433:postgres:postgres:<contraseña local>`. Restrinja el acceso al archivo a su usuario; no comparta ni versione su contenido.

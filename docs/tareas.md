@@ -36,7 +36,7 @@
 
 | ID | Tarea | Prio | Depende de | Estado | Fecha | Commit |
 |---|---|---|---|---|---|---|
-| T-01 | Repositorio Git y estructura base | M | — | En curso | 01/10/2026 | |
+| T-01 | Repositorio Git y estructura base | M | — | Hecha | 01/10/2026 | `e780283` |
 | T-02 | Esqueleto backend Spring Boot 4.1 | M | T-01 | Pendiente | | |
 | T-03 | Esqueleto frontend Angular 22 | M | T-01 | Pendiente | | |
 | T-04 | Integración continua | M | T-02, T-03 | Pendiente | | |
@@ -294,4 +294,4 @@ _(Codex añade aquí, al cerrar cada tarea: desviaciones respecto al plan, decis
 
 | Tarea | Fecha | Nota |
 |---|---|---|
-| | | |
+| T-01 | 01/10/2026 | Base establecida en `main` mediante el commit inicial `e780283`, conforme a la excepción solicitada para este arranque; el cierre documental queda en un commit posterior de T-01. Creados `.gitignore`, `.gitattributes`, `.editorconfig`, README, `tools/db-local.sql`, `docs/pruebas/.gitkeep` y [evidencia T-01](pruebas/t-01.md). APF2 preservado: SHA-256 y blobs Git idénticos en sus 36 archivos; excepción `-text` y formato automático desactivado solo para esa referencia congelada. SQL ejecutado completamente dos veces con código 0 en PostgreSQL 18.0 / :5433; rol y bases inicialmente ausentes, ambos dueños `barberturno`, acceso del rol y permiso CREATE comprobados. Segunda ejecución conserva OID, propietarios, permisos y contraseña; no se escribieron tablas ni se borraron datos. Contraseña aleatoria solo en `.local/barberturno.env`; autenticación administrativa mediante `.local/pgpass.conf`; ambas rutas ignoradas y fuera del índice. Pasan exclusiones Git, atributos, UTF-8/LF, enlaces del README y revisión de espacios. Incidencias resueltas: archivo pgpass inicialmente vacío; prompt de Windows reintentado con stdin compatible; fallo del ejecutor aislado y diferencia de dueño de `.git`, resueltos para Git del usuario con `safe.directory` limitado a este repositorio. Diferencia documental para el arquitecto: servidor y cliente instalados 18.0 frente a 18.6 citado en arquitectura §2; se mantiene PostgreSQL 18 y no se cambia el diseño. Node 24 pendiente solo para T-03; Maven/frontend no aplican a T-01. Sin remoto ni push. T-02 y T-03 permanecen pendientes. |
