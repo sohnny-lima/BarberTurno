@@ -8,7 +8,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  # El evento separa push y pull_request para evitar que se cancelen entre sí.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -36,6 +37,8 @@ jobs:
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Preparar Java 21 y la caché de Maven
         uses: actions/setup-java@v6
         with:
@@ -69,6 +72,8 @@ jobs:
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Preparar Node y la caché de npm
         uses: actions/setup-node@v7
         with:
