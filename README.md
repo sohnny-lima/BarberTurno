@@ -2,7 +2,7 @@
 
 Sistema web de reservas y turnos para una barbería de una sede en Huamanga, Perú. Proyecto académico de Integrador I: Sistemas Software (UTP). Arquitectura A1: Angular 22, Spring Boot 4.1.1 / Java 21 y PostgreSQL 18; toda la lógica de negocio reside en Java. Los datos de demostración son ficticios.
 
-El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend dispone del esqueleto Angular 22, con Material, locale peruano y protección XSRF (T-03).
+El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend permite registrarse, ingresar, cambiar la contraseña, editar el perfil y salir, con Material, navegación por rol y protección XSRF (T-12).
 
 ## Entorno
 
@@ -83,13 +83,13 @@ X-XSRF-TOKEN: <valor de la cookie XSRF-TOKEN>
 {"nombre":"Cliente de prueba","correo":"cliente@ejemplo.test","telefono":"999111222","password":"ClaveCliente123","aceptaPrivacidad":true}
 ```
 
-El ejemplo es exclusivamente ficticio. El registro responde 201 y fija `BT_SESION`; conserve ambas cookies para las siguientes solicitudes. `POST /api/auth/login` recibe `{"correo":"cliente@ejemplo.test","password":"ClaveCliente123"}` y responde 200. El JWT solo se acepta por cookie. `POST /api/auth/logout`, también con CSRF, responde 204 y borra `BT_SESION`, incluso si ya había caducado. Angular envía automáticamente XSRF en el mismo origen; las pantallas se implementan en T-12.
+El ejemplo es exclusivamente ficticio. El registro responde 201 y fija `BT_SESION`; conserve ambas cookies para las siguientes solicitudes. `POST /api/auth/login` recibe `{"correo":"cliente@ejemplo.test","password":"ClaveCliente123"}` y responde 200. El JWT solo se acepta por cookie. `POST /api/auth/logout`, también con CSRF, responde 204 y borra `BT_SESION`, incluso si ya había caducado. Angular envía automáticamente XSRF en el mismo origen; las pantallas de identidad ya están disponibles (T-12).
 
 Para crear el administrador inicial, configure `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD` (RN-25) y `BT_ADMIN_NOMBRE` en el entorno o en su archivo local privado antes de arrancar en `dev`. Solo se crea si no existe un ADMIN activo; no requiere teléfono ni cambio de contraseña. Si faltan valores en dev/test, se informa sin crear una cuenta. Nunca hay credenciales administrativas predeterminadas.
 
 `BT_JWT_SECRET` es Base64 y debe decodificar al menos 32 bytes. Si se omite en dev/test se genera una clave aleatoria al arrancar: las sesiones caducan al reiniciar. En producción es obligatorio. Cinco fallos consecutivos bloquean la cuenta durante quince minutos, con mensajes genéricos.
 
-Después de erify, puede arrancar el jar en desarrollo desde la raíz del repositorio:
+Después de verify, puede arrancar el jar en desarrollo desde la raíz del repositorio:
 
 ```powershell
 & "$env:JAVA_HOME\bin\java.exe" -jar backend/target/barberturno-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
@@ -125,7 +125,7 @@ Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra 
 
 La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Sin una sesión, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
 
-La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor ya emite la cookie y verifica la cabecera (T-10); las pantallas de negocio empiezan en T-12.
+La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor emite la cookie y verifica la cabecera en toda escritura (T-10/T-11). La SPA carga la sesión antes de arrancar; abre /ingresar sin sesión y redirige a /reservar (CLIENTE) o /agenda (personal) tras el acceso. Estas páginas de negocio son provisionales. /registro incluye el aviso de privacidad académico; /perfil permite editar nombre y teléfono, con correo de solo lectura. Una contraseña temporal obliga a /cambiar-password.
 
 Calidad del frontend, con Node activo y desde `frontend/`:
 
@@ -137,6 +137,22 @@ npm run build
 ```
 
 `npm run format` aplica Prettier únicamente al frontend. El build deja la SPA en `frontend/dist/frontend/browser/index.html`; dependencias, caché, cobertura y salida quedan ignoradas por Git. `package-lock.json` está versionado. [Evidencias de T-03](docs/pruebas/t-03.md).
+
+Prueba de hora de Lima desde frontend, también con otra zona del proceso:
+
+~~~powershell
+$env:TZ = 'Europe/Madrid'
+npm test -- --watch=false --include=src/app/core/tiempo/fecha-lima-pipe.spec.ts
+Remove-Item Env:TZ
+~~~
+
+Recorrido HTTP de identidad (sin navegador), desde la raíz y con Node 24.21.0 activo:
+
+~~~powershell
+./frontend/tools/verificar-identidad-http.ps1
+~~~
+
+Requiere PowerShell 7, PostgreSQL 18 en 5433, la credencial local de desarrollo y puertos 8080/4200 libres. Inicia backend dev y ng serve, conserva cookies con WebRequestSession, comprueba CSRF, registro, perfil y logout; elimina únicamente la cuenta ficticia creada por id y correo y detiene sus servidores incluso si falla. Los logs locales del ensayo quedan en frontend/*.log, ignorados por Git. [Evidencia T-12](docs/pruebas/t-12.md).
 
 E2E (`npx playwright test`) se incorporará en T-34.
 

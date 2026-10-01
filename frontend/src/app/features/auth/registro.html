@@ -1,0 +1,74 @@
+<section class="pagina-identidad">
+  <h1>Crear cuenta</h1>
+  <p>Regístrese para reservar un turno.</p>
+  <form
+    class="tarjeta formulario"
+    [formGroup]="formulario"
+    (ngSubmit)="enviar()"
+    [attr.aria-busy]="cargando()"
+  >
+    <mat-form-field appearance="outline">
+      <mat-label>Nombre</mat-label>
+      <input matInput formControlName="nombre" type="text" autocomplete="name" />
+      <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error> </mat-form-field
+    ><mat-form-field appearance="outline">
+      <mat-label>Correo</mat-label>
+      <input matInput formControlName="correo" type="email" autocomplete="username" />
+      <mat-error>{{ errorCampo(formulario.controls.correo) }}</mat-error> </mat-form-field
+    ><mat-form-field appearance="outline">
+      <mat-label>Teléfono</mat-label>
+      <input matInput formControlName="telefono" type="tel" autocomplete="tel" />
+      <mat-error>{{ errorCampo(formulario.controls.telefono) }}</mat-error> </mat-form-field
+    ><mat-form-field appearance="outline">
+      <mat-label>Contraseña</mat-label>
+      <input matInput formControlName="password" type="password" autocomplete="new-password" />
+      <mat-error>{{ errorCampo(formulario.controls.password) }}</mat-error>
+    </mat-form-field>
+    <p class="ayuda">
+      La contraseña debe tener de 10 a 72 caracteres, mayúscula, minúscula y un número; como máximo
+      72 bytes UTF-8.
+    </p>
+    <mat-form-field appearance="outline">
+      <mat-label>Confirmar contraseña</mat-label>
+      <input
+        matInput
+        formControlName="confirmacion"
+        aria-describedby="error-confirmacion"
+        type="password"
+        autocomplete="new-password"
+      />
+      <mat-error>{{ errorCampo(formulario.controls.confirmacion) }}</mat-error>
+    </mat-form-field>
+    @if (formulario.hasError('confirmacion') && formulario.controls.confirmacion.touched) {
+      <p class="error-campo" id="error-confirmacion" role="alert">
+        Las contraseñas deben coincidir.
+      </p>
+    }
+    <mat-checkbox
+      formControlName="aceptaPrivacidad"
+      aria-describedby="aviso-privacidad error-privacidad"
+      >Acepto el aviso de privacidad</mat-checkbox
+    >
+    <p id="aviso-privacidad">
+      <a routerLink="/privacidad" target="_blank" rel="noopener"
+        >Leer el aviso de privacidad (Ley 29733; abre otra pestaña)</a
+      >
+    </p>
+    @if (
+      formulario.controls.aceptaPrivacidad.invalid && formulario.controls.aceptaPrivacidad.touched
+    ) {
+      <mat-error id="error-privacidad">{{
+        formulario.controls.aceptaPrivacidad.getError('servidor') ||
+          'Debe aceptar el aviso de privacidad.'
+      }}</mat-error>
+    }
+    @if (mensaje()) {
+      <p class="mensaje" role="alert">{{ mensaje() }}</p>
+    }
+    <div class="acciones">
+      <button mat-flat-button type="submit" [disabled]="cargando()">
+        {{ cargando() ? 'Creando cuenta…' : 'Crear cuenta' }}</button
+      ><a mat-button routerLink="/ingresar">Ya tengo una cuenta</a>
+    </div>
+  </form>
+</section>

@@ -1,20 +1,4 @@
-@use '@angular/material' as mat;
-
 :host {
   display: block;
   min-height: 100%;
-}
-
-mat-toolbar {
-  @include mat.toolbar-overrides(
-    (
-      container-background-color: var(--mat-sys-primary),
-      container-text-color: var(--mat-sys-on-primary),
-    )
-  );
-}
-
-h1 {
-  margin: 0;
-  font: inherit;
 }
