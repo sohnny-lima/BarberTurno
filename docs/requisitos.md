@@ -124,7 +124,7 @@ Fuentes principales: [Inf p. 9, 25, 28, 35–36], [Proto], [Java], [Corrida]. "O
 | RN-05 | Una franja reservable debe: estar dentro de un intervalo de jornada del día; no cruzar bloqueos ni reservas; empezar después del instante actual; estar alineada a la rejilla de 10 min desde el inicio del intervalo; y empezar como máximo 30 días después de hoy (horizonte, parametrizable). | [Inf p. 7], [Proto], **MJ-08** |
 | RN-06 | Solo servicios y barberos **activos** sirven para crear una reserva o como destino de una reprogramación. | [Inf p. 7, 31] |
 | RN-07 | El cliente puede reprogramar o cancelar si faltan **≥ 2 h** para el inicio (el límite exacto está permitido; 1 h 59 min no). | [Inf p. 9], [Java], CP-06 |
-| RN-08 | El administrador puede reprogramar o cancelar fuera de la política solo **antes del inicio** de la cita y con **motivo obligatorio** (≥ 5 caracteres). Se audita como excepción. | [Inf p. 9, 33], [Proto] |
+| RN-08 | El administrador puede reprogramar o cancelar fuera de la política solo **antes del inicio** de la cita y con **motivo obligatorio** (≥ 5 caracteres). Se audita como excepción. *Diferencia con el anexo del APF2: su caso 6 permitía al administrador modificar justo en el instante de inicio; T-09 aplica esta regla (estrictamente antes), que prevalece.* | [Inf p. 9, 33], [Proto] |
 | RN-09 | Solo se reprograman reservas `CONFIRMADA`. Pueden cambiar fecha, hora y barbero; el servicio, `precio_ref` y `duracion_ref` se conservan. Si la nueva franja falla, la reserva original no cambia. | [Inf p. 8, 25, 28, 36] |
 | RN-10 | Estados: `PENDIENTE`, `CONFIRMADA`, `EN_ATENCION`, `COMPLETADA`, `CANCELADA`, `NO_ASISTIO`. Transiciones: PENDIENTE→CONFIRMADA\|CANCELADA; CONFIRMADA→EN_ATENCION\|CANCELADA\|NO_ASISTIO; EN_ATENCION→COMPLETADA. Los estados terminales son COMPLETADA, CANCELADA y NO_ASISTIO. | [Inf p. 25] |
 | RN-11 | Permisos de transición: confirmar, iniciar, completar y marcar no asistió → barbero asignado o administrador. Cancelar → cliente propietario (RN-07) o administrador (RN-08). El barbero **no** cancela. | [Inf p. 25, 29], [Proto] |
@@ -141,7 +141,7 @@ Fuentes principales: [Inf p. 9, 25, 28, 35–36], [Proto], [Java], [Corrida]. "O
 | RN-22 | Los reportes agrupan por la fecha de **inicio** de la reserva en Lima, rango `[desde, hasta]` inclusivo. Suma por estado = total. | [Inf p. 8, 31] |
 | RN-23 | El precio es referencial y el pago es presencial, fuera del sistema. | [Inf p. 5] |
 | RN-24 | El correo es único sin distinguir mayúsculas (se guarda en minúsculas). | [Inf p. 7], [Drawio:Datos] |
-| RN-25 | Contraseña de 8 a 72 caracteres con al menos una letra y un dígito. 5 intentos fallidos seguidos bloquean el acceso durante 15 min. | **MJ-11** |
+| RN-25 | Contraseña de 8 a 72 caracteres y como máximo 72 bytes en UTF-8 (límite de BCrypt; precisado en T-09), con al menos una letra y un dígito. 5 intentos fallidos seguidos bloquean el acceso durante 15 min. | **MJ-11** |
 | RN-26 | El personal (barbero o administrador) no se registra solo: lo crea el administrador. Un administrador puede tener también un perfil de barbero (dueño que atiende). | [Inf p. 11], **MJ-09** |
 
 Parámetros configurables (prefijo `barberturno.reservas.*`): `anticipacion-cambio-cliente=2h`, `horizonte-dias=30`, `rejilla-min=10`, `max-activas-por-cliente=3`, `confirmacion-manual=false`, `tolerancia-inicio-min=15`.

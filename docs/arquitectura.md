@@ -115,7 +115,7 @@ Se respetan los paquetes que anunciaba el APF2 (`auth`, `users`, `catalog`, `sch
 | `reporting` | `ReporteService`, `ReporteController`, `ResumenReporteDto` | Conteos agregados | RF-14 |
 | `demo` | `DatosDemoRunner` (`@Profile("demo")`) | Escenario del prototipo y la corrida | — |
 
-Dependencias permitidas: `reservations → scheduling, catalog, users, audit, notifications`; `scheduling → reservations` **solo** a través de `ReservaRepository`, para comprobar conflictos de jornadas y bloqueos; `reporting → reservations`; todos → `common`. No se permiten ciclos entre servicios. `AuditoriaService` y `NotificacionService` no dependen de `ReservaService`.
+Dependencias permitidas: `reservations → scheduling, catalog, users, audit, notifications`; `scheduling → reservations` **solo** a través de `ReservaRepository` (conflictos de jornadas y bloqueos) y de la clase pura `ReglasTemporales` (la usa `CalculadoraFranjas` para `seSolapan`; hallazgo de T-09); `reporting → reservations`; todos → `common`. No se permiten ciclos entre servicios. `AuditoriaService` y `NotificacionService` no dependen de `ReservaService`.
 
 **Reglas puras** (sin Spring y probadas al 100 %): `ReglasTemporales` (`calcularFin`, `seSolapan`, `puedeModificar(ahora, inicio, esAdmin, motivo)`), `EstadoReserva.puedePasarA(destino)`, `CalculadoraFranjas.calcular(...)`, `PoliticaPassword.validar(...)`. Esto cumple RNF-10 y conserva el anexo del APF2 como base del dominio.
 
