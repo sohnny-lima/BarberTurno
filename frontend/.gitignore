@@ -1,0 +1,33 @@
+# Salida compilada y dependencias.
+/dist
+/tmp
+/out-tsc
+/bazel-out
+/node_modules
+npm-debug.log
+yarn-error.log
+
+# Editores y sistema.
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/
+.history/
+.DS_Store
+Thumbs.db
+
+# Caché y resultados de pruebas.
+/.angular/
+.sass-cache/
+/coverage
+/test-results
+/playwright-report
+/connect.lock
+/libpeerconnection.log
+testem.log
+/typings
+__screenshots__/

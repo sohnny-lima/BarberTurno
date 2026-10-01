@@ -1,0 +1,10 @@
+/* Referencia de configuración de TypeScript: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* Referencia de opciones del compilador Angular: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}

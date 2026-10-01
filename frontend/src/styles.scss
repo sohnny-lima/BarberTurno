@@ -1,0 +1,26 @@
+@use '@angular/material' as mat;
+@use './theme-colors' as colores;
+
+html {
+  height: 100%;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: colores.$primary-palette,
+        tertiary: colores.$tertiary-palette,
+      ),
+      typography: Arial,
+      density: 0,
+    )
+  );
+}
+
+body {
+  color-scheme: light;
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  min-height: 100%;
+}

@@ -38,7 +38,7 @@
 |---|---|---|---|---|---|---|
 | T-01 | Repositorio Git y estructura base | M | — | Hecha · revisión: Con observaciones | 01/10/2026 | `e780283`, `9fdb89e` |
 | T-02 | Esqueleto backend Spring Boot 4.1 | M | T-01 | Hecha · revisión: Con observaciones | 01/10/2026 | `94b77ec`, `49afb37`, `68bc313`, merge `4e958f3` |
-| T-03 | Esqueleto frontend Angular 22 | M | T-01 | Pendiente | | |
+| T-03 | Esqueleto frontend Angular 22 | M | T-01 | En curso | 01/10/2026 | |
 | T-04 | Integración continua | M | T-02, T-03 | Pendiente | | |
 | T-05 | Medición del % de Java | M | T-02, T-03 | Pendiente | | |
 | T-06 | Esquema Flyway V1 y pruebas de restricciones | M | T-02 | Pendiente | | |
