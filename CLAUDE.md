@@ -29,3 +29,37 @@ Cuando revises una tarea:
 - Los IDs (RF, RNF, RN, RA, MJ, DA, C, S, P, CP, T) son estables: no se renumeran; lo obsoleto se marca como *retirado* con el motivo.
 - Tras cada cambio, verifica que la matriz de trazabilidad (requisitos §9), la matriz de permisos (arquitectura §7.2) y la tabla de estado de tareas sigan siendo coherentes.
 - `docs/apf2/` no se modifica nunca.
+
+## Coordinación automática con Codex
+Claude Code coordina, diseña y revisa; Codex implementa mediante **encargos** que Claude ejecuta desde la terminal con `codex exec`. El responsable no tiene que trasladar mensajes.
+
+### Dónde queda todo (`.local/coordinacion/`, ignorada por Git)
+| Ruta | Contenido |
+|---|---|
+| `estado.md` | Registro cronológico: encargo, modo, código de salida, `thread_id`, resultado y siguiente paso. **Es lo primero que hay que leer para retomar.** |
+| `encargos/NNN-slug.md` | Texto exacto enviado a Codex (numeración correlativa de 3 dígitos). |
+| `respuestas/NNN-slug.md` | Último mensaje de Codex (`-o`). |
+| `logs/NNN-slug.jsonl` y `.err` | Eventos JSONL (`--json`, incluye `thread_id` y cada comando con su salida) y stderr. |
+
+Nunca se copian secretos a estos archivos. Los encargos piden a Codex que no muestre valores de `.local/`.
+
+### Cómo enviar un encargo
+1. Comprobar `git status` y que ningún encargo esté en curso (`estado.md`).
+2. Escribir `encargos/NNN-slug.md`: contexto, documentos que leer, alcance, límites (sin push, no tocar `docs/apf2/`, tareas excluidas), pruebas y formato del informe final.
+3. Ejecutar desde la raíz del repositorio (Git Bash):
+   ```bash
+   C=.local/coordinacion; N=NNN-slug
+   codex.cmd exec -C "D:\Proyectos\BarberTurno" <MODO> --color never --json \
+     -o "$C/respuestas/$N.md" - < "$C/encargos/$N.md" > "$C/logs/$N.jsonl" 2> "$C/logs/$N.err"
+   ```
+   - **Solo lectura** (consultas y diagnósticos): `MODO = -s read-only`.
+   - **Implementación** (escribe, instala, usa la red): `MODO = --approve-for-me`. Implica el sandbox `workspace-write` y envía cada escalada a la **revisión automática de aprobaciones**. Es incompatible con `-s`. **Nunca** usar `--dangerously-bypass-approvals-and-sandbox` ni `danger-full-access`.
+   - Los encargos largos se lanzan en segundo plano y se espera la notificación; **no se modifican archivos ni Git mientras Codex trabaja**.
+4. Anotar en `estado.md` el código de salida, la duración y el `thread_id` (evento `thread.started` del JSONL).
+5. Revisar el resultado de forma independiente (git, pruebas, ejecución) según "Revisión técnica". Las correcciones se envían como un encargo nuevo (`NNN+1-correcciones-T-XX`) o con `codex.cmd exec resume <thread_id> -` si conviene conservar el contexto de la sesión.
+
+### Cómo retomar tras una interrupción
+Leer `estado.md` → localizar el último encargo y su `thread_id` → `git status`, `git log --oneline --all -n 10` y `git branch` para saber dónde quedó Codex → si el encargo quedó a medias, enviar un encargo de continuación que describa el estado real observado (no el supuesto) o usar `codex.cmd exec resume <thread_id>`.
+
+### Limitación conocida del sandbox (01/10/2026)
+El sandbox de Windows de Codex (`[windows] sandbox = "elevated"`, cuentas `CodexSandboxOffline` y `CodexSandboxOnline`) **no puede preparar el modo de escritura**: `setup refresh` falla con `deny ACE failed on D:\Proyectos\BarberTurno\.git` porque `.git` pertenece a `CodexSandboxOffline` (observación O-3 de la revisión de T-01) y `limas` no puede cambiar su ACL sin elevación. El modo de solo lectura funciona. Con `--approve-for-me`, las órdenes se escalan, pasan la revisión automática y se ejecutan como `limas` con red (comprobado en el encargo 003). **Solución definitiva (requiere al responsable, consola de administrador):** `takeown /F D:\Proyectos\BarberTurno\.git /R /D Y`, después `icacls D:\Proyectos\BarberTurno\.git /reset /T` y retirar `safe.directory` de la configuración global de Git.
