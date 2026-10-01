@@ -37,7 +37,7 @@
 | ID | Tarea | Prio | Depende de | Estado | Fecha | Commit |
 |---|---|---|---|---|---|---|
 | T-01 | Repositorio Git y estructura base | M | — | Hecha · revisión: Con observaciones | 01/10/2026 | `e780283`, `9fdb89e` |
-| T-02 | Esqueleto backend Spring Boot 4.1 | M | T-01 | Pendiente | | |
+| T-02 | Esqueleto backend Spring Boot 4.1 | M | T-01 | En curso | 01/10/2026 | |
 | T-03 | Esqueleto frontend Angular 22 | M | T-01 | Pendiente | | |
 | T-04 | Integración continua | M | T-02, T-03 | Pendiente | | |
 | T-05 | Medición del % de Java | M | T-02, T-03 | Pendiente | | |

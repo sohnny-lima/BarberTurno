@@ -1,0 +1,11 @@
+spring:
+  config:
+    import: optional:file:../.local/barberturno.env[.properties]
+  datasource:
+    url: ${BT_DB_URL:jdbc:postgresql://localhost:5433/barberturno_test}
+    username: ${BT_DB_USER:barberturno}
+    password: ${BT_DB_PASSWORD}
+
+barberturno:
+  seguridad:
+    cookie-secure: ${BT_COOKIE_SECURE:false}
