@@ -40,5 +40,11 @@
   },
   "engines": {
     "node": "^24.15.0"
+  },
+  "allowScripts": {
+    "esbuild": false,
+    "@parcel/watcher": false,
+    "lmdb": false,
+    "msgpackr-extract": false
   }
 }

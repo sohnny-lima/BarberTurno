@@ -97,6 +97,8 @@ npm start
 
 La búsqueda recursiva permite que fnm encuentre `.node-version` también desde `frontend/`. Repita la activación de fnm en cada sesión; no use `nvm use`. Versiones verificadas: Node `v24.21.0`, npm `11.19.0`.
 
+Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra las denegaciones en `frontend/package.json` (`allowScripts`); para aprobar uno, primero se documenta el motivo en DA-19 y luego se ejecuta `npm install-scripts approve <paquete>` desde `frontend/`.
+
 La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Con la seguridad provisional de T-02, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
 
 La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. La emisión de la cookie y la protección definitiva del servidor corresponden a T-10; las pantallas de negocio empiezan en T-12.
