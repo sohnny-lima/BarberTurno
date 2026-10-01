@@ -246,11 +246,13 @@ class AuthIT {
     }
 
     @ParameterizedTest @EnumSource(Rol.class)
-    void rutasPendientes_todosLosRolesSiguenDenegadosYAuthPermaneceDisponible(Rol rol) throws Exception {
+    void rutasNoImplementadas_siguenDenegadasYCatalogoYAuthPermanecenDisponibles(Rol rol) throws Exception {
         Usuario u = crear(rol, false);
         Cookie sesion = new Cookie("BT_SESION", jwt.emitir(u));
-        mvc.perform(get("/api/servicios").cookie(sesion)).andExpect(status().isForbidden())
+        mvc.perform(get("/api/prueba/no-implementada").cookie(sesion)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
+        mvc.perform(get("/api/servicios").cookie(sesion)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
         mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.rol").value(rol.name()));
         mvc.perform(conCsrf(put("/api/auth/password")).cookie(sesion))
