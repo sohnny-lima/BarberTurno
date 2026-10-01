@@ -20,3 +20,6 @@
 
 ## Hallazgo resuelto
 La matriz §7.2 limitaba el login y el registro a usuarios sin sesión y el logout a usuarios con sesión. Se actualiza en este commit: login y registro abiertos a cualquiera, y logout público e idempotente, como se implementó.
+
+## Adenda (01/10/2026, revisión de T-11)
+**Defecto de seguridad no detectado en esta revisión:** el resource server de Spring Security exime de CSRF a las peticiones en las que encuentra un token *bearer*. Como `CookieBearerTokenResolver` lee el JWT de la cookie, **toda escritura autenticada** se aceptaba sin la cabecera `X-XSRF-TOKEN`. Las pruebas de T-10 solo comprobaban CSRF en peticiones sin sesión (login y registro). Lo detectó Codex en T-11 y lo corrigió: el `CsrfFilter` vuelve a usar `DEFAULT_CSRF_MATCHER`. Las pruebas de regresión cubren la petición con sesión y sin CSRF o con CSRF incorrecto (ver [revision-t-11.md](revision-t-11.md)). **Lección incorporada al proceso:** cada endpoint de escritura nuevo debe probarse con sesión y sin CSRF (regla añadida a la cabecera común de los encargos).
