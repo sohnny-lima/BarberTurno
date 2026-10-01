@@ -352,7 +352,7 @@ Notas de diseño:
 | Método y ruta | Cuerpo / parámetros | Respuesta |
 |---|---|---|
 | `GET /api/servicios` | `incluirInactivos` (solo ADMIN) | 200 `[ServicioDto {id, nombre, descripcion, duracionMin, precio, activo}]` |
-| `POST /api/servicios` · `PUT /api/servicios/{id}` | `{nombre, descripcion, duracionMin, precio}` | 201/200 `ServicioDto` |
+| `POST /api/servicios` · `PUT /api/servicios/{id}` | `{nombre, descripcion, duracionMin, precio}`; `precio` de 0 a 999999,99 con 2 decimales como máximo (`numeric(8,2)`) | 201/200 `ServicioDto` |
 | `PATCH /api/servicios/{id}/estado` | `{activo}` | 200 `ServicioDto` |
 | `GET /api/barberos` | `incluirInactivos` (solo ADMIN) | 200 `[BarberoDto {id, nombre, especialidad, activo, correo?*, telefono?*}]` (*solo ADMIN) |
 | `POST /api/barberos` | `{nombre, correo, telefono?, especialidad, passwordTemporal}` **o** `{usuarioId, especialidad}` (vincular un ADMIN existente) | 201 `BarberoDto` |
