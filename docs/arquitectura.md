@@ -409,12 +409,15 @@ El historial operativo de P08 reutiliza `GET /api/reservas` con los mismos filtr
 **Por qué cookie y no `localStorage`:** RNF-03 exige JWT, pero no dice dónde guardarlo. Una cookie `HttpOnly` impide que un XSS robe el token. `SameSite=Strict` + token CSRF neutralizan la falsificación de peticiones. Al servir la SPA y la API desde el **mismo origen** (DA-12) no hace falta CORS (ver DA-06).
 
 ### 7.2 Matriz de permisos
+Nota (revisión de T-10): el login y el registro están abiertos a cualquiera; un login nuevo sustituye la sesión anterior. El logout es público e idempotente, para poder limpiar una cookie inválida.
+
 Leyenda: ✔ permitido · **P** solo recursos propios (cliente propietario) · **A** solo reservas o agenda del barbero asignado (`barbero.usuario_id = actor`) · — denegado (403, o 404 si es un recurso concreto ajeno).
 
 | Operación | Público | CLIENTE | BARBERO | ADMIN |
 |---|---|---|---|---|
-| Registro, login | ✔ | — | — | — |
-| Sesión, logout, cambiar contraseña, perfil | — | ✔ | ✔ | ✔ |
+| Registro, login | ✔ | ✔ | ✔ | ✔ |
+| Consultar sesión (`GET /api/auth/sesion`: 200 con sesión y 401 sin ella; siempre emite `XSRF-TOKEN`) y logout (idempotente, también sin sesión) | ✔ | ✔ | ✔ | ✔ |
+| Cambiar contraseña, perfil | — | ✔ | ✔ | ✔ |
 | Ver servicios y barberos activos, disponibilidad | ✔ | ✔ | ✔ | ✔ |
 | Ver inactivos; CRUD de servicios y barberos; jornadas (escritura); bloqueos (escritura) | — | — | — | ✔ |
 | Ver jornadas y bloqueos de un barbero | — | — | A | ✔ |
