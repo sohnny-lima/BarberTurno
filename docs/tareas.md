@@ -42,7 +42,7 @@
 | T-04 | Integración continua | M | T-02, T-03 | Hecha · revisión: Aprobada tras C-1 y C-2 | 01/10/2026 | `af1f79f`, `74adb3a`; merge `dae77f1`; registro `089dbff`; C-1/C-2: `38fee6f`, `269f5aa`, merge `a32e9ac`, registro `b7593b4` |
 | T-05 | Medición del % de Java | M | T-02, T-03 | Hecha · revisión: Aprobada | 01/10/2026 | `919e9ca`, `55cefdf`; merge `ae86e72`; registro por asunto (ver evidencia) |
 | T-06 | Esquema Flyway V1 y pruebas de restricciones | M | T-02 | Hecha · revisión: Aprobada | 01/10/2026 | `d844a82`, `b2daada`; merge `00d7f37`; registro por asunto (ver evidencia) |
-| T-07 | Entidades JPA y repositorios | M | T-06 | Pendiente | | |
+| T-07 | Entidades JPA y repositorios | M | T-06 | En curso | 01/10/2026 | |
 | T-08 | Infraestructura común (errores, tiempo, paginación) | M | T-02 | Pendiente | | |
 | T-09 | Reglas de dominio puras + umbral JaCoCo | M | T-07, T-08 | Pendiente | | |
 | T-10 | Autenticación backend | M | T-07, T-08 | Pendiente | | |
