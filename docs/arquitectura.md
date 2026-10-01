@@ -295,6 +295,7 @@ Notas de diseño:
 - **Normalización:** `precio_ref` y `duracion_ref_min` son copias deliberadas del momento del acuerdo [Inf p. 35]. El nombre del barbero sale de `usuario.nombre` (no se duplica).
 - **Sin borrado físico** de usuarios, servicios ni barberos (RN-16). Los bloqueos sí se borran.
 - `version` se mapea con `@Version` (bloqueo optimista; detecta estados desactualizados, CP-09) [Inf p. 27].
+- **Nombres de restricciones:** las que importan para traducir errores (`reserva_sin_solape_barbero`, `reserva_sin_solape_cliente`, `reserva_fin_coherente`, `usuario_cliente_completo` y los índices únicos `usuario_correo_uk` y `servicio_nombre_uk`) tienen nombre explícito. Los `CHECK` de columna en línea reciben el nombre automático y determinista de PostgreSQL (`<tabla>_<columna>_check`, por ejemplo `servicio_duracion_min_check`), que se acepta (hallazgo de T-06). El `ManejadorErrores` traduce solo por nombres explícitos y el resto queda como `CONFLICTO` genérico.
 - La migración la ejecuta el dueño de la base de datos. `btree_gist` es una extensión *trusted* en PostgreSQL ≥ 13, así que no requiere superusuario.
 
 ### 5.2 Mapeo JPA
