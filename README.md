@@ -2,7 +2,7 @@
 
 Sistema web de reservas y turnos para una barbería de una sede en Huamanga, Perú. Proyecto académico de Integrador I: Sistemas Software (UTP). Arquitectura A1: Angular 22, Spring Boot 4.1.1 / Java 21 y PostgreSQL 18; toda la lógica de negocio reside en Java. Los datos de demostración son ficticios.
 
-El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend se creará en T-03.
+El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend dispone del esqueleto Angular 22, con Material, locale peruano y protección XSRF (T-03).
 
 ## Entorno
 
@@ -10,7 +10,7 @@ El repositorio y las bases locales están preparados (T-01). El backend ya arran
 |---|---|
 | Java | JDK 21; instalación de referencia: `C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot` |
 | Backend | Spring Boot 4.1.1 y Maven Wrapper; no requiere instalar Maven |
-| Frontend | Angular 22 y Node 24 LTS (≥ 24.15), con npm; instalar Node antes de T-03 |
+| Frontend | Angular 22 y Node 24.21.0 con fnm; versión fijada en `.node-version` (DA-18) |
 | Base de datos | PostgreSQL 18 en `localhost:5433`; el PostgreSQL 17 de `:5432` no se usa |
 | Control de versiones | Git, rama principal `main` |
 
@@ -79,23 +79,38 @@ Después de `verify`, el jar está en `backend/target/barberturno-0.0.1-SNAPSHOT
 
 Sin las variables obligatorias, ese comando falla explícitamente antes de abrir el pool; solo informa sus nombres. Los secretos locales no se cargan en `prod`. [Evidencias de T-02](docs/pruebas/t-02.md).
 
-## Frontend a partir de T-03
+## Arranque y pruebas del frontend
 
-Desde la raíz en otra terminal, después de instalar Node 24 LTS:
+Node **24.21.0** se instala con fnm 1.38.1 para este proyecto, sin cambiar el Node global. La raíz contiene `.node-version`; `frontend/package.json` exige `^24.15.0`. Desde la raíz, en otra terminal PowerShell:
 
 ```powershell
+$env:Path = 'C:\Users\limas\AppData\Local\Microsoft\WinGet\Packages\Schniz.fnm_Microsoft.Winget.Source_8wekyb3d8bbwe;' + $env:Path
+fnm install 24.21.0
+fnm env --use-on-cd --version-file-strategy recursive --shell powershell | Out-String | Invoke-Expression
+fnm use
+node -v
+npm -v
 Set-Location frontend
 npm ci
 npm start
 ```
 
-La SPA usará `http://localhost:4200`, con proxy `/api` hacia `:8080`. Calidad del frontend:
+La búsqueda recursiva permite que fnm encuentre `.node-version` también desde `frontend/`. Repita la activación de fnm en cada sesión; no use `nvm use`. Versiones verificadas: Node `v24.21.0`, npm `11.19.0`.
+
+La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Con la seguridad provisional de T-02, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
+
+La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. La emisión de la cookie y la protección definitiva del servidor corresponden a T-10; las pantallas de negocio empiezan en T-12.
+
+Calidad del frontend, con Node activo y desde `frontend/`:
 
 ```powershell
 npm run lint
+npm run format:check
 npm test -- --watch=false
 npm run build
 ```
+
+`npm run format` aplica Prettier únicamente al frontend. El build deja la SPA en `frontend/dist/frontend/browser/index.html`; dependencias, caché, cobertura y salida quedan ignoradas por Git. `package-lock.json` está versionado. [Evidencias de T-03](docs/pruebas/t-03.md).
 
 E2E (`npx playwright test`) se incorporará en T-34 y la medición de Java (`node tools/medir-java.mjs`, desde la raíz) en T-05.
 
