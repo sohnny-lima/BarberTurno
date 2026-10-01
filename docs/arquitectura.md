@@ -38,15 +38,16 @@ flowchart LR
 | Build backend | **Maven Wrapper** (Maven 3.9.x) | Boot 4.1 requiere Maven ≥ 3.6.3 | Maven no está instalado; el wrapper evita instalarlo y fija la versión. |
 | Migraciones | Flyway 12.4 (gestionado por Boot) + `spring-boot-starter-flyway` | Coordenadas de dependencias de Boot 4.1.1. En Boot 4, Flyway necesita su starter dedicado (guía de migración a 4.0) | Esquema versionado y reproducible. |
 | Driver | PostgreSQL JDBC 42.7.13 (gestionado) | Coordenadas de Boot 4.1.1 | — |
-| Documentación API | springdoc-openapi **3.1.x** (`springdoc-openapi-starter-webmvc-ui`) | springdoc.org: la línea 3.x es la que soporta Spring Boot 4 | Swagger UI para desarrollo y para la sustentación. Comprobar en T-02 que la versión exacta funciona con 4.1.1. |
-| Base de datos | **PostgreSQL 18** (18.6). Local: servicio `postgresql-x64-18`, **puerto 5433** | postgresql.org/support/versioning: soportada hasta el 14/11/2030 | Versión mayor actual. La extensión `btree_gist` es *trusted*: la puede crear el dueño de la base de datos. |
+| Documentación API | springdoc-openapi **3.1.1** (`springdoc-openapi-starter-webmvc-ui`) | springdoc.org: la línea 3.x es la que soporta Spring Boot 4. 3.1.1 es la última en Maven Central (comprobado el 01/10/2026) | Swagger UI solo en `dev` y para la sustentación. T-02 comprueba que funciona con 4.1.1. |
+| Cobertura | JaCoCo **0.8.15** (`jacoco-maven-plugin`, no gestionado por Boot) | Maven Central, release 0.8.15 (comprobado el 01/10/2026) | RNF-10. |
+| Base de datos | **PostgreSQL 18** (versión mayor fija). Parche objetivo: la última menor publicada (**18.6** al 01/10/2026). **Entorno local real: 18.0** (servicio `postgresql-x64-18`, **puerto 5433**, cliente `C:\Program Files\PostgreSQL\18\bin\psql.exe`); actualización en T-38 | postgresql.org/support/versioning: la rama 18 tiene soporte hasta el 14/11/2030. postgresql.org/support/security: de 18.1 a 18.6 se corrigen unos 46 CVE (no existe la 18.5) | Versión mayor actual. La extensión `btree_gist` es *trusted*: la puede crear el dueño de la base de datos (comprobado en 18.0 con el rol de aplicación, revisión de T-01). Política de versiones menores en DA-16. |
 | Frontend | **Angular 22** + Angular Material 22, TypeScript 6.0 | angular.dev/reference/releases: 22 está en estado *Active* (publicada el 03/06/2026, LTS hasta 06/2028) | Versión activa. La 21 pasa a LTS. |
 | Node.js | **24 LTS** (≥ 24.15) | Angular 22 requiere `^22.22.3 \|\| ^24.15.0 \|\| ^26`. Calendario de Node: la 24 tiene soporte hasta el 30/04/2028 | **Acción:** el equipo tiene Node 20.19 (fin de vida el 30/04/2026) y debe instalar Node 24 LTS antes de T-03. |
 | Pruebas frontend | Vitest (runner por defecto de Angular CLI), Playwright para E2E | — | — |
 | Pruebas backend | JUnit 6, AssertJ, Mockito (gestionados por Boot 4.1.1), JaCoCo | Coordenadas de Boot 4.1.1 | — |
 | Carga | Gatling (DSL Java, plugin Maven) | — | No requiere instalar nada fuera de Maven. Ver DA-14. |
 
-> **Cambios de Spring Boot 4 que Codex debe tener en cuenta:** el starter web se llama `spring-boot-starter-webmvc`; el de JWT, `spring-boot-starter-security-oauth2-resource-server`; Flyway necesita `spring-boot-starter-flyway`; Jackson 3 usa el paquete `tools.jackson`; `@SpringBootTest` ya no configura MockMvc por sí solo (hay que añadir `@AutoConfigureMockMvc`). **Generar el proyecto con Spring Initializr para Boot 4.1.1** y no escribir las coordenadas de memoria.
+> **Cambios de Spring Boot 4 que Codex debe tener en cuenta:** el starter web se llama `spring-boot-starter-webmvc`; el de JWT, `spring-boot-starter-security-oauth2-resource-server`; Flyway necesita `spring-boot-starter-flyway`; Jackson 3 usa el paquete `tools.jackson`; `@SpringBootTest` ya no configura MockMvc por sí solo (hay que añadir `@AutoConfigureMockMvc`). **Generar el proyecto con Spring Initializr para Boot 4.1.1** y no escribir las coordenadas de memoria. *(Comprobado el 01/10/2026: Initializr ofrece 4.1.1 como versión por defecto y Java 21. Los identificadores `web, validation, data-jpa, postgresql, flyway, security, oauth2-resource-server, actuator` generan `spring-boot-starter-webmvc`, `-flyway`, `-security-oauth2-resource-server`, `flyway-database-postgresql` y sus starters de prueba `*-test`, además del Maven Wrapper.)*
 
 ---
 
@@ -88,7 +89,8 @@ BarberTurno/
 │   ├── src/app/{core,shared,features}/
 │   └── e2e/                  Playwright
 ├── perf/                     Simulaciones Gatling (proyecto Maven aparte)
-└── tools/                    medir-java.mjs, respaldo.sh, restaurar.sh, db-local.sql
+├── tools/                    medir-java.mjs, respaldo.sh, restaurar.sh, db-local.sql, barberturno.env.example
+└── .local/                   (ignorada por Git) secretos y pgpass locales; nunca se versiona
 ```
 
 ---
@@ -483,9 +485,11 @@ Para cada intervalo `[a, b)`: para `t = a; t + duracion ≤ b; t += rejilla` →
 | `demo` | Sustentación (`dev,demo`) | igual que `dev` | `DatosDemoRunner` carga el escenario del prototipo y la corrida |
 | `prod` | Despliegue | `BT_DB_URL` | Todas las variables son obligatorias, Swagger desactivado, cookie `Secure`, cabeceras de seguridad |
 
-Variables de entorno: `BT_DB_URL`, `BT_DB_USER`, `BT_DB_PASSWORD`, `BT_JWT_SECRET` (≥ 32 bytes, Base64), `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD`, `BT_ADMIN_NOMBRE`, `BT_COOKIE_SECURE`. Los parámetros de negocio están en `barberturno.reservas.*` (requisitos §4) y se enlazan con un `@ConfigurationProperties` record validado. Los secretos de desarrollo van en `backend/.env.local` (ignorado por Git) o en variables del sistema. **Nunca** se suben al repositorio.
+Variables de entorno: `BT_DB_URL`, `BT_DB_USER`, `BT_DB_PASSWORD`, `BT_JWT_SECRET` (≥ 32 bytes, Base64), `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD`, `BT_ADMIN_NOMBRE`, `BT_COOKIE_SECURE`. Los parámetros de negocio están en `barberturno.reservas.*` (requisitos §4) y se enlazan con un `@ConfigurationProperties` record validado. **Nunca** se suben secretos al repositorio.
 
-Preparación local (una vez, con `psql -p 5433 -U postgres`): `tools/db-local.sql` crea el rol `barberturno` y las bases de datos `barberturno` y `barberturno_test` con ese rol como dueño.
+**Secretos locales (DA-17):** van en `.local/barberturno.env` (raíz del repositorio, carpeta ignorada por Git), en formato `CLAVE=valor`, que es compatible con `.properties`. **Solo** los perfiles `dev` y `test` lo importan con `spring.config.import: optional:file:../.local/barberturno.env[.properties]` (ruta relativa a `backend/`, que es el directorio de trabajo de Maven). Las variables del sistema tienen prioridad, así que la CI y producción no dependen de ese archivo. `prod` **no** lo importa. Una plantilla sin valores reales (`tools/barberturno.env.example`) documenta las claves. Las credenciales administrativas de PostgreSQL van aparte, en `.local/pgpass.conf` (con `PGPASSFILE`), y la aplicación no las usa nunca.
+
+Preparación local (una vez): `"C:\Program Files\PostgreSQL\18\bin\psql.exe" -X -h localhost -p 5433 -U postgres -d postgres -f tools/db-local.sql`. El script crea el rol `barberturno` (LOGIN, sin privilegios administrativos, contraseña pedida por `\password`, SCRAM-SHA-256) y las bases de datos `barberturno` y `barberturno_test` con ese rol como dueño. Es idempotente. Usar el cliente 18: el `psql` del PATH es el 17.
 
 ---
 
@@ -502,6 +506,10 @@ Preparación local (una vez, con `psql -p 5433 -U postgres`): `tools/db-local.sq
 | E2E | Playwright (Chromium + Firefox, 360 px y 1440 px) + axe | Recorrido de la sustentación por los 3 roles, conflicto de franja, límite de 2 h, accesibilidad básica | `frontend/e2e` (CP-11, RNF-06/07/08/11) |
 | Carga | Gatling | 50 usuarios concurrentes consultando disponibilidad; p95 ≤ 2 s | `perf/` (RNF-01) |
 | Recuperación | `tools/respaldo.sh` + `restaurar.sh` | Respaldo y restauración cronometrados (RTO ≤ 4 h) | RNF-09 |
+
+Ejecución: **Surefire ejecuta tanto `*Test` como `*IT`** en `./mvnw verify`, lo que da un único informe de JaCoCo y evita configurar Failsafe con su agente de cobertura aparte. Las `*IT` necesitan PostgreSQL; las `*Test`, no.
+
+Portabilidad entre entornos: el PostgreSQL local usa `lc_messages` en español y la intercalación `Spanish_Peru.1252`; la CI usa la imagen Linux con otra intercalación. Por eso las pruebas **comprueban el SQLState y el nombre de la restricción, nunca el texto del mensaje**, y no comparan el orden de textos sin un `ORDER BY` determinista (id o `COLLATE "C"`).
 
 Reglas: las pruebas usan un **`Clock` fijo**, por defecto en el escenario del APF2 **28/09/2026 09:00 Lima** [LEEME]; el reloj se puede adelantar dentro de una prueba. La **corrida manual** [Corrida] se automatiza como prueba de integración (`CorridaManualIT`) con sus 8 pasos y su conciliación final (3 reservas, 8 auditorías, 8 avisos). **JaCoCo** con umbral de líneas ≥ 70 % sobre `pe.barberturno.reservations` y `pe.barberturno.scheduling`: si no se alcanza, el build falla (RNF-10). No se usa H2: las restricciones `EXCLUDE` y `btree_gist` son propias de PostgreSQL (DA-10).
 
@@ -542,3 +550,5 @@ Para añadir una decisión: nueva fila DA-xx con fecha, contexto, decisión, alt
 | DA-13 | 01/10/2026 | Flyway para el esquema; `ddl-auto=validate`. | Esquema versionado y revisable (DDL de §5). | `ddl-auto=update` (no reproducible). |
 | DA-14 | 01/10/2026 | Gatling (DSL Java) para la carga. | Corre con Maven, sin instalar binarios, y queda en Java. | k6 o JMeter (requieren instalación). |
 | DA-15 | 01/10/2026 | El servidor calcula `permisos` en `ReservaDto`. | Una sola implementación de la política (RN-07/08/11) y menos lógica en el frontend. | Duplicar las reglas en TS (deriva y menos % Java). |
+| DA-16 | 01/10/2026 | Política de versiones de PostgreSQL: la **versión mayor 18 es fija**; el parche debe ser **la última menor publicada** en producción y en la CI (imagen `postgres:18`, que la sigue). En desarrollo local se tolera una menor anterior mientras se actualiza (T-38), salvo para respaldo y restauración (T-36), que exigen la última. | Las menores solo corrigen errores y seguridad y no requieren volcado ni restauración (política oficial). La 18.0 local tiene CVE corregidos hasta la 18.6, varios en `psql`, `pg_dump` y `pg_restore`. El esquema y `EXCLUDE` funcionan igual en 18.0 (comprobado). | Fijar 18.6 en la documentación como requisito bloqueante (frenaría T-02…T-06 sin beneficio funcional); cambiar de versión mayor. |
+| DA-17 | 01/10/2026 | Los secretos locales viven en `.local/barberturno.env` (ignorado) y solo los perfiles `dev` y `test` los importan como `.properties` opcional. Sustituye a `backend/.env.local`. | Codex ya creó esa convención en T-01. Así se evita exportar variables a mano antes de cada `mvnw` y nada se filtra a `prod` ni al repositorio. | `backend/.env.local` exportado a mano (propenso a errores); plugins dotenv (otra dependencia más). |

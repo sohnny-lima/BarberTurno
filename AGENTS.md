@@ -94,9 +94,15 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 | E2E | `cd frontend && npx playwright test` |
 | % Java | `node tools/medir-java.mjs` |
 
-Entorno de referencia (comprobado el 01/10/2026): Windows 11; JDK 21 (Temurin 21.0.8) en `C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot`; **PostgreSQL 18 en el puerto 5433** (hay un PostgreSQL 17 en el 5432 que **no** se usa); Git 2.45. **Pendiente:** instalar **Node 24 LTS**, porque el equipo tiene Node 20.19 y Angular 22 exige ≥ 22.22 / 24.15. Maven no está instalado: usar siempre el wrapper. Docker no está instalado: las pruebas usan el PostgreSQL local (DA-10).
+Entorno de referencia (comprobado el 01/10/2026 en la revisión de T-01):
+- Windows 11. JDK 21 (Temurin 21.0.8) en `C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot`. Hay otros JDK instalados (17, 22, 24): fijar `JAVA_HOME` a la 21 antes de usar `mvnw`.
+- **PostgreSQL 18.0** en el puerto **5433** (servicio `postgresql-x64-18`). Hay un PostgreSQL 17 en el 5432 que **no** se usa, y el `psql` del PATH es el cliente 17: usar `C:\Program Files\PostgreSQL\18\bin\psql.exe`. La actualización a la última menor (18.6) es la tarea T-38 (DA-16).
+- Git 2.45. `.git` pertenece a la cuenta `CodexSandboxOffline`; Git funciona porque `safe.directory` incluye solo esta ruta (configuración global del usuario).
+- **Pendiente:** instalar **Node 24 LTS**, porque el equipo tiene Node 20.19 y Angular 22 exige ≥ 22.22 / 24.15.
+- Maven no está instalado: usar siempre el wrapper. Docker no está instalado: las pruebas usan el PostgreSQL local (DA-10).
+- Generar proyectos (Spring Initializr) y descargar dependencias (Maven Central, npm) requiere red. Si el entorno aislado no la tiene, pedir la escalación o marcar la tarea como `Bloqueada`; nunca escribir de memoria las coordenadas de las dependencias.
 
-Variables de entorno: ver arquitectura §9 (`BT_DB_URL`, `BT_DB_USER`, `BT_DB_PASSWORD`, `BT_JWT_SECRET`, `BT_ADMIN_*`, `BT_COOKIE_SECURE`).
+Variables de entorno: ver arquitectura §9 (`BT_DB_URL`, `BT_DB_USER`, `BT_DB_PASSWORD`, `BT_JWT_SECRET`, `BT_ADMIN_*`, `BT_COOKIE_SECURE`). Los secretos locales están en `.local/barberturno.env` (DA-17) y la conexión administrativa usa `.local/pgpass.conf` mediante `PGPASSFILE`. **Nunca mostrar, copiar a la salida ni versionar su contenido**; para comprobar el archivo, listar solo los nombres de las claves.
 
 ## 8. Seguridad y datos
 - La autorización se impone **siempre en el servidor** (rol + propiedad + barbero asignado). Una reserva ajena → 404.

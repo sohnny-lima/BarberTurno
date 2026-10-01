@@ -36,7 +36,7 @@
 
 | ID | Tarea | Prio | Depende de | Estado | Fecha | Commit |
 |---|---|---|---|---|---|---|
-| T-01 | Repositorio Git y estructura base | M | — | Hecha | 01/10/2026 | `e780283` |
+| T-01 | Repositorio Git y estructura base | M | — | Hecha · revisión: Con observaciones | 01/10/2026 | `e780283`, `9fdb89e` |
 | T-02 | Esqueleto backend Spring Boot 4.1 | M | T-01 | Pendiente | | |
 | T-03 | Esqueleto frontend Angular 22 | M | T-01 | Pendiente | | |
 | T-04 | Integración continua | M | T-02, T-03 | Pendiente | | |
@@ -71,8 +71,9 @@
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
 | T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
 | T-35 | Prueba de carga (RNF-01) | S | T-32 | Pendiente | | |
-| T-36 | Respaldo y restauración (RNF-09) | M | T-33 | Pendiente | | |
+| T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | Pendiente | | |
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
+| T-38 | Actualizar el PostgreSQL 18 local a la última menor (18.6) | S | — (recomendada antes de T-06) | Pendiente | | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -89,10 +90,10 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
 ### T-02 · Esqueleto backend Spring Boot 4.1
 - **Objetivo:** un backend que arranca contra PostgreSQL y tiene una prueba de contexto en verde.
-- **Alcance:** generar con **Spring Initializr** (Boot **4.1.1**, Java **21**, Maven, Jar, grupo `pe.barberturno`, artefacto `barberturno`) con estas dependencias: Spring Web MVC, Validation, Data JPA, PostgreSQL Driver, Flyway (+ `flyway-database-postgresql`), Security, OAuth2 Resource Server, Actuator. Añadir `springdoc-openapi-starter-webmvc-ui` 3.1.x (verificar que funciona con 4.1.1 y anotar la versión elegida), los starters de pruebas que proponga Initializr y el plugin JaCoCo (aún sin umbral). Crear `application.yml` y los perfiles `dev`, `test`, `demo` y `prod` según [arquitectura §9](arquitectura.md#9-configuración-y-entornos); `spring.jpa.open-in-view=false`, `ddl-auto=validate`, `connection-init-sql: SET lock_timeout = '5s'`, `server.forward-headers-strategy=framework`. Una `SecurityConfig` provisional que permita `/actuator/health` y deniegue el resto. Un bean `Clock` con la zona `America/Lima`.
-- **Archivos:** `backend/**`.
-- **Criterios de aceptación:** `./mvnw verify` pasa en local con el perfil `test` (base `barberturno_test` en :5433); `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` arranca y `GET /actuator/health` → `{"status":"UP"}`. Sin Lombok.
-- **Pruebas:** `BarberTurnoApplicationIT` (carga el contexto); prueba MockMvc de `/actuator/health` (200) y de una ruta cualquiera de `/api` (401).
+- **Alcance:** generar con **Spring Initializr** (Boot **4.1.1**, Java **21**, Maven, Jar, grupo `pe.barberturno`, artefacto `barberturno`, paquete `pe.barberturno`) con los identificadores `web, validation, data-jpa, postgresql, flyway, security, oauth2-resource-server, actuator` (comprobados en la revisión de T-01: generan `spring-boot-starter-webmvc`, `-flyway`, `-security-oauth2-resource-server`, `flyway-database-postgresql`, los starters `*-test` y el Maven Wrapper). Renombrar la clase principal a `BarberTurnoApplication`. Añadir `springdoc-openapi-starter-webmvc-ui` **3.1.1** y `jacoco-maven-plugin` **0.8.15** (`prepare-agent` + `report` en `verify`, aún sin umbral). Configurar Surefire para que ejecute `**/*Test.java` y `**/*IT.java` con `spring.profiles.active=test` ([arquitectura §10](arquitectura.md#10-estrategia-de-pruebas)). Crear `application.yml` y los perfiles `dev`, `test`, `demo` y `prod` según [arquitectura §9](arquitectura.md#9-configuración-y-entornos) y DA-17: `dev` y `test` importan `optional:file:../.local/barberturno.env[.properties]`; `prod` exige las variables sin valores por defecto. También: `spring.jpa.open-in-view=false`, `ddl-auto=validate`, `hibernate.jdbc.time_zone=UTC`, `hikari.connection-init-sql: SET lock_timeout = '5s'`, `server.forward-headers-strategy=framework`, Actuator que expone solo `health` sin detalles, y springdoc activo solo en `dev`. Una `SecurityConfig` provisional (sin sesión de servidor; permite `/actuator/health`, en `dev` también Swagger; deniega el resto) con un *entry point* que responde **401** (sin mecanismo de autenticación configurado, Spring Security respondería 403). Un bean `Clock` con la zona `America/Lima`. Una plantilla `tools/barberturno.env.example` con las claves y valores de ejemplo, nunca reales. Marcar `backend/mvnw` como ejecutable en Git (`git update-index --chmod=+x`), necesario en la CI de Linux.
+- **Archivos:** `backend/**`, `tools/barberturno.env.example`, `README.md`, `docs/pruebas/t-02.md`.
+- **Criterios de aceptación:** `mvnw.cmd verify` pasa en local con JDK 21 contra `barberturno_test` en :5433 sin exportar variables a mano (las lee de `.local/barberturno.env`); `mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev` arranca y `GET /actuator/health` → `{"status":"UP"}`; con `prod` y sin variables, el arranque **falla** de forma explícita. Sin Lombok. Ningún secreto en el repositorio ni en la salida de los comandos.
+- **Pruebas:** `BarberTurnoApplicationIT` (carga el contexto); MockMvc: `/actuator/health` → 200 y `GET /api/cualquier-ruta` → 401; `ConfiguracionBaseDatosIT`: en una conexión del pool, `SHOW lock_timeout` → `5s` y `current_database()` → `barberturno_test`; `ClockConfigTest`: zona `America/Lima`.
 
 ### T-03 · Esqueleto frontend Angular 22
 - **Objetivo:** una SPA vacía, compilable y con la herramienta de calidad configurada.
@@ -105,7 +106,7 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 ### T-04 · Integración continua
 - **Objetivo:** cada push y cada PR compilan y prueban ambos proyectos.
 - **Alcance:** `.github/workflows/ci.yml` con dos trabajos. **backend:** Temurin 21, servicio `postgres:18` (usuario, contraseña y base de datos de prueba por variables), `./mvnw -B verify -Dspring.profiles.active=test` con la URL del servicio y el reporte JaCoCo publicado como artefacto. **frontend:** Node 24, `npm ci`, lint, test y build. Caché de Maven y npm.
-- **Criterios de aceptación:** el YAML es válido (comprobar con `actionlint` si está disponible). El README documenta cómo activar la CI al crear el remoto (pendiente P-04).
+- **Criterios de aceptación:** el YAML es válido (comprobar con `actionlint` si está disponible). El README documenta cómo activar la CI al crear el remoto (pendiente P-04). La imagen `postgres:18` sigue la última menor (DA-16); la intercalación y el idioma de los mensajes difieren del entorno local, así que las pruebas no deben depender de ellos ([arquitectura §10](arquitectura.md#10-estrategia-de-pruebas)).
 - **Pruebas:** ejecución local equivalente de los comandos. La ejecución real queda pendiente hasta que exista el remoto.
 
 ### T-05 · Medición del % de Java
@@ -268,7 +269,7 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 ## Fase 6 — Calidad y entrega
 
 ### T-33 · Empaquetado y endurecimiento de producción
-- **Alcance:** perfil Maven `con-frontend` que ejecuta `npm ci && npm run build` y copia `frontend/dist/frontend/browser` a `target/classes/static`; `SpaController` que reenvía a `index.html` las rutas que no son API ni archivo; cabeceras (HSTS, CSP compatible con Angular —documentar si hace falta un `nonce` o `'unsafe-inline'` para estilos—, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`); el perfil `prod` falla al arrancar si falta alguna variable o si el `BT_JWT_SECRET` es corto; Swagger desactivado en `prod`; logs sin datos sensibles (revisar que no se registran contraseñas, tokens ni correos completos); `docs/despliegue.md` con los pasos para cualquier host con Java 21 + PostgreSQL 18 y TLS (P-03).
+- **Alcance:** perfil Maven `con-frontend` que ejecuta `npm ci && npm run build` y copia `frontend/dist/frontend/browser` a `target/classes/static`; `SpaController` que reenvía a `index.html` las rutas que no son API ni archivo; cabeceras (HSTS, CSP compatible con Angular —documentar si hace falta un `nonce` o `'unsafe-inline'` para estilos—, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`); el perfil `prod` falla al arrancar si falta alguna variable o si el `BT_JWT_SECRET` es corto; Swagger desactivado en `prod`; base de datos de producción endurecida (`REVOKE CONNECT, TEMPORARY ON DATABASE … FROM PUBLIC` y `GRANT CONNECT` solo al rol de aplicación; PostgreSQL en la última menor, DA-16); logs sin datos sensibles (revisar que no se registran contraseñas, tokens ni correos completos); `docs/despliegue.md` con los pasos para cualquier host con Java 21 + PostgreSQL 18 y TLS (P-03).
 - **Pruebas:** `SpaForwardIT` (`/agenda` → index; `/api/x` → 404/401 de la API; `/main.js` → archivo); `CabecerasSeguridadIT`; arrancar el jar con `prod` y variables de prueba.
 
 ### T-34 · E2E, responsive, compatibilidad y accesibilidad
@@ -289,9 +290,21 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
 ---
 
+## Tareas de ajuste (añadidas en revisiones)
+
+### T-38 · Actualizar el PostgreSQL 18 local a la última menor (18.6)
+- **Origen:** revisión de T-01 (01/10/2026), DA-16. El entorno real es la 18.0 y la última menor publicada es la 18.6. Entre ambas se corrigen unos 46 CVE, varios en `psql`, `pg_dump` y `pg_restore`.
+- **Responsable:** el **estudiante** ejecuta el instalador (requiere permisos de administrador de Windows). **Codex** verifica después. No bloquea T-02…T-05; se recomienda antes de T-06 y es **obligatoria antes de T-36**.
+- **Alcance:** respaldo previo de seguridad (`pg_dumpall` de la instancia 18 hacia `.local/`, o confirmar que solo contiene bases de desarrollo regenerables); parar el servicio `postgresql-x64-18`; instalar el paquete 18.6 de EDB sobre la instalación existente, conservando el directorio de datos y el puerto 5433 (una actualización menor no requiere volcado ni restauración); arrancar el servicio.
+- **Criterios de aceptación:** `SELECT version()` y `psql --version` (cliente 18) informan 18.6; el puerto sigue siendo el 5433; `tools/db-local.sql` termina con código 0 sin pedir contraseña y sin cambiar los OID, los dueños ni la huella de la contraseña; el rol `barberturno` se conecta a ambas bases; la prueba `btree_gist` + `EXCLUDE` en transacción con ROLLBACK (la misma de la revisión de T-01) se comporta igual; `./mvnw verify` pasa si T-02 ya está hecha.
+- **Pruebas / evidencias:** `docs/pruebas/t-38.md` con las salidas, sin credenciales; actualizar el "Entorno de referencia" de AGENTS.md §7 y la fila PostgreSQL de arquitectura §2.
+
+---
+
 ## Notas de cierre por tarea
 _(Codex añade aquí, al cerrar cada tarea: desviaciones respecto al plan, decisiones menores tomadas, deuda técnica y sugerencias para el arquitecto.)_
 
 | Tarea | Fecha | Nota |
 |---|---|---|
 | T-01 | 01/10/2026 | Base establecida en `main` mediante el commit inicial `e780283`, conforme a la excepción solicitada para este arranque; el cierre documental queda en un commit posterior de T-01. Creados `.gitignore`, `.gitattributes`, `.editorconfig`, README, `tools/db-local.sql`, `docs/pruebas/.gitkeep` y [evidencia T-01](pruebas/t-01.md). APF2 preservado: SHA-256 y blobs Git idénticos en sus 36 archivos; excepción `-text` y formato automático desactivado solo para esa referencia congelada. SQL ejecutado completamente dos veces con código 0 en PostgreSQL 18.0 / :5433; rol y bases inicialmente ausentes, ambos dueños `barberturno`, acceso del rol y permiso CREATE comprobados. Segunda ejecución conserva OID, propietarios, permisos y contraseña; no se escribieron tablas ni se borraron datos. Contraseña aleatoria solo en `.local/barberturno.env`; autenticación administrativa mediante `.local/pgpass.conf`; ambas rutas ignoradas y fuera del índice. Pasan exclusiones Git, atributos, UTF-8/LF, enlaces del README y revisión de espacios. Incidencias resueltas: archivo pgpass inicialmente vacío; prompt de Windows reintentado con stdin compatible; fallo del ejecutor aislado y diferencia de dueño de `.git`, resueltos para Git del usuario con `safe.directory` limitado a este repositorio. Diferencia documental para el arquitecto: servidor y cliente instalados 18.0 frente a 18.6 citado en arquitectura §2; se mantiene PostgreSQL 18 y no se cambia el diseño. Node 24 pendiente solo para T-03; Maven/frontend no aplican a T-01. Sin remoto ni push. T-02 y T-03 permanecen pendientes. |
+| T-01 · **Revisión del arquitecto** | 01/10/2026 | **Con observaciones (no bloqueantes). Se puede pasar a T-02.** Detalle y evidencias en [revision-t-01.md](pruebas/revision-t-01.md). Se cumplen todos los criterios de aceptación. Desviaciones aceptadas: commit directo en `main` (no había rama base) y contraseña del rol pedida con `\password` en lugar de una contraseña de desarrollo fija, que es una mejora porque no deja secretos en el SQL. **Observaciones:** O-1 (doc, corregida) faltaba el commit de cierre `9fdb89e` en la tabla de estado. O-2 (entorno) PostgreSQL 18.0 frente a la última menor 18.6: se resuelve con DA-16 + tarea T-38. O-3 (entorno, decisión del estudiante) `.git` pertenece a `CodexSandboxOffline` y Git depende de `safe.directory`: funciona y `fsck` no da errores; opcionalmente, recuperar la propiedad con una consola de administrador (`takeown /F D:\Proyectos\BarberTurno\.git /R /D Y`) y retirar la excepción. O-4 (diseño, aplicada) los secretos locales se centralizan en `.local/barberturno.env` y los importan solo `dev`/`test` (DA-17, T-02). O-5 (diseño, aplicada en T-33) las bases conservan los privilegios por defecto de PUBLIC (CONNECT y TEMP): aceptable en local; en producción se revocan. O-6 (diseño, aplicada en arquitectura §10) mensajes en español e intercalación `Spanish_Peru.1252`: las pruebas comprueban SQLState y nombres de restricción. Sin defectos de implementación que requieran corrección por parte de Codex. |
