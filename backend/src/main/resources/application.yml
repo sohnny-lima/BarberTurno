@@ -46,3 +46,9 @@ barberturno:
     max-activas-por-cliente: 3
     confirmacion-manual: false
     tolerancia-inicio-min: 15
+
+# El advice registra errores sanitizados; Hibernate no debe imprimir valores
+# personales de claves duplicadas devueltos por PostgreSQL.
+logging:
+  level:
+    org.hibernate.orm.jdbc.error: OFF
