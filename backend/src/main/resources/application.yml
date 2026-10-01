@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: barberturno
+  datasource:
+    hikari:
+      connection-init-sql: SET lock_timeout = '5s'
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+server:
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: false
+      show-details: never
+      show-components: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+barberturno:
+  reservas:
+    anticipacion-cambio-cliente: 2h
+    horizonte-dias: 30
+    rejilla-min: 10
+    max-activas-por-cliente: 3
+    confirmacion-manual: false
+    tolerancia-inicio-min: 15

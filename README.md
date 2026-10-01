@@ -2,7 +2,7 @@
 
 Sistema web de reservas y turnos para una barbería de una sede en Huamanga, Perú. Proyecto académico de Integrador I: Sistemas Software (UTP). Arquitectura A1: Angular 22, Spring Boot 4.1.1 / Java 21 y PostgreSQL 18; toda la lógica de negocio reside en Java. Los datos de demostración son ficticios.
 
-Esta entrega prepara el repositorio y la base de datos local (T-01). El backend se creará en T-02 y el frontend en T-03; sus comandos de arranque se documentan abajo para esas etapas.
+El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend se creará en T-03.
 
 ## Entorno
 
@@ -14,7 +14,7 @@ Esta entrega prepara el repositorio y la base de datos local (T-01). El backend 
 | Base de datos | PostgreSQL 18 en `localhost:5433`; el PostgreSQL 17 de `:5432` no se usa |
 | Control de versiones | Git, rama principal `main` |
 
-No se requiere Docker para las pruebas locales. La zona horaria del negocio es `America/Lima`.
+No se requiere Docker para las pruebas locales. La zona horaria del negocio es `America/Lima`. PostgreSQL local es 18.0, aceptado transitoriamente por DA-16; su actualización corresponde a T-38.
 
 ## Preparar PostgreSQL local
 
@@ -32,7 +32,7 @@ Si `psql` no está en el PATH, o apunta al cliente 17, use el ejecutable 18:
 
 Introduzca la contraseña de `postgres` cuando se solicite. Al crear el rol `barberturno` (o si ya existe sin contraseña), el script solicita dos veces una contraseña de desarrollo para ese rol mediante `\password`, sin mostrarla. Consérvela fuera del repositorio y úsela posteriormente como `BT_DB_PASSWORD`.
 
-En la preparación de este equipo se generó una contraseña aleatoria y se conservó únicamente en `.local/barberturno.env`, ignorado por Git. Ese archivo contiene `BT_DB_PASSWORD` y no se carga automáticamente; utilícelo localmente para configurar la sesión del backend sin compartir su contenido.
+En la preparación de este equipo se generó una contraseña aleatoria y se conservó únicamente en `.local/barberturno.env`, ignorado por Git. Ese archivo contiene `BT_DB_PASSWORD` y el backend lo importa automáticamente solo con los perfiles `dev` y `test`, según DA-17. No comparta su contenido.
 
 El script crea únicamente lo que falta: el rol de aplicación sin privilegios administrativos y las bases `barberturno` y `barberturno_test`, ambas propiedad de ese rol. Puede ejecutarlo dos veces para comprobar la idempotencia. Conserva los datos y las contraseñas existentes; si una base ya tiene otro dueño o el rol tiene permisos incompatibles, se detiene para su revisión. No crea tablas: las migraciones Flyway corresponden a T-06.
 
@@ -40,32 +40,48 @@ Para automatizar la autenticación administrativa, puede usar un archivo local `
 
 ## Configuración de la aplicación
 
-Los secretos se suministrarán mediante variables de entorno o `backend/.env.local`, ignorado por Git. Ese archivo no se carga automáticamente: deberá exportar las variables a la sesión que ejecuta Maven.
+Los perfiles `dev` y `test` importan `optional:file:../.local/barberturno.env[.properties]`: ejecute Maven desde `backend/`. Use formato `CLAVE=valor`, sin `export` ni comillas. Las variables de entorno prevalecen sobre el archivo. `prod` exige las ocho variables de la tabla y no importa secretos locales; tampoco debe combinarse con `dev`, `test` o `demo`. La convención anterior `backend/.env.local` queda sustituida por DA-17.
+
+La [plantilla de variables](tools/barberturno.env.example) contiene únicamente marcadores y datos ficticios. Edite su archivo local sin sobrescribir la contraseña ya generada. En local conviene omitir `BT_DB_URL`: `dev` elige `barberturno` y `test` elige `barberturno_test`.
 
 | Variable | Uso |
 |---|---|
 | `BT_DB_URL` | Desarrollo: `jdbc:postgresql://localhost:5433/barberturno`; pruebas: `jdbc:postgresql://localhost:5433/barberturno_test` |
 | `BT_DB_USER` | `barberturno` |
 | `BT_DB_PASSWORD` | Contraseña local del rol de aplicación |
-| `BT_JWT_SECRET` | Secreto de ≥ 32 bytes, codificado en Base64 |
+| `BT_JWT_SECRET` | Secreto Base64 con ≥ 32 bytes decodificados; obligatorio en `prod` |
 | `BT_ADMIN_CORREO`, `BT_ADMIN_PASSWORD`, `BT_ADMIN_NOMBRE` | Administrador inicial |
-| `BT_COOKIE_SECURE` | Según el perfil; desarrollo HTTP local sin `Secure`, producción con `Secure` |
+| `BT_COOKIE_SECURE` | `false` por defecto en dev/test; debe ser `true` en producción |
 
-La configuración definitiva de perfiles y variables se implementará en T-02 y las tareas de seguridad correspondientes; véase [arquitectura §9](docs/arquitectura.md#9-configuración-y-entornos).
+Los perfiles común, `dev`, `test`, `demo` y `prod` están configurados. La autenticación y la creación del administrador corresponden a T-10; véase [arquitectura §9](docs/arquitectura.md#9-configuración-y-entornos).
 
-## Arranque y verificaciones a partir de T-02 y T-03
+## Arranque y pruebas del backend
 
-Backend, en una terminal PowerShell con las variables configuradas:
+Desde la raíz, fije el JDK 21 en la sesión PowerShell (sin modificar otras instalaciones):
 
 ```powershell
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot'
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
 Set-Location backend
 .\mvnw.cmd verify
 .\mvnw.cmd spring-boot:run '-Dspring-boot.run.profiles=dev'
 ```
 
-La API usará `http://localhost:8080`; la comprobación de salud será `GET /actuator/health`. El perfil `dev,demo` estará disponible después de T-32. En Linux/macOS use `./mvnw`.
+La API usa `http://localhost:8080`; `GET /actuator/health` devuelve exactamente `{"status":"UP"}` sin detalles. En `dev`, Swagger está en `http://localhost:8080/swagger-ui.html` y OpenAPI en `/v3/api-docs`; ambos están deshabilitados por defecto en los demás perfiles. La API restante devuelve 401 sin autenticación. La seguridad provisional no crea sesiones, usuarios automáticos ni contraseñas en logs y deniega todas las escrituras. CSRF está desactivado provisionalmente: la protección definitiva para JWT en cookie corresponde a T-10.
 
-Frontend, en otra terminal, después de instalar Node 24 LTS:
+`verify` ejecuta tanto `*Test` como `*IT` con el perfil `test` y PostgreSQL real. Reportes: `backend/target/surefire-reports/` y `backend/target/site/jacoco/index.html`; el umbral de cobertura se incorpora en T-09. El perfil `demo` se activa junto con `dev`, pero sus datos se implementarán en T-32. En Linux/macOS use `./mvnw`; está marcado como ejecutable en Git.
+
+Después de `verify`, el jar está en `backend/target/barberturno-0.0.1-SNAPSHOT.jar`. Desde `backend/`:
+
+```powershell
+& "$env:JAVA_HOME\bin\java.exe" -jar target/barberturno-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+```
+
+Sin las variables obligatorias, ese comando falla explícitamente antes de abrir el pool; solo informa sus nombres. Los secretos locales no se cargan en `prod`. [Evidencias de T-02](docs/pruebas/t-02.md).
+
+## Frontend a partir de T-03
+
+Desde la raíz en otra terminal, después de instalar Node 24 LTS:
 
 ```powershell
 Set-Location frontend

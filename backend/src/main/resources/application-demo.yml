@@ -1,0 +1,4 @@
+# Se activa junto con dev: el escenario de demostración se implementará en T-32.
+spring:
+  application:
+    name: barberturno

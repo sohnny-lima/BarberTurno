@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${BT_DB_URL}
+    username: ${BT_DB_USER}
+    password: ${BT_DB_PASSWORD}
+
+barberturno:
+  seguridad:
+    jwt-secret: ${BT_JWT_SECRET}
+    cookie-secure: ${BT_COOKIE_SECURE}
+  admin:
+    correo: ${BT_ADMIN_CORREO}
+    password: ${BT_ADMIN_PASSWORD}
+    nombre: ${BT_ADMIN_NOMBRE}
