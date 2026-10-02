@@ -274,7 +274,7 @@ class ServicioIT {
 
     @ParameterizedTest @ValueSource(strings = {
             "GET /api/servicios/1", "DELETE /api/servicios/1", "POST /api/servicios/1/estado",
-            "PUT /api/servicios/1/estado", "PATCH /api/servicios/1", "GET /api/barberos"})
+            "PUT /api/servicios/1/estado", "PATCH /api/servicios/1", "GET /api/prueba/no-implementada"})
     void rutasNoAutorizadas_seMantienenCerradas(String caso) throws Exception {
         String[] partes = caso.split(" ");
         var solicitud = request(HttpMethod.valueOf(partes[0]), partes[1]);
