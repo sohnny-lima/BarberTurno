@@ -116,11 +116,7 @@ La versión 3.12.0 del plugin procede del parent de Spring Boot. La generación 
 sin enlaces externos, con `doclint=all` y `failOnWarnings=true`. `verify` ejecuta
 `javadoc-no-fork` sin repetir fases previas del ciclo.
 
-**Estado de T-40: bloqueada.** JDK 21 emite nueve avisos por constructores públicos implícitos.
-Documentarlos exige declarar constructores, fuera del alcance que solo admite comentarios.
-Hasta resolver ese alcance, la generación completa y `verify` devuelven código 1;
-el HTML completo se genera, pero no satisface el criterio de cero avisos. No se han desactivado comprobaciones.
-La [evidencia T-40](docs/pruebas/t-40.md) detalla el bloqueo.
+**Estado de T-40: Hecha.** `mvnw.cmd verify` genera el Javadoc con `doclint=all` y `failOnWarnings=true`: cualquier aviso hace fallar el build (DA-20). Los nueve constructores públicos que antes eran implícitos se declararon vacíos y documentados (corrección 042b), con el mismo bytecode. Detalle en la [evidencia T-40](docs/pruebas/t-40.md) y la [revisión](docs/pruebas/revision-t-40.md).
 
 Desde la raíz, compruebe enlaces locales y pruebe el verificador sin dependencias (Node 20+ o 24):
 

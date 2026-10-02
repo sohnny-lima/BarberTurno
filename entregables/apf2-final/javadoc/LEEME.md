@@ -3,8 +3,8 @@
 Muestra académica de tres clases reales del backend, preparada el 01/10/2026.
 Las fuentes corresponden al commit **d03544c7e7d9c01618a97ccde9f770af6b21006b**;
 la configuración de generación está en backend/pom.xml y el verificador en tools/verificar-enlaces-html.mjs.
-T-40 permanece bloqueada por constructores implícitos de otras clases de la API completa;
-esta muestra conserva los controles estrictos de Javadoc.
+Las tres fuentes son idénticas en `main` tras el cierre de T-40 (comprobado en la revisión, commit `3170962`).
+La muestra se genera con los mismos controles estrictos de Javadoc que la API completa (`doclint=all`, `failOnWarnings=true`).
 
 - `ReglasTemporales`: evolución del anexo ReservaService del APF2, con RN-01 y los límites RN-07/08.
 - `CalculadoraFranjas`: núcleo de RF-07; jornada, rejilla, horizonte y solapes de RN-05.
