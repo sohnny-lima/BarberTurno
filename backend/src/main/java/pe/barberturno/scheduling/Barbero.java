@@ -87,6 +87,17 @@ public class Barbero {
     }
 
     /**
+     * Modifica la descripción profesional sin tocar identidad, estado ni reservas RN-16.
+     * @param especialidad descripción validada de hasta 100 caracteres
+     * @param actualizadoEn instante del cambio aportado por Clock
+     * @throws NullPointerException si falta descripción o instante
+     */
+    public void editarEspecialidad(String especialidad, Instant actualizadoEn) {
+        this.especialidad = Objects.requireNonNull(especialidad, "especialidad");
+        this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
+    }
+
+    /**
      * Identificador persistente generado por V1; nulo hasta persistir la entidad.
      * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */

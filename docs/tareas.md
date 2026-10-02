@@ -49,7 +49,7 @@
 | T-11 | Perfil y cambio de contraseña backend | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | 5f054a06a42b19c5c0ee7e2d0913b55797687b70, dc37326e5c5ddb7b93d386409ba2a39a219d9074; cierre e4a29d6e971f1f8bdd77af22980ceb2d276a2b9e; merge 85e5b72beb4c626f4460df255d47823cf8acd138 |
 | T-12 | Shell, autenticación y perfil en el frontend (P01) | M | T-03, T-11 | Hecha · revisión: Aprobada | 01/10/2026 | 37d11c19ba20239b24293f9a1fb55726d1d71cd8, bebbf5a74a67c65cd807309b0fdd5bebc930431f, 98bc791cc4682f5000a657a5522275a70378b4a4; cierre 54de155c5bb485cb9bf563fc049be61d0199dfe4; merge 810ea594f9f2f58154748fa231058161bc84aa1b |
 | T-13 | Servicios backend (RF-04) | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | 310651aa9bd303fab1a415d905df724b29878bd3, 98e464b62e13690fd4e20ef34d1ea19323586d36; cierre 7499a7067f205c63e613ab74432a90e2d2c94a5b; merge 5acf25dfa9b53836ca86b81fbd6511b424bd646f |
-| T-14 | Barberos backend (RF-05) | M | T-10 | Pendiente | | |
+| T-14 | Barberos backend (RF-05) | M | T-10 | En curso | 01/10/2026 | |
 | T-15 | Jornadas backend (RF-06) | M | T-09, T-14 | Pendiente | | |
 | T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | Pendiente | | |
 | T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | Pendiente | | |
