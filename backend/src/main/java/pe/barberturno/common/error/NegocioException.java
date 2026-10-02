@@ -61,8 +61,19 @@ public class NegocioException extends RuntimeException {
      * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public NegocioException(String detalle, List<ErrorCampo> errores) {
+        this(ErrorCodigo.VALIDACION, detalle, errores);
+    }
+
+    /**
+     * Conserva el código específico de una validación de dominio y sus campos públicos.
+     * @param codigo código de negocio, por ejemplo JORNADA_INVALIDA
+     * @param detalle explicación pública sin valores rechazados
+     * @param errores campos inválidos con índices cuando pertenecen a una lista; se copia la lista
+     * @throws NullPointerException si falta código, detalle, lista o algún error
+     */
+    public NegocioException(ErrorCodigo codigo, String detalle, List<ErrorCampo> errores) {
         super(Objects.requireNonNull(detalle));
-        this.codigo = ErrorCodigo.VALIDACION;
+        this.codigo = Objects.requireNonNull(codigo);
         this.detalles = Map.of();
         this.errores = List.copyOf(errores);
     }

@@ -17,6 +17,15 @@ import org.springframework.data.repository.query.Param;
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     /**
+     * Carga ocupación futura RN-17 después del bloqueo ②; incluye todo estado salvo CANCELADA (MJ-03).
+     * @param barberoId perfil bloqueado cuya agenda se valida
+     * @param ahora instante del Clock; solo inicios estrictamente posteriores
+     * @return reservas futuras ordenadas por inicio e id, sin tomar el bloqueo ③
+     */
+    @Query("select r from Reserva r where r.barbero.id = :barberoId and r.inicio > :ahora and r.estado <> pe.barberturno.reservations.EstadoReserva.CANCELADA order by r.inicio, r.id")
+    List<Reserva> buscarFuturasQueOcupan(@Param("barberoId") Long barberoId, @Param("ahora") Instant ahora);
+
+    /**
      * Cuenta citas futuras que ocupan franja RN-14 para informar sin cancelar al cambiar estado RF-05.
      * @param barberoId perfil cuya agenda se consulta
      * @param ahora instante del Clock; solo se cuentan inicios estrictamente posteriores

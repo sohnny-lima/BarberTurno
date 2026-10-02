@@ -11,6 +11,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class NegocioExceptionTest {
     @Test
+    void construir_jornadaInvalida_conservaCodigoYCopiaErroresIndexados() {
+        var campos = new java.util.ArrayList<ManejadorErrores.ErrorCampo>();
+        campos.add(new ManejadorErrores.ErrorCampo("[2].horaFin", "El fin debe ser posterior al inicio."));
+        var error = new NegocioException(ErrorCodigo.JORNADA_INVALIDA, "Revise la jornada.", campos);
+        campos.clear();
+        assertThat(error.codigo()).isEqualTo(ErrorCodigo.JORNADA_INVALIDA);
+        assertThat(error.detalles()).isEmpty();
+        assertThat(error.errores()).containsExactly(
+                new ManejadorErrores.ErrorCampo("[2].horaFin", "El fin debe ser posterior al inicio."));
+        assertThatThrownBy(() -> error.errores().clear()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
     void construir_sinDetalles_conservaCodigoYMensaje() {
         NegocioException error = new NegocioException(ErrorCodigo.FUERA_DE_HORARIO, "Fuera de jornada.");
         assertThat(error.codigo()).isEqualTo(ErrorCodigo.FUERA_DE_HORARIO);
