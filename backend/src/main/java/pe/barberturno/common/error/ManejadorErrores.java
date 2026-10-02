@@ -42,6 +42,7 @@ public class ManejadorErrores {
      */
     public ManejadorErrores() {
     }
+
     private static final Logger LOG = LoggerFactory.getLogger(ManejadorErrores.class);
 
     /**

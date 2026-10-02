@@ -15,6 +15,7 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
      */
     public CookieBearerTokenResolver() {
     }
+
     /**
      * Lee solo BT_SESION; omite token en POST logout para limpiar cookies inválidas. Dos cookies no vacías
      * producen un token inválido y evitan identidad ambigua.

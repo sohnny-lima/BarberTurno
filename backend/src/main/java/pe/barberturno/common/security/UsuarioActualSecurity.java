@@ -20,6 +20,7 @@ public class UsuarioActualSecurity implements UsuarioActual {
      */
     public UsuarioActualSecurity() {
     }
+
     /**
      * Exige identidad autenticada revalidada; nunca concede acceso con un usuario provisional.
      * @return principal autenticado y revalidado, nunca provisional

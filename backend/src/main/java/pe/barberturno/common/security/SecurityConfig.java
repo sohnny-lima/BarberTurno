@@ -27,6 +27,7 @@ public class SecurityConfig {
      */
     public SecurityConfig() {
     }
+
     /**
      * Configura JWT por cookie sin sesiones HTTP y permisos §7.2; impone DEFAULT_CSRF_MATCHER también con JWT
      * para proteger toda escritura. Añade filtro de contraseña temporal y errores RFC 9457.
