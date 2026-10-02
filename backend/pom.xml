@@ -219,8 +219,7 @@
                 <sourceFileInclude>**/CalculadoraFranjas.java</sourceFileInclude>
                 <sourceFileInclude>**/PoliticaTransiciones.java</sourceFileInclude>
               </sourceFileIncludes>
-              <reportOutputDirectory>${project.basedir}/../entregables/apf2-final/javadoc</reportOutputDirectory>
-              <outputDirectory>html</outputDirectory>
+              <outputDirectory>${project.basedir}/../entregables/apf2-final/javadoc/html</outputDirectory>
             </configuration>
           </plugin>
         </plugins>
