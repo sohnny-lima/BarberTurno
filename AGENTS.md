@@ -60,7 +60,7 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 - `@Transactional` solo en los servicios. Las entidades cambian de estado mediante métodos de dominio, no con setters sueltos.
 - Fechas: `Instant` en persistencia; conversión a Lima solo con `TiempoNegocio`; **nunca** `LocalDateTime.now()` ni `Instant.now()`: usar el `Clock` inyectado.
 - Errores: lanzar `NegocioException(ErrorCodigo, mensaje)`; nunca devolver trazas al cliente.
-- Javadoc en las clases públicas de dominio y servicio (`@author`, `@version`, `@param`, `@return`, `@throws`).
+- Javadoc **útil** en todas las clases, métodos y constructores públicos o protegidos (`@author`, `@version`, `@param`, `@return`, `@throws`): propósito, regla aplicada y significado de los parámetros, sin repetir el nombre del método. `verify` ejecuta `javadoc` con `doclint` y falla ante cualquier aviso (DA-20). HTML: `mvnw.cmd javadoc:javadoc` → `backend/target/reports/apidocs/index.html`.
 - Nombres de pruebas: `*Test` (unitarias) y `*IT` (integración con PostgreSQL). Métodos con nombre descriptivo en español (`cancelar_conMenosDeDosHoras_rechaza`).
 
 ### TypeScript / Angular (frontend)

@@ -21,7 +21,7 @@ Eres el arquitecto y responsable técnico de BarberTurno. Te ocupas del análisi
 Cuando revises una tarea:
 1. Comprueba sus criterios de aceptación y la Definición de Hecho de `docs/tareas.md`.
 2. Ejecuta o revisa las pruebas (`./mvnw verify`, las de frontend) y confirma que cubren los CP citados.
-3. Revisa especialmente: el protocolo de bloqueos y el orden ① ② ③ (arquitectura §8); el uso del `Clock` (nunca `now()`); la autorización en el servidor y el 404 ante recursos ajenos; que no haya reglas de negocio en el frontend; los contratos de API y los códigos de error tal como están documentados; Javadoc; que no haya secretos.
+3. Revisa especialmente: el protocolo de bloqueos y el orden ① ② ③ (arquitectura §8); el uso del `Clock` (nunca `now()`); la autorización en el servidor y el 404 ante recursos ajenos; que no haya reglas de negocio en el frontend; los contratos de API y los códigos de error tal como están documentados; **Javadoc útil** (no repite el nombre del método, explica reglas, parámetros y excepciones) y `verify` sin avisos de `doclint` (DA-20); que no haya secretos.
 4. Registra el resultado en las notas de cierre de `docs/tareas.md` (aprobada / con observaciones) y convierte cada observación en una tarea o subtarea concreta.
 5. Si la implementación revela un problema de diseño, corrige primero los documentos y después ajusta las tareas.
 

@@ -14,7 +14,7 @@
 - [ ] Se cumplen los criterios de aceptación de la tarea.
 - [ ] Las pruebas indicadas están escritas y pasan: `cd backend && ./mvnw verify` y/o `cd frontend && npm run lint && npm test -- --watch=false && npm run build`.
 - [ ] No baja la cobertura del dominio (umbral de JaCoCo activo desde T-09).
-- [ ] Javadoc en las clases públicas nuevas de dominio y de servicio (RA-05).
+- [ ] Javadoc **útil** en todas las clases, métodos y constructores públicos o protegidos nuevos o modificados (RA-05, DA-20): propósito, reglas relevantes, significado de cada `@param`, `@return` y `@throws`; sin comentarios que solo repitan el nombre. `mvnw.cmd verify` incluye `javadoc` con `doclint` y falla ante cualquier aviso (desde T-40).
 - [ ] No hay secretos, credenciales reales ni datos personales reales en el repositorio.
 - [ ] Hay un commit con un mensaje Conventional Commit que referencia la tarea (`feat(reservas): crear reserva con control de concurrencia [T-20]`).
 - [ ] Están actualizados `docs/tareas.md` (estado) y, si aplica, el README.
@@ -75,6 +75,7 @@
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
 | T-38 | Actualizar el PostgreSQL 18 local a la última menor (18.6) | S | — (recomendada antes de T-06) | Pendiente | | |
 | T-39 | Ajustes menores del esqueleto backend (revisión de T-02) | S | T-02 (recomendada antes de T-04) | Hecha · revisión: Aprobada | 01/10/2026 | `84fd47e`; cierre `5a6a374cba7e53a681ceb513bdef4dee754c89a0`; merge `7cfbfec200bb98ea059da164e64bafc3a94d35ec`; registro por asunto (ver evidencia) |
+| T-40 | Javadoc completo, generación HTML reproducible y muestra para la exposición | M | T-13 (antes de T-14) | Pendiente | | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -310,6 +311,21 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
   5. **Limpieza (O-7):** borrar `backend/HELP.md` del árbol de trabajo (ignorado y sin versionar); quitar `@AutoConfigureMockMvc` donde no se usa MockMvc (`ConfiguracionBaseDatosIT`).
 - **Criterios de aceptación:** `mvnw.cmd verify` con JDK 21 pasa con el mismo número de pruebas o más, y la salida no contiene avisos de autoacoplamiento de Mockito ni de carga dinámica de agentes; la prueba de prioridad falla si se invierte el orden de las fuentes (comprobarlo de forma temporal y documentarlo); la plantilla no contiene valores activos exclusivos de `prod`; no cambia ningún comportamiento en tiempo de ejecución de `dev`, `test` ni `prod`.
 - **Pruebas / evidencias:** `docs/pruebas/t-39.md` con la salida de `verify`, sin credenciales.
+
+### T-40 · Javadoc completo, generación HTML reproducible y muestra para la exposición
+- **Origen:** petición del responsable (01/10/2026) y auditoría del arquitecto sobre `ab4ca0d`. En `backend/src/main/java` hay 59 archivos y 259 elementos públicos o protegidos: **29 sin Javadoc** (controladores, `JwtConfig`, filtros de seguridad, `AdminInicialRunner`…) y **129 triviales** (por ejemplo "Consulta id." en los *getters* de las entidades). `mvnw.cmd javadoc:javadoc -Ddoclint=all` genera el HTML (plugin 3.12.0, heredado del parent, **no declarado** en el pom) con **100 avisos** (43 sin comentario, 38 sin `@param` y 3 sin `@return`; 100 es el tope por defecto, así que puede haber más). RA-05 y DA-20.
+- **Alcance:**
+  1. **Javadoc útil** en todas las clases, *records*, enumerados, interfaces, constructores y métodos públicos o protegidos de `backend/src/main/java`: propósito; regla de negocio o RN que aplica; significado (unidad, zona horaria, nulabilidad) de cada `@param`; `@return`; `@throws` con la condición; componentes de los *records* con `@param`; `@author` y `@version` en las clases. Los *getters* de las entidades describen el **significado del dato** (por ejemplo, "fin exclusivo del intervalo `[inicio, fin)`, calculado con la duración de referencia"), no "Consulta X". Los repositorios explican cada consulta (bloqueo, orden y centinela). Los controladores indican la ruta, quién puede usarla y los códigos de error principales. **Sin cambios de comportamiento.**
+  2. **Generación reproducible:** declara `maven-javadoc-plugin` en el pom (versión del parent) con UTF-8 (`encoding`, `docencoding`, `charset`), `doclint=all`, `failOnWarnings=true`, autor y versión visibles, `detectJavaApiLink=false` y sin enlaces externos (para que funcione sin red y en la CI), título "BarberTurno — API Java", y una ejecución `javadoc-no-fork` (o equivalente) en la fase `verify`, de modo que `mvnw.cmd verify` falle ante cualquier aviso. Comando documentado: `mvnw.cmd javadoc:javadoc` → `backend/target/reports/apidocs/index.html`.
+  3. **Comprobación de enlaces:** `tools/verificar-enlaces-html.mjs` (Node, sin dependencias) recorre un directorio HTML y comprueba que todo enlace relativo (`href` y `src`, sin anclas externas) apunta a un archivo existente; código ≠ 0 si falta alguno.
+  4. **Muestra para la exposición** en `entregables/apf2-final/javadoc/`: 2–3 clases reales y representativas (propuesta: `reservations/ReglasTemporales`, continuación del anexo del APF2; `scheduling/CalculadoraFranjas`; y `reservations/PoliticaTransiciones`). Contiene `fuentes/` (copia exacta de los `.java` comentados), `html/` (Javadoc generado solo para esas clases, reproducible con una ejecución o un perfil del plugin de Maven y el wrapper con Java 21) y `LEEME.md` (qué contiene, por qué esas clases, el comando de regeneración y la fecha y el commit de origen). `docs/apf2/` no se toca.
+- **Criterios de aceptación:**
+  - `mvnw.cmd verify` con JDK 21 pasa con el mismo número de pruebas (679) y **0 avisos de Javadoc**;
+  - `mvnw.cmd javadoc:javadoc` genera `index.html` y el verificador de enlaces no encuentra rotos, tanto en el HTML completo como en la muestra;
+  - la auditoría (0 elementos públicos sin Javadoc y ninguno trivial) se repite en la evidencia;
+  - no cambia ningún comportamiento: el diff de `src/main` solo toca comentarios (compruébalo con un diff que ignore los comentarios, o compilando y comparando el bytecode con `javap -c` de las clases tocadas);
+  - el README documenta el comando, la ubicación y la muestra.
+- **Pruebas / evidencias:** `docs/pruebas/t-40.md`.
 
 ---
 
