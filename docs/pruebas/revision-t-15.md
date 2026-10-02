@@ -12,3 +12,6 @@
 | V-03 | Permisos | GET: ADMIN o BARBERO, y el BARBERO solo el suyo (si no, 404 `NO_ENCONTRADO`); PUT: solo ADMIN. Prueba de CSRF con sesión: `put_sesionValidaSinCsrfOCsrfIncorrecto_devuelve403SinCambios`. |
 | V-04 | **`mvnw.cmd clean verify` (JDK 21)** | **811 pruebas** (`JornadaIT` 48, `JornadaServiceTest` 2), 0 fallos/errores/omitidas; `jacoco:check` cumplido; **0 avisos de Javadoc**. Codex: 811/811 también en un worktree sin `.local/`; `scheduling` al 99,14 % y `JornadaService` al 100 % de líneas y ramas. |
 | V-05 | Concurrencia (pruebas de Codex) | Dos `PUT` simultáneos: el último confirmado queda completo, sin mezcla; un cambio de jornada que espera el bloqueo detecta una reserva confirmada durante la espera (consulta posterior al bloqueo). |
+
+## Adenda (02/10/2026, revisión de T-16)
+Las jornadas de T-15 se guardaban con la hora desplazada +5 h por el mapeo de `LocalTime` heredado de T-07 (ver la adenda de [revision-t-07.md](revision-t-07.md)). La lógica de T-15 trabaja con los valores leídos y era coherente, pero la base de datos almacenaba horas incorrectas. Corregido en T-16. La base de desarrollo no tenía jornadas (comprobado: 0 filas), así que no hay datos que migrar.

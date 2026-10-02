@@ -299,7 +299,7 @@ Notas de diseño:
 - La migración la ejecuta el dueño de la base de datos. `btree_gist` es una extensión *trusted* en PostgreSQL ≥ 13, así que no requiere superusuario.
 
 ### 5.2 Mapeo JPA
-`Instant` para `timestamptz`, `LocalTime` para `time`, `BigDecimal` para `numeric`, enumerados con `@Enumerated(EnumType.STRING)`, `jsonb` con `@JdbcTypeCode(SqlTypes.JSON)` sobre un `record` o un `Map`. `spring.jpa.hibernate.ddl-auto=validate`. Las relaciones son `@ManyToOne(fetch = LAZY)` y no se mapean colecciones inversas, salvo `Barbero.jornadas` si simplifica el reemplazo.
+`Instant` para `timestamptz`, `LocalTime` para `time` **con `@JdbcTypeCode(SqlTypes.LOCAL_TIME)`** (como `hibernate.jdbc.time_zone=UTC`, sin esa anotación Hibernate desplaza la hora local +5 h al guardarla; defecto detectado y corregido en T-16, con pruebas que leen el valor físico con JDBC), `BigDecimal` para `numeric`, enumerados con `@Enumerated(EnumType.STRING)`, `jsonb` con `@JdbcTypeCode(SqlTypes.JSON)` sobre un `record` o un `Map`. `spring.jpa.hibernate.ddl-auto=validate`. Las relaciones son `@ManyToOne(fetch = LAZY)` y no se mapean colecciones inversas, salvo `Barbero.jornadas` si simplifica el reemplazo.
 
 ---
 

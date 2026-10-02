@@ -19,3 +19,6 @@
 |---|---|---|
 | O-1 | Hibernate usa `FOR NO KEY UPDATE`. Es válido para el protocolo y además mejor, porque no bloquea las comprobaciones de clave foránea. | Documentado en arquitectura §8 en el commit de esta revisión. |
 | O-2 | `Reserva.cambiarEstado` todavía no valida la transición, que llega en T-09. | Añadido al encargo de T-09: la entidad rechazará las transiciones que `EstadoReserva` no permita, como última defensa. |
+
+## Adenda (02/10/2026, revisión de T-16)
+**Defecto no detectado en esta revisión:** el mapeo de `Jornada.horaInicio/horaFin` (`LocalTime` → `time`) se veía afectado por `hibernate.jdbc.time_zone=UTC`: la hora de Lima se guardaba desplazada +5 h. La lectura deshacía el desplazamiento, por eso las pruebas de ida y vuelta pasaban, pero un tramo que terminara a partir de las 19:00 de Lima incumplía `jornada_intervalo_valido`. Corregido en T-16 con `@JdbcTypeCode(SqlTypes.LOCAL_TIME)` y con pruebas que leen el valor físico (`hora_inicio::text`). **Lección:** en los mapeos de fecha y hora, comprobar el valor almacenado con JDBC, no solo la ida y vuelta por JPA.
