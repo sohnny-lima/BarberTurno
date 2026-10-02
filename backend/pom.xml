@@ -177,6 +177,54 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <configuration>
+          <encoding>UTF-8</encoding>
+          <docencoding>UTF-8</docencoding>
+          <charset>UTF-8</charset>
+          <doclint>all</doclint>
+          <failOnWarnings>true</failOnWarnings>
+          <quiet>true</quiet>
+          <author>true</author>
+          <version>true</version>
+          <detectJavaApiLink>false</detectJavaApiLink>
+          <doctitle>BarberTurno — API Java</doctitle>
+          <windowtitle>BarberTurno — API Java</windowtitle>
+        </configuration>
+        <executions>
+          <execution>
+            <id>javadoc-verificacion</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>javadoc-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>javadoc-muestra</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <sourceFileIncludes>
+                <sourceFileInclude>**/ReglasTemporales.java</sourceFileInclude>
+                <sourceFileInclude>**/CalculadoraFranjas.java</sourceFileInclude>
+                <sourceFileInclude>**/PoliticaTransiciones.java</sourceFileInclude>
+              </sourceFileIncludes>
+              <reportOutputDirectory>${project.basedir}/../entregables/apf2-final/javadoc</reportOutputDirectory>
+              <outputDirectory>html</outputDirectory>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
