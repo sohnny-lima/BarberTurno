@@ -3,7 +3,7 @@ package pe.barberturno.scheduling;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.Instant;
 import java.util.List;
-import org.springframework.data.jpa.repository.Lock;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +13,14 @@ import org.springframework.data.repository.query.Param;
  * @version 1.0
  */
 public interface BloqueoRepository extends JpaRepository<Bloqueo, Long> {
+
+    /**
+     * Lee solo el perfil para tomar ② antes de cargar y eliminar un bloqueo RN-16.
+     * @param id identidad persistente del bloqueo solicitado
+     * @return identidad del perfil o vacío si el bloqueo no existe
+     */
+    @Query("select b.barbero.id from Bloqueo b where b.id = :id")
+    Optional<Long> buscarBarberoId(@Param("id") Long id);
 
     /**
      * Lee sin bloqueo intervalos del barbero que solapan el rango semiabierto; permite contigüidad y ordena por

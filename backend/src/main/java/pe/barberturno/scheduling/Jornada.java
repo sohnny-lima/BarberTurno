@@ -11,11 +11,14 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.Objects;
 import java.time.LocalTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Intervalo semanal de atención RN-17: día ISO y horas locales de America/Lima sin cruzar medianoche.
+ * Usa JDBC 4.2 para conservar LocalTime sin el desplazamiento de la zona JDBC de los instantes.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Entity
 @Table(name = "jornada")
@@ -33,9 +36,11 @@ public class Jornada {
     private short diaSemana;
 
     @Column(name = "hora_inicio", nullable = false)
+    @JdbcTypeCode(SqlTypes.LOCAL_TIME)
     private LocalTime horaInicio;
 
     @Column(name = "hora_fin", nullable = false)
+    @JdbcTypeCode(SqlTypes.LOCAL_TIME)
     private LocalTime horaFin;
 
     /**

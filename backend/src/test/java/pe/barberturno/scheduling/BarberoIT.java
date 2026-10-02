@@ -374,7 +374,7 @@ class BarberoIT {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errores[0].campo").value("activo"));
     }
 
-    @ParameterizedTest @ValueSource(strings = {"GET /api/barberos/1", "DELETE /api/barberos/1", "POST /api/barberos/1/estado", "PUT /api/barberos/1/estado", "PATCH /api/barberos/1", "GET /api/barberos/1/bloqueos"})
+    @ParameterizedTest @ValueSource(strings = {"GET /api/barberos/1", "DELETE /api/barberos/1", "POST /api/barberos/1/estado", "PUT /api/barberos/1/estado", "PATCH /api/barberos/1", "GET /api/disponibilidad"})
     void rutasNoImplementadas_permanecenCerradas(String caso) throws Exception {
         String[] partes = caso.split(" ");
         mvc.perform(conCsrf(request(HttpMethod.valueOf(partes[0]), partes[1]), login(crearUsuario("admin", Rol.ADMIN))))
