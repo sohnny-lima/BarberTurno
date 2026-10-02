@@ -43,3 +43,20 @@ foreach ($clase in $clases) {
 Registre el nuevo commit de origen al actualizar las fuentes y repita la comparación de bytes.
 Los encabezados de generación de Javadoc incluyen su fecha; reproducible significa aquí
 mismo comando, selección, configuración y estructura, no identidad entre fechas diferentes.
+
+### Normalizar el texto generado antes de versionar
+
+El doclet de JDK 21 usa CRLF en Windows y deja algunos espacios sobrantes.
+Desde backend/, después de la generación, normalice exclusivamente la salida de la muestra:
+
+~~~powershell
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+Get-ChildItem ../entregables/apf2-final/javadoc/html -Recurse -File |
+    Where-Object Extension -ne '.png' | ForEach-Object {
+        $texto = [IO.File]::ReadAllText($_.FullName).Replace("`r`n", "`n")
+        $texto = [regex]::Replace($texto, '(?m)[ \t]+$', '')
+        [IO.File]::WriteAllText($_.FullName, $texto, $utf8)
+    }
+~~~
+
+Este paso conserva los PNG y solo ajusta espacios y finales de línea de los archivos textuales.

@@ -103,6 +103,42 @@ Detenga el servidor con Ctrl+C. Para comprobar producción, desde `backend/`:
 
 Sin las variables obligatorias, ese comando falla explícitamente antes de abrir el pool; solo informa sus nombres. Los secretos locales no se cargan en `prod`. [Evidencias de T-02](docs/pruebas/t-02.md).
 
+## Documentación Javadoc
+
+Con JDK 21 y las dependencias Maven ya descargadas, desde `backend/`:
+
+~~~powershell
+.\mvnw.cmd -o javadoc:javadoc
+~~~
+
+El HTML completo queda en [backend/target/reports/apidocs/index.html](backend/target/reports/apidocs/index.html).
+La versión 3.12.0 del plugin procede del parent de Spring Boot. La generación usa UTF-8,
+sin enlaces externos, con `doclint=all` y `failOnWarnings=true`. `verify` ejecuta
+`javadoc-no-fork` sin repetir fases previas del ciclo.
+
+**Estado de T-40: bloqueada.** JDK 21 emite nueve avisos por constructores públicos implícitos.
+Documentarlos exige declarar constructores, fuera del alcance que solo admite comentarios.
+Hasta resolver ese alcance, la generación completa y `verify` devuelven código 1;
+el HTML completo se genera, pero no satisface el criterio de cero avisos. No se han desactivado comprobaciones.
+La [evidencia T-40](docs/pruebas/t-40.md) detalla el bloqueo.
+
+Desde la raíz, compruebe enlaces locales y pruebe el verificador sin dependencias (Node 20+ o 24):
+
+~~~powershell
+node tools/verificar-enlaces-html.mjs backend/target/reports/apidocs
+node --test tools/fixtures-enlaces-html/verificar.test.mjs
+~~~
+
+La [muestra para la exposición](entregables/apf2-final/javadoc/LEEME.md) incluye fuentes exactas
+por paquete y HTML de ReglasTemporales, CalculadoraFranjas y PoliticaTransiciones.
+Regeneración desde `backend/`, seguida de comprobación desde la raíz:
+
+~~~powershell
+.\mvnw.cmd -o -P javadoc-muestra javadoc:javadoc
+Set-Location ..
+node tools/verificar-enlaces-html.mjs entregables/apf2-final/javadoc/html
+~~~
+
 ## Arranque y pruebas del frontend
 
 Node **24.21.0** se instala con fnm 1.38.1 para este proyecto, sin cambiar el Node global. La raíz contiene `.node-version`; `frontend/package.json` exige `^24.15.0`. Desde la raíz, en otra terminal PowerShell:
