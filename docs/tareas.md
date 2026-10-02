@@ -75,7 +75,7 @@
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
 | T-38 | Actualizar el PostgreSQL 18 local a la última menor (18.6) | S | — (recomendada antes de T-06) | Pendiente | | |
 | T-39 | Ajustes menores del esqueleto backend (revisión de T-02) | S | T-02 (recomendada antes de T-04) | Hecha · revisión: Aprobada | 01/10/2026 | `84fd47e`; cierre `5a6a374cba7e53a681ceb513bdef4dee754c89a0`; merge `7cfbfec200bb98ea059da164e64bafc3a94d35ec`; registro por asunto (ver evidencia) |
-| T-40 | Javadoc completo, generación HTML reproducible y muestra para la exposición | M | T-13 (antes de T-14) | Bloqueada (9 constructores implícitos: doclint exige documentarlos y el alcance solo admite comentarios) | 01/10/2026 | `d03544c7e7d9c01618a97ccde9f770af6b21006b`, `bc58ad9a9154855dd83e1a5d3d82999d22860b81`, `5792d461afd9fa47ee59829ebffc4aaae88f6b73`, `ce725a5cd7e55351c833f8f7b56a1abac8e9e53c`; registro por asunto (evidencia); sin merge |
+| T-40 | Javadoc completo, generación HTML reproducible y muestra para la exposición | M | T-13 (antes de T-14) | En curso (corrección 042b autorizada) | 01/10/2026 | `d03544c7e7d9c01618a97ccde9f770af6b21006b`, `bc58ad9a9154855dd83e1a5d3d82999d22860b81`, `5792d461afd9fa47ee59829ebffc4aaae88f6b73`, `ce725a5cd7e55351c833f8f7b56a1abac8e9e53c`; registro por asunto (evidencia); sin merge |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 

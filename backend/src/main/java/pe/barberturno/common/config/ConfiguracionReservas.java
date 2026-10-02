@@ -10,4 +10,11 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ParametrosReserva.class)
-public class ConfiguracionReservas { }
+public class ConfiguracionReservas {
+
+    /**
+     * Spring crea esta configuración al arrancar el contexto para registrar los parámetros de reservas.
+     */
+    public ConfiguracionReservas() {
+    }
+}

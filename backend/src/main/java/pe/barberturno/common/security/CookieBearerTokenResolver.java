@@ -9,6 +9,12 @@ import org.springframework.security.oauth2.server.resource.web.BearerTokenResolv
  * @version 1.0
  */
 public class CookieBearerTokenResolver implements BearerTokenResolver {
+
+    /**
+     * SecurityConfig crea este lector sin estado para resolver la cookie de sesión en cada petición.
+     */
+    public CookieBearerTokenResolver() {
+    }
     /**
      * Lee solo BT_SESION; omite token en POST logout para limpiar cookies inválidas. Dos cookies no vacías
      * producen un token inválido y evitan identidad ambigua.

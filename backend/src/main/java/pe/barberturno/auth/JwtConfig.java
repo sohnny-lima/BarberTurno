@@ -25,6 +25,12 @@ import org.springframework.security.oauth2.jwt.*;
  */
 @Configuration(proxyBeanMethods = false)
 public class JwtConfig {
+
+    /**
+     * Spring crea esta configuración al arrancar el contexto para registrar los beans de seguridad.
+     */
+    public JwtConfig() {
+    }
     /**
      * Construye clave HS256 de al menos 32 bytes; genera clave efímera solo en dev/test sin prod, sin secretos
      * predeterminados.
@@ -94,8 +100,8 @@ public class JwtConfig {
     }
 
     /**
-     * Configura BCrypt con coste 12 para proteger las credenciales según RNF-03.
-     * @return codificador BCrypt de coste 12
+     * Protege las credenciales según RNF-03.
+     * {@return codificador BCrypt de coste 12}
      */
     @Bean
     public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }

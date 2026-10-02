@@ -14,6 +14,12 @@ import pe.barberturno.users.Rol;
  */
 @Component
 public class UsuarioActualSecurity implements UsuarioActual {
+
+    /**
+     * Spring crea este componente sin estado; la identidad se consulta en el contexto de cada petición.
+     */
+    public UsuarioActualSecurity() {
+    }
     /**
      * Exige identidad autenticada revalidada; nunca concede acceso con un usuario provisional.
      * @return principal autenticado y revalidado, nunca provisional

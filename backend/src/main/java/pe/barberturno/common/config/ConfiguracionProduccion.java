@@ -21,6 +21,12 @@ import org.springframework.util.StringUtils;
 @Profile("prod")
 public class ConfiguracionProduccion {
 
+    /**
+     * Spring crea esta configuración al activar prod; la validación previa reside en el bean estático.
+     */
+    public ConfiguracionProduccion() {
+    }
+
     private static final List<String> VARIABLES_OBLIGATORIAS = List.of(
             "BT_DB_URL", "BT_DB_USER", "BT_DB_PASSWORD", "BT_JWT_SECRET",
             "BT_ADMIN_CORREO", "BT_ADMIN_PASSWORD", "BT_ADMIN_NOMBRE", "BT_COOKIE_SECURE");

@@ -36,6 +36,12 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @RestControllerAdvice
 public class ManejadorErrores {
+
+    /**
+     * Spring crea este consejo MVC al arrancar el contexto para traducir los errores de las peticiones.
+     */
+    public ManejadorErrores() {
+    }
     private static final Logger LOG = LoggerFactory.getLogger(ManejadorErrores.class);
 
     /**

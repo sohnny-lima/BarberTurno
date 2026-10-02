@@ -12,6 +12,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BarberTurnoApplication {
 
     /**
+     * Spring crea la configuración principal al arrancar el contexto; no se instancia manualmente.
+     */
+    public BarberTurnoApplication() {
+    }
+
+    /**
      * Inicia la aplicación con la configuración del perfil seleccionado.
      * @param args argumentos de arranque
      */
