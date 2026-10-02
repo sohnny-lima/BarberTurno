@@ -51,7 +51,7 @@
 | T-13 | Servicios backend (RF-04) | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | 310651aa9bd303fab1a415d905df724b29878bd3, 98e464b62e13690fd4e20ef34d1ea19323586d36; cierre 7499a7067f205c63e613ab74432a90e2d2c94a5b; merge 5acf25dfa9b53836ca86b81fbd6511b424bd646f |
 | T-14 | Barberos backend (RF-05) | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | ad9da1e4e4b2aef628c1caeef66fb5a2163f9e3f, 521235c4411c2bf2376b406aad516b8dc8185179; cierre 49884d4ebb24b48325a4a42792a436d4815e393d; merge 0d37f165653905ef88f92e1c59beac2d57f4397e; único registro docs posterior por asunto en evidencia |
 | T-15 | Jornadas backend (RF-06) | M | T-09, T-14 | Hecha · revisión: Aprobada | 02/10/2026 | 39178b66763d4f333a0cf5f130bde33f64f76611, 73a47efc5c9fd7faf228091da9a8bb739a2e4493; cierre 6755387c93b881d025b1598a4a914c3474c51188; merge d8fd94446da27b74803b89aeafa8e5a245ec121f; único registro docs posterior por asunto en evidencia |
-| T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | Pendiente | | |
+| T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | En curso | 02/10/2026 | |
 | T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | Pendiente | | |
 | T-18 | Horarios y bloqueos en el frontend (P07) | M | T-17, T-16 | Pendiente | | |
 | T-19 | Disponibilidad backend (RF-07) | M | T-09, T-13, T-16 | Pendiente | | |
