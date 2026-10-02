@@ -14,8 +14,8 @@ import java.util.Objects;
 import pe.barberturno.users.Usuario;
 
 /**
- * Bloqueo de disponibilidad de un barbero.
- *
+ * Intervalo semiabierto sin atención de un barbero (RN-18); el servicio valida futuro y reservas antes de
+ * persistir.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -47,20 +47,24 @@ public class Bloqueo {
     @Column(name = "creado_en", nullable = false)
     private Instant creadoEn;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected Bloqueo() {
     }
 
     /**
      * Crea bloqueo de disponibilidad de un barbero.
-     * @param barbero barbero
-     * @param inicio inicio
-     * @param fin fin
-     * @param motivo motivo
-     * @param creadoPor creadoPor
-     * @param creadoEn instante aportado por el servicio
+     * @param barbero perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo
+     * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo
+     * @param fin fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo
+     * @param motivo texto no nulo de hasta 200 caracteres que explica la indisponibilidad
+     * @param creadoPor identidad del actor que creó el bloqueo, enlazada por creado_por; no nula
+     * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
-     * @throws IllegalArgumentException si los datos violan las restricciones simples de V1.
+     * @throws IllegalArgumentException si inicio no precede estrictamente a fin
      */
     public Bloqueo(Barbero barbero, Instant inicio, Instant fin, String motivo, Usuario creadoPor, Instant creadoEn) {
         this.barbero = Objects.requireNonNull(barbero, "barbero");
@@ -75,56 +79,57 @@ public class Bloqueo {
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta barbero.
-     * @return barbero
+     * Perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
+     * @return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
      */
     public Barbero getBarbero() {
         return barbero;
     }
 
     /**
-     * Consulta inicio.
-     * @return inicio
+     * Inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
+     * @return inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
      */
     public Instant getInicio() {
         return inicio;
     }
 
     /**
-     * Consulta fin.
-     * @return fin
+     * Fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
+     * @return fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
      */
     public Instant getFin() {
         return fin;
     }
 
     /**
-     * Consulta motivo.
-     * @return motivo
+     * Motivo no nulo del bloqueo, persistido en varchar(200); explica la indisponibilidad RN-18.
+     * @return explicación no nula de la indisponibilidad, hasta 200 caracteres
      */
     public String getMotivo() {
         return motivo;
     }
 
     /**
-     * Consulta creadoPor.
-     * @return creadoPor
+     * Identidad del actor que creó el bloqueo, enlazada por creado_por; no nula.
+     * @return identidad del actor que creó el bloqueo, enlazada por creado_por; no nula.
      */
     public Usuario getCreadoPor() {
         return creadoPor;
     }
 
     /**
-     * Consulta creadoEn.
-     * @return creadoEn
+     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
+     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
+     * no nulo.
      */
     public Instant getCreadoEn() {
         return creadoEn;

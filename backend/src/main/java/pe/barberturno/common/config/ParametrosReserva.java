@@ -28,7 +28,11 @@ public record ParametrosReserva(
         boolean confirmacionManual,
         @Min(0) int toleranciaInicioMin) {
 
-    /** @return true si la anticipación presente es no negativa; NotNull valida la ausencia */
+    /**
+     * Rechaza anticipaciones negativas mediante Bean Validation; la ausencia corresponde a NotNull, sin duplicar
+     * su mensaje.
+     * @return true si la anticipación presente es no negativa; NotNull valida la ausencia
+     */
     @AssertTrue(message = "La anticipación del cliente no puede ser negativa.")
     public boolean isAnticipacionValida() {
         return anticipacionCambioCliente == null || !anticipacionCambioCliente.isNegative();

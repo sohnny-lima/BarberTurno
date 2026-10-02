@@ -6,18 +6,20 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 /**
- * Reglas temporales puras del anexo APF2, aplicadas a instantes absolutos.
+ * Reglas temporales puras del anexo APF2: RN-01, RN-07 y RN-08 sobre instantes absolutos.
  * El llamador comprueba identidad, propiedad y estado de la reserva.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 public final class ReglasTemporales {
-    /** Crea las reglas sin estado ni dependencias de infraestructura. */
+    /**
+     * Crea las reglas sin estado ni dependencias de infraestructura.
+     */
     public ReglasTemporales() { }
 
     /**
-     * Calcula el fin exclusivo según la duración acordada del servicio.
-     * @param inicio instante de inicio
+     * Calcula el fin exclusivo RN-01 con la duración acordada RN-13, sin consultar el catálogo actual.
+     * @param inicio instante absoluto no nulo de inicio inclusivo
      * @param minutos duración positiva en minutos
      * @return instante de finalización
      * @throws NullPointerException si inicio es nulo
@@ -30,11 +32,11 @@ public final class ReglasTemporales {
     }
 
     /**
-     * Comprueba el solapamiento de intervalos semiabiertos; permite contigüidad.
-     * @param inicioA inicio del primer intervalo
-     * @param finA fin exclusivo del primer intervalo
-     * @param inicioB inicio del segundo intervalo
-     * @param finB fin exclusivo del segundo intervalo
+     * Comprueba RN-01 con intervalos {@code [inicio, fin)} ; dos citas contiguas no se solapan.
+     * @param inicioA instante absoluto no nulo de inicio inclusivo del primer intervalo
+     * @param finA instante absoluto no nulo de fin exclusivo del primer intervalo
+     * @param inicioB instante absoluto no nulo de inicio inclusivo del segundo intervalo
+     * @param finB instante absoluto no nulo de fin exclusivo del segundo intervalo
      * @return true si comparten algún instante
      * @throws NullPointerException si falta un extremo
      * @throws IllegalArgumentException si algún intervalo no es positivo
@@ -46,14 +48,17 @@ public final class ReglasTemporales {
     }
 
     /**
-     * Evalúa RN-07 y RN-08 para cancelar o reprogramar.
-     * @param ahora instante de evaluación aportado por el servidor
-     * @param inicio inicio de la reserva
+     * Evalúa RN-07 y RN-08 para cancelar o reprogramar: el límite exacto de dos horas del cliente está
+     * permitido. El ADMIN debe estar estrictamente antes del inicio y aportar cinco caracteres no blancos; no
+     * admite modificar justo al inicio. La autorización por actor y estado corresponde a
+     * {@link PoliticaTransiciones} .
+     * @param ahora instante absoluto no nulo aportado por el Clock del servidor
+     * @param inicio instante absoluto no nulo de inicio de la reserva
      * @param esAdmin rol administrador comprobado por el llamador
-     * @param motivo motivo administrativo, opcional para el cliente
-     * @param anticipacionCliente mínimo no negativo para el cliente
-     * @return true si el cliente cumple el mínimo o el administrador está antes
-     *         del inicio y aporta al menos cinco caracteres no blancos
+     * @param motivo justificación; puede ser nula para cliente y es obligatoria para ADMIN
+     * @param anticipacionCliente duración no nula y no negativa; por defecto dos horas para RN-07
+     * @return true si el cliente cumple el mínimo o el administrador está antes del inicio y aporta al menos
+     * cinco caracteres no blancos
      * @throws NullPointerException si falta un instante o la anticipación
      * @throws IllegalArgumentException si la anticipación es negativa
      */

@@ -18,9 +18,22 @@ import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 
-/** Firma HS256 y validación temporal con el mismo reloj de los servicios. */
+/**
+ * Configura firma HS256, caducidad estricta y BCrypt de coste 12 para RNF-03 y arquitectura §7.1.
+ * @author Sohnny Walter Lima Infanzón
+ * @version 1.0
+ */
 @Configuration(proxyBeanMethods = false)
 public class JwtConfig {
+    /**
+     * Construye clave HS256 de al menos 32 bytes; genera clave efímera solo en dev/test sin prod, sin secretos
+     * predeterminados.
+     * @param secreto clave Base64; vacía solo para generar clave efímera dev/test
+     * @param entorno configuración y perfiles activos no nulos; nunca se imprimen valores
+     * @return clave HmacSHA256 para firmar y validar sesiones
+     * @throws IllegalStateException si falta el secreto fuera de dev/test, está mal codificado o tiene menos de
+     * 32 bytes
+     */
     @Bean
     public SecretKey claveJwt(@Value("${barberturno.seguridad.jwt-secret:}") String secreto,
             Environment entorno) {
@@ -45,11 +58,23 @@ public class JwtConfig {
         return new SecretKeySpec(bytes, "HmacSHA256");
     }
 
+    /**
+     * Configura el firmante HS256 con la clave local, sin consultar proveedores externos.
+     * @param claveJwt clave HS256 no nula de al menos 32 bytes
+     * @return firmante HS256 configurado
+     */
     @Bean
     public JwtEncoder jwtEncoder(SecretKey claveJwt) {
         return new NimbusJwtEncoder(new ImmutableSecret<>(claveJwt));
     }
 
+    /**
+     * Valida HS256 con Clock: exp estrictamente futuro, iat no futuro y nbf, si existe, alcanzado; sin
+     * tolerancia añadida.
+     * @param claveJwt clave HS256 no nula de al menos 32 bytes
+     * @param clock Clock inyectado no nulo; aporta instantes absolutos para America/Lima
+     * @return validador HS256 con límites estrictos
+     */
     @Bean
     public JwtDecoder jwtDecoder(SecretKey claveJwt, Clock clock) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(claveJwt)
@@ -68,6 +93,10 @@ public class JwtConfig {
         return decoder;
     }
 
+    /**
+     * Configura BCrypt con coste 12 para proteger las credenciales según RNF-03.
+     * @return codificador BCrypt de coste 12
+     */
     @Bean
     public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
 }

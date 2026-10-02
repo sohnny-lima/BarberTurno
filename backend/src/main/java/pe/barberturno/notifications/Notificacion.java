@@ -18,8 +18,7 @@ import pe.barberturno.reservations.Reserva;
 import pe.barberturno.audit.AccionAuditoria;
 
 /**
- * Aviso interno de un cambio de reserva.
- *
+ * Aviso interno RF-16 de un cambio de reserva; el servicio lo persiste con la auditoría según RN-15.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -52,17 +51,21 @@ public class Notificacion {
     @Column(name = "creado_en", nullable = false)
     private Instant creadoEn;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected Notificacion() {
     }
 
     /**
-     * Crea aviso interno de un cambio de reserva.
-     * @param usuario usuario
-     * @param reserva reserva
-     * @param tipo tipo
-     * @param mensaje mensaje
-     * @param creadoEn instante aportado por el servicio
+     * Prepara un aviso interno no leído RF-16; el servicio selecciona destinatarios RN-15 y lo persiste con la
+     * reserva y auditoría.
+     * @param usuario destinatario no nulo seleccionado por el servicio según RN-15
+     * @param reserva reserva histórica asociada por reserva_id; no nula
+     * @param tipo acción que originó el aviso interno, persistida en tipo; no nula
+     * @param mensaje texto público del aviso, no nulo, de hasta 300 caracteres y sin secretos
+     * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
     public Notificacion(Usuario usuario, Reserva reserva, AccionAuditoria tipo, String mensaje, Instant creadoEn) {
@@ -74,63 +77,64 @@ public class Notificacion {
     }
 
     /**
-     * Marca el aviso como leído.
+     * Registra lectura de forma idempotente; el servicio comprueba previamente propiedad del aviso (RF-16).
      */
     public void marcarLeida() {
         leida = true;
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta usuario.
-     * @return usuario
+     * Destinatario enlazado por usuario_id; no nulo y seleccionado por el servicio según RN-15.
+     * @return destinatario del aviso, no nulo; la API limita lectura a su propietario
      */
     public Usuario getUsuario() {
         return usuario;
     }
 
     /**
-     * Consulta reserva.
-     * @return reserva
+     * Reserva histórica asociada por reserva_id; no nula.
+     * @return reserva histórica asociada por reserva_id; no nula.
      */
     public Reserva getReserva() {
         return reserva;
     }
 
     /**
-     * Consulta tipo.
-     * @return tipo
+     * Acción que originó el aviso interno, persistida en tipo; no nula.
+     * @return acción que originó el aviso interno, persistida en tipo; no nula.
      */
     public AccionAuditoria getTipo() {
         return tipo;
     }
 
     /**
-     * Consulta mensaje.
-     * @return mensaje
+     * Texto público del aviso, no nulo, de hasta 300 caracteres y sin secretos.
+     * @return texto público del aviso, no nulo, de hasta 300 caracteres y sin secretos.
      */
     public String getMensaje() {
         return mensaje;
     }
 
     /**
-     * Consulta leida.
-     * @return leida
+     * Marca persistida de lectura del destinatario; inicialmente false.
+     * @return marca persistida de lectura del destinatario; inicialmente false.
      */
     public boolean isLeida() {
         return leida;
     }
 
     /**
-     * Consulta creadoEn.
-     * @return creadoEn
+     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
+     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
+     * no nulo.
      */
     public Instant getCreadoEn() {
         return creadoEn;

@@ -13,8 +13,8 @@ import java.util.Objects;
 import java.util.Locale;
 
 /**
- * Usuario con sus datos de identidad y acceso.
- *
+ * Identidad y acceso RF-01 a RF-03; conserva correo normalizado RN-24, bloqueo RN-25 y revocación por
+ * token_version.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -66,19 +66,23 @@ public class Usuario {
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected Usuario() {
     }
 
     /**
      * Crea usuario con sus datos de identidad y acceso.
-     * @param nombre nombre
-     * @param correo correo
-     * @param telefono telefono
-     * @param passwordHash passwordHash
-     * @param rol rol
-     * @param privacidadAceptadaEn privacidadAceptadaEn
-     * @param creadoEn instante aportado por el servicio
+     * @param nombre nombre visible no nulo; DTO o servicio valida longitud y formato
+     * @param correo correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo
+     * @param telefono teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE
+     * @param passwordHash hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs
+     * @param rol rol persistido que determina los permisos del servidor; no nulo
+     * @param privacidadAceptadaEn instante absoluto del consentimiento del cliente; puede ser nulo para el
+     * personal
+     * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
     public Usuario(String nombre, String correo, String telefono, String passwordHash, Rol rol, Instant privacidadAceptadaEn, Instant creadoEn) {
@@ -97,7 +101,8 @@ public class Usuario {
      * Actualiza los campos editables sin alterar correo ni datos de acceso.
      * @param nombre nombre validado
      * @param telefono teléfono validado, opcional para el personal
-     * @param actualizadoEn instante aportado por el reloj del servicio
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void actualizarPerfil(String nombre, String telefono, Instant actualizadoEn) {
         this.nombre = Objects.requireNonNull(nombre, "nombre");
@@ -108,8 +113,9 @@ public class Usuario {
     /**
      * Registra un fallo; el servicio decide cuándo y cuánto bloquear.
      * @param bloqueadoHasta vencimiento del bloqueo o null
-     * @param actualizadoEn instante del cambio
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
      * @throws IllegalArgumentException si se agota el contador.
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void registrarIntentoFallido(Instant bloqueadoHasta, Instant actualizadoEn) {
         Objects.requireNonNull(actualizadoEn, "actualizadoEn");
@@ -124,6 +130,7 @@ public class Usuario {
     /**
      * Reinicia el contador tras una autenticación correcta.
      * @param actualizadoEn instante del acceso
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void registrarAccesoCorrecto(Instant actualizadoEn) {
         this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
@@ -132,10 +139,12 @@ public class Usuario {
     }
 
     /**
-     * Cambia la contraseña y revoca las sesiones anteriores.
+     * Sustituye hash y marca temporal; incrementa token_version revocando todas las sesiones previas.
      * @param passwordHash hash de la nueva contraseña
      * @param debeCambiarPassword si requiere un cambio posterior
-     * @param actualizadoEn instante del cambio
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws ArithmeticException si token_version alcanza el límite de int y no puede incrementarse
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void cambiarPassword(String passwordHash, boolean debeCambiarPassword, Instant actualizadoEn) {
         Objects.requireNonNull(passwordHash, "passwordHash");
@@ -147,8 +156,10 @@ public class Usuario {
     }
 
     /**
-     * Desactiva el acceso y revoca las sesiones.
-     * @param actualizadoEn instante del cambio
+     * Deshabilita acceso sin borrar historial (RN-16) e incrementa token_version revocando sesiones.
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws ArithmeticException si token_version alcanza el límite de int y no puede incrementarse
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void desactivar(Instant actualizadoEn) {
         Objects.requireNonNull(actualizadoEn, "actualizadoEn");
@@ -158,8 +169,9 @@ public class Usuario {
     }
 
     /**
-     * Reactiva el acceso.
-     * @param actualizadoEn instante del cambio
+     * Habilita acceso sin reducir token_version; las sesiones revocadas permanecen inválidas.
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void activar(Instant actualizadoEn) {
         this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
@@ -167,112 +179,113 @@ public class Usuario {
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta nombre.
-     * @return nombre
+     * Nombre visible de la persona o del servicio, no nulo.
+     * @return nombre visible de la persona o del servicio, no nulo.
      */
     public String getNombre() {
         return nombre;
     }
 
     /**
-     * Consulta correo.
-     * @return correo
+     * Correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo.
+     * @return correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo.
      */
     public String getCorreo() {
         return correo;
     }
 
     /**
-     * Consulta telefono.
-     * @return telefono
+     * Teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE.
+     * @return teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE.
      */
     public String getTelefono() {
         return telefono;
     }
 
     /**
-     * Consulta passwordHash.
-     * @return passwordHash
+     * Hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs.
+     * @return hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs.
      */
     public String getPasswordHash() {
         return passwordHash;
     }
 
     /**
-     * Consulta rol.
-     * @return rol
+     * Rol persistido que determina los permisos del servidor; no nulo.
+     * @return rol persistido que determina los permisos del servidor; no nulo.
      */
     public Rol getRol() {
         return rol;
     }
 
     /**
-     * Consulta activo.
-     * @return activo
+     * Estado de habilitación lógica; false conserva la fila histórica según RN-16.
+     * @return estado de habilitación lógica; false conserva la fila histórica según RN-16.
      */
     public boolean isActivo() {
         return activo;
     }
 
     /**
-     * Consulta debeCambiarPassword.
-     * @return debeCambiarPassword
+     * Marca que limita la cuenta a auth y lectura del perfil hasta cambiar su credencial.
+     * @return marca que limita la cuenta a auth y lectura del perfil hasta cambiar su credencial.
      */
     public boolean isDebeCambiarPassword() {
         return debeCambiarPassword;
     }
 
     /**
-     * Consulta tokenVersion.
-     * @return tokenVersion
+     * Versión de revocación en token_version; debe coincidir con el claim tv para aceptar la sesión.
+     * @return versión de revocación en token_version; debe coincidir con el claim tv para aceptar la sesión.
      */
     public int getTokenVersion() {
         return tokenVersion;
     }
 
     /**
-     * Consulta intentosFallidos.
-     * @return intentosFallidos
+     * Contador de accesos fallidos consecutivos; RN-25 bloquea al alcanzar cinco.
+     * @return contador de accesos fallidos consecutivos; RN-25 bloquea al alcanzar cinco.
      */
     public short getIntentosFallidos() {
         return intentosFallidos;
     }
 
     /**
-     * Consulta bloqueadoHasta.
-     * @return bloqueadoHasta
+     * Instante absoluto de vencimiento del bloqueo de acceso; nulo si no hay bloqueo.
+     * @return instante absoluto de vencimiento del bloqueo de acceso; nulo si no hay bloqueo.
      */
     public Instant getBloqueadoHasta() {
         return bloqueadoHasta;
     }
 
     /**
-     * Consulta privacidadAceptadaEn.
-     * @return privacidadAceptadaEn
+     * Instante absoluto del consentimiento del cliente; puede ser nulo para el personal.
+     * @return instante absoluto del consentimiento del cliente; puede ser nulo para el personal.
      */
     public Instant getPrivacidadAceptadaEn() {
         return privacidadAceptadaEn;
     }
 
     /**
-     * Consulta creadoEn.
-     * @return creadoEn
+     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
+     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
+     * no nulo.
      */
     public Instant getCreadoEn() {
         return creadoEn;
     }
 
     /**
-     * Consulta actualizadoEn.
-     * @return actualizadoEn
+     * Instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
+     * @return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
      */
     public Instant getActualizadoEn() {
         return actualizadoEn;

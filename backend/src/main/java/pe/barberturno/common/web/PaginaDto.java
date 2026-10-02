@@ -23,6 +23,15 @@ public record PaginaDto<T>(List<T> contenido, @Min(value = 0, message = "La pág
         @Min(value = 1, message = "El tamaño debe ser positivo.")
         @Max(value = 100, message = "El tamaño no puede superar 100.") int tamano, long totalElementos, int totalPaginas) {
 
+    /**
+     * Valida índice y tamaño del contrato §6.1 y copia contenido para impedir modificaciones posteriores.
+     * @param contenido lista no nula de elementos no nulos; se copia
+     * @param pagina índice de página desde cero, no negativo
+     * @param tamano tamaño entre 1 y 100 elementos
+     * @param totalElementos número total de elementos del resultado
+     * @param totalPaginas número total de páginas del resultado
+     * @throws NegocioException si pagina es negativa o tamano está fuera de 1 a 100 (VALIDACION)
+     */
     public PaginaDto {
         if (pagina < 0 || tamano < 1 || tamano > 100) {
             throw new NegocioException(ErrorCodigo.VALIDACION,
@@ -32,10 +41,12 @@ public record PaginaDto<T>(List<T> contenido, @Min(value = 0, message = "La pág
     }
 
     /**
+     * Adapta una página Spring preservando metadatos y el límite público de cien elementos.
      * @param pagina resultado paginado del repositorio
      * @param <T> tipo de elemento
      * @return representación con los metadatos originales
-     * @throws NegocioException si el tamaño o el índice no son válidos
+     * @throws NegocioException si la página de origen tiene índice negativo o tamaño fuera de 1 a 100
+     * (VALIDACION)
      */
     public static <T> PaginaDto<T> desde(Page<T> pagina) {
         return new PaginaDto<>(pagina.getContent(), pagina.getNumber(), pagina.getSize(),

@@ -6,13 +6,15 @@ import java.util.Objects;
 import pe.barberturno.users.Rol;
 
 /**
- * Política pura de estados, actores y ventanas de RN-07, RN-08, RN-11 y RN-12.
+ * Política pura de estados, actores y ventanas de RN-07, RN-08 y RN-10 a RN-12.
  * La propiedad del cliente y la identidad del barbero las verifica el llamador.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 public final class PoliticaTransiciones {
-    /** Crea la política sin estado. */
+    /**
+     * Crea la política sin estado.
+     */
     public PoliticaTransiciones() { }
 
     /**
@@ -21,24 +23,46 @@ public final class PoliticaTransiciones {
      * @version 1.0
      */
     public enum Resultado {
-        PERMITIDA, TRANSICION_INVALIDA, PROHIBIDO, FUERA_DE_VENTANA;
+    /**
+     * Acción autorizada por estado, actor y ventana.
+     */
+    PERMITIDA,
+    /**
+     * Destino ausente de la máquina de estados RN-10.
+     */
+    TRANSICION_INVALIDA,
+    /**
+     * Actor sin permiso para la acción solicitada.
+     */
+    PROHIBIDO,
+    /**
+     * Ventana incumplida o motivo administrativo insuficiente.
+     */
+    FUERA_DE_VENTANA
+    ;
 
-        /** @return true si no hay rechazo */
+        /**
+         * Indica si estado, actor y ventana permiten la acción solicitada.
+         * @return true si no hay rechazo
+         */
         public boolean permitida() { return this == PERMITIDA; }
     }
 
     /**
-     * Evalúa primero la transición, luego el actor y finalmente la ventana.
+     * Evalúa primero RN-10, después actor RN-11 y ventana RN-12: iniciar desde quince minutos antes y no asistió
+     * desde el inicio, con ambos límites permitidos. Cancelar delega RN-07/08 en {@link ReglasTemporales} ;
+     * BARBERO nunca cancela. Completar no añade ventana tras EN_ATENCION.
      * Un CLIENTE debe ser propietario; esta función no recibe identificadores.
-     * @param rol rol verificado por el servidor
+     * @param rol rol no nulo revalidado por el servidor
      * @param esBarberoAsignado identidad del barbero comprobada por el servidor
-     * @param actual estado vigente
-     * @param destino estado solicitado
-     * @param ahora instante de evaluación
-     * @param inicio inicio de la reserva
-     * @param tolerancia anticipo no negativo para iniciar la atención
-     * @param anticipacionCliente mínimo para cancelar como cliente
-     * @param motivo motivo de cancelación administrativa, opcional en otras acciones
+     * @param actual estado persistido vigente no nulo
+     * @param destino estado solicitado no nulo
+     * @param ahora instante absoluto no nulo de evaluación del Clock
+     * @param inicio instante absoluto no nulo de inicio de la reserva
+     * @param tolerancia duración no nula y no negativa; por defecto quince minutos
+     * @param anticipacionCliente duración no nula y no negativa; por defecto dos horas, límite exacto permitido
+     * @param motivo justificación administrativa de cinco caracteres no blancos; puede ser nula en otras
+     * acciones
      * @return autorización o motivo para mapear al catálogo de errores
      * @throws NullPointerException si falta rol, estado, instante o duración
      * @throws IllegalArgumentException si alguna duración es negativa

@@ -14,7 +14,6 @@ import org.springframework.util.StringUtils;
 /**
  * Comprueba las variables obligatorias de producción antes de crear los servicios.
  * Los errores solo contienen nombres de variables, nunca sus valores.
- *
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -28,7 +27,6 @@ public class ConfiguracionProduccion {
 
     /**
      * Valida la configuración antes de abrir conexiones a la base de datos.
-     *
      * @param entorno configuración externa del proceso
      * @return comprobación previa a la creación de los beans
      * @throws IllegalStateException si faltan variables o la configuración es insegura

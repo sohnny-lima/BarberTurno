@@ -13,7 +13,8 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.reservations.ReglasTemporales;
 
 /**
- * Calcula y valida franjas con el mismo predicado puro de arquitectura §8.2.
+ * Núcleo puro de RF-07: calcula y valida franjas RN-05 con el mismo predicado de arquitectura §8.2 y los solapes
+ * de {@link ReglasTemporales} .
  * El llamador filtra las ocupaciones por estado y aplica excluirReservaId.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
@@ -21,21 +22,23 @@ import pe.barberturno.reservations.ReglasTemporales;
 public final class CalculadoraFranjas {
     private final ReglasTemporales reglas = new ReglasTemporales();
 
-    /** Crea la calculadora sin repositorios ni reloj propio. */
+    /**
+     * Crea la calculadora sin repositorios ni reloj propio.
+     */
     public CalculadoraFranjas() { }
 
     /**
      * Intervalo local de jornada dentro de un día de Lima.
-     * @param inicio hora de inicio
-     * @param fin hora de fin exclusivo
+     * @param inicio hora inclusiva no nula en America/Lima
+     * @param fin hora exclusiva no nula en America/Lima; posterior al inicio
      * @author Sohnny Walter Lima Infanzón
      * @version 1.0
      */
     public record IntervaloJornada(LocalTime inicio, LocalTime fin) {
         /**
          * Valida el intervalo local.
-         * @param inicio hora de inicio
-         * @param fin hora de fin exclusivo
+         * @param inicio hora inclusiva no nula en America/Lima
+         * @param fin hora exclusiva no nula en America/Lima; posterior al inicio
          * @throws NullPointerException si falta un extremo
          * @throws IllegalArgumentException si inicio no precede a fin
          */
@@ -48,16 +51,16 @@ public final class CalculadoraFranjas {
 
     /**
      * Intervalo absoluto semiabierto para una ocupación o una franja disponible.
-     * @param inicio instante de inicio
-     * @param fin instante de fin exclusivo
+     * @param inicio instante absoluto inclusivo no nulo
+     * @param fin instante absoluto exclusivo no nulo; posterior al inicio
      * @author Sohnny Walter Lima Infanzón
      * @version 1.0
      */
     public record Franja(Instant inicio, Instant fin) {
         /**
          * Valida los extremos de la franja.
-         * @param inicio instante de inicio
-         * @param fin instante de fin exclusivo
+         * @param inicio instante absoluto inclusivo no nulo
+         * @param fin instante absoluto exclusivo no nulo; posterior al inicio
          * @throws NullPointerException si falta un extremo
          * @throws IllegalArgumentException si inicio no precede a fin
          */
@@ -69,13 +72,15 @@ public final class CalculadoraFranjas {
     }
 
     /**
-     * Recorre la rejilla desde el comienzo de cada intervalo de jornada.
-     * @param fecha día de Lima
-     * @param jornadas intervalos del día ya seleccionados por el llamador
-     * @param ocupaciones bloqueos y reservas que ocupan, con exclusión ya aplicada
-     * @param duracionMin duración positiva del servicio
-     * @param ahora instante aportado por el reloj del servidor
-     * @param limiteHorizonte máximo inclusivo del inicio
+     * Recorre la rejilla desde cada inicio de jornada en Lima (RN-05); admite solo comienzos posteriores a ahora
+     * y hasta el horizonte inclusivo, con duración completa y sin solapes.
+     * @param fecha fecha no nula del negocio en America/Lima
+     * @param jornadas lista no nula con intervalos no nulos del día seleccionado; admite vacía
+     * @param ocupaciones lista no nula con intervalos no nulos de bloqueos y reservas que ocupan; exclusión ya
+     * aplicada
+     * @param duracionMin duración positiva en minutos del servicio o referencia acordada
+     * @param ahora instante absoluto no nulo del Clock del servidor
+     * @param limiteHorizonte instante absoluto no nulo de inicio máximo inclusivo
      * @param rejillaMin paso positivo de la rejilla en minutos
      * @return franjas inmutables, sin duplicados, ordenadas por inicio
      * @throws NullPointerException si falta una entrada obligatoria
@@ -101,15 +106,17 @@ public final class CalculadoraFranjas {
     }
 
     /**
-     * Usa el mismo predicado del cálculo para validar una única candidata.
-     * @param fecha día de Lima
-     * @param jornadas intervalos del día ya seleccionados
-     * @param ocupaciones bloqueos y reservas filtrados, con exclusión aplicada
-     * @param candidata intervalo solicitado
-     * @param duracionMin duración positiva acordada del servicio
-     * @param ahora instante de evaluación
-     * @param limiteHorizonte máximo inclusivo del inicio
-     * @param rejillaMin paso positivo desde el inicio de cada jornada
+     * Aplica exactamente RN-05 del cálculo a una candidata, para que consulta y escritura acepten las mismas
+     * franjas.
+     * @param fecha fecha no nula del negocio en America/Lima
+     * @param jornadas lista no nula con intervalos no nulos del día seleccionado; admite vacía
+     * @param ocupaciones lista no nula con intervalos no nulos de bloqueos y reservas que ocupan; exclusión ya
+     * aplicada
+     * @param candidata intervalo absoluto solicitado, no nulo
+     * @param duracionMin duración positiva en minutos del servicio o referencia acordada
+     * @param ahora instante absoluto no nulo del Clock del servidor
+     * @param limiteHorizonte instante absoluto no nulo de inicio máximo inclusivo
+     * @param rejillaMin paso positivo en minutos desde el inicio de cada jornada
      * @return true si la candidata pertenece a la disponibilidad calculada
      * @throws NullPointerException si falta una entrada obligatoria
      * @throws IllegalArgumentException si duración o rejilla no son positivas

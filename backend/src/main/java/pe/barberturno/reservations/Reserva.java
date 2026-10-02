@@ -21,8 +21,7 @@ import pe.barberturno.catalog.Servicio;
 import pe.barberturno.scheduling.Barbero;
 
 /**
- * Reserva con duración y precio acordados al crearla.
- *
+ * Reserva RN-02 con intervalo semiabierto RN-01 y precio y duración copiados al crearla (RN-13).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -76,19 +75,24 @@ public class Reserva {
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected Reserva() {
     }
 
     /**
-     * Crea reserva con duración y precio acordados al crearla.
-     * @param cliente cliente
-     * @param barbero barbero
-     * @param servicio servicio
-     * @param inicio inicio
+     * Crea una reserva RN-02 y copia precio y duración del servicio (RN-13); calcula fin exclusivo RN-01. El
+     * servicio decide estado RN-21 y comprueba disponibilidad, permisos y política antes de persistir.
+     * @param cliente usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02)
+     * @param barbero perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo
+     * @param servicio servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13
+     * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo
      * @param estado estado inicial decidido por el servicio
-     * @param creadaPor creadaPor
-     * @param creadoEn instante aportado por el servicio
+     * @param creadaPor identidad del actor que creó la reserva, cliente o administrador; no nula
+     * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
     public Reserva(Usuario cliente, Barbero barbero, Servicio servicio, Instant inicio, EstadoReserva estado, Usuario creadaPor, Instant creadoEn) {
@@ -106,10 +110,12 @@ public class Reserva {
     }
 
     /**
-     * Reprograma conservando el servicio, la duración y el precio acordados.
+     * Reprograma conservando servicio y referencias RN-09/13 y recalcula fin RN-01. El servicio toma los
+     * bloqueos ① ② ③, valida disponibilidad y escribe auditoría y avisos RN-15 en la misma transacción.
      * @param barbero nuevo barbero
      * @param inicio nuevo inicio
-     * @param actualizadoEn instante del cambio
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void reprogramar(Barbero barbero, Instant inicio, Instant actualizadoEn) {
         Objects.requireNonNull(barbero, "barbero");
@@ -125,7 +131,7 @@ public class Reserva {
     /**
      * Cambia el estado preservando RN-10; el servicio verifica primero actor y ventana.
      * @param estado estado de destino
-     * @param actualizadoEn instante del cambio
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
      * @throws NullPointerException si falta el destino o el instante
      * @throws IllegalStateException si RN-10 no permite la transición
      */
@@ -140,104 +146,105 @@ public class Reserva {
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta cliente.
-     * @return cliente
+     * Usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02).
+     * @return usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02).
      */
     public Usuario getCliente() {
         return cliente;
     }
 
     /**
-     * Consulta barbero.
-     * @return barbero
+     * Perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
+     * @return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
      */
     public Barbero getBarbero() {
         return barbero;
     }
 
     /**
-     * Consulta servicio.
-     * @return servicio
+     * Servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13.
+     * @return servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13.
      */
     public Servicio getServicio() {
         return servicio;
     }
 
     /**
-     * Consulta inicio.
-     * @return inicio
+     * Inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
+     * @return inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
      */
     public Instant getInicio() {
         return inicio;
     }
 
     /**
-     * Consulta fin.
-     * @return fin
+     * Fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
+     * @return fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
      */
     public Instant getFin() {
         return fin;
     }
 
     /**
-     * Consulta duracionRefMin.
-     * @return duracionRefMin
+     * Duración en minutos copiada del catálogo al crear la reserva e inmutable al reprogramar (RN-13).
+     * @return duración en minutos copiada del catálogo al crear la reserva e inmutable al reprogramar (RN-13).
      */
     public short getDuracionRefMin() {
         return duracionRefMin;
     }
 
     /**
-     * Consulta precioRef.
-     * @return precioRef
+     * Precio referencial en soles copiado al crear la reserva; numeric(8,2), conservado según RN-13.
+     * @return precio referencial en soles copiado al crear la reserva; numeric(8,2), conservado según RN-13.
      */
     public BigDecimal getPrecioRef() {
         return precioRef;
     }
 
     /**
-     * Consulta estado.
-     * @return estado
+     * Estado persistido de la máquina RN-10; solo CANCELADA libera la franja (RN-14).
+     * @return estado persistido de la máquina RN-10; solo CANCELADA libera la franja (RN-14).
      */
     public EstadoReserva getEstado() {
         return estado;
     }
 
     /**
-     * Consulta creadaPor.
-     * @return creadaPor
+     * Identidad del actor que creó la reserva, cliente o administrador; no nula.
+     * @return identidad del actor que creó la reserva, cliente o administrador; no nula.
      */
     public Usuario getCreadaPor() {
         return creadaPor;
     }
 
     /**
-     * Consulta version.
-     * @return version
+     * Versión para bloqueo optimista; la API la exige y una diferencia produce VERSION_DESACTUALIZADA.
+     * @return versión para bloqueo optimista; la API la exige y una diferencia produce VERSION_DESACTUALIZADA.
      */
     public int getVersion() {
         return version;
     }
 
     /**
-     * Consulta creadoEn.
-     * @return creadoEn
+     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
+     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
+     * no nulo.
      */
     public Instant getCreadoEn() {
         return creadoEn;
     }
 
     /**
-     * Consulta actualizadoEn.
-     * @return actualizadoEn
+     * Instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
+     * @return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
      */
     public Instant getActualizadoEn() {
         return actualizadoEn;

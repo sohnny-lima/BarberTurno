@@ -11,7 +11,9 @@ import java.util.List;
  * @version 1.0
  */
 public final class PoliticaPassword {
-    /** Crea la política sin estado. */
+    /**
+     * Crea la política sin estado.
+     */
     public PoliticaPassword() { }
 
     /**
@@ -19,7 +21,28 @@ public final class PoliticaPassword {
      * @author Sohnny Walter Lima Infanzón
      * @version 1.0
      */
-    public enum Incumplimiento { OBLIGATORIA, LONGITUD, BYTES_UTF8, LETRA, DIGITO }
+    public enum Incumplimiento {
+    /**
+     * Contraseña ausente, se requiere propuesta válida.
+     */
+    OBLIGATORIA,
+    /**
+     * Contraseña fuera de ocho a 72 puntos de código.
+     */
+    LONGITUD,
+        /**
+         * Contraseña que supera los 72 bytes UTF-8 admitidos por BCrypt.
+         */
+        BYTES_UTF8,
+    /**
+     * Contraseña sin ningún carácter reconocido como letra.
+     */
+    LETRA,
+    /**
+     * Contraseña sin ningún carácter reconocido como dígito.
+     */
+    DIGITO
+    }
 
     /**
      * Comprueba entre ocho y 72 puntos de código, máximo 72 bytes, letra y dígito.

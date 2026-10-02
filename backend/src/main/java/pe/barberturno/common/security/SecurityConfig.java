@@ -22,6 +22,8 @@ import pe.barberturno.common.error.ErrorCodigo;
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
     /**
+     * Configura JWT por cookie sin sesiones HTTP y permisos §7.2; impone DEFAULT_CSRF_MATCHER también con JWT
+     * para proteger toda escritura. Añade filtro de contraseña temporal y errores RFC 9457.
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
      * @param respuestas errores RFC 9457
@@ -47,6 +49,12 @@ public class SecurityConfig {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .csrf(config -> config.spa().csrfTokenRepository(csrf)
                         .withObjectPostProcessor(new ObjectPostProcessor<CsrfFilter>() {
+                            /**
+                             * Restaura CSRF en toda escritura aun con bearer; evita la exclusión automática de
+                             * solicitudes con JWT en cookie.
+                             * @param filtro filtro CSRF no nulo creado por Spring Security
+                             * @return mismo filtro con CSRF obligatorio en escrituras
+                             */
                             @Override
                             public <O extends CsrfFilter> O postProcess(O filtro) {
                                 // El resource server excluye bearer de CSRF por defecto.

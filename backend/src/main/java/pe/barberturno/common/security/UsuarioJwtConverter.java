@@ -10,13 +10,29 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import pe.barberturno.auth.AuthService;
 
-/** Revalida estado, versión y rol vigente sin confiar en los permisos del token. */
+/**
+ * Revalida usuario activo y token_version en la base; construye autoridades con el rol vigente (§7.1).
+ * @author Sohnny Walter Lima Infanzón
+ * @version 1.0
+ */
 @Component
 public class UsuarioJwtConverter implements Converter<Jwt, AbstractAuthenticationToken> {
     private final AuthService auth;
 
+    /**
+     * Inyecta revalidación contra la base para no confiar en el rol firmado de sesiones antiguas.
+     * @param auth servicio no nulo de identidad y revalidación
+     */
     public UsuarioJwtConverter(AuthService auth) { this.auth = auth; }
 
+    /**
+     * Verifica sub positivo y tv entero; rechaza identidad ausente, inactiva o revocada y usa rol vigente para
+     * construir ROLE_ (§7.1).
+     * @param jwt token no nulo con firma y vigencia ya verificadas por el decoder
+     * @return principal y autoridades vigentes
+     * @throws org.springframework.security.oauth2.server.resource.InvalidBearerTokenException si sub o tv no son
+     * válidos o el usuario no existe, está inactivo o tiene otra token_version
+     */
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         try {
