@@ -10,7 +10,7 @@ import pe.barberturno.common.error.ManejadorErrores.ErrorCampo;
 import pe.barberturno.common.error.NegocioException;
 
 /**
- * Gestiona el catálogo sin modificar las referencias de las reservas existentes.
+ * Gestiona RF-04 preservando las referencias históricas RN-13 y la desactivación lógica RN-16.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -19,23 +19,34 @@ public class ServicioService {
     private final ServicioRepository servicios;
     private final Clock clock;
 
-    /** @param servicios catálogo persistido
-     * @param clock reloj para creación y actualización */
+    /**
+     * Inyecta catálogo y Clock para fechar cambios RF-04 sin depender del reloj global.
+     * @param servicios catálogo persistido
+     * @param clock reloj para creación y actualización
+     */
     public ServicioService(ServicioRepository servicios, Clock clock) {
         this.servicios = servicios;
         this.clock = clock;
     }
 
-    /** @param incluirInactivos permiso de lectura concedido por el controlador
-     * @return catálogo ordenado por nombre */
+    /**
+     * Proyecta el catálogo al DTO público; el controlador autoriza a ADMIN para incluir inactivos.
+     * @param incluirInactivos permiso de lectura concedido por el controlador
+     * @return catálogo ordenado por nombre
+     */
     @Transactional(readOnly = true)
     public List<ServicioDto> listar(boolean incluirInactivos) {
         return servicios.listar(incluirInactivos).stream().map(ServicioDto::desde).toList();
     }
 
-    /** @param datos campos validados por MVC
+    /**
+     * Valida duración y unicidad del nombre y persiste el servicio activo con saveAndFlush; las colisiones
+     * concurrentes se traducen por servicio_nombre_uk.
+     * @param datos campos validados por MVC
      * @return servicio creado y activo
-     * @throws NegocioException si la duración no es múltiplo de diez o el nombre está ocupado */
+     * @throws NegocioException si la duración no es múltiplo de diez (VALIDACION) o el nombre está ocupado
+     * (NOMBRE_DUPLICADO)
+     */
     @Transactional
     public ServicioDto crear(GuardarServicioDto datos) {
         validarDuracion(datos);
@@ -44,10 +55,15 @@ public class ServicioService {
                 datos.duracionMin().shortValue(), datos.precio(), clock.instant())));
     }
 
-    /** @param id servicio que se edita
+    /**
+     * Serializa con PESSIMISTIC_WRITE y conserva estado y referencias RN-13 de reservas existentes; saveAndFlush
+     * expone las colisiones de unicidad.
+     * @param id servicio que se edita
      * @param datos campos validados por MVC
      * @return servicio actualizado, conservando su estado
-     * @throws NegocioException si no existe, la duración es inválida o el nombre está ocupado */
+     * @throws NegocioException si el servicio no existe (NO_ENCONTRADO), la duración no es múltiplo de diez
+     * (VALIDACION) o el nombre está ocupado (NOMBRE_DUPLICADO)
+     */
     @Transactional
     public ServicioDto editar(long id, GuardarServicioDto datos) {
         Servicio servicio = obtenerBloqueado(id);
@@ -58,10 +74,14 @@ public class ServicioService {
         return ServicioDto.desde(servicios.saveAndFlush(servicio));
     }
 
-    /** @param id servicio que se activa o desactiva
+    /**
+     * Serializa con PESSIMISTIC_WRITE la activación o desactivación; conserva fila y reservas históricas
+     * (RN-16).
+     * @param id servicio que se activa o desactiva
      * @param activo estado solicitado
      * @return servicio con su nuevo estado
-     * @throws NegocioException si el servicio no existe */
+     * @throws NegocioException si el servicio no existe (NO_ENCONTRADO)
+     */
     @Transactional
     public ServicioDto cambiarEstado(long id, boolean activo) {
         Servicio servicio = obtenerBloqueado(id);

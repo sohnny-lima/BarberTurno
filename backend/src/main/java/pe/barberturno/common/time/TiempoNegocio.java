@@ -11,11 +11,15 @@ import java.time.ZoneId;
  * @version 1.0
  */
 public final class TiempoNegocio {
+    /**
+     * Zona America/Lima para fechas y jornadas de negocio (RNF-13).
+     */
     public static final ZoneId ZONA = ZoneId.of("America/Lima");
 
     private TiempoNegocio() { }
 
     /**
+     * Convierte medianoche de Lima al límite inclusivo de consultas por día (RNF-13).
      * @param fecha día de Lima
      * @return primer instante del día
      */
@@ -24,6 +28,7 @@ public final class TiempoNegocio {
     }
 
     /**
+     * Calcula medianoche siguiente en Lima como fin exclusivo de consultas por día (RNF-13).
      * @param fecha día de Lima
      * @return límite exclusivo: inicio del día siguiente
      */
@@ -32,6 +37,7 @@ public final class TiempoNegocio {
     }
 
     /**
+     * Convierte un instante absoluto al desfase de Lima exigido en los DTO, sin usar la zona del servidor.
      * @param instante instante absoluto
      * @return fecha y hora con desfase de Lima
      */
@@ -40,6 +46,7 @@ public final class TiempoNegocio {
     }
 
     /**
+     * Determina día ISO según la fecha de Lima para seleccionar jornadas RN-17.
      * @param instante instante absoluto
      * @return día ISO, lunes 1 y domingo 7
      */
@@ -48,6 +55,7 @@ public final class TiempoNegocio {
     }
 
     /**
+     * Determina fecha del negocio en Lima desde un instante absoluto, independiente de la zona del servidor.
      * @param instante instante absoluto
      * @return fecha local de Lima
      */

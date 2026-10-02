@@ -9,19 +9,26 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** Repositorio de Reserva. */
+/**
+ * Consultas de ocupación RN-03, RN-04 y RN-20 y bloqueo ③ de reservas según arquitectura §8.
+ * @author Sohnny Walter Lima Infanzón
+ * @version 1.0
+ */
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
-    /** Bloquea la reserva después del cliente y los barberos, cuando correspondan. */
+    /**
+     * Toma PESSIMISTIC_WRITE: bloqueo ③ después de ① y ② cuando corresponden; cancelar y transicionar usan solo
+     * ③.
+     * @param id identificador persistente positivo del recurso, no nulo
+     * @return resultado opcional; vacío si no existe el recurso
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Reserva r where r.id = :id")
     Optional<Reserva> bloquearPorId(@Param("id") Long id);
 
     /**
-     * Busca reservas que ocupan franja de un barbero.
-     * Un id excluido null se transforma en 0: las identidades de V1 son positivas.
-     * Así PostgreSQL siempre recibe un parámetro bigint y no debe inferir un null.
-     *
+     * Lee solapes del barbero RN-03 sin bloqueo; excluye CANCELADA y ordena por inicio e id. Sustituye excluirId
+     * nulo por centinela 0L, ajeno a las identidades positivas de V1.
      * @param barberoId identificador del barbero
      * @param inicio inicio inclusivo de la búsqueda
      * @param fin fin exclusivo de la búsqueda
@@ -32,6 +39,16 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
         return buscarSolapamientosExcluyendo(barberoId, inicio, fin, excluirId == null ? 0L : excluirId);
     }
 
+    /**
+     * Lee solapes semiabiertos del barbero RN-03 sin bloqueo; excluye CANCELADA y la identidad indicada, con 0L
+     * para no excluir ninguna; ordena por inicio e id.
+     * @param barberoId identificador persistente no nulo del perfil
+     * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo
+     * @param fin fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo
+     * @param excluirId reserva omitida; nula en el adaptador o 0L en la consulta para no excluir ninguna
+     * @return resultados con el orden descrito, sin comprobación adicional de permisos
+     */
     @Query("""
             select r from Reserva r
             where r.barbero.id = :barberoId
@@ -43,11 +60,30 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("inicio") Instant inicio, @Param("fin") Instant fin,
             @Param("excluirId") Long excluirId);
 
-    /** Aplica el mismo centinela 0 que buscarSolapamientos para el cliente. */
+    /**
+     * Lee solapes del cliente RN-04 sin bloqueo aun con otros barberos; excluye CANCELADA y ordena por inicio e
+     * id. Sustituye excluirId nulo por centinela 0L de V1.
+     * @param clienteId identificador persistente no nulo del cliente
+     * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo
+     * @param fin fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo
+     * @param excluirId reserva omitida; nula en el adaptador o 0L en la consulta para no excluir ninguna
+     * @return resultados con el orden descrito, sin comprobación adicional de permisos
+     */
     default List<Reserva> buscarSolapamientosCliente(Long clienteId, Instant inicio, Instant fin, Long excluirId) {
         return buscarSolapamientosClienteExcluyendo(clienteId, inicio, fin, excluirId == null ? 0L : excluirId);
     }
 
+    /**
+     * Lee solapes semiabiertos del cliente RN-04 sin bloqueo; excluye CANCELADA y la identidad indicada, con 0L
+     * para no excluir ninguna; ordena por inicio e id.
+     * @param clienteId identificador persistente no nulo del cliente
+     * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo
+     * @param fin fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo
+     * @param excluirId reserva omitida; nula en el adaptador o 0L en la consulta para no excluir ninguna
+     * @return resultados con el orden descrito, sin comprobación adicional de permisos
+     */
     @Query("""
             select r from Reserva r
             where r.cliente.id = :clienteId
@@ -59,6 +95,13 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("inicio") Instant inicio, @Param("fin") Instant fin,
             @Param("excluirId") Long excluirId);
 
+    /**
+     * Cuenta reservas con inicio estrictamente posterior a ahora y estado distinto de CANCELADA para RN-20, sin
+     * bloqueo; el servicio toma antes ①.
+     * @param clienteId identificador persistente no nulo del cliente
+     * @param ahora instante absoluto no nulo de evaluación aportado por Clock
+     * @return número de reservas futuras que ocupan franja RN-20
+     */
     @Query("""
             select count(r) from Reserva r
             where r.cliente.id = :clienteId

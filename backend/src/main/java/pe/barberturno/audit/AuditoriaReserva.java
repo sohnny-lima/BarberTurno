@@ -23,8 +23,7 @@ import pe.barberturno.reservations.EstadoReserva;
 import pe.barberturno.users.Usuario;
 
 /**
- * Registro de un cambio de reserva.
- *
+ * Historial de un cambio de reserva con actor, estados y valores JSON anteriores y nuevos (RN-15).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -73,22 +72,27 @@ public class AuditoriaReserva {
     @Column(name = "creado_en", nullable = false)
     private Instant creadoEn;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected AuditoriaReserva() {
     }
 
     /**
-     * Crea registro de un cambio de reserva.
-     * @param reserva reserva
-     * @param actor actor
-     * @param accion accion
+     * Prepara el historial RN-15 con copias superficiales de los mapas JSON; el servicio lo persiste con reserva
+     * y avisos en la misma transacción.
+     * @param reserva reserva histórica asociada por reserva_id; no nula
+     * @param actor usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo
+     * @param accion acción histórica persistida que explica el cambio de reserva (RN-15); no nula
      * @param estadoAnterior estado previo o null en la creación
-     * @param estadoNuevo estadoNuevo
+     * @param estadoNuevo estado posterior al cambio auditado; no nulo
      * @param datosAnteriores datos previos o null en la creación
-     * @param datosNuevos datosNuevos
+     * @param datosNuevos instantánea JSONB de los valores nuevos; mapa no nulo y no modificable, con copia
+     * superficial
      * @param motivo motivo opcional
-     * @param excepcional excepcional
-     * @param creadoEn instante aportado por el servicio
+     * @param excepcional marca de excepción administrativa RN-08, distinguible en la auditoría RN-15
+     * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
     public AuditoriaReserva(Reserva reserva, Usuario actor, AccionAuditoria accion, EstadoReserva estadoAnterior, EstadoReserva estadoNuevo, Map<String, Object> datosAnteriores, Map<String, Object> datosNuevos, String motivo, boolean excepcional, Instant creadoEn) {
@@ -105,88 +109,89 @@ public class AuditoriaReserva {
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta reserva.
-     * @return reserva
+     * Reserva histórica asociada por reserva_id; no nula.
+     * @return reserva histórica asociada por reserva_id; no nula.
      */
     public Reserva getReserva() {
         return reserva;
     }
 
     /**
-     * Consulta actor.
-     * @return actor
+     * Usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo.
+     * @return usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo.
      */
     public Usuario getActor() {
         return actor;
     }
 
     /**
-     * Consulta accion.
-     * @return accion
+     * Acción histórica persistida que explica el cambio de reserva (RN-15); no nula.
+     * @return acción histórica persistida que explica el cambio de reserva (RN-15); no nula.
      */
     public AccionAuditoria getAccion() {
         return accion;
     }
 
     /**
-     * Consulta estadoAnterior.
-     * @return estadoAnterior
+     * Estado anterior al cambio; nulo en la creación de una reserva.
+     * @return estado anterior al cambio; nulo en la creación de una reserva.
      */
     public EstadoReserva getEstadoAnterior() {
         return estadoAnterior;
     }
 
     /**
-     * Consulta estadoNuevo.
-     * @return estadoNuevo
+     * Estado posterior al cambio auditado; no nulo.
+     * @return estado posterior al cambio auditado; no nulo.
      */
     public EstadoReserva getEstadoNuevo() {
         return estadoNuevo;
     }
 
     /**
-     * Consulta datosAnteriores.
-     * @return datosAnteriores
+     * Instantánea JSONB de los valores anteriores; mapa no modificable, nulo en la creación.
+     * @return instantánea JSONB de los valores anteriores; mapa no modificable, nulo en la creación.
      */
     public Map<String, Object> getDatosAnteriores() {
         return datosAnteriores == null ? null : Collections.unmodifiableMap(datosAnteriores);
     }
 
     /**
-     * Consulta datosNuevos.
-     * @return datosNuevos
+     * Instantánea JSONB de los valores nuevos; mapa no nulo y no modificable, con copia superficial.
+     * @return instantánea JSONB de los valores nuevos; mapa no nulo y no modificable, con copia superficial.
      */
     public Map<String, Object> getDatosNuevos() {
         return Collections.unmodifiableMap(datosNuevos);
     }
 
     /**
-     * Consulta motivo.
-     * @return motivo
+     * Explicación del cambio; puede ser nula salvo cuando la política exige justificar la excepción.
+     * @return explicación del cambio; puede ser nula salvo cuando la política exige justificar la excepción.
      */
     public String getMotivo() {
         return motivo;
     }
 
     /**
-     * Consulta excepcional.
-     * @return excepcional
+     * Marca de excepción administrativa RN-08, distinguible en la auditoría RN-15.
+     * @return marca de excepción administrativa RN-08, distinguible en la auditoría RN-15.
      */
     public boolean isExcepcional() {
         return excepcional;
     }
 
     /**
-     * Consulta creadoEn.
-     * @return creadoEn
+     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
+     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
+     * no nulo.
      */
     public Instant getCreadoEn() {
         return creadoEn;

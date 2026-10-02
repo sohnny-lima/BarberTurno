@@ -3,7 +3,16 @@ package pe.barberturno.catalog.dto;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 
-/** Datos editables; el servicio valida también el múltiplo de diez de la duración. */
+/**
+ * Entrada de mantenimiento RF-04; Bean Validation comprueba formato y el servicio exige duración múltiplo de
+ * diez.
+ * @param nombre nombre no vacío de 2 a 80 caracteres sin espacios sobrantes
+ * @param descripcion descripción no nula de hasta 300 caracteres; admite vacío
+ * @param duracionMin duración obligatoria de 10 a 180 minutos, múltiplo de diez exigido por el servicio
+ * @param precio precio obligatorio no negativo en soles, hasta seis enteros y dos decimales
+ * @author Sohnny Walter Lima Infanzón
+ * @version 1.0
+ */
 public record GuardarServicioDto(
         @NotBlank(message = "El nombre es obligatorio.")
         @Size(min = 2, max = 80, message = "El nombre debe tener entre 2 y 80 caracteres.")

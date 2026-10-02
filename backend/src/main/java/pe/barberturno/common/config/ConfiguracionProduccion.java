@@ -14,7 +14,6 @@ import org.springframework.util.StringUtils;
 /**
  * Comprueba las variables obligatorias de producción antes de crear los servicios.
  * Los errores solo contienen nombres de variables, nunca sus valores.
- *
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -22,13 +21,18 @@ import org.springframework.util.StringUtils;
 @Profile("prod")
 public class ConfiguracionProduccion {
 
+    /**
+     * Spring crea esta configuración al activar prod; la validación previa reside en el bean estático.
+     */
+    public ConfiguracionProduccion() {
+    }
+
     private static final List<String> VARIABLES_OBLIGATORIAS = List.of(
             "BT_DB_URL", "BT_DB_USER", "BT_DB_PASSWORD", "BT_JWT_SECRET",
             "BT_ADMIN_CORREO", "BT_ADMIN_PASSWORD", "BT_ADMIN_NOMBRE", "BT_COOKIE_SECURE");
 
     /**
      * Valida la configuración antes de abrir conexiones a la base de datos.
-     *
      * @param entorno configuración externa del proceso
      * @return comprobación previa a la creación de los beans
      * @throws IllegalStateException si faltan variables o la configuración es insegura

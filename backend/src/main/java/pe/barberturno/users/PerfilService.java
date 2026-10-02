@@ -18,26 +18,36 @@ public class PerfilService {
     private final UsuarioRepository usuarios;
     private final Clock clock;
 
-    /** @param usuarios identidades persistidas
-     * @param clock reloj para la fecha de actualización */
+    /**
+     * Inyecta identidades y reloj para fechar cambios del perfil propio.
+     * @param usuarios identidades persistidas
+     * @param clock reloj para la fecha de actualización
+     */
     public PerfilService(UsuarioRepository usuarios, Clock clock) {
         this.usuarios = usuarios;
         this.clock = clock;
     }
 
-    /** @param id identidad autenticada
+    /**
+     * Proyecta el perfil del usuario activo sin datos de acceso; aplica RF-03 a la identidad autenticada.
+     * @param id identidad autenticada
      * @return perfil vigente
-     * @throws NegocioException si la identidad ya no está activa */
+     * @throws NegocioException si la identidad no existe o está inactiva (NO_AUTENTICADO)
+     */
     @Transactional(readOnly = true)
     public PerfilDto obtener(long id) {
         return dto(usuarios.findById(id).filter(Usuario::isActivo).orElseThrow(this::sinSesion));
     }
 
-    /** Serializa la escritura con login y cambios de contraseña para evitar datos perdidos.
+    /**
+     * Serializa con PESSIMISTIC_WRITE frente a login y contraseña; exige teléfono para CLIENTE y conserva correo
+     * (RF-03).
      * @param id identidad autenticada
      * @param datos campos editables validados por MVC
      * @return perfil actualizado
-     * @throws NegocioException si falta el teléfono del cliente o la identidad no está activa */
+     * @throws NegocioException si la identidad no existe o está inactiva (NO_AUTENTICADO), o CLIENTE omite
+     * teléfono (VALIDACION)
+     */
     @Transactional
     public PerfilDto actualizar(long id, ActualizarPerfilDto datos) {
         Usuario usuario = usuarios.bloquearPorId(id).filter(Usuario::isActivo).orElseThrow(this::sinSesion);

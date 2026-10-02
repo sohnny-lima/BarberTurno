@@ -36,9 +36,17 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @RestControllerAdvice
 public class ManejadorErrores {
+
+    /**
+     * Spring crea este consejo MVC al arrancar el contexto para traducir los errores de las peticiones.
+     */
+    public ManejadorErrores() {
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(ManejadorErrores.class);
 
     /**
+     * Conserva código, detalles públicos y errores tipados del rechazo de negocio en RFC 9457.
      * @param excepcion rechazo con contenido público
      * @param peticion petición actual
      * @return problema con las extensiones del dominio
@@ -54,6 +62,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce Bean Validation del cuerpo a VALIDACION (400) sin valores rechazados.
      * @param excepcion validación del cuerpo
      * @param peticion petición actual
      * @return campos inválidos sin valores rechazados
@@ -69,6 +78,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce validación MVC de parámetros a VALIDACION (400), incluidos errores cruzados.
      * @param excepcion validación de parámetros de MVC
      * @param peticion petición actual
      * @return campos y mensajes de validación
@@ -87,6 +97,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce restricciones de métodos a VALIDACION (400) y ordena campos para respuestas deterministas.
      * @param excepcion validación de métodos con Bean Validation
      * @param peticion petición actual
      * @return campos inválidos sin valores ni objetos de dominio
@@ -100,6 +111,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Rechaza JSON, tipos y parámetros incorrectos con VALIDACION (400) sin detalles del parser.
      * @param peticion petición con formato o tipo incorrecto
      * @return mensaje genérico sin información del parser
      */
@@ -110,6 +122,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce bloqueo optimista a VERSION_DESACTUALIZADA (409) para que el cliente recargue (CP-09).
      * @param peticion petición con versión desactualizada
      * @return conflicto que permite recargar la información
      */
@@ -119,6 +132,8 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce SQLState 55P03/40P01 a RECURSO_OCUPADO (503) y restricciones exactas a conflictos; errores
+     * desconocidos quedan como ERROR_INTERNO.
      * @param excepcion excepción de Spring y cadena de causas JDBC
      * @param peticion petición actual
      * @return traducción por SQLState y restricción exacta, nunca por mensaje
@@ -145,6 +160,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce autorización denegada a PROHIBIDO (403) sin revelar el recurso solicitado.
      * @param peticion petición denegada
      * @return problema de autorización
      */
@@ -154,6 +170,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce ausencia de sesión a NO_AUTENTICADO (401) con mensaje público genérico.
      * @param peticion petición sin sesión válida
      * @return problema de autenticación
      */
@@ -163,6 +180,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Traduce rutas inexistentes a NO_ENCONTRADO (404) sin revelar recursos ajenos.
      * @param peticion petición de recurso inexistente
      * @return problema sin revelar recursos ajenos
      */
@@ -172,6 +190,7 @@ public class ManejadorErrores {
     }
 
     /**
+     * Emite ERROR_INTERNO (500) y registra una traza sin mensajes originales para proteger datos sensibles.
      * @param excepcion error imprevisto
      * @param peticion petición actual
      * @return mensaje genérico; la traza sin mensajes originales solo se registra en el log

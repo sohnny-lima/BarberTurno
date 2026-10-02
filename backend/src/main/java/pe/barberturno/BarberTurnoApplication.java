@@ -5,7 +5,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Punto de entrada de la API de BarberTurno.
- *
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -13,8 +12,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BarberTurnoApplication {
 
     /**
+     * Spring crea la configuración principal al arrancar el contexto; no se instancia manualmente.
+     */
+    public BarberTurnoApplication() {
+    }
+
+    /**
      * Inicia la aplicación con la configuración del perfil seleccionado.
-     *
      * @param args argumentos de arranque
      */
     public static void main(String[] args) {

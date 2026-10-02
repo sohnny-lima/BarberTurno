@@ -13,8 +13,7 @@ import java.util.Objects;
 import java.time.LocalTime;
 
 /**
- * Intervalo semanal de atención de un barbero.
- *
+ * Intervalo semanal de atención RN-17: día ISO y horas locales de America/Lima sin cruzar medianoche.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -39,18 +38,20 @@ public class Jornada {
     @Column(name = "hora_fin", nullable = false)
     private LocalTime horaFin;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected Jornada() {
     }
 
     /**
      * Crea intervalo semanal de atención de un barbero.
-     * @param barbero barbero
+     * @param barbero perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo
      * @param diaSemana día ISO de uno a siete
-     * @param horaInicio horaInicio
-     * @param horaFin horaFin
+     * @param horaInicio hora inclusiva de jornada en America/Lima; no nula y anterior a hora_fin (RN-17)
+     * @param horaFin hora exclusiva de jornada en America/Lima; no nula y posterior a hora_inicio (RN-17)
      * @throws NullPointerException si falta un dato obligatorio.
-     * @throws IllegalArgumentException si los datos violan las restricciones simples de V1.
+     * @throws IllegalArgumentException si día no está entre 1 y 7 o inicio no precede a fin
      */
     public Jornada(Barbero barbero, short diaSemana, LocalTime horaInicio, LocalTime horaFin) {
         this.barbero = Objects.requireNonNull(barbero, "barbero");
@@ -63,40 +64,40 @@ public class Jornada {
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta barbero.
-     * @return barbero
+     * Perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
+     * @return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
      */
     public Barbero getBarbero() {
         return barbero;
     }
 
     /**
-     * Consulta diaSemana.
-     * @return diaSemana
+     * Día semanal ISO entre 1 (lunes) y 7 (domingo), persistido en dia_semana.
+     * @return día semanal ISO entre 1 (lunes) y 7 (domingo), persistido en dia_semana.
      */
     public short getDiaSemana() {
         return diaSemana;
     }
 
     /**
-     * Consulta horaInicio.
-     * @return horaInicio
+     * Hora inclusiva de jornada en America/Lima; no nula y anterior a hora_fin (RN-17).
+     * @return hora inclusiva de jornada en America/Lima; no nula y anterior a hora_fin (RN-17).
      */
     public LocalTime getHoraInicio() {
         return horaInicio;
     }
 
     /**
-     * Consulta horaFin.
-     * @return horaFin
+     * Hora exclusiva de jornada en America/Lima; no nula y posterior a hora_inicio (RN-17).
+     * @return hora exclusiva de jornada en America/Lima; no nula y posterior a hora_inicio (RN-17).
      */
     public LocalTime getHoraFin() {
         return horaFin;

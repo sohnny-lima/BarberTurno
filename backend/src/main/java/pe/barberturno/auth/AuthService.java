@@ -19,7 +19,7 @@ import pe.barberturno.scheduling.BarberoRepository;
 import pe.barberturno.users.*;
 
 /**
- * Registro, autenticación, cambio de contraseña y administrador inicial idempotente.
+ * Gestiona RF-01, RF-02 y RF-15 con BCrypt, bloqueo temporal RN-25 y revocación por token_version.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -34,10 +34,14 @@ public class AuthService {
     private final PoliticaPassword politica = new PoliticaPassword();
     private final String hashFicticio;
 
-    /** @param usuarios identidades persistidas
+    /**
+     * Inyecta persistencia, BCrypt y reloj; prepara un hash ficticio para verificar también cuentas
+     * inexistentes.
+     * @param usuarios identidades persistidas
      * @param barberos perfiles opcionales
      * @param passwords BCrypt de coste 12
-     * @param clock reloj de negocio */
+     * @param clock reloj de negocio
+     */
     public AuthService(UsuarioRepository usuarios, BarberoRepository barberos,
             PasswordEncoder passwords, Clock clock) {
         this.usuarios = usuarios;
@@ -47,9 +51,13 @@ public class AuthService {
         hashFicticio = passwords.encode(UUID.randomUUID().toString());
     }
 
-    /** @param datos registro validado
+    /**
+     * Crea un CLIENTE activo con consentimiento fechado y hash BCrypt; normaliza correo RN-24 y valida RN-25.
+     * @param datos registro validado
      * @return usuario recién creado
-     * @throws NegocioException si el correo existe o la contraseña incumple RN-25 */
+     * @throws NegocioException si el correo existe (CORREO_DUPLICADO) o la contraseña incumple RN-25
+     * (VALIDACION)
+     */
     @Transactional
     public Usuario registrar(RegistroDto datos) {
         validarPassword(datos.password());
@@ -64,10 +72,16 @@ public class AuthService {
         return usuario;
     }
 
-    /** Conserva los fallos y serializa accesos a una misma cuenta.
+    /**
+     * Serializa el acceso con PESSIMISTIC_WRITE sobre usuario; conserva los fallos aun al rechazar la
+     * transacción. RN-25 bloquea cinco fallos durante quince minutos y reinicia el contador al acertar o vencer
+     * el bloqueo.
      * @param datos credenciales
      * @return usuario autenticado
-     * @throws NegocioException con mensaje genérico si el acceso no está permitido */
+     * @throws NegocioException si la cuenta no existe, está inactiva o la clave es incorrecta
+     * (CREDENCIALES_INVALIDAS), o el bloqueo RN-25 está vigente o se alcanza el quinto fallo
+     * (CUENTA_BLOQUEADA_TEMPORALMENTE)
+     */
     @Transactional(noRollbackFor = NegocioException.class)
     public Usuario login(LoginDto datos) {
         var encontrado = usuarios.bloquearPorCorreo(normalizar(datos.correo()));
@@ -100,8 +114,11 @@ public class AuthService {
         return usuario;
     }
 
-    /** @param usuario identidad persistida
-     * @return DTO sin datos sensibles */
+    /**
+     * Proyecta identidad vigente y perfil de barbero opcional sin datos sensibles para RF-02.
+     * @param usuario identidad persistida
+     * @return DTO sin datos sensibles
+     */
     @Transactional(readOnly = true)
     public UsuarioSesionDto sesion(Usuario usuario) {
         return new UsuarioSesionDto(usuario.getId(), usuario.getNombre(), usuario.getCorreo(),
@@ -109,17 +126,23 @@ public class AuthService {
                 usuario.isDebeCambiarPassword());
     }
 
-    /** @param id id validado por el resource server
+    /**
+     * Proyecta identidad vigente y perfil de barbero opcional sin datos sensibles para RF-02.
+     * @param id id validado por el resource server
      * @return datos públicos vigentes
-     * @throws NegocioException si ya no existe la identidad */
+     * @throws NegocioException si la identidad solicitada por id ya no existe (NO_AUTENTICADO)
+     */
     @Transactional(readOnly = true)
     public UsuarioSesionDto sesion(long id) {
         return sesion(usuarios.findById(id).orElseThrow(() -> rechazo(ErrorCodigo.NO_AUTENTICADO)));
     }
 
-    /** @param id identificador del token
+    /**
+     * Revalida usuario activo y claim tv igual a token_version; la revocación invalida inmediatamente la sesión.
+     * @param id identificador del token
      * @param tokenVersion versión firmada
-     * @return principal vigente o vacío ante una revocación */
+     * @return principal vigente o vacío ante una revocación
+     */
     @Transactional(readOnly = true)
     public java.util.Optional<UsuarioAutenticado> autenticar(long id, int tokenVersion) {
         return usuarios.findById(id).filter(u -> u.isActivo() && u.getTokenVersion() == tokenVersion)
@@ -127,10 +150,14 @@ public class AuthService {
                         barberos.buscarIdPorUsuario(u.getId()), u.isDebeCambiarPassword()));
     }
 
-    /** @param correo correo inicial
-     * @param password contraseña inicial
-     * @param nombre nombre inicial
-     * @throws NegocioException si la contraseña no cumple RN-25 */
+    /**
+     * Crea ADMIN si no existe otro activo y la configuración está completa; sin credenciales predeterminadas
+     * (RN-26).
+     * @param correo correo inicial configurado; vacío indica configuración incompleta
+     * @param password contraseña inicial configurada; vacía omite la cuenta, nunca se registra
+     * @param nombre nombre inicial configurado; vacío omite la cuenta
+     * @throws NegocioException si la contraseña configurada incumple RN-25 (VALIDACION)
+     */
     @Transactional
     public void crearAdminInicial(String correo, String password, String nombre) {
         if (usuarios.existsByRolAndActivoTrue(Rol.ADMIN)) return;
@@ -145,11 +172,15 @@ public class AuthService {
         LOG.info("Registro de administrador inicial id={}.", admin.getId());
     }
 
-    /** Cambia la credencial bajo el mismo bloqueo usado por login.
+    /**
+     * Bloquea usuario con PESSIMISTIC_WRITE, verifica credencial actual y RN-25; cambia el hash e incrementa
+     * token_version revocando las sesiones anteriores.
      * @param id identidad autenticada
      * @param datos credencial actual y nueva propuesta
      * @return usuario con hash y versión nuevos para renovar la cookie
-     * @throws NegocioException si la identidad no está activa o las credenciales son inválidas */
+     * @throws NegocioException si no existe usuario activo (NO_AUTENTICADO), falla la credencial actual o la
+     * nueva incumple RN-25 o coincide con la anterior (VALIDACION)
+     */
     @Transactional
     public Usuario cambiarPassword(long id, CambiarPasswordDto datos) {
         Usuario usuario = usuarios.bloquearPorId(id).filter(Usuario::isActivo)

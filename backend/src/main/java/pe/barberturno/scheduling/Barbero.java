@@ -14,8 +14,7 @@ import java.util.Objects;
 import pe.barberturno.users.Usuario;
 
 /**
- * Barbero vinculado a un usuario.
- *
+ * Perfil de atención vinculado a una cuenta del personal (RN-26); su estado controla disponibilidad según RN-06.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -43,15 +42,20 @@ public class Barbero {
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn;
 
-    /** Constructor reservado a JPA. */
+    /**
+     * Constructor exclusivo de JPA para hidratar la entidad; no se usa desde el código de aplicación.
+     */
     protected Barbero() {
     }
 
     /**
      * Crea barbero vinculado a un usuario.
-     * @param usuario usuario
-     * @param especialidad especialidad
-     * @param creadoEn instante aportado por el servicio
+     * @param usuario cuenta vinculada por usuario_id; no nula; el perfil de barbero también puede pertenecer a
+     * ADMIN
+     * @param especialidad texto descriptivo de hasta 100 caracteres; no restringe los servicios que puede
+     * atender (C-12)
+     * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
     public Barbero(Usuario usuario, String especialidad, Instant creadoEn) {
@@ -63,8 +67,9 @@ public class Barbero {
     }
 
     /**
-     * Desactiva el perfil de barbero.
-     * @param actualizadoEn instante del cambio
+     * Retira perfil de nuevas reservas RN-06 y conserva fila histórica RN-16.
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void desactivar(Instant actualizadoEn) {
         this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
@@ -72,8 +77,9 @@ public class Barbero {
     }
 
     /**
-     * Activa el perfil de barbero.
-     * @param actualizadoEn instante del cambio
+     * Habilita perfil para nuevas reservas RN-06; no cambia el estado de la cuenta vinculada.
+     * @param actualizadoEn instante absoluto del último cambio, aportado por el Clock del servicio; no nulo
+     * @throws NullPointerException si un dato indicado como no nulo está ausente
      */
     public void activar(Instant actualizadoEn) {
         this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
@@ -81,48 +87,49 @@ public class Barbero {
     }
 
     /**
-     * Consulta id.
-     * @return id
+     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
+     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * Consulta usuario.
-     * @return usuario
+     * Cuenta vinculada por usuario_id; no nula; el perfil de barbero también puede pertenecer a ADMIN.
+     * @return cuenta vinculada por usuario_id; no nula; el perfil de barbero también puede pertenecer a ADMIN.
      */
     public Usuario getUsuario() {
         return usuario;
     }
 
     /**
-     * Consulta especialidad.
-     * @return especialidad
+     * Texto descriptivo de hasta 100 caracteres; no restringe los servicios que puede atender (C-12).
+     * @return texto descriptivo de hasta 100 caracteres; no restringe los servicios que puede atender (C-12).
      */
     public String getEspecialidad() {
         return especialidad;
     }
 
     /**
-     * Consulta activo.
-     * @return activo
+     * Estado de habilitación lógica; false conserva la fila histórica según RN-16.
+     * @return estado de habilitación lógica; false conserva la fila histórica según RN-16.
      */
     public boolean isActivo() {
         return activo;
     }
 
     /**
-     * Consulta creadoEn.
-     * @return creadoEn
+     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
+     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
+     * no nulo.
      */
     public Instant getCreadoEn() {
         return creadoEn;
     }
 
     /**
-     * Consulta actualizadoEn.
-     * @return actualizadoEn
+     * Instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
+     * @return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
      */
     public Instant getActualizadoEn() {
         return actualizadoEn;

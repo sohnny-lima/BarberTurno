@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Proporciona el reloj inyectable de la zona horaria del negocio.
- *
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -16,8 +15,13 @@ import org.springframework.context.annotation.Configuration;
 public class ClockConfig {
 
     /**
+     * Spring crea esta configuración al arrancar el contexto para registrar el reloj del negocio.
+     */
+    public ClockConfig() {
+    }
+
+    /**
      * Crea el reloj que deberán usar los servicios para obtener el instante actual.
-     *
      * @return reloj del sistema con la zona America/Lima
      */
     @Bean
