@@ -55,7 +55,7 @@ public class ManejadorErrores {
     public ProblemDetail negocio(NegocioException excepcion, HttpServletRequest peticion) {
         ProblemDetail problema = problema(excepcion.codigo(), excepcion.getMessage(), peticion);
         excepcion.detalles().forEach(problema::setProperty);
-        if (excepcion.codigo() == ErrorCodigo.VALIDACION) {
+        if (excepcion.codigo() == ErrorCodigo.VALIDACION || !excepcion.errores().isEmpty()) {
             problema.setProperty("errores", excepcion.errores());
         }
         return problema;

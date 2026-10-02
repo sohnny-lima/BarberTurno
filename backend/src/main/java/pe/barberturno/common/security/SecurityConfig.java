@@ -103,6 +103,8 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.POST, "/api/barberos").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PUT, "/api/barberos/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PATCH, "/api/barberos/{id}/estado").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/barberos/{id}/jornadas").hasAnyRole("ADMIN", "BARBERO");
+                    permisos.requestMatchers(HttpMethod.PUT, "/api/barberos/{id}/jornadas").hasRole("ADMIN");
                     permisos.anyRequest().denyAll();
                 });
         return http.build();

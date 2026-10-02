@@ -50,7 +50,7 @@
 | T-12 | Shell, autenticación y perfil en el frontend (P01) | M | T-03, T-11 | Hecha · revisión: Aprobada | 01/10/2026 | 37d11c19ba20239b24293f9a1fb55726d1d71cd8, bebbf5a74a67c65cd807309b0fdd5bebc930431f, 98bc791cc4682f5000a657a5522275a70378b4a4; cierre 54de155c5bb485cb9bf563fc049be61d0199dfe4; merge 810ea594f9f2f58154748fa231058161bc84aa1b |
 | T-13 | Servicios backend (RF-04) | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | 310651aa9bd303fab1a415d905df724b29878bd3, 98e464b62e13690fd4e20ef34d1ea19323586d36; cierre 7499a7067f205c63e613ab74432a90e2d2c94a5b; merge 5acf25dfa9b53836ca86b81fbd6511b424bd646f |
 | T-14 | Barberos backend (RF-05) | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | ad9da1e4e4b2aef628c1caeef66fb5a2163f9e3f, 521235c4411c2bf2376b406aad516b8dc8185179; cierre 49884d4ebb24b48325a4a42792a436d4815e393d; merge 0d37f165653905ef88f92e1c59beac2d57f4397e; único registro docs posterior por asunto en evidencia |
-| T-15 | Jornadas backend (RF-06) | M | T-09, T-14 | Pendiente | | |
+| T-15 | Jornadas backend (RF-06) | M | T-09, T-14 | En curso | 02/10/2026 | |
 | T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | Pendiente | | |
 | T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | Pendiente | | |
 | T-18 | Horarios y bloqueos en el frontend (P07) | M | T-17, T-16 | Pendiente | | |
