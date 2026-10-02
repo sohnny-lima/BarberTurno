@@ -220,6 +220,7 @@
                 <sourceFileInclude>**/PoliticaTransiciones.java</sourceFileInclude>
               </sourceFileIncludes>
               <outputDirectory>${project.basedir}/../entregables/apf2-final/javadoc/html</outputDirectory>
+              <use>false</use>
             </configuration>
           </plugin>
         </plugins>
