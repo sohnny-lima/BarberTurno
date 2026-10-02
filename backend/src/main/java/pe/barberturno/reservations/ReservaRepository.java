@@ -17,6 +17,15 @@ import org.springframework.data.repository.query.Param;
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     /**
+     * Cuenta citas futuras que ocupan franja RN-14 para informar sin cancelar al cambiar estado RF-05.
+     * @param barberoId perfil cuya agenda se consulta
+     * @param ahora instante del Clock; solo se cuentan inicios estrictamente posteriores
+     * @return cantidad futura excluyendo CANCELADA
+     */
+    @Query("select count(r) from Reserva r where r.barbero.id = :barberoId and r.inicio > :ahora and r.estado <> pe.barberturno.reservations.EstadoReserva.CANCELADA")
+    long contarFuturasVigentes(@Param("barberoId") Long barberoId, @Param("ahora") Instant ahora);
+
+    /**
      * Toma PESSIMISTIC_WRITE: bloqueo ③ después de ① y ② cuando corresponden; cancelar y transicionar usan solo
      * ③.
      * @param id identificador persistente positivo del recurso, no nulo
