@@ -52,7 +52,7 @@
 | T-14 | Barberos backend (RF-05) | M | T-10 | Hecha · revisión: Aprobada | 01/10/2026 | ad9da1e4e4b2aef628c1caeef66fb5a2163f9e3f, 521235c4411c2bf2376b406aad516b8dc8185179; cierre 49884d4ebb24b48325a4a42792a436d4815e393d; merge 0d37f165653905ef88f92e1c59beac2d57f4397e; único registro docs posterior por asunto en evidencia |
 | T-15 | Jornadas backend (RF-06) | M | T-09, T-14 | Hecha · revisión: Aprobada | 02/10/2026 | 39178b66763d4f333a0cf5f130bde33f64f76611, 73a47efc5c9fd7faf228091da9a8bb739a2e4493; cierre 6755387c93b881d025b1598a4a914c3474c51188; merge d8fd94446da27b74803b89aeafa8e5a245ec121f; único registro docs posterior por asunto en evidencia |
 | T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | Hecha · revisión: Aprobada | 02/10/2026 | 570f49860f80f5a46479dab3c47917c63c56d067, 3203660d0006b28c43d2fe2fd9674150a6474bd5, c21dbdc8e4134c6a324efa735778ba1b6f400ee8; cierre 130449b6004254901272887acded4af91289dc9e; merge bea40809914823fd367f1b07c89cd37fd327a9a7; único registro docs posterior por asunto en evidencia |
-| T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | Pendiente | | |
+| T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | En curso | 02/10/2026 | |
 | T-18 | Horarios y bloqueos en el frontend (P07) | M | T-17, T-16 | Pendiente | | |
 | T-19 | Disponibilidad backend (RF-07) | M | T-09, T-13, T-16 | Pendiente | | |
 | T-20 | Crear reserva con control de concurrencia (RF-08) | M | T-19 | Pendiente | | |

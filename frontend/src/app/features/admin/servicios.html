@@ -1,0 +1,80 @@
+<h1>Servicios</h1>
+<p>Administre el catálogo. Los servicios desactivados conservan el historial.</p>
+<div class="acciones">
+  <button mat-flat-button [disabled]="cargando()" (click)="editar()">Nuevo servicio</button>
+  <mat-slide-toggle
+    [checked]="inactivos()"
+    [disabled]="cargando()"
+    (change)="cargar($event.checked)"
+    >Mostrar inactivos</mat-slide-toggle
+  >
+  <button mat-button [disabled]="cargando()" (click)="cargar()">Actualizar</button>
+</div>
+@if (mensaje()) {
+  <p role="alert" class="mensaje">{{ mensaje() }}</p>
+}
+@if (cargando()) {
+  <p role="status">Cargando servicios…</p>
+}
+<div
+  class="tabla-contenedor"
+  tabindex="0"
+  role="region"
+  aria-label="Servicios; puede desplazar la tabla horizontalmente"
+  [attr.aria-busy]="cargando()"
+>
+  <table mat-table [dataSource]="filas()">
+    <ng-container matColumnDef="nombre">
+      <th mat-header-cell *matHeaderCellDef>Nombre</th>
+      <td mat-cell *matCellDef="let fila">
+        <strong>{{ fila.nombre }}</strong>
+        <p class="ayuda">{{ fila.descripcion }}</p>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="duracion">
+      <th mat-header-cell *matHeaderCellDef>Duración</th>
+      <td mat-cell *matCellDef="let fila">{{ fila.duracionMin }} min</td>
+    </ng-container>
+    <ng-container matColumnDef="precio">
+      <th mat-header-cell *matHeaderCellDef>Precio</th>
+      <td mat-cell *matCellDef="let fila">
+        {{ fila.precio | currency: 'PEN' : 'S/' : '1.2-2' : 'es-PE' }}
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="estado">
+      <th mat-header-cell *matHeaderCellDef>Estado</th>
+      <td mat-cell *matCellDef="let fila">
+        <span class="estado" [class.inactivo]="!fila.activo">{{
+          fila.activo ? 'Activo' : 'Inactivo'
+        }}</span>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="acciones">
+      <th mat-header-cell *matHeaderCellDef>Acciones</th>
+      <td mat-cell *matCellDef="let fila">
+        <button
+          mat-button
+          [disabled]="cargando()"
+          [attr.aria-label]="'Editar servicio ' + fila.nombre"
+          (click)="editar(fila)"
+        >
+          Editar
+        </button>
+        <button
+          mat-button
+          [disabled]="cargando()"
+          [attr.aria-label]="(fila.activo ? 'Desactivar ' : 'Activar ') + fila.nombre"
+          (click)="cambiarEstado(fila)"
+        >
+          {{ fila.activo ? 'Desactivar' : 'Activar' }}
+        </button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="columnas"></tr>
+    <tr mat-row *matRowDef="let fila; columns: columnas"></tr>
+    <tr *matNoDataRow>
+      <td [attr.colspan]="columnas.length">No hay servicios para mostrar.</td>
+    </tr>
+  </table>
+</div>
+<p class="ayuda">En pantallas pequeñas, desplace la tabla para ver todas las acciones.</p>

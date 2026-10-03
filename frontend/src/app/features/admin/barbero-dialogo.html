@@ -1,0 +1,92 @@
+<h2 mat-dialog-title>{{ barbero ? 'Editar barbero' : 'Nuevo barbero' }}</h2>
+<form [formGroup]="formulario" (ngSubmit)="guardar()">
+  <mat-dialog-content class="formulario">
+    @if (!barbero) {
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Tipo de alta</mat-label>
+        <mat-select formControlName="modo" (selectionChange)="ajustarModo()">
+          <mat-option value="nueva">Nueva cuenta de barbero</mat-option>
+          <mat-option value="vincular">Vincular administrador</mat-option>
+        </mat-select>
+      </mat-form-field>
+    }
+    @if (!barbero && formulario.controls.modo.value === 'vincular') {
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>ID del usuario administrador</mat-label>
+        <input matInput type="number" formControlName="usuarioId" min="1" step="1" />
+        <mat-error>{{ errorCampo(formulario.controls.usuarioId) }}</mat-error>
+      </mat-form-field>
+      <p class="ayuda">
+        Ingrese el usuarioId de un ADMIN activo. T-31 aportará la búsqueda de administradores.
+      </p>
+    } @else {
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="nombre" maxlength="100" autocomplete="name" />
+        <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error>
+      </mat-form-field>
+      @if (!barbero) {
+        <mat-form-field subscriptSizing="dynamic">
+          <mat-label>Correo</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="correo"
+            maxlength="254"
+            autocomplete="off"
+          />
+          <mat-error>{{ errorCampo(formulario.controls.correo) }}</mat-error>
+        </mat-form-field>
+      } @else {
+        <p class="ayuda">Correo: {{ barbero.correo }}</p>
+      }
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Teléfono (opcional)</mat-label>
+        <input
+          matInput
+          type="tel"
+          inputmode="numeric"
+          formControlName="telefono"
+          maxlength="9"
+          autocomplete="tel"
+        />
+        <mat-error>{{ errorCampo(formulario.controls.telefono) }}</mat-error>
+      </mat-form-field>
+    }
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Especialidad</mat-label>
+      <input matInput formControlName="especialidad" maxlength="100" />
+      <mat-error>{{ errorCampo(formulario.controls.especialidad) }}</mat-error>
+    </mat-form-field>
+    @if (!barbero && formulario.controls.modo.value === 'nueva') {
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Contraseña temporal</mat-label>
+        <input
+          matInput
+          type="password"
+          formControlName="passwordTemporal"
+          autocomplete="new-password"
+        />
+        <mat-hint>De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</mat-hint>
+        <mat-error>{{ errorCampo(formulario.controls.passwordTemporal) }}</mat-error>
+      </mat-form-field>
+      <button mat-stroked-button type="button" [disabled]="guardando()" (click)="generar()">
+        Generar
+      </button>
+      <p class="ayuda">
+        Tras crear la cuenta se mostrará una sola vez para comunicarla en persona.
+      </p>
+    }
+    @if (mensaje()) {
+      <p class="mensaje" role="alert">{{ mensaje() }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [disabled]="guardando()" (click)="referencia.close(false)">
+      Cancelar
+    </button>
+    <button mat-flat-button type="submit" [disabled]="guardando()">
+      {{ guardando() ? 'Guardando…' : 'Guardar barbero' }}
+    </button>
+  </mat-dialog-actions>
+</form>
