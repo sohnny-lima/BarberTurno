@@ -63,7 +63,18 @@ export const routes: Routes = [
         loadComponent: proximamente,
         data: { titulo: 'Agenda' },
       },
-      ...['servicios', 'barberos', 'horarios', 'reportes', 'usuarios'].map((recurso) => ({
+      {
+        path: 'admin/servicios',
+        canActivate: [authGuard, rolGuard(['ADMIN'])],
+        loadComponent: () =>
+          import('./features/admin/servicios').then((modulo) => modulo.Servicios),
+      },
+      {
+        path: 'admin/barberos',
+        canActivate: [authGuard, rolGuard(['ADMIN'])],
+        loadComponent: () => import('./features/admin/barberos').then((modulo) => modulo.Barberos),
+      },
+      ...['horarios', 'reportes', 'usuarios'].map((recurso) => ({
         path: 'admin/' + recurso,
         canActivate: [authGuard, rolGuard(['ADMIN'])],
         loadComponent: proximamente,

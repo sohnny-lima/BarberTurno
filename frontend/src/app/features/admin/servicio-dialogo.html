@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>{{ servicio ? 'Editar servicio' : 'Nuevo servicio' }}</h2>
+<form [formGroup]="formulario" (ngSubmit)="guardar()">
+  <mat-dialog-content class="formulario">
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Nombre</mat-label>
+      <input matInput formControlName="nombre" autocomplete="off" maxlength="80" />
+      <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error>
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Descripción</mat-label>
+      <textarea matInput formControlName="descripcion" maxlength="300"></textarea>
+      <mat-error>{{ errorCampo(formulario.controls.descripcion) }}</mat-error>
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Duración (minutos)</mat-label>
+      <input matInput type="number" formControlName="duracionMin" min="10" max="180" step="10" />
+      <mat-hint>De 10 a 180 minutos, en múltiplos de 10.</mat-hint>
+      <mat-error>{{ errorCampo(formulario.controls.duracionMin) }}</mat-error>
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Precio (S/)</mat-label>
+      <input matInput type="number" formControlName="precio" min="0" max="999999.99" step="0.01" />
+      <mat-hint>Desde S/ 0.00, con hasta dos decimales.</mat-hint>
+      <mat-error>{{ errorCampo(formulario.controls.precio) }}</mat-error>
+    </mat-form-field>
+    @if (mensaje()) {
+      <p class="mensaje" role="alert">{{ mensaje() }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [disabled]="guardando()" (click)="referencia.close(false)">
+      Cancelar
+    </button>
+    <button mat-flat-button type="submit" [disabled]="guardando()">
+      {{ guardando() ? 'Guardando…' : 'Guardar servicio' }}
+    </button>
+  </mat-dialog-actions>
+</form>

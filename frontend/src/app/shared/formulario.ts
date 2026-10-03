@@ -20,6 +20,10 @@ export function mostrarErrores(formulario: FormGroup, error: HttpErrorResponse):
       }
     }
   }
+  if (problema?.codigo === 'NOMBRE_DUPLICADO') {
+    formulario.get('nombre')?.setErrors({ servidor: problema.detail });
+    formulario.get('nombre')?.markAsTouched();
+  }
   if (problema?.codigo === 'CORREO_DUPLICADO') {
     formulario.get('correo')?.setErrors({ servidor: problema.detail });
     formulario.get('correo')?.markAsTouched();

@@ -1,0 +1,48 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.tabla-contenedor {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: 24px;
+  border: 1px solid #d8e3e6;
+  border-radius: 10px;
+  background: white;
+}
+table {
+  width: 100%;
+  min-width: 700px;
+}
+th {
+  background: #e7f0f3;
+}
+td {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+td:last-child {
+  min-width: 210px;
+}
+.estado {
+  display: inline-block;
+  padding: 5px 10px;
+  background: #dcefe8;
+  color: #155740;
+  border-radius: 20px;
+}
+.inactivo {
+  background: #edf0f2;
+  color: #43515c;
+}
+tr[matNoDataRow] td {
+  padding: 24px;
+}
+.acciones {
+  align-items: center;
+}
+@media (max-width: 767.98px) {
+  .tabla-contenedor {
+    margin-top: 16px;
+  }
+}
