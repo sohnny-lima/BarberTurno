@@ -2,7 +2,7 @@
 
 Sistema web de reservas y turnos para una barbería de una sede en Huamanga, Perú. Proyecto académico de Integrador I: Sistemas Software (UTP). Arquitectura A1: Angular 22, Spring Boot 4.1.1 / Java 21 y PostgreSQL 18; toda la lógica de negocio reside en Java. Los datos de demostración son ficticios.
 
-El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend permite registrarse, ingresar, cambiar la contraseña, editar el perfil y salir, con Material, navegación por rol y protección XSRF (T-12).
+El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend permite registrarse, ingresar, cambiar la contraseña, editar el perfil y salir, con Material, navegación por rol y protección XSRF (T-12). El ADMIN también gestiona servicios y barberos, con altas, edición, estados y contraseña temporal (T-17).
 
 ## Entorno
 
@@ -186,6 +186,13 @@ Recorrido HTTP de identidad (sin navegador), desde la raíz y con Node 24.21.0 a
 
 Requiere PowerShell 7, PostgreSQL 18 en 5433, la credencial local de desarrollo y puertos 8080/4200 libres. Inicia backend dev y ng serve, conserva cookies con WebRequestSession, comprueba CSRF, registro, perfil y logout; elimina únicamente la cuenta ficticia creada por id y correo y detiene sus servidores incluso si falla. Los logs locales del ensayo quedan en frontend/*.log, ignorados por Git. [Evidencia T-12](docs/pruebas/t-12.md).
 
+Recorrido HTTP y visual de catálogo, desde la raíz y con Node 24.21.0 activo:
+
+~~~powershell
+pwsh -NoProfile -File ./frontend/tools/verificar-catalogo-http.ps1
+~~~
+
+Requiere PowerShell 7, PostgreSQL 18 en 5433, la credencial local de desarrollo, Edge instalado en su ruta habitual de Windows y puertos 8080/4200 libres. Por seguridad exige una base de desarrollo sin usuarios: así identifica el ADMIN inicial creado exclusivamente para este ensayo. Genera valores ficticios BT_ADMIN_* solo en el entorno del proceso y los restaura al terminar. Arranca backend dev y Angular, accede por el proxy, crea/lista/edita servicios y barberos, comprueba CSRF en las seis escrituras, desactiva/reactiva y verifica tablas y diálogos a 1280/360 px con Edge headless. La limpieza autorizada para este ensayo elimina solo sus IDs (servicio, perfil de barbero y las dos cuentas) y detiene sus árboles de procesos incluso si falla. Logs, capturas y perfil temporal del navegador quedan en frontend/tmp/, ignorado por Git; no se imprimen credenciales ni cookies. [Evidencia T-17](docs/pruebas/t-17.md).
 E2E (`npx playwright test`) se incorporará en T-34.
 
 ## Medición del porcentaje de Java

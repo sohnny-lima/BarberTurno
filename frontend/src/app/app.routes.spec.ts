@@ -37,7 +37,7 @@ describe('Rutas reales', () => {
     await harness.navigateByUrl('/ingresar');
     expect(TestBed.inject(Router).url).toBe('/ingresar');
   });
-  it('un cliente no puede abrir administración y ve su inicio provisional', async () => {
+  it.each(['/admin/servicios', '/admin/barberos'])('un cliente no puede abrir %s', async (ruta) => {
     TestBed.inject(SesionService).cargar().subscribe();
     TestBed.inject(HttpTestingController).expectOne('/api/auth/sesion').flush({
       id: 1,
@@ -46,7 +46,7 @@ describe('Rutas reales', () => {
       correo: 'ruta@ejemplo.test',
       debeCambiarPassword: false,
     });
-    const harness = await RouterTestingHarness.create('/admin/servicios');
+    const harness = await RouterTestingHarness.create(ruta);
     expect(TestBed.inject(Router).url).toBe('/reservar');
     expect(harness.routeNativeElement?.textContent).toContain('Próximamente');
   });
