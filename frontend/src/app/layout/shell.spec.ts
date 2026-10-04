@@ -1,3 +1,5 @@
+import { signal } from '@angular/core';
+import { AvisosService } from '../core/notificaciones/avisos-service';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -21,6 +23,7 @@ describe('Shell adaptable', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: AvisosService, useValue: { noLeidas: signal(3), actualizar: vi.fn() } },
         { provide: BreakpointObserver, useValue: { observe: vi.fn(() => movil) } },
       ],
     });
@@ -66,7 +69,9 @@ describe('Shell adaptable', () => {
       'Usuario ficticio',
     );
     expect(fixture.nativeElement.querySelector('mat-toolbar').textContent).toContain('Salir');
-    expect(fixture.nativeElement.querySelector('[data-contador-avisos]').hidden).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
+      'Avisos sin leer: 3',
+    );
   });
   it('con contraseña temporal solo ofrece cambiarla y salir', () => {
     entrar('BARBERO', true);

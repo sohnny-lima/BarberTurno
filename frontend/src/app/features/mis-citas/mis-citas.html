@@ -1,0 +1,61 @@
+<h1>Mis citas</h1>
+<p>Consulte sus turnos y los avisos de sus reservas. Horarios de Lima.</p>
+<mat-tab-group
+  dynamicHeight
+  (selectedIndexChange)="cambiarTab($event)"
+  aria-label="Periodo de las citas"
+>
+  <mat-tab label="Próximas">
+    <ng-template matTabContent><ng-container [ngTemplateOutlet]="contenidoCitas" /></ng-template>
+  </mat-tab>
+  <mat-tab label="Historial">
+    <ng-template matTabContent><ng-container [ngTemplateOutlet]="contenidoCitas" /></ng-template>
+  </mat-tab>
+</mat-tab-group>
+<ng-template #contenidoCitas>
+  <form [formGroup]="formulario" (ngSubmit)="filtrar()" class="filtros">
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Desde</mat-label><input matInput type="date" formControlName="desde" />
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Hasta</mat-label><input matInput type="date" formControlName="hasta" />
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Estado</mat-label>
+      <mat-select formControlName="estado">
+        <mat-option value="">Todos los estados</mat-option>
+        @for (estado of estados; track estado[0]) {
+          <mat-option [value]="estado[0]">{{ estado[1] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-stroked-button type="submit">Filtrar</button>
+    @if (formulario.hasError('rangoFechas')) {
+      <p class="error-campo" role="alert">La fecha Desde no puede ser posterior a Hasta.</p>
+    }
+  </form>
+  <section aria-label="Reservas" [attr.aria-busy]="cargando()">
+    @if (cargando()) {
+      <p role="status">Cargando citas…</p>
+    } @else if (mensaje()) {
+      <p class="mensaje" role="alert">{{ mensaje() }}</p>
+      <button mat-button (click)="cargar()">Reintentar</button>
+    } @else {
+      @for (reserva of filas(); track reserva.id) {
+        <app-reserva-tarjeta [reserva]="reserva" (cancelar)="cancelar($event)" />
+      } @empty {
+        <p role="status">No hay citas con estos filtros.</p>
+      }
+    }
+    <mat-paginator
+      [length]="total()"
+      [pageIndex]="pagina()"
+      [pageSize]="tamano()"
+      [pageSizeOptions]="[10, 20, 50]"
+      (page)="paginar($event)"
+      showFirstLastButtons
+      aria-label="Páginas de citas"
+    />
+  </section>
+</ng-template>
+<app-avisos-panel [revision]="revisionAvisos()" />

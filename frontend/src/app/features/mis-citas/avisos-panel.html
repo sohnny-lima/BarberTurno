@@ -1,0 +1,55 @@
+<section class="tarjeta" aria-labelledby="titulo-avisos" [attr.aria-busy]="cargando()">
+  <h2 id="titulo-avisos">Avisos</h2>
+  <p class="ayuda">Del más reciente al más antiguo.</p>
+  <div class="acciones">
+    <button
+      mat-stroked-button
+      (click)="marcar()"
+      [disabled]="guardando() || avisos.noLeidas() === 0"
+    >
+      Marcar todos como leídos
+    </button>
+    <button mat-button (click)="cargar()" [disabled]="cargando() || guardando()">
+      Actualizar avisos
+    </button>
+  </div>
+  @if (mensaje()) {
+    <p class="mensaje" role="alert">{{ mensaje() }}</p>
+  }
+  @if (cargando()) {
+    <p role="status">Cargando avisos…</p>
+  } @else {
+    <ul>
+      @for (aviso of filas(); track aviso.id) {
+        <li>
+          <p>
+            <strong>{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong> ·
+            {{ aviso.creadoEn | fechaLima }}
+          </p>
+          <p>{{ aviso.mensaje }}</p>
+          @if (!aviso.leida) {
+            <button
+              mat-button
+              (click)="marcar(aviso.id)"
+              [disabled]="guardando()"
+              [attr.aria-label]="'Marcar como leído el aviso de BT-' + aviso.reservaId"
+            >
+              Marcar como leído
+            </button>
+          }
+        </li>
+      } @empty {
+        <li>No tiene avisos.</li>
+      }
+    </ul>
+  }
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="pagina()"
+    [pageSize]="tamano()"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="paginar($event)"
+    showFirstLastButtons
+    aria-label="Páginas de avisos"
+  />
+</section>
