@@ -40,6 +40,9 @@ public class ConfiguracionProduccion {
     @Bean
     public static BeanFactoryPostProcessor validarVariablesProduccion(Environment entorno) {
         return fabrica -> {
+            if (entorno.containsProperty("barberturno.reloj-fijo")) {
+                throw new IllegalStateException("barberturno.reloj-fijo no está permitido en prod.");
+            }
             if (Arrays.stream(entorno.getActiveProfiles()).anyMatch(perfil ->
                     List.of("dev", "test", "demo").contains(perfil))) {
                 throw new IllegalStateException("El perfil prod no puede combinarse con dev, test o demo.");

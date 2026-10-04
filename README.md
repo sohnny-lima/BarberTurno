@@ -69,7 +69,61 @@ Set-Location backend
 
 La API usa `http://localhost:8080`; `GET /actuator/health` devuelve exactamente `{"status":"UP"}` sin detalles. En `dev`, Swagger está en `http://localhost:8080/swagger-ui.html` y OpenAPI en `/v3/api-docs`; ambos están deshabilitados por defecto en los demás perfiles. La autenticación usa JWT HS256 de ocho horas en la cookie HttpOnly BT_SESION y CSRF para toda escritura. GET /api/auth/sesion devuelve 401 sin sesión y emite XSRF-TOKEN; con sesión devuelve la identidad pública. Las demás rutas de API siguen cerradas hasta su tarea. No se crean sesiones HTTP ni se registran contraseñas o tokens.
 
-`verify` ejecuta tanto `*Test` como `*IT` con el perfil `test` y PostgreSQL real. Reportes: `backend/target/surefire-reports/` y `backend/target/site/jacoco/index.html`; el umbral de cobertura de reservations y scheduling es ≥ 70 % (T-09). El perfil `demo` se activa junto con `dev`, pero sus datos se implementarán en T-32. En Linux/macOS use `./mvnw`; está marcado como ejecutable en Git.
+`verify` ejecuta tanto `*Test` como `*IT` con el perfil `test` y PostgreSQL real. Reportes: `backend/target/surefire-reports/` y `backend/target/site/jacoco/index.html`; el umbral de cobertura de reservations y scheduling es ≥ 70 % (T-09). En Linux/macOS use `./mvnw`; está marcado como ejecutable en Git.
+
+### Demostración reproducible (T-32)
+
+Configure `BT_DEMO_PASSWORD` en el entorno del proceso o en el archivo local privado.
+Elija una clave exclusiva de demostración que cumpla RN-25 (8–72 caracteres, letra y dígito,
+máximo 72 bytes UTF-8). Se usa para las cuentas ficticias `cliente@ejemplo.test`,
+`ana@ejemplo.test`, `luis@ejemplo.test`, `carlos@ejemplo.test` y `miguel@ejemplo.test`.
+Si no hay ADMIN activo después del inicial de T-10, se crea `admin-demo@ejemplo.test` con esa clave.
+El ADMIN inicial conserva su propia contraseña. No hay contraseña demo predeterminada;
+si falta `BT_DEMO_PASSWORD`, se emite un WARN y se omite toda la carga.
+
+Para una demostración académica local puede usar el ejemplo público
+`$env:BT_DEMO_PASSWORD = 'DemoSustentacion2026'`. Este valor es ficticio y exclusivo de la
+demo; para conservar una base con acceso privado, elija su propia clave antes de la primera carga.
+
+Desde `backend/`, con JDK 21:
+
+```powershell
+.\mvnw.cmd spring-boot:run '-Dspring-boot.run.profiles=dev,demo' '-Dspring-boot.run.arguments=--barberturno.reloj-fijo=2026-09-28T09:00:00-05:00'
+```
+
+También puede arrancar el jar desde la raíz:
+
+```powershell
+& "$env:JAVA_HOME\bin\java.exe" -jar backend/target/barberturno-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev,demo --barberturno.reloj-fijo=2026-09-28T09:00:00-05:00
+```
+
+Se importan los dos servicios, Carlos y Miguel, sus jornadas de lunes a sábado (09–13 y 14–18),
+K1 del 01/10/2026 (16–17, Carlos, «Trámite») y las cinco reservas del prototipo con sus fechas
+y estados exactos. Los identificadores son generados: la auditoría conserva `referenciaDemo`
+con BT-100…BT-104 para reconocer sus equivalencias. La carga de estas instantáneas históricas,
+incluida la completada del domingo 27/09, conserva sus datos sin ejecutar acciones del cliente.
+Cada reserva importada recibe una auditoría y avisos al cliente y al barbero.
+
+El marcador `cliente@ejemplo.test` evita repetir la carga y conserva las ediciones al reiniciar.
+Use una base de desarrollo preparada para la demo: no se sobrescriben servicios existentes;
+si su descripción, duración, precio o estado difieren, la carga falla y se revierte completa.
+Los correos demo deben estar libres antes de la primera carga. No se borra ni reinicia información.
+
+El reloj fijo solo se admite en `demo` y `test`; en `dev` solo se ignora y en `prod`
+la propiedad, incluso vacía, impide arrancar antes de abrir conexiones. Sin propiedad se usa
+el reloj real: las fechas de 2026 se conservan, pero la disponibilidad descarta lo pasado.
+Detenga el servidor con Ctrl+C al terminar.
+
+La corrida XLSX tiene un escenario independiente de la demo del prototipo:
+`CorridaManualIT` reproduce sus ocho pasos mediante la API con login y CSRF reales,
+avanza el reloj para atender R102 y concilia tres reservas, ocho auditorías y ocho avisos
+a clientes (Ana: cuatro; Luis: cuatro), más cinco avisos a Carlos por RN-15.
+`DatosDemoRunnerIT` comprueba perfiles del reloj, ausencia de clave, rollback, conservación
+del ADMIN, reinicios completos sin duplicados y disponibilidad del 01/10.
+
+```powershell
+.\mvnw.cmd '-Dtest=CorridaManualIT,DatosDemoRunnerIT' test
+```
 
 ### Obtener una sesión en desarrollo
 

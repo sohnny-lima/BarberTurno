@@ -1,4 +1,5 @@
-# Se activa junto con dev: el escenario de demostración se implementará en T-32.
+# Activar junto con dev; BT_DEMO_PASSWORD habilita la carga idempotente.
+# El reloj es real por defecto; fijarlo expresamente para reproducir el APF2.
 spring:
   application:
     name: barberturno

@@ -4,13 +4,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 
 /**
- * Inicializa la cuenta ADMIN configurada al arrancar sin credenciales predeterminadas (arquitectura §7.1).
+ * Inicializa la cuenta ADMIN configurada antes de la demo, sin claves predeterminadas (arquitectura §7.1).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Component
+@Order(0)
 public class AdminInicialRunner implements ApplicationRunner {
     private final AuthService auth;
     private final String correo;
