@@ -67,7 +67,7 @@
 | T-29 | Reportes backend (RF-14) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 09d680be6baf0b941a77fc20ed0b5979eabc5452, 9efe2613135dc9e09f0a32eaba8f49f6703884c0; cierre 5206124d0e5cfd8672135415883cb05c76642e8e; merge 9d80e11cecd73a3b76afbc7e41cb6cb0331fb31e |
 | T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | Pendiente | | |
 | T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Pendiente | | |
-| T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Pendiente | | |
+| T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | En curso | 04/10/2026 | |
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
 | T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
 | T-35 | Prueba de carga (RNF-01) | S | T-32 | Pendiente | | |
