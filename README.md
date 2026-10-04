@@ -109,6 +109,14 @@ Use una base de desarrollo preparada para la demo: no se sobrescriben servicios 
 si su descripción, duración, precio o estado difieren, la carga falla y se revierte completa.
 Los correos demo deben estar libres antes de la primera carga. No se borra ni reinicia información.
 
+La comprobación de T-32 preparó la base local exclusiva `barberturno_demo_t32`, propiedad del
+rol `barberturno`, y conservó allí los datos ficticios. Para usarla, añada al arranque del jar
+`--spring.datasource.url=jdbc:postgresql://localhost:5433/barberturno_demo_t32`.
+En otro equipo, un administrador de PostgreSQL puede prepararla con
+`CREATE DATABASE barberturno_demo_t32 OWNER barberturno;`.
+Consulte el catálogo después de completar el arranque: `health UP` puede responder
+antes de que el runner confirme la transacción de carga.
+
 El reloj fijo solo se admite en `demo` y `test`; en `dev` solo se ignora y en `prod`
 la propiedad, incluso vacía, impide arrancar antes de abrir conexiones. Sin propiedad se usa
 el reloj real: las fechas de 2026 se conservan, pero la disponibilidad descarta lo pasado.
