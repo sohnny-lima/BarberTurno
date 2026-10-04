@@ -59,6 +59,7 @@ export interface ConsultaAgenda {
   desde: string;
   hasta: string;
   barberoId?: number;
+  servicioId?: number;
   pagina: number;
   tamano: number;
 }
