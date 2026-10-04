@@ -193,7 +193,11 @@
             } @else {
               <p>Profesional: {{ store.profesional()?.nombre }}</p>
             }
-            <p>Puede cambiar o cancelar hasta 2 h antes.</p>
+            @if (store.sesion.rol() === 'ADMIN') {
+              <p>Puede gestionar esta cita desde Agenda.</p>
+            } @else {
+              <p>Puede cambiar o cancelar hasta 2 h antes.</p>
+            }
           </div>
         }
       }

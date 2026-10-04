@@ -440,6 +440,16 @@ try {
       'Resumen sin cliente',
     );
     assert(
+      await evaluar(
+        () =>
+          document
+            .querySelector('.resumen')
+            .textContent.includes('Puede gestionar esta cita desde Agenda.') &&
+          !document.querySelector('.resumen').textContent.includes('hasta 2 h antes'),
+      ),
+      'Resumen ADMIN conserva el aviso de CLIENTE',
+    );
+    assert(
       await evaluar(() => document.documentElement.scrollWidth <= innerWidth),
       'Desbordamiento global reserva',
     );
