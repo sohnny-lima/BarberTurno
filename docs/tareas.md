@@ -61,7 +61,7 @@
 | T-23 | Reprogramación (RF-09) | M | T-22 | Hecha · revisión: Aprobada | 04/10/2026 | de24a36, c0578d4; cierre 8559899; merge b43e264 |
 | T-24 | Transiciones de estado (RF-12) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 836586bb77532815713adf697220564a7b51b61c · 24d876f26ab1e4bdda809fff728849364994e399 · 37ff5d71713f5ff56a6cd5ecedd963b90ca46ddd · merge 718e86b13af5f03f57ab9a7c6dd7d94cfa12da1e |
 | T-25 | API de auditoría y avisos (RF-16, RF-17) | M | T-24 | Hecha · revisión: Aprobada | 04/10/2026 | 808bede, 8b22a16, d0fda86; merge f90cc73 |
-| T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | Pendiente | | |
+| T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20, T-44 | Pendiente | | |
 | T-27 | Mis citas y avisos en el frontend (P03) | M | T-26, T-23, T-25 | Pendiente | | |
 | T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Pendiente | | |
 | T-29 | Reportes backend (RF-14) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 09d680be6baf0b941a77fc20ed0b5979eabc5452, 9efe2613135dc9e09f0a32eaba8f49f6703884c0; cierre 5206124d0e5cfd8672135415883cb05c76642e8e; merge 9d80e11cecd73a3b76afbc7e41cb6cb0331fb31e |
@@ -79,6 +79,7 @@
 | T-41 | Javadoc: quitar la duplicación entre descripción y `@return` en los *getters* | C | T-40 (antes de T-37) | Hecha · revisión: Aprobada | 04/10/2026 | `2d70929c3c007dbe771346f39ea5b02f1389175f`, cierre `156486771bc1c3f58ad4c6ba7cef486c60e8c269`, merge `7f4c0cecec1c0980fd44fc2e042c564f6f8b0d52`; registro posterior por asunto (ver evidencia) |
 | T-42 | Contraseña temporal: el diálogo solo se cierra con "Cerrar" (revisión de T-17) | S | T-17 (con T-18) | Hecha · revisión: Aprobada | 03/10/2026 | 276dd9685dd045bbab46eff272b2350c1dbd0972; merge 37d29c65e3a6f3eb5a07531db56175568f635549 |
 | T-43 | Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35) | S | T-35 | Hecha · revisión: Aprobada | 04/10/2026 | `79aef82c5b12a05c46e7c9af3b6a23a07f57ec9a`, `1af96404c926d7b663637b40be7c37c0c00940d5`, cierre `de68dd86da75f3336d47375a8c4c398e21c056d3`; merge `e3f11db9a1206dec14ad982119e887db70e6b162`; único registro docs por asunto (evidencia) |
+| T-44 | Disponibilidad en modo reprogramación con la duración de referencia (hallazgo de T-26, DA-21) | M | T-19, T-23 | Pendiente | | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -348,6 +349,12 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** en `perf/`, registrar el estado HTTP y el `codigo` de cada rechazo inesperado (sin ampliar la lista de respuestas aceptadas), repetir la carga y clasificar los rechazos. Si alguno es un 503 por `lock_timeout` o un 500, es un hallazgo de concurrencia (RNF-05) con su análisis; si son rechazos de negocio legítimos, documentarlos.
 - **Criterios de aceptación:** informe con el desglose de los rechazos inesperados por estado y código; RNF-01 sigue cumpliéndose.
 - **Prioridad:** S; antes de T-37.
+
+### T-44 · Disponibilidad en modo reprogramación con la duración de referencia (hallazgo de T-26, DA-21)
+- **Origen:** encargo 030 (T-26). Con `excluirReservaId`, `GET /api/disponibilidad` usa la duración actual del catálogo y exige el servicio activo, mientras que la reprogramación (T-23) valida con `duracion_ref` y conserva un servicio desactivado. Lo que se muestra no coincidiría con lo que se acepta.
+- **Alcance:** en `DisponibilidadService.consultarFranjas`, cuando hay `excluirReservaId` (ya autorizado): leer la reserva sin bloqueo, exigir que `servicioId` sea el suyo (si no, 400 `VALIDACION`), usar su `duracion_ref` para las candidatas y para `duracionMin`, y no exigir que el servicio siga activo; el barbero sigue debiendo estar activo. Sin cambios en `validarFranja` ni en la reprogramación.
+- **Criterios de aceptación:** con una reserva de 30 min cuyo servicio pasa a 40 min y después se desactiva, la consulta de reprogramación devuelve franjas de 30 min y `duracionMin = 30`; toda franja listada es aceptada por `POST /api/reservas/{id}/reprogramacion` (prueba de coincidencia); `servicioId` distinto → 400; sin `excluirReservaId`, el comportamiento no cambia.
+- **Prioridad:** M; bloquea la integración de T-26.
 
 ---
 
