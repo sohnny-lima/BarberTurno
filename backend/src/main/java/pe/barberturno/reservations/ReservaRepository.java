@@ -22,6 +22,15 @@ import org.springframework.data.repository.query.Param;
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
 
     /**
+     * Lee datos escalares RF-09 sin poblar el contexto JPA antes de los bloqueos ① ② ③.
+     * @param id reserva cuya propiedad y asignación inicial se necesitan
+     * @return fotografía o vacío si no existe; debe revalidarse después de esperar
+     */
+    @Query("select new pe.barberturno.reservations.ReservaLectura(r.cliente.id, r.barbero.id, r.barbero.usuario.id, r.version, r.estado, r.inicio) from Reserva r where r.id = :id")
+    Optional<ReservaLectura> leerParaReprogramar(@Param("id") long id);
+
+
+    /**
      * Pagina filtros RF-11/13 con relaciones to-one en la consulta de contenido, evitando N+1.
      * Spring Data calcula el total con una consulta separada sin cargar esas relaciones.
      * @param filtros predicados de propiedad y búsqueda ya autorizados por el servicio

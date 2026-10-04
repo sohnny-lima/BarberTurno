@@ -15,7 +15,7 @@ import pe.barberturno.common.web.PaginaDto;
 import pe.barberturno.reservations.dto.*;
 
 /**
- * Rutas RF-08/10/11/13 con sesión, CSRF en escrituras y autorización en servidor.
+ * Rutas RF-08/09/10/11/13 con sesión, CSRF en escrituras y autorización en servidor.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -25,8 +25,8 @@ public class ReservaController {
     private final ReservaConsultaService consultas;
 
     /**
-     * Delega creación, cancelación atómica y consultas autorizadas a los servicios transaccionales.
-     * @param reservas servicio atómico de creación y cancelación
+     * Delega creación, reprogramación, cancelación atómica y consultas autorizadas a los servicios transaccionales.
+     * @param reservas servicio atómico de creación, reprogramación y cancelación
      * @param consultas búsqueda con permisos, filtros y proyección mínima
      */
     public ReservaController(ReservaService reservas, ReservaConsultaService consultas) {
@@ -122,6 +122,20 @@ public class ReservaController {
     public ReservaDto cancelar(@PathVariable long id, @Valid @RequestBody CancelarReservaDto cmd,
             @AuthenticationPrincipal UsuarioAutenticado actor) {
         return reservas.cancelar(id, cmd, actor);
+    }
+
+    /**
+     * Cambia fecha y profesional RF-09 con CSRF y política RN-07/08 en el servidor.
+     * @param id reserva propia o administrada
+     * @param cmd solicitud validada con inicio y versión obligatorios
+     * @param actor CLIENTE propietario o ADMIN autenticado
+     * @return HTTP 200 con intervalo, asignación, versión y permisos actualizados
+     * @throws NegocioException si falla autorización, versión, estado, política o disponibilidad
+     */
+    @PostMapping("/api/reservas/{id}/reprogramacion")
+    public ReservaDto reprogramar(@PathVariable long id, @Valid @RequestBody ReprogramarReservaDto cmd,
+            @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return reservas.reprogramar(id, cmd, actor);
     }
 
     private static void validarVacios(Map<String, String> parametros) {

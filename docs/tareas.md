@@ -58,7 +58,7 @@
 | T-20 | Crear reserva con control de concurrencia (RF-08) | M | T-19 | Hecha · revisión: Aprobada | 03/10/2026 | 053a1ee91b11e930420f84a7b14ae44b37432b18, 7939cf3f176818ca27b89f6d5be50106e170f511; cierre 82d2b2116999d646a79fbf4344b624c31c1ef61f; merge 895bde72f10635aee161685d2d2aa38e90c002a9; único registro docs posterior por asunto en evidencia |
 | T-21 | Consulta de reservas y autorización (RF-11, RF-13) | M | T-20 | Hecha · revisión: Aprobada | 03/10/2026 | 1479eb7c9b699b9558d0d5e24bd39669ec4977ef, ec10777a86eacc91f4a7ec8f9128169cf0d6cc4a; cierre 3a4205c5dabb4323fac8ab7658d6bb60db764469; merge d39ee6b705a3915c8dbe1fa6144c0ed7519b73e5; único registro docs posterior por asunto en evidencia |
 | T-22 | Cancelación (RF-10) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 75377633d2d494bf0afd6d5b1f73f5d29de22e74, b58e26fb34f880d9459085e2083b9c4aabe94020; cierre ab45b1bb6c359ed9d42ac0b30213d8e9f710734d; merge 7efb8d3088389ca4e5d433b8c21215e12ac2a2f7 |
-| T-23 | Reprogramación (RF-09) | M | T-22 | Pendiente | | |
+| T-23 | Reprogramación (RF-09) | M | T-22 | En curso | | |
 | T-24 | Transiciones de estado (RF-12) | M | T-21 | Pendiente | | |
 | T-25 | API de auditoría y avisos (RF-16, RF-17) | M | T-24 | Pendiente | | |
 | T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | Pendiente | | |
