@@ -1,0 +1,214 @@
+<section class="reservar">
+  <h1>{{ store.reserva() ? 'Reprogramar cita' : 'Reservar un turno' }}</h1>
+  <p>Elija su servicio y una franja disponible. Todas las horas corresponden a Lima.</p>
+  @if (store.mensaje()) {
+    <div class="mensaje" role="alert">
+      <p>{{ store.mensaje() }}</p>
+      @if (store.limiteReservas()) {
+        <a routerLink="/mis-citas">Ver Mis citas</a>
+      }
+    </div>
+  }
+  @if (store.cargando()) {
+    <p role="status">Cargando servicios y profesionales…</p>
+  }
+  <mat-stepper
+    linear
+    [orientation]="movil() ? 'vertical' : 'horizontal'"
+    [selectedIndex]="store.paso()"
+    (selectionChange)="store.irPaso($event.selectedIndex)"
+  >
+    <mat-step
+      label="Servicio y profesional"
+      [completed]="store.pasoUnoCompleto()"
+      [editable]="!store.enviando()"
+    >
+      @if (store.reserva(); as reserva) {
+        <mat-card class="servicio-fijo">
+          <mat-card-header
+            ><mat-card-title>{{ reserva.servicio.nombre }}</mat-card-title></mat-card-header
+          >
+          <mat-card-content>
+            <p>
+              {{ reserva.duracionMin }} minutos · S/ {{ reserva.precioRef.toFixed(2) }} · Pago
+              presencial
+            </p>
+            <p>Se conservan el servicio, el precio y la duración de su cita.</p>
+          </mat-card-content>
+        </mat-card>
+      } @else {
+        <div class="servicios" role="group" aria-label="Servicios disponibles">
+          @for (servicio of store.servicios(); track servicio.id) {
+            <button
+              type="button"
+              class="servicio"
+              [class.elegido]="store.servicioId() === servicio.id"
+              [attr.aria-pressed]="store.servicioId() === servicio.id"
+              [disabled]="store.enviando()"
+              (click)="store.elegirServicio(servicio.id)"
+            >
+              <strong>{{ servicio.nombre }}</strong>
+              <span>{{ servicio.descripcion }}</span>
+              <span>{{ servicio.duracionMin }} minutos · S/ {{ servicio.precio.toFixed(2) }}</span>
+              <span>Pago presencial</span>
+            </button>
+          } @empty {
+            @if (!store.cargando()) {
+              <p>No hay servicios activos disponibles.</p>
+            }
+          }
+        </div>
+      }
+      <mat-form-field appearance="outline">
+        <mat-label>Profesional</mat-label>
+        <mat-select
+          [value]="store.preferencia()"
+          [disabled]="store.enviando()"
+          (selectionChange)="store.elegirPreferencia($event.value)"
+        >
+          <mat-option [value]="null">Sin preferencia</mat-option>
+          @for (barbero of store.barberos(); track barbero.id) {
+            <mat-option [value]="barbero.id">{{ barbero.nombre }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <div class="acciones">
+        <button
+          mat-flat-button
+          type="button"
+          (click)="avanzar()"
+          [disabled]="!store.pasoUnoCompleto() || store.enviando()"
+        >
+          Elegir fecha y franja
+        </button>
+      </div>
+    </mat-step>
+    <mat-step
+      label="Fecha y franja"
+      [completed]="store.pasoDosCompleto()"
+      [editable]="!store.enviando()"
+    >
+      <mat-form-field appearance="outline">
+        <mat-label>Fecha de la cita (Lima)</mat-label>
+        <input
+          matInput
+          [matDatepicker]="calendario"
+          [formControl]="fechaControl"
+          [min]="limites.min"
+          [max]="limites.max"
+          (dateChange)="cambiarFecha()"
+        />
+        <mat-datepicker-toggle matIconSuffix [for]="calendario" />
+        <mat-datepicker #calendario />
+        <mat-hint>Desde hoy hasta 30 días después, en Lima.</mat-hint>
+        <mat-error>Elija una fecha válida dentro de los próximos 30 días.</mat-error>
+      </mat-form-field>
+      <p>Fecha consultada: {{ store.fecha() }} (Lima)</p>
+      @if (store.consultando()) {
+        <p role="status">Consultando franjas…</p>
+      } @else {
+        <mat-chip-listbox aria-label="Franjas disponibles en Lima" [disabled]="store.enviando()">
+          @for (franja of store.franjas(); track franja.inicio) {
+            <mat-chip-option
+              [selected]="store.franja()?.inicio === franja.inicio"
+              (selectionChange)="$event.selected && store.elegirFranja(franja)"
+            >
+              {{ franja.inicio | fechaLima: 'hora' }}–{{ franja.fin | fechaLima: 'hora' }}
+              @if (store.preferencia() === null) {
+                <span class="profesionales">
+                  @for (id of franja.barberoIds; track id; let ultimo = $last) {
+                    {{ nombreBarbero(id) }}{{ ultimo ? '' : ', ' }}
+                  }
+                </span>
+              }
+            </mat-chip-option>
+          }
+        </mat-chip-listbox>
+        @if (!store.franjas().length) {
+          <p role="status">No hay franjas disponibles. Pruebe otra fecha o profesional.</p>
+        }
+      }
+      <div class="acciones">
+        <button mat-button type="button" (click)="store.irPaso(0)" [disabled]="store.enviando()">
+          Cambiar servicio o profesional
+        </button>
+      </div>
+    </mat-step>
+    <mat-step label="Revisar y confirmar" [editable]="!store.enviando()">
+      @if (store.servicio(); as servicio) {
+        @if (store.franja(); as franja) {
+          <div class="tarjeta resumen" aria-label="Resumen de la cita">
+            <h2>{{ servicio.nombre }}</h2>
+            <p>
+              {{ franja.inicio | fechaLima: 'fecha' }} · {{ franja.inicio | fechaLima: 'hora' }}–{{
+                franja.fin | fechaLima: 'hora'
+              }}
+            </p>
+            <p>
+              {{ servicio.duracionMin }} minutos · S/ {{ servicio.precio.toFixed(2) }} · Pago
+              presencial
+            </p>
+            @if (store.preferencia() === null) {
+              <mat-form-field appearance="outline">
+                <mat-label>Profesional para esta franja</mat-label>
+                <mat-select
+                  [value]="store.barberoId()"
+                  [disabled]="store.enviando()"
+                  (selectionChange)="store.elegirBarbero($event.value)"
+                >
+                  @for (id of franja.barberoIds; track id) {
+                    <mat-option [value]="id">{{ nombreBarbero(id) }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else {
+              <p>Profesional: {{ store.profesional()?.nombre }}</p>
+            }
+            <p>Puede cambiar o cancelar hasta 2 h antes.</p>
+          </div>
+        }
+      }
+      @if (store.reserva() && store.sesion.rol() === 'ADMIN') {
+        <mat-form-field appearance="outline">
+          <mat-label>Motivo de la reprogramación</mat-label>
+          <textarea
+            matInput
+            maxlength="300"
+            [value]="store.motivo()"
+            [disabled]="store.enviando()"
+            (input)="store.motivo.set($any($event.target).value)"
+          ></textarea>
+          <mat-hint>Obligatorio para el administrador.</mat-hint>
+        </mat-form-field>
+      }
+      @if (store.sesion.rol() === 'BARBERO') {
+        <p>El perfil de barbero puede explorar las franjas, pero no confirmar reservas.</p>
+      }
+      @if (!store.sesion.autenticado()) {
+        <p>Para confirmar, ingrese o cree una cuenta. Conservaremos su selección.</p>
+      }
+      <div class="acciones">
+        <button mat-button type="button" [disabled]="store.enviando()" (click)="store.irPaso(1)">
+          Cambiar fecha o franja
+        </button>
+        @if (store.sesion.rol() !== 'BARBERO') {
+          <button
+            mat-flat-button
+            type="button"
+            data-confirmar
+            [disabled]="!store.puedeConfirmar()"
+            (click)="store.confirmar()"
+          >
+            {{
+              store.enviando()
+                ? 'Enviando…'
+                : store.reserva()
+                  ? 'Confirmar reprogramación'
+                  : 'Confirmar reserva'
+            }}
+          </button>
+        }
+      </div>
+    </mat-step>
+  </mat-stepper>
+</section>
