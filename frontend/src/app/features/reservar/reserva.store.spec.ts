@@ -332,4 +332,28 @@ describe('Store de reserva guiada', () => {
     expect(store.reserva()).toBeNull();
     expect(store.mensaje()).toBe('Reserva no encontrada.');
   });
+  it('ADMIN envía el cliente seleccionado y no confirma sin selección ni persiste identidad', () => {
+    sesion('ADMIN');
+    seleccion();
+    expect(store.puedeConfirmar()).toBe(false);
+    store.confirmar();
+    http.expectNone('/api/reservas');
+    store.elegirCliente({
+      id: 77,
+      nombre: 'Asistido ficticio',
+      correo: 'asistido@ejemplo.test',
+      telefono: null,
+      rol: 'CLIENTE',
+      activo: true,
+      debeCambiarPassword: false,
+    });
+    expect(store.puedeConfirmar()).toBe(true);
+    store.confirmar();
+    store.confirmar();
+    const req = http.expectOne('/api/reservas');
+    expect(req.request.body.clienteId).toBe(77);
+    expect(req.request.body.servicioId).toBe(1);
+    req.flush(reservaPrueba);
+    expect(sessionStorage.getItem('barberturno.reserva')).toBeNull();
+  });
 });

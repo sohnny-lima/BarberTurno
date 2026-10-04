@@ -175,4 +175,40 @@ describe('Vista de reserva guiada', () => {
     f.detectChanges();
     expect(f.nativeElement.querySelector('a[href="/mis-citas"]')).not.toBeNull();
   });
+  it.each([false, true])(
+    'ADMIN ve Cliente como paso previo y el resumen conserva la identidad, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar('ADMIN');
+      await f.whenStable();
+      f.detectChanges();
+      const stepper = f.debugElement.query(By.directive(MatStepper))
+        .componentInstance as MatStepper;
+      expect(stepper.steps.length).toBe(4);
+      expect(stepper.selectedIndex).toBe(0);
+      expect(f.nativeElement.querySelector('app-selector-cliente')).not.toBeNull();
+      f.componentInstance.store.elegirCliente({
+        id: 77,
+        nombre: 'Asistido ficticio',
+        correo: 'asistido@ejemplo.test',
+        telefono: null,
+        rol: 'CLIENTE',
+        activo: true,
+        debeCambiarPassword: false,
+      });
+      f.componentInstance.store.irPaso(0);
+      await f.whenStable();
+      f.detectChanges();
+      expect(stepper.selectedIndex).toBe(1);
+      seleccionar(f);
+      await f.whenStable();
+      f.detectChanges();
+      expect(stepper.selectedIndex).toBe(3);
+      expect(f.nativeElement.textContent).toContain('Asistido ficticio');
+      f.componentInstance.store.irPaso(-1);
+      await f.whenStable();
+      f.detectChanges();
+      expect(stepper.selectedIndex).toBe(0);
+    },
+  );
 });

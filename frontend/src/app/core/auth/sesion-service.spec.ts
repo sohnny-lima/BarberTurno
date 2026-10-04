@@ -68,6 +68,41 @@ describe('SesionService', () => {
     expect(error).toHaveBeenCalled();
     expect(sesion.autenticado()).toBe(false);
   });
+  it('cookie revocada se limpia por logout y repite el login una sola vez con la temporal', () => {
+    const datos = { correo: cliente.correo, password: 'Temporal1234' };
+    sesion.login(datos).subscribe();
+    http
+      .expectOne('/api/auth/login')
+      .flush({ codigo: 'NO_AUTENTICADO' }, { status: 401, statusText: 'Unauthorized' });
+    http.expectOne('/api/auth/logout').flush(null, { status: 204, statusText: 'No Content' });
+    const retry = http.expectOne('/api/auth/login');
+    expect(retry.request.body).toEqual(datos);
+    retry.flush({ ...cliente, debeCambiarPassword: true });
+    expect(sesion.inicio()).toBe('/cambiar-password');
+  });
+  it('credenciales inválidas no causan logout ni reintento', () => {
+    const error = vi.fn();
+    sesion.login({ correo: cliente.correo, password: 'incorrecta' }).subscribe({ error });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ codigo: 'CREDENCIALES_INVALIDAS' }, { status: 401, statusText: 'Unauthorized' });
+    http.expectNone('/api/auth/logout');
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+  it('segundo NO_AUTENTICADO se propaga sin bucle', () => {
+    const error = vi.fn();
+    sesion.login({ correo: cliente.correo, password: 'Temporal1234' }).subscribe({ error });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ codigo: 'NO_AUTENTICADO' }, { status: 401, statusText: 'Unauthorized' });
+    http.expectOne('/api/auth/logout').flush(null, { status: 204, statusText: 'No Content' });
+    http
+      .expectOne('/api/auth/login')
+      .flush({ codigo: 'NO_AUTENTICADO' }, { status: 401, statusText: 'Unauthorized' });
+    http.expectNone('/api/auth/logout');
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(sesion.autenticado()).toBe(false);
+  });
   it('registrar abre la sesión con el DTO devuelto', () => {
     const datos = {
       nombre: cliente.nombre,

@@ -1,0 +1,83 @@
+<section>
+  <h1>Usuarios</h1>
+  <form (submit)="$event.preventDefault(); buscar()" class="filtros">
+    <mat-form-field appearance="outline"
+      ><mat-label>Nombre o correo</mat-label><input matInput [formControl]="busqueda"
+    /></mat-form-field>
+    <mat-form-field appearance="outline"
+      ><mat-label>Rol</mat-label
+      ><mat-select [formControl]="rol" [canSelectNullableOptions]="true"
+        ><mat-option [value]="null">Todos</mat-option
+        ><mat-option value="CLIENTE">Cliente</mat-option
+        ><mat-option value="BARBERO">Barbero</mat-option
+        ><mat-option value="ADMIN">Administrador</mat-option></mat-select
+      ></mat-form-field
+    >
+    <button mat-flat-button type="submit" [disabled]="operando()">Buscar</button>
+  </form>
+  @if (cargando()) {
+    <p role="status">Buscando usuarios…</p>
+  }
+  @if (mensaje()) {
+    <p role="alert">{{ mensaje() }}</p>
+    <button mat-button (click)="cargar()">Reintentar</button>
+  }
+  <div class="tabla" tabindex="0" role="region" aria-label="Usuarios y acciones de acceso">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Nombre</th>
+          <th scope="col">Correo</th>
+          <th scope="col">Teléfono</th>
+          <th scope="col">Rol</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Contraseña</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of filas(); track u.id) {
+          <tr>
+            <td>{{ u.nombre }}</td>
+            <td>{{ u.correo }}</td>
+            <td>{{ u.telefono || '—' }}</td>
+            <td>{{ u.rol }}</td>
+            <td>{{ u.activo ? 'Activo' : 'Inactivo' }}</td>
+            <td>{{ u.debeCambiarPassword ? 'Cambio obligatorio' : 'Personal' }}</td>
+            <td class="acciones">
+              <button
+                mat-button
+                [disabled]="operando()"
+                (click)="restablecer(u)"
+                [attr.aria-label]="'Restablecer contraseña de ' + u.nombre"
+              >
+                Restablecer contraseña</button
+              ><button
+                mat-button
+                [disabled]="operando()"
+                (click)="cambiarEstado(u)"
+                [attr.aria-label]="(u.activo ? 'Desactivar ' : 'Activar ') + u.nombre"
+              >
+                {{ u.activo ? 'Desactivar' : 'Activar' }}
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          @if (!cargando() && !mensaje()) {
+            <tr>
+              <td colspan="7">No se encontraron usuarios.</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  <mat-paginator
+    aria-label="Páginas de usuarios"
+    [length]="total()"
+    [pageIndex]="pagina()"
+    [pageSize]="tamano()"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="paginar($event)"
+  />
+</section>

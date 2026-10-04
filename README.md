@@ -318,6 +318,20 @@ Recorrido HTTP y visual de Agenda (T-28), con Node 24.21.0 activo y después de 
 
 Requiere JDK 21, PostgreSQL 18 en 5433, el JAR de verify, Edge local, puertos 8080/4200 libres y dev sin usuarios para reconocer su ADMIN inicial. Crea ADMIN con BT_ADMIN_* ficticias solo en el proceso, barbero/servicio/jornadas y cliente por API; cambia la contraseña temporal del barbero por API. Comprueba las filas, motivos obligatorios de ADMIN y el BARBERO sin selector a 1440/360 px, con Edge en Europe/Madrid. Luego ajusta exclusivamente su reserva ficticia a un minuto antes del reloj real (inicio/fin y versión), consulta la agenda del día, inicia/completa por HTTP y consulta la auditoría como ADMIN. Verifica CSRF, rol y versión antigua. No promueve roles por SQL. Limpia por IDs y detiene sus procesos en finally; logs/capturas quedan en frontend/tmp/, ignorado. No ejecute otra suite PostgreSQL ni otro backend durante el recorrido. [Evidencia T-28](docs/pruebas/t-28.md).
 
+## Reserva asistida y gestión de usuarios (T-31)
+
+El ADMIN dispone de **Reserva asistida** en el menú: selecciona un cliente registrado por nombre o correo antes del servicio y la franja. El servidor valida el cliente y la disponibilidad, registra al administrador como creador y actor y confirma la reserva; el límite de tres reservas futuras solo se aplica al autoservicio.
+
+En **Usuarios**, el ADMIN busca clientes o personal, restablece el acceso y activa o desactiva cuentas. La contraseña temporal se entrega en el diálogo existente una sola vez, con Copiar y cierre explícito; su titular debe cambiarla al ingresar. La desactivación revoca sesiones, conserva historia y protege al último ADMIN y la propia cuenta. El estado de acceso de un usuario y la agenda del profesional se gestionan en Usuarios y Barberos respectivamente.
+
+Recorrido HTTP y Edge a 1440/360 px, tras el verify del backend y con Node 24.21.0 activado:
+
+~~~powershell
+.\frontend\tools\verificar-usuarios-http.ps1
+~~~
+
+Requiere JDK 21, PostgreSQL 18 en 5433, el JAR de verify, Edge local, puertos 8080/4200 libres y dev sin usuarios. Crea ADMIN mediante el inicializador T-10 con BT_ADMIN_* ficticias solo en el proceso y crea el resto por API, sin promoción SQL. Verifica CP-17/19, CSRF, actor y avisos, búsqueda, Copiar, estados y los cuatro pasos. Limpia exclusivamente sus IDs y detiene sus procesos en finally; logs y capturas sin contraseñas quedan en frontend/tmp/, ignorado. No ejecute otra suite PostgreSQL ni otro backend simultáneamente. [Evidencia T-31](docs/pruebas/t-31.md).
+
 ## Integración continua
 
 El workflow [CI](.github/workflows/ci.yml) se ejecuta con cada push a cualquier rama y cada pull request. Dos trabajos independientes en Ubuntu verifican el proyecto:

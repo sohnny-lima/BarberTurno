@@ -10,6 +10,7 @@ import { ServiciosApi } from '../../core/api/servicios-api';
 import { SesionService } from '../../core/auth/sesion-service';
 import { BarberoDto, ServicioDto } from '../../core/modelos/catalogo';
 import { ProblemDetail } from '../../core/modelos/identidad';
+import { UsuarioAdminDto } from '../../core/modelos/usuarios';
 import { FranjaDto, ReservaDto } from '../../core/modelos/reservas';
 import { fechaHoyLima } from '../../core/tiempo/instante-lima';
 
@@ -45,6 +46,8 @@ export class ReservaStore {
   readonly barberoId = signal<number | null>(null);
   readonly reserva = signal<ReservaDto | null>(null);
   readonly paso = signal(0);
+  readonly cliente = signal<UsuarioAdminDto | null>(null);
+  readonly asistida = computed(() => this.sesion.rol() === 'ADMIN' && !this.reserva());
   readonly cargando = signal(false);
   readonly consultando = signal(false);
   readonly enviando = signal(false);
@@ -72,6 +75,7 @@ export class ReservaStore {
       this.pasoDosCompleto() &&
       !this.enviando() &&
       this.sesion.rol() !== 'BARBERO' &&
+      (!this.asistida() || !!this.cliente()) &&
       (!this.reserva() || this.reserva()!.permisos.reprogramar) &&
       (!this.reserva() || this.sesion.rol() !== 'ADMIN' || !!this.motivo().trim()),
   );
@@ -85,7 +89,8 @@ export class ReservaStore {
           this.reserva.set(null);
           this.servicioId.set(null);
           this.preferencia.set(null);
-          this.paso.set(0);
+          this.cliente.set(null);
+          this.paso.set(id === undefined && this.sesion.rol() === 'ADMIN' ? -1 : 0);
           this.fecha.set(fechaHoyLima());
           this.limpiarFranja();
           // Cancela también una consulta pendiente de la selección anterior.
@@ -198,9 +203,16 @@ export class ReservaStore {
   elegirBarbero(id: number) {
     if (!this.enviando() && this.franja()?.barberoIds.includes(id)) this.barberoId.set(id);
   }
+  elegirCliente(cliente: UsuarioAdminDto | null) {
+    if (this.enviando()) return;
+    this.cliente.set(cliente);
+    if (!cliente) this.paso.set(-1);
+  }
   irPaso(paso: number) {
     if (this.enviando()) return;
+    if (this.asistida() && !this.cliente() && paso !== -1) return;
     if (
+      (paso === -1 && this.asistida()) ||
       paso === 0 ||
       (paso === 1 && this.pasoUnoCompleto()) ||
       (paso === 2 && this.pasoUnoCompleto() && this.pasoDosCompleto())
@@ -227,7 +239,12 @@ export class ReservaStore {
           version: reserva.version,
           ...(this.sesion.rol() === 'ADMIN' ? { motivo: this.motivo().trim() } : {}),
         })
-      : this.reservasApi.crear({ servicioId: this.servicioId()!, barberoId, inicio });
+      : this.reservasApi.crear({
+          servicioId: this.servicioId()!,
+          barberoId,
+          inicio,
+          ...(this.asistida() ? { clienteId: this.cliente()!.id } : {}),
+        });
     peticion
       .pipe(
         takeUntilDestroyed(this.destroyRef),

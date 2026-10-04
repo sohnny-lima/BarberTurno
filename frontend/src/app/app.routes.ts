@@ -85,12 +85,11 @@ export const routes: Routes = [
         canActivate: [authGuard, rolGuard(['ADMIN'])],
         loadComponent: () => import('./features/admin/reportes').then((modulo) => modulo.Reportes),
       },
-      ...['usuarios'].map((recurso) => ({
-        path: 'admin/' + recurso,
+      {
+        path: 'admin/usuarios',
         canActivate: [authGuard, rolGuard(['ADMIN'])],
-        loadComponent: proximamente,
-        data: { titulo: recurso.charAt(0).toUpperCase() + recurso.slice(1) },
-      })),
+        loadComponent: () => import('./features/admin/usuarios').then((modulo) => modulo.Usuarios),
+      },
       { path: '**', redirectTo: '' },
     ],
   },
