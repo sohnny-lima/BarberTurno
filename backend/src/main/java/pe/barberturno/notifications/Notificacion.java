@@ -83,10 +83,7 @@ public class Notificacion {
         leida = true;
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
@@ -99,42 +96,29 @@ public class Notificacion {
         return usuario;
     }
 
-    /**
-     * Reserva histórica asociada por reserva_id; no nula.
-     * @return reserva histórica asociada por reserva_id; no nula.
-     */
+    /** {@return reserva histórica asociada por reserva_id; no nula} */
     public Reserva getReserva() {
         return reserva;
     }
 
-    /**
-     * Acción que originó el aviso interno, persistida en tipo; no nula.
-     * @return acción que originó el aviso interno, persistida en tipo; no nula.
-     */
+    /** {@return acción que originó el aviso interno, persistida en tipo; no nula} */
     public AccionAuditoria getTipo() {
         return tipo;
     }
 
-    /**
-     * Texto público del aviso, no nulo, de hasta 300 caracteres y sin secretos.
-     * @return texto público del aviso, no nulo, de hasta 300 caracteres y sin secretos.
-     */
+    /** {@return texto público del aviso, no nulo, de hasta 300 caracteres y sin secretos} */
     public String getMensaje() {
         return mensaje;
     }
 
-    /**
-     * Marca persistida de lectura del destinatario; inicialmente false.
-     * @return marca persistida de lectura del destinatario; inicialmente false.
-     */
+    /** {@return marca persistida de lectura del destinatario; inicialmente false} */
     public boolean isLeida() {
         return leida;
     }
 
     /**
-     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
-     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
-     * no nulo.
+     * {@return instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo}
      */
     public Instant getCreadoEn() {
         return creadoEn;

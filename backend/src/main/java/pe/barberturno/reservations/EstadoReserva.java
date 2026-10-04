@@ -35,8 +35,8 @@ public enum EstadoReserva {
     ;
 
     /**
-     * Destinos inmutables RN-10; los estados terminales no ofrecen ninguna transición.
-     * @return destinos de RN-10 en un conjunto inmutable
+     * {@return destinos de RN-10 en un conjunto inmutable} Los estados terminales no ofrecen ninguna
+     * transición.
      */
     public Set<EstadoReserva> transicionesPermitidas() {
         return switch (this) {

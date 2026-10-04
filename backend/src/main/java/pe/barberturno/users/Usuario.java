@@ -178,115 +178,78 @@ public class Usuario {
         activo = true;
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
 
-    /**
-     * Nombre visible de la persona o del servicio, no nulo.
-     * @return nombre visible de la persona o del servicio, no nulo.
-     */
+    /** {@return nombre visible de la persona o del servicio, no nulo} */
     public String getNombre() {
         return nombre;
     }
 
-    /**
-     * Correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo.
-     * @return correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo.
-     */
+    /** {@return correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo} */
     public String getCorreo() {
         return correo;
     }
 
-    /**
-     * Teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE.
-     * @return teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE.
-     */
+    /** {@return teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE} */
     public String getTelefono() {
         return telefono;
     }
 
-    /**
-     * Hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs.
-     * @return hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs.
-     */
+    /** {@return hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs} */
     public String getPasswordHash() {
         return passwordHash;
     }
 
-    /**
-     * Rol persistido que determina los permisos del servidor; no nulo.
-     * @return rol persistido que determina los permisos del servidor; no nulo.
-     */
+    /** {@return rol persistido que determina los permisos del servidor; no nulo} */
     public Rol getRol() {
         return rol;
     }
 
-    /**
-     * Estado de habilitación lógica; false conserva la fila histórica según RN-16.
-     * @return estado de habilitación lógica; false conserva la fila histórica según RN-16.
-     */
+    /** {@return estado de habilitación lógica; false conserva la fila histórica según RN-16} */
     public boolean isActivo() {
         return activo;
     }
 
-    /**
-     * Marca que limita la cuenta a auth y lectura del perfil hasta cambiar su credencial.
-     * @return marca que limita la cuenta a auth y lectura del perfil hasta cambiar su credencial.
-     */
+    /** {@return marca que limita la cuenta a auth y lectura del perfil hasta cambiar su credencial} */
     public boolean isDebeCambiarPassword() {
         return debeCambiarPassword;
     }
 
     /**
-     * Versión de revocación en token_version; debe coincidir con el claim tv para aceptar la sesión.
-     * @return versión de revocación en token_version; debe coincidir con el claim tv para aceptar la sesión.
+     * {@return versión de revocación en token_version; debe coincidir con el claim tv para aceptar la
+     * sesión}
      */
     public int getTokenVersion() {
         return tokenVersion;
     }
 
-    /**
-     * Contador de accesos fallidos consecutivos; RN-25 bloquea al alcanzar cinco.
-     * @return contador de accesos fallidos consecutivos; RN-25 bloquea al alcanzar cinco.
-     */
+    /** {@return contador de accesos fallidos consecutivos; RN-25 bloquea al alcanzar cinco} */
     public short getIntentosFallidos() {
         return intentosFallidos;
     }
 
-    /**
-     * Instante absoluto de vencimiento del bloqueo de acceso; nulo si no hay bloqueo.
-     * @return instante absoluto de vencimiento del bloqueo de acceso; nulo si no hay bloqueo.
-     */
+    /** {@return instante absoluto de vencimiento del bloqueo de acceso; nulo si no hay bloqueo} */
     public Instant getBloqueadoHasta() {
         return bloqueadoHasta;
     }
 
-    /**
-     * Instante absoluto del consentimiento del cliente; puede ser nulo para el personal.
-     * @return instante absoluto del consentimiento del cliente; puede ser nulo para el personal.
-     */
+    /** {@return instante absoluto del consentimiento del cliente; puede ser nulo para el personal} */
     public Instant getPrivacidadAceptadaEn() {
         return privacidadAceptadaEn;
     }
 
     /**
-     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
-     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
-     * no nulo.
+     * {@return instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo}
      */
     public Instant getCreadoEn() {
         return creadoEn;
     }
 
-    /**
-     * Instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
-     * @return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
-     */
+    /** {@return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo} */
     public Instant getActualizadoEn() {
         return actualizadoEn;
     }

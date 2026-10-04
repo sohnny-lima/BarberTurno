@@ -114,67 +114,45 @@ public class Servicio {
         activo = true;
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
 
-    /**
-     * Nombre visible de la persona o del servicio, no nulo.
-     * @return nombre visible de la persona o del servicio, no nulo.
-     */
+    /** {@return nombre visible de la persona o del servicio, no nulo} */
     public String getNombre() {
         return nombre;
     }
 
-    /**
-     * Detalle visible del servicio, no nulo, de hasta 300 caracteres.
-     * @return detalle visible del servicio, no nulo, de hasta 300 caracteres.
-     */
+    /** {@return detalle visible del servicio, no nulo, de hasta 300 caracteres} */
     public String getDescripcion() {
         return descripcion;
     }
 
-    /**
-     * Duración del catálogo entre 10 y 180 minutos, múltiplo de diez.
-     * @return duración del catálogo entre 10 y 180 minutos, múltiplo de diez.
-     */
+    /** {@return duración del catálogo entre 10 y 180 minutos, múltiplo de diez} */
     public short getDuracionMin() {
         return duracionMin;
     }
 
-    /**
-     * Precio referencial no negativo en soles, numeric(8,2); el pago es presencial (RN-23).
-     * @return precio referencial no negativo en soles, numeric(8,2); el pago es presencial (RN-23).
-     */
+    /** {@return precio referencial no negativo en soles, numeric(8,2); el pago es presencial (RN-23)} */
     public BigDecimal getPrecio() {
         return precio;
     }
 
-    /**
-     * Estado de habilitación lógica; false conserva la fila histórica según RN-16.
-     * @return estado de habilitación lógica; false conserva la fila histórica según RN-16.
-     */
+    /** {@return estado de habilitación lógica; false conserva la fila histórica según RN-16} */
     public boolean isActivo() {
         return activo;
     }
 
     /**
-     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
-     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
-     * no nulo.
+     * {@return instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo}
      */
     public Instant getCreadoEn() {
         return creadoEn;
     }
 
-    /**
-     * Instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
-     * @return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
-     */
+    /** {@return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo} */
     public Instant getActualizadoEn() {
         return actualizadoEn;
     }

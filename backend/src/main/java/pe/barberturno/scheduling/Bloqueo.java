@@ -78,34 +78,25 @@ public class Bloqueo {
         }
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
 
-    /**
-     * Perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
-     * @return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
-     */
+    /** {@return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo} */
     public Barbero getBarbero() {
         return barbero;
     }
 
     /**
-     * Inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
-     * @return inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
+     * {@return inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo}
      */
     public Instant getInicio() {
         return inicio;
     }
 
-    /**
-     * Fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
-     * @return fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
-     */
+    /** {@return fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo} */
     public Instant getFin() {
         return fin;
     }
@@ -118,18 +109,14 @@ public class Bloqueo {
         return motivo;
     }
 
-    /**
-     * Identidad del actor que creó el bloqueo, enlazada por creado_por; no nula.
-     * @return identidad del actor que creó el bloqueo, enlazada por creado_por; no nula.
-     */
+    /** {@return identidad del actor que creó el bloqueo, enlazada por creado_por; no nula} */
     public Usuario getCreadoPor() {
         return creadoPor;
     }
 
     /**
-     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
-     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
-     * no nulo.
+     * {@return instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo}
      */
     public Instant getCreadoEn() {
         return creadoEn;

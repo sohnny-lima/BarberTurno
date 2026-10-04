@@ -134,14 +134,11 @@ public enum ErrorCodigo {
     }
 
     /**
-     * Estado HTTP estable del código para que MVC y filtros emitan la misma respuesta (§6.2).
-     * @return estado HTTP asociado al código según arquitectura §6.2
+     * {@return estado HTTP estable asociado al código según arquitectura §6.2} MVC y filtros lo comparten
+     * para emitir la misma respuesta.
      */
     public HttpStatus estado() { return estado; }
 
-    /**
-     * Título público en español de Problem Details, sin datos de petición ni detalles técnicos.
-     * @return título público en español, sin datos de la petición
-     */
+    /** {@return título público en español de Problem Details, sin datos de petición ni detalles técnicos} */
     public String titulo() { return titulo; }
 }

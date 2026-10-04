@@ -108,90 +108,65 @@ public class AuditoriaReserva {
         this.excepcional = excepcional;
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
 
-    /**
-     * Reserva histórica asociada por reserva_id; no nula.
-     * @return reserva histórica asociada por reserva_id; no nula.
-     */
+    /** {@return reserva histórica asociada por reserva_id; no nula} */
     public Reserva getReserva() {
         return reserva;
     }
 
-    /**
-     * Usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo.
-     * @return usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo.
-     */
+    /** {@return usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo} */
     public Usuario getActor() {
         return actor;
     }
 
-    /**
-     * Acción histórica persistida que explica el cambio de reserva (RN-15); no nula.
-     * @return acción histórica persistida que explica el cambio de reserva (RN-15); no nula.
-     */
+    /** {@return acción histórica persistida que explica el cambio de reserva (RN-15); no nula} */
     public AccionAuditoria getAccion() {
         return accion;
     }
 
-    /**
-     * Estado anterior al cambio; nulo en la creación de una reserva.
-     * @return estado anterior al cambio; nulo en la creación de una reserva.
-     */
+    /** {@return estado anterior al cambio; nulo en la creación de una reserva} */
     public EstadoReserva getEstadoAnterior() {
         return estadoAnterior;
     }
 
-    /**
-     * Estado posterior al cambio auditado; no nulo.
-     * @return estado posterior al cambio auditado; no nulo.
-     */
+    /** {@return estado posterior al cambio auditado; no nulo} */
     public EstadoReserva getEstadoNuevo() {
         return estadoNuevo;
     }
 
-    /**
-     * Instantánea JSONB de los valores anteriores; mapa no modificable, nulo en la creación.
-     * @return instantánea JSONB de los valores anteriores; mapa no modificable, nulo en la creación.
-     */
+    /** {@return instantánea JSONB de los valores anteriores; mapa no modificable, nulo en la creación} */
     public Map<String, Object> getDatosAnteriores() {
         return datosAnteriores == null ? null : Collections.unmodifiableMap(datosAnteriores);
     }
 
     /**
-     * Instantánea JSONB de los valores nuevos; mapa no nulo y no modificable, con copia superficial.
-     * @return instantánea JSONB de los valores nuevos; mapa no nulo y no modificable, con copia superficial.
+     * {@return instantánea JSONB de los valores nuevos; mapa no nulo y no modificable, con copia
+     * superficial}
      */
     public Map<String, Object> getDatosNuevos() {
         return Collections.unmodifiableMap(datosNuevos);
     }
 
     /**
-     * Explicación del cambio; puede ser nula salvo cuando la política exige justificar la excepción.
-     * @return explicación del cambio; puede ser nula salvo cuando la política exige justificar la excepción.
+     * {@return explicación del cambio; puede ser nula salvo cuando la política exige justificar la
+     * excepción}
      */
     public String getMotivo() {
         return motivo;
     }
 
-    /**
-     * Marca de excepción administrativa RN-08, distinguible en la auditoría RN-15.
-     * @return marca de excepción administrativa RN-08, distinguible en la auditoría RN-15.
-     */
+    /** {@return marca de excepción administrativa RN-08, distinguible en la auditoría RN-15} */
     public boolean isExcepcional() {
         return excepcional;
     }
 
     /**
-     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
-     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
-     * no nulo.
+     * {@return instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo}
      */
     public Instant getCreadoEn() {
         return creadoEn;
