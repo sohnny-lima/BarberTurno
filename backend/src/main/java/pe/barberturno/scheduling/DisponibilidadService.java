@@ -18,7 +18,8 @@ import pe.barberturno.users.Rol;
 
 /**
  * Disponibilidad RF-07/RF-21 por día de Lima sin consultas por perfil ni por candidata.
- * Comparte el predicado puro RN-05 con la validación que T-20 invocará después de los bloqueos.
+ * Comparte el predicado puro RN-05 con la validación de escrituras posterior a los bloqueos.
+ * La consulta de reprogramación conserva las referencias RN-09/13 según DA-21.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -40,7 +41,7 @@ public class DisponibilidadService {
      * @param barberos perfiles y estado RN-06
      * @param jornadas intervalos del día ISO
      * @param bloqueos indisponibilidades que se cruzan con el día
-     * @param reservas ocupaciones y propiedad de la exclusión
+     * @param reservas ocupaciones, propiedad de la exclusión y referencia RN-13
      * @param clock reloj del servidor inyectado
      * @param parametros horizonte y rejilla RN-05
      * @param actual identidad revalidada; solo se exige al excluir una reserva
@@ -61,26 +62,35 @@ public class DisponibilidadService {
     /**
      * Calcula candidatas completas y fusiona por inicio los perfiles habilitados RF-21.
      * Comprueba la exclusión antes de cualquier resultado, incluso fuera del horizonte.
-     * @param servicioId identidad del servicio activo cuya duración se consulta
+     * En reprogramación conserva servicio y duración RN-09/13 aunque el catálogo esté inactivo (DA-21).
+     * @param servicioId servicio activo para crear, o el de la reserva excluida para reprogramar
      * @param barberoId perfil solicitado o vacío para todos los activos
      * @param fecha día de Lima; fuera del horizonte devuelve franjas vacías
      * @param excluirReservaId reserva del propietario o ADMIN que no ocupará franja
-     * @return resultado público ordenado con intervalos semiabiertos en Lima
-     * @throws NegocioException si falta un recurso o la reserva es ajena (404), o un recurso está inactivo (422)
+     * @return resultado ordenado en Lima, con duración del catálogo o de referencia según el modo
+     * @throws NegocioException si falta un recurso o la reserva es ajena (404), el servicio no coincide (400),
+     * o el barbero o un servicio requerido para crear está inactivo (422)
      */
     @Transactional(readOnly = true)
     public DisponibilidadDto consultarFranjas(long servicioId, Optional<Long> barberoId,
             LocalDate fecha, Optional<Long> excluirReservaId) {
         excluirReservaId.ifPresent(this::autorizarExclusion);
+        var referencia = excluirReservaId.map(id ->
+                reservas.leerReferenciaDisponibilidad(id).orElseThrow(this::noEncontrado));
+        if (referencia.isPresent() && referencia.get().servicioId() != servicioId) {
+            throw new NegocioException(ErrorCodigo.VALIDACION,
+                    "El servicio solicitado debe coincidir con el de la reserva.");
+        }
         var servicio = servicios.findById(servicioId).orElseThrow(this::noEncontrado);
-        if (!servicio.isActivo()) throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO,
+        if (excluirReservaId.isEmpty() && !servicio.isActivo()) throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO,
                 "El servicio está inactivo.");
+        int duracion = referencia.map(r -> (int) r.duracionRefMin()).orElse((int) servicio.getDuracionMin());
         List<Barbero> perfiles = barberoId.map(id -> List.of(barberoActivo(id)))
                 .orElseGet(barberos::findByActivoTrueOrderByIdAsc);
         Instant ahora = clock.instant();
         Instant limite = limiteHorizonte(ahora);
         if (fueraDeHorizonte(fecha, ahora) || perfiles.isEmpty()) {
-            return new DisponibilidadDto(fecha, servicioId, servicio.getDuracionMin(), List.of());
+            return new DisponibilidadDto(fecha, servicioId, duracion, List.of());
         }
         var datos = cargarDia(perfiles.stream().map(Barbero::getId).toList(), fecha,
                 excluirReservaId.orElse(0L));
@@ -92,10 +102,10 @@ public class DisponibilidadService {
             for (IntervaloJornada intervalo : intervalos) {
                 Instant finJornada = fecha.atTime(intervalo.fin()).atZone(TiempoNegocio.ZONA).toInstant();
                 for (Instant inicio = fecha.atTime(intervalo.inicio()).atZone(TiempoNegocio.ZONA).toInstant();
-                        !inicio.plus(servicio.getDuracionMin(), ChronoUnit.MINUTES).isAfter(finJornada);
+                        !inicio.plus(duracion, ChronoUnit.MINUTES).isAfter(finJornada);
                         inicio = inicio.plus(parametros.rejillaMin(), ChronoUnit.MINUTES)) {
-                    var candidata = new Franja(inicio, inicio.plus(servicio.getDuracionMin(), ChronoUnit.MINUTES));
-                    if (evaluar(fecha, intervalos, ocupaciones, candidata, servicio.getDuracionMin(),
+                    var candidata = new Franja(inicio, inicio.plus(duracion, ChronoUnit.MINUTES));
+                    if (evaluar(fecha, intervalos, ocupaciones, candidata, duracion,
                             ahora, limite).isEmpty()) {
                         fusion.computeIfAbsent(inicio, clave -> new ArrayList<>()).add(id);
                     }
@@ -104,9 +114,9 @@ public class DisponibilidadService {
         }
         var franjas = fusion.entrySet().stream().map(e -> new FranjaDisponibleDto(
                 TiempoNegocio.aLima(e.getKey()),
-                TiempoNegocio.aLima(e.getKey().plus(servicio.getDuracionMin(), ChronoUnit.MINUTES)),
+                TiempoNegocio.aLima(e.getKey().plus(duracion, ChronoUnit.MINUTES)),
                 e.getValue().stream().distinct().sorted().toList())).toList();
-        return new DisponibilidadDto(fecha, servicioId, servicio.getDuracionMin(), franjas);
+        return new DisponibilidadDto(fecha, servicioId, duracion, franjas);
     }
 
     /**
