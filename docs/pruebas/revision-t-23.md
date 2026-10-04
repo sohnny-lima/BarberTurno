@@ -16,3 +16,6 @@
 
 ## Hallazgo documental resuelto
 RN-06 decía que solo servicios y barberos activos sirven "como destino de una reprogramación", y el encargo permitía conservar un servicio desactivado. Como en una reprogramación el servicio no cambia (RN-09) y sus referencias se conservan (RN-13), se aclara RN-06: el **barbero de destino** debe estar activo; el servicio se conserva aunque se haya desactivado después. Así, desactivar un servicio no impide mover las reservas que ya lo tienen.
+
+## Adenda (04/10/2026, revisión de T-32)
+**Defecto no detectado en esta revisión ni en la de Gemini:** `reprogramar` excluía del aviso a cualquier destinatario que fuera el actor, también al **cliente**. RN-15 exige avisar **siempre** al cliente; la excepción del actor solo aplica a los barberos. La corrida automatizada de T-32 lo detectó (faltaba 1 de los 8 avisos al cliente) y se corrigió en `7cbe4ef` con su prueba. **Lección:** al revisar destinatarios, contrastar literalmente con RN-15 y no aceptar "sin autoaviso" como regla general.
