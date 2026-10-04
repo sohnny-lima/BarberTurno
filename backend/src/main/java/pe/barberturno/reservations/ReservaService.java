@@ -64,10 +64,10 @@ public class ReservaService {
     }
 
     /**
-     * Crea para el propio CLIENTE después de serializar cliente y agenda en ese orden (§8.1).
+     * Crea para el propio CLIENTE o para un CLIENTE elegido por ADMIN (RF-18), con bloqueos ① y ②.
      * Guarda referencias, auditoría y avisos en la misma transacción; saveAndFlush activa la red GiST.
-     * @param cmd solicitud validada por la API, sin clienteId asistido
-     * @param actor identidad vigente CLIENTE, registrada como creador y actor
+     * @param cmd solicitud validada; clienteId obligatorio para ADMIN y prohibido para CLIENTE
+     * @param actor identidad vigente CLIENTE o ADMIN, registrada como creador y actor
      * @return reserva creada con código BT, instantes Lima y permisos DA-15
      * @throws NegocioException si el rol o clienteId no está autorizado (403), falta un recurso (404),
      * hay solapes (409), recursos inactivos, franja inválida o límite excedido (422)
@@ -75,12 +75,20 @@ public class ReservaService {
      */
     @Transactional
     public ReservaDto crear(CrearReservaDto cmd, UsuarioAutenticado actor) {
-        if (actor.rol() != Rol.CLIENTE || cmd.clienteId() != null) {
+        boolean asistida = actor.rol() == Rol.ADMIN;
+        if (!asistida && (actor.rol() != Rol.CLIENTE || cmd.clienteId() != null)) {
             throw new NegocioException(ErrorCodigo.PROHIBIDO, "Solo puede reservar para usted.");
+        }
+        if (asistida && cmd.clienteId() == null) {
+            throw new NegocioException(ErrorCodigo.VALIDACION, "Seleccione el cliente de la reserva asistida.");
         }
         // Solo existencia antes de esperar: no precargar entidades que quedarían obsoletas en el contexto JPA.
         if (!servicios.existsById(cmd.servicioId()) || !barberos.existsById(cmd.barberoId())) throw noEncontrado();
-        var cliente = usuarios.bloquearPorId(actor.id()).orElseThrow(this::noEncontrado); // ①
+        var cliente = usuarios.bloquearPorId(asistida ? cmd.clienteId() : actor.id()).orElseThrow(this::noEncontrado); // ①
+        if (cliente.getRol() != Rol.CLIENTE) throw noEncontrado();
+        if (!cliente.isActivo()) {
+            throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO, "El cliente está inactivo.");
+        }
         var perfiles = barberos.bloquearPorIds(List.of(cmd.barberoId())); // ②
         if (perfiles.isEmpty()) throw noEncontrado();
         var barbero = perfiles.getFirst();
@@ -98,13 +106,14 @@ public class ReservaService {
                     "Ya tiene una reserva que se cruza con esta franja.");
         }
         Instant ahora = clock.instant();
-        if (reservas.contarFuturasQueOcupan(cliente.getId(), ahora) >= parametros.maxActivasPorCliente()) {
+        if (!asistida && reservas.contarFuturasQueOcupan(cliente.getId(), ahora) >= parametros.maxActivasPorCliente()) {
             throw new NegocioException(ErrorCodigo.LIMITE_RESERVAS_ACTIVAS,
                     "Ha alcanzado el límite de reservas futuras.");
         }
-        EstadoReserva estado = parametros.confirmacionManual() ? EstadoReserva.PENDIENTE : EstadoReserva.CONFIRMADA;
-        var reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, inicio, estado, cliente, ahora));
-        auditoria.registrarCambio(reserva, cliente, AccionAuditoria.CREAR, null, null,
+        EstadoReserva estado = !asistida && parametros.confirmacionManual() ? EstadoReserva.PENDIENTE : EstadoReserva.CONFIRMADA;
+        var creador = asistida ? usuarios.getReferenceById(actor.id()) : cliente;
+        var reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, inicio, estado, creador, ahora));
+        auditoria.registrarCambio(reserva, creador, AccionAuditoria.CREAR, null, null,
                 Map.of("inicio", TiempoNegocio.aLima(inicio).toString(), "fin", TiempoNegocio.aLima(fin).toString(),
                         "barberoId", barbero.getId(), "servicioId", servicio.getId(), "estado", estado.name()),
                 null, false);

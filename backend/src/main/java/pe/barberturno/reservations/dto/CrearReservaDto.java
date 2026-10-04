@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 import java.time.OffsetDateTime;
 
 /**
- * Solicitud RF-08 con instante absoluto; clienteId queda reservado a RF-18.
+ * Solicitud RF-08 con instante absoluto; clienteId permite la creación asistida RF-18 por ADMIN.
  * @param servicioId servicio solicitado, identidad positiva
  * @param barberoId perfil solicitado, identidad positiva
  * @param inicio inicio inclusivo con desfase obligatorio

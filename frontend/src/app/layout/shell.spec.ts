@@ -59,7 +59,19 @@ describe('Shell adaptable', () => {
   it.each([
     ['CLIENTE', ['Reservar', 'Mis citas', 'Mi cuenta']],
     ['BARBERO', ['Agenda', 'Mi cuenta']],
-    ['ADMIN', ['Agenda', 'Servicios', 'Barberos', 'Horarios', 'Reportes', 'Usuarios', 'Mi cuenta']],
+    [
+      'ADMIN',
+      [
+        'Agenda',
+        'Reserva asistida',
+        'Servicios',
+        'Barberos',
+        'Horarios',
+        'Reportes',
+        'Usuarios',
+        'Mi cuenta',
+      ],
+    ],
   ] as [Rol, string[]][])('muestra navegación de %s, identidad y Salir', (rol, esperado) => {
     entrar(rol);
     const fixture = TestBed.createComponent(Shell);

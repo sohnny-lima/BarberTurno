@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
-public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+public interface UsuarioRepository extends JpaRepository<Usuario, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Usuario> {
 
     /**
      * Busca correo ya normalizado RN-24, sin bloqueo ni orden adicional.
@@ -46,4 +46,18 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from Usuario u where u.id = :id")
     Optional<Usuario> bloquearPorId(@Param("id") Long id);
+    /**
+     * Serializa cambios de estado antes de bloquear usuarios y contar ADMIN activos.
+     * La clave 313131 es exclusiva de RF-19, distinta del cupo de barberos 141414.
+     * @return centinela 1 tras adquirir el bloqueo hasta fin de transacción
+     */
+    @Query(value = "select 1 from pg_advisory_xact_lock(313131)", nativeQuery = true)
+    int bloquearAdministradoresActivos();
+
+    /**
+     * Cuenta identidades activas del rol después del bloqueo global de estados RF-19.
+     * @param rol categoría de acceso que se cuenta
+     * @return número de identidades habilitadas del rol
+     */
+    long countByRolAndActivoTrue(Rol rol);
 }

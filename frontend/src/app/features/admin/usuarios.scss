@@ -1,0 +1,36 @@
+section {
+  max-width: 1200px;
+  margin: auto;
+}
+.filtros {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.tabla {
+  overflow-x: auto;
+  max-width: 100%;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+.acciones {
+  min-width: 200px;
+}
+:focus-visible {
+  outline: 3px solid var(--mat-sys-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .filtros mat-form-field {
+    width: 100%;
+  }
+}

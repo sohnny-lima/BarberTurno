@@ -181,7 +181,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
                 TiempoNegocio.aLima(instante("10:00")), cliente.getId()), 403, "PROHIBIDO");
     }
 
-    @ParameterizedTest @EnumSource(value = Rol.class, names = {"ADMIN", "BARBERO"})
+    @ParameterizedTest @EnumSource(value = Rol.class, names = {"BARBERO"})
     void rolNoAutorizado_403(Rol rol) throws Exception {
         var usuario = usuarios.saveAndFlush(new Usuario("Personal ficticio", rol.name().toLowerCase()+"@ejemplo.test",
                 null, "hash-ficticio", rol, null, reloj.instant()));

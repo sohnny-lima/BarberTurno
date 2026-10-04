@@ -24,12 +24,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiempo/fecha-datepicker';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
+import { SelectorCliente } from '../../shared/selector-cliente';
 import { ReservaStore } from './reserva.store';
 
 @Component({
   selector: 'app-reservar',
   imports: [
     ReactiveFormsModule,
+    SelectorCliente,
     MatButtonModule,
     MatCardModule,
     MatChipsModule,
@@ -64,7 +66,7 @@ export class Reservar {
     // Material comprueba el paso anterior: sincroniza después de actualizar completed.
     afterRenderEffect(() => {
       const stepper = this.stepper();
-      const paso = this.store.paso();
+      const paso = Math.max(0, this.store.paso() + (this.store.asistida() ? 1 : 0));
       if (stepper && stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
     });
     inject(ActivatedRoute)

@@ -37,9 +37,9 @@ public class ReservaController {
     }
 
     /**
-     * Crea una reserva propia y comunica su URI canónica mediante Location.
+     * Crea una reserva propia RF-08 o asistida RF-18 y comunica su URI canónica mediante Location.
      * @param cmd cuerpo validado con recursos e instante con desfase
-     * @param actor identidad CLIENTE revalidada por seguridad
+     * @param actor identidad CLIENTE o ADMIN revalidada por seguridad
      * @return HTTP 201 con ReservaDto y Location
      * @throws NegocioException si hay rechazo de permisos, recursos, disponibilidad o límite
      */

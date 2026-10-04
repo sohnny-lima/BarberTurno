@@ -1,0 +1,31 @@
+<mat-form-field appearance="outline" style="width: 100%">
+  <mat-label>Buscar cliente por nombre o correo</mat-label>
+  <input
+    matInput
+    [formControl]="control"
+    [matAutocomplete]="opciones"
+    [readonly]="deshabilitado()"
+  />
+  <mat-autocomplete
+    #opciones="matAutocomplete"
+    [displayWith]="nombre"
+    (optionSelected)="seleccionar($event.option.value)"
+  >
+    @for (usuario of resultados(); track usuario.id) {
+      <mat-option [value]="usuario"
+        >{{ usuario.nombre }} · {{ usuario.correo }} ·
+        {{ usuario.activo ? 'Activo' : 'Inactivo' }}</mat-option
+      >
+    }
+  </mat-autocomplete>
+  <mat-hint>Escriba para buscar y seleccione una cuenta registrada.</mat-hint>
+</mat-form-field>
+@if (cargando()) {
+  <p role="status">Buscando clientes…</p>
+}
+@if (mensaje()) {
+  <p role="status">{{ mensaje() }}</p>
+}
+@if (total() > resultados().length) {
+  <p>Hay más resultados. Precise el nombre o correo.</p>
+}

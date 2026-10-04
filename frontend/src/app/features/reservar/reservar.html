@@ -15,10 +15,29 @@
   <mat-stepper
     linear
     [orientation]="movil() ? 'vertical' : 'horizontal'"
-    (selectionChange)="store.irPaso($event.selectedIndex)"
+    (selectionChange)="store.irPaso($event.selectedIndex - (store.asistida() ? 1 : 0))"
   >
     <ng-template matStepperIcon="edit">✓</ng-template>
     <ng-template matStepperIcon="done">✓</ng-template>
+    @if (store.asistida()) {
+      <mat-step label="Cliente" [completed]="!!store.cliente()" [editable]="!store.enviando()">
+        <app-selector-cliente
+          [deshabilitado]="store.enviando()"
+          (elegido)="store.elegirCliente($event)"
+        />
+        @if (store.cliente(); as cliente) {
+          <p>Cliente: {{ cliente.nombre }} · {{ cliente.correo }}</p>
+        }
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="!store.cliente() || store.enviando()"
+          (click)="store.irPaso(0)"
+        >
+          Elegir servicio
+        </button>
+      </mat-step>
+    }
     <mat-step
       label="Servicio y profesional"
       [completed]="store.pasoUnoCompleto()"
@@ -74,6 +93,11 @@
           }
         </mat-select>
       </mat-form-field>
+      @if (store.asistida()) {
+        <button mat-button type="button" [disabled]="store.enviando()" (click)="store.irPaso(-1)">
+          Cambiar cliente
+        </button>
+      }
       <div class="acciones">
         <button
           mat-flat-button
@@ -141,6 +165,9 @@
         @if (store.franja(); as franja) {
           <div class="tarjeta resumen" aria-label="Resumen de la cita">
             <h2>{{ servicio.nombre }}</h2>
+            @if (store.asistida()) {
+              <p>Cliente: {{ store.cliente()?.nombre }} · {{ store.cliente()?.correo }}</p>
+            }
             <p>
               {{ franja.inicio | fechaLima: 'fecha' }} · {{ franja.inicio | fechaLima: 'hora' }}–{{
                 franja.fin | fechaLima: 'hora'
@@ -166,7 +193,11 @@
             } @else {
               <p>Profesional: {{ store.profesional()?.nombre }}</p>
             }
-            <p>Puede cambiar o cancelar hasta 2 h antes.</p>
+            @if (store.sesion.rol() === 'ADMIN') {
+              <p>Puede gestionar esta cita desde Agenda.</p>
+            } @else {
+              <p>Puede cambiar o cancelar hasta 2 h antes.</p>
+            }
           </div>
         }
       }

@@ -22,6 +22,7 @@ const CUENTA = { ruta: '/perfil', texto: 'Mi cuenta' };
 const AGENDA = { ruta: '/agenda', texto: 'Agenda' };
 const ADMIN = [
   AGENDA,
+  { ruta: '/reservar', texto: 'Reserva asistida' },
   { ruta: '/admin/servicios', texto: 'Servicios' },
   { ruta: '/admin/barberos', texto: 'Barberos' },
   { ruta: '/admin/horarios', texto: 'Horarios' },

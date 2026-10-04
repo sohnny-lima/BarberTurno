@@ -57,4 +57,12 @@ class ReservaConfirmacionManualIT extends ReservaPruebaBase {
         assertThat(cantidad("auditoria_reserva")).isEqualTo(2);
         assertThat(cantidad("notificacion")).isEqualTo(3);
     }
+
+    @Test void asistidaSiempreConfirmada_aunConConfirmacionManual() throws Exception {
+        var admin = usuarios.saveAndFlush(new pe.barberturno.users.Usuario("Administrador ficticio",
+                "admin-manual31@ejemplo.test", null, "hash-ficticio", pe.barberturno.users.Rol.ADMIN, null, reloj.instant()));
+        var solicitud = new pe.barberturno.reservations.dto.CrearReservaDto(servicio.getId(), barbero.getId(),
+                pe.barberturno.common.time.TiempoNegocio.aLima(instante("10:00")), cliente.getId());
+        assertThat(crearHttp(admin, solicitud).estado()).isEqualTo(EstadoReserva.CONFIRMADA);
+    }
 }
