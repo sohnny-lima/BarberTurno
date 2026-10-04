@@ -66,7 +66,7 @@
 | T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Hecha · revisión: Aprobada | 04/10/2026 | 5ac8d01ed70d059ec48b5c1bf6f91529887e14da, b116d3f6a3807ee6ff2a2520018b57c07ad647d5, c91b54a9ad8a3da1a01fb2efcc66e6736ca3a29d, a19d1a15a68dd5f8506ae530f16028cb9599d9fc; cierre 7f145287730a8edef3589e05082870fa7d617d7a; merge d18c0bbef543906defb5bdefd13e68c510664a19 |
 | T-29 | Reportes backend (RF-14) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 09d680be6baf0b941a77fc20ed0b5979eabc5452, 9efe2613135dc9e09f0a32eaba8f49f6703884c0; cierre 5206124d0e5cfd8672135415883cb05c76642e8e; merge 9d80e11cecd73a3b76afbc7e41cb6cb0331fb31e |
 | T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | Hecha · revisión: Aprobada | 04/10/2026 | bb34647d22061d942a5259563b773e7f0d4554b7, 79db54cd7dcd91af5d9fc2bc9d1a44f80b5612cd, c86162fae853fc08fe2556328ffa0efcc106ae74, b71424253a4774b0c3fe24e8f5c109e1d64dc10d; cierre e106cd4f1bf129ecd2906463929e78c1b1e459e1; merge 48bbf6577db1587cf5fd9454a98f666acb315e8c; registro posterior por asunto (ver evidencia) |
-| T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Pendiente | | |
+| T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | En curso | 04/10/2026 | |
 | T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Hecha · revisión: Aprobada | 04/10/2026 | 48bfae2, 7cbe4ef, 94da026; cierre bb2adc6; merge 1e62954 |
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
 | T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
