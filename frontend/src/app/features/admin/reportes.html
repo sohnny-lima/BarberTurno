@@ -1,0 +1,178 @@
+<h1>Reportes e historial operativo</h1>
+<p>Seleccione el periodo de inicio de las reservas. Las fechas y horas corresponden a Lima.</p>
+<form class="tarjeta" [formGroup]="formulario" (ngSubmit)="aplicar()">
+  <div class="filtros">
+    <mat-form-field>
+      <mat-label>Desde</mat-label>
+      <input matInput type="date" formControlName="desde" aria-describedby="error-periodo" />
+      <mat-error>Ingrese una fecha válida.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Hasta</mat-label>
+      <input matInput type="date" formControlName="hasta" aria-describedby="error-periodo" />
+      <mat-error>Ingrese una fecha válida.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Servicio</mat-label>
+      <mat-select formControlName="servicioId">
+        <mat-option [value]="null">Todos</mat-option>
+        @for (servicio of servicios(); track servicio.id) {
+          <mat-option [value]="servicio.id"
+            >{{ servicio.nombre }}{{ servicio.activo ? '' : ' (inactivo)' }}</mat-option
+          >
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Profesional</mat-label>
+      <mat-select formControlName="barberoId">
+        <mat-option [value]="null">Todos</mat-option>
+        @for (barbero of barberos(); track barbero.id) {
+          <mat-option [value]="barbero.id"
+            >{{ barbero.nombre }}{{ barbero.activo ? '' : ' (inactivo)' }}</mat-option
+          >
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+  <div id="error-periodo" aria-live="polite">
+    @if (formulario.touched && formulario.hasError('fecha')) {
+      <p class="error-campo">Ingrese fechas válidas en ambos extremos del periodo.</p>
+    }
+    @if (formulario.touched && formulario.hasError('orden')) {
+      <p class="error-campo">Desde debe ser anterior o igual a Hasta.</p>
+    }
+    @if (formulario.touched && formulario.hasError('extension')) {
+      <p class="error-campo">El periodo puede incluir hasta 366 días.</p>
+    }
+  </div>
+  <button mat-flat-button type="submit">Aplicar</button>
+  @if (errorCatalogos()) {
+    <p role="alert">No pudimos cargar los servicios y profesionales. {{ errorCatalogos() }}</p>
+    <button mat-button type="button" (click)="cargarCatalogos()">Reintentar catálogos</button>
+  }
+</form>
+@if (mensaje()) {
+  <p class="mensaje" role="alert">{{ mensaje() }}</p>
+}
+@if (cargando()) {
+  <p class="mensaje" role="status">Consultando reportes e historial…</p>
+}
+@if (resumen(); as datos) {
+  @if (filtrosAplicados(); as filtros) {
+    <p>
+      Periodo aplicado: {{ instanteLima(filtros.desde, '00:00') | fechaLima: 'fecha' }} al
+      {{ instanteLima(filtros.hasta, '00:00') | fechaLima: 'fecha' }}.
+    </p>
+  }
+  <section aria-label="Reservas por estado" class="estadisticas">
+    <article class="estadistica">
+      <span>Total</span><strong>{{ datos.total }}</strong>
+    </article>
+    @for (tarjeta of tarjetas(); track tarjeta.estado) {
+      <article class="estadistica">
+        <app-estado-reserva-chip [estado]="tarjeta.estado" />
+        <strong>{{ tarjeta.total }}</strong>
+      </article>
+    }
+  </section>
+  <p class="conciliacion" [attr.role]="estadosCoinciden() ? 'status' : 'alert'">
+    {{
+      estadosCoinciden()
+        ? 'Los estados suman el total.'
+        : 'Los estados no coinciden con el total. Aplique nuevamente los filtros.'
+    }}
+  </p>
+  <div class="desgloses">
+    <section class="tarjeta" aria-labelledby="por-servicio">
+      <h2 id="por-servicio">Por servicio</h2>
+      @for (grupo of datos.porServicio; track grupo.id) {
+        <div class="grupo">
+          <label [for]="'servicio-' + grupo.id"
+            >{{ grupo.nombre }}: {{ grupo.total }} de {{ datos.total }}</label
+          >
+          <progress [id]="'servicio-' + grupo.id" [max]="datos.total || 1" [value]="grupo.total">
+            {{ grupo.total }}
+          </progress>
+        </div>
+      } @empty {
+        <p>Sin reservas por servicio en este periodo.</p>
+      }
+    </section>
+    <section class="tarjeta" aria-labelledby="por-profesional">
+      <h2 id="por-profesional">Por profesional</h2>
+      @for (grupo of datos.porBarbero; track grupo.id) {
+        <div class="grupo">
+          <label [for]="'barbero-' + grupo.id"
+            >{{ grupo.nombre }}: {{ grupo.total }} de {{ datos.total }}</label
+          >
+          <progress [id]="'barbero-' + grupo.id" [max]="datos.total || 1" [value]="grupo.total">
+            {{ grupo.total }}
+          </progress>
+        </div>
+      } @empty {
+        <p>Sin reservas por profesional en este periodo.</p>
+      }
+    </section>
+  </div>
+  <section aria-labelledby="historial" [attr.aria-busy]="cargando()">
+    <h2 id="historial">Historial operativo</h2>
+    <p>{{ total() }} reservas con los filtros aplicados.</p>
+    @if (mensajeHistorial()) {
+      <p class="mensaje" role="alert">{{ mensajeHistorial() }}</p>
+      <button mat-button (click)="cargarPagina()" [disabled]="cargando()">
+        Reintentar historial
+      </button>
+    }
+    @if (!cargando() && !mensajeHistorial()) {
+      @if (filas().length) {
+        <div
+          class="tabla-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="Tabla de historial; puede desplazarse horizontalmente"
+        >
+          <table>
+            <caption>
+              Reservas del periodo aplicado · fecha y hora de Lima
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Fecha y hora</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">Servicio</th>
+                <th scope="col">Barbero</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (reserva of filas(); track reserva.id) {
+                <tr>
+                  <th scope="row">{{ reserva.codigo }}</th>
+                  <td>{{ reserva.inicio | fechaLima }}</td>
+                  <td>{{ reserva.cliente.nombre }}</td>
+                  <td>{{ reserva.servicio.nombre }}</td>
+                  <td>{{ reserva.barbero.nombre }}</td>
+                  <td><app-estado-reserva-chip [estado]="reserva.estado" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="mensaje">No hay reservas en esta página con los filtros aplicados.</p>
+      }
+    }
+    <mat-paginator
+      aria-label="Páginas del historial operativo"
+      [length]="total()"
+      [pageIndex]="pagina()"
+      [pageSize]="tamano()"
+      [pageSizeOptions]="[10, 20, 50]"
+      [disabled]="cargando()"
+      showFirstLastButtons
+      (page)="paginar($event)"
+    />
+  </section>
+}
