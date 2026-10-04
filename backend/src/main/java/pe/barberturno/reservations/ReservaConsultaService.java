@@ -1,14 +1,10 @@
 package pe.barberturno.reservations;
 
-import jakarta.persistence.criteria.Predicate;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.audit.AuditoriaRepository;
@@ -17,7 +13,6 @@ import pe.barberturno.common.config.ParametrosReserva;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.error.NegocioException;
 import pe.barberturno.common.security.UsuarioAutenticado;
-import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.common.web.PaginaDto;
 import pe.barberturno.reservations.dto.ReservaDto;
 import pe.barberturno.users.Rol;
@@ -67,7 +62,7 @@ public class ReservaConsultaService {
     public PaginaDto<ReservaDto> mias(UsuarioAutenticado actor, EstadoReserva estado,
             LocalDate desde, LocalDate hasta, int pagina, int tamano) {
         if (actor.rol() != Rol.CLIENTE) throw prohibido();
-        validarRango(desde, hasta, false);
+        ReservaFiltros.validarRango(desde, hasta, false);
         return consultar(actor, actor.id(), null, null, estado, desde, hasta, pagina, tamano);
     }
 
@@ -95,7 +90,7 @@ public class ReservaConsultaService {
         } else if (actor.rol() != Rol.ADMIN) {
             throw prohibido();
         }
-        validarRango(desde, hasta, true);
+        ReservaFiltros.validarRango(desde, hasta, true);
         return consultar(actor, clienteId, barberoId, servicioId, estado, desde, hasta, pagina, tamano);
     }
 
@@ -132,30 +127,10 @@ public class ReservaConsultaService {
             throw new NegocioException(ErrorCodigo.VALIDACION,
                     "La página debe ser al menos 0 y el tamaño debe estar entre 1 y 100.");
         }
-        Specification<Reserva> filtros = (raiz, consulta, cb) -> {
-            var condiciones = new ArrayList<Predicate>();
-            if (clienteId != null) condiciones.add(cb.equal(raiz.get("cliente").get("id"), clienteId));
-            if (barberoId != null) condiciones.add(cb.equal(raiz.get("barbero").get("id"), barberoId));
-            if (servicioId != null) condiciones.add(cb.equal(raiz.get("servicio").get("id"), servicioId));
-            if (estado != null) condiciones.add(cb.equal(raiz.get("estado"), estado));
-            if (desde != null) condiciones.add(cb.greaterThanOrEqualTo(raiz.get("inicio"), TiempoNegocio.inicioDelDia(desde)));
-            if (hasta != null) condiciones.add(cb.lessThan(raiz.get("inicio"), TiempoNegocio.finDelDia(hasta)));
-            return cb.and(condiciones.toArray(Predicate[]::new));
-        };
+        var filtros = ReservaFiltros.criterio(clienteId, barberoId, servicioId, estado, desde, hasta);
         var resultado = reservas.findAll(filtros, PageRequest.of(pagina, tamano, Sort.by("inicio", "id")));
         var ahora = reloj.instant();
         return PaginaDto.desde(resultado.map(r -> ReservaDto.desde(r, actor, ahora, parametros)));
-    }
-
-    private static void validarRango(LocalDate desde, LocalDate hasta, boolean obligatorio) {
-        boolean incompleto = obligatorio && (desde == null || hasta == null);
-        boolean invertido = desde != null && hasta != null && desde.isAfter(hasta);
-        boolean excesivo = obligatorio && desde != null && hasta != null
-                && ChronoUnit.DAYS.between(desde, hasta) + 1 > 366;
-        if (incompleto || invertido || excesivo || LocalDate.MAX.equals(hasta)) {
-            throw new NegocioException(ErrorCodigo.RANGO_FECHAS_INVALIDO,
-                    "Indique un rango ordenado; la agenda admite como máximo 366 días inclusivos.");
-        }
     }
 
     private static NegocioException prohibido() {

@@ -64,7 +64,7 @@
 | T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | Pendiente | | |
 | T-27 | Mis citas y avisos en el frontend (P03) | M | T-26, T-23, T-25 | Pendiente | | |
 | T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Pendiente | | |
-| T-29 | Reportes backend (RF-14) | M | T-21 | Pendiente | | |
+| T-29 | Reportes backend (RF-14) | M | T-21 | En curso | | |
 | T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | Pendiente | | |
 | T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Pendiente | | |
 | T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Pendiente | | |
