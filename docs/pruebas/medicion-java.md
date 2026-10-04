@@ -161,3 +161,42 @@ Raíces aún ausentes: frontend/e2e, perf.
 
 Límites léxicos: plantillas TS opacas (incluidas interpolaciones), sin interpolaciones anidadas ni regex TS; SQL sin dollar quoting.
 Se mide el árbol de trabajo; el commit identifica HEAD y no certifica ausencia de cambios locales.
+
+## Medición · 2026-10-04T07:47:20.956Z · commit 8b22a16
+
+Node: v24.21.0. Raíces: `backend/src`, `frontend/src`, `frontend/e2e`, `perf`.
+Extensiones contadas: .java, .ts, .html, .scss, .css, .sql.
+LOC físicas sin líneas vacías ni comentarios; las cadenas conservan sus marcadores de comentario.
+Fuera del cálculo: JSON/YAML de configuración, package-lock.json, mvnw*, Markdown, docs, dependencias y generados.
+
+| Lenguaje | Producto | Pruebas | Carga (incluida en pruebas) | Total |
+|---|---:|---:|---:|---:|
+| Java | 3705 | 7308 | 0 | 11013 |
+| TS | 1400 | 1232 | 0 | 2632 |
+| HTML | 559 | 0 | 0 | 559 |
+| SCSS | 226 | 0 | 0 | 226 |
+| CSS | 0 | 0 | 0 | 0 |
+| SQL | 109 | 0 | 0 | 109 |
+| Total | 5999 | 8540 | 0 | 14539 |
+
+**Java con pruebas:** 75.75 % (Java total ÷ total).
+**Java sin pruebas:** 61.76 % (Java de producto ÷ producto).
+La carga se informa aparte como subconjunto de pruebas y se suma una sola vez al total.
+
+### Exclusiones auditables
+
+- `backend/src/main/resources/application-demo.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-dev.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-prod.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-test.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application.yml`: Extensión fuera del cálculo.
+- `frontend/src/app/core/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/features/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/layout/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/shared/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/theme-colors.scss`: Generado explícito: schematic de Angular Material.
+
+Raíces aún ausentes: frontend/e2e, perf.
+
+Límites léxicos: plantillas TS opacas (incluidas interpolaciones), sin interpolaciones anidadas ni regex TS; SQL sin dollar quoting.
+Se mide el árbol de trabajo; el commit identifica HEAD y no certifica ausencia de cambios locales.
