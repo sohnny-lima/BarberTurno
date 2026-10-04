@@ -17,7 +17,7 @@ import pe.barberturno.scheduling.*;
 import pe.barberturno.users.*;
 
 /**
- * Creación RF-08 atómica con bloqueos ① ②, revalidación, exclusiones GiST y trazabilidad RN-15.
+ * Creación RF-08 con bloqueos ① ② y cancelación RF-10 con bloqueo ③; trazabilidad atómica RN-15.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -32,9 +32,10 @@ public class ReservaService {
     private final NotificacionService notificaciones;
     private final Clock clock;
     private final ParametrosReserva parametros;
+    private final ReservaAutorizacion autorizacion;
 
     /**
-     * Recibe colaboradores de la única transacción de creación.
+     * Recibe colaboradores de las transacciones de creación y cancelación.
      * @param reservas persistencia y consultas RN-04/20
      * @param usuarios bloqueo ① del cliente
      * @param barberos bloqueo ② de agenda
@@ -43,11 +44,12 @@ public class ReservaService {
      * @param auditoria escritura del historial RN-15
      * @param notificaciones escritura de avisos RN-15
      * @param clock reloj inyectado del servidor
-     * @param parametros límite y confirmación RN-20/21
+     * @param parametros límite, confirmación y anticipación RN-07/20/21
+     * @param autorizacion política única de visibilidad por propietario, asignación o ADMIN
      */
     public ReservaService(ReservaRepository reservas, UsuarioRepository usuarios, BarberoRepository barberos,
             ServicioRepository servicios, DisponibilidadService disponibilidad, AuditoriaService auditoria,
-            NotificacionService notificaciones, Clock clock, ParametrosReserva parametros) {
+            NotificacionService notificaciones, Clock clock, ParametrosReserva parametros, ReservaAutorizacion autorizacion) {
         this.reservas = reservas;
         this.usuarios = usuarios;
         this.barberos = barberos;
@@ -57,6 +59,7 @@ public class ReservaService {
         this.notificaciones = notificaciones;
         this.clock = clock;
         this.parametros = parametros;
+        this.autorizacion = autorizacion;
     }
 
     /**
@@ -113,6 +116,70 @@ public class ReservaService {
             notificaciones.notificar(barbero.getUsuario(), reserva, AccionAuditoria.CREAR, mensaje);
         }
         return ReservaDto.desde(reserva, actor, clock.instant(), parametros);
+    }
+
+    /**
+     * Cancela RF-10 bajo bloqueo ③, sin borrar historia, liberando la franja RN-14.
+     * Revalida visibilidad, rol, versión, estado y RN-07/08 después de esperar por la reserva;
+     * el cambio, auditoría y avisos RN-15 se confirman o revierten juntos.
+     * @param id identidad de la reserva que se bloquea
+     * @param cmd versión leída y motivo validado de hasta 300 caracteres
+     * @param actor identidad vigente CLIENTE propietario o ADMIN
+     * @return reserva CANCELADA con versión incrementada y permisos recalculados
+     * @throws NegocioException si es inexistente o ajena (404), el rol no cancela (403),
+     * la versión o estado no permiten la acción (409), o la ventana o motivo incumplen RN-07/08 (422)
+     * @throws org.springframework.dao.DataIntegrityViolationException si falla una escritura de la transacción
+     */
+    @Transactional
+    public ReservaDto cancelar(long id, CancelarReservaDto cmd, UsuarioAutenticado actor) {
+        var reserva = reservas.bloquearPorId(id).orElseThrow(this::noEncontrado); // ③, sin precarga
+        if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
+        boolean admin = actor.rol() == Rol.ADMIN;
+        if (!admin && actor.rol() != Rol.CLIENTE) {
+            throw new NegocioException(ErrorCodigo.PROHIBIDO, "Su rol no permite cancelar reservas.");
+        }
+        if (cmd.version() != reserva.getVersion()) {
+            throw new NegocioException(ErrorCodigo.VERSION_DESACTUALIZADA, "La reserva cambió. Actualice sus datos.");
+        }
+        EstadoReserva anterior = reserva.getEstado();
+        if (anterior != EstadoReserva.PENDIENTE && anterior != EstadoReserva.CONFIRMADA) {
+            throw new NegocioException(ErrorCodigo.TRANSICION_INVALIDA, "El estado actual no permite cancelar.");
+        }
+        Instant ahora = clock.instant();
+        var reglas = new ReglasTemporales();
+        // Distingue la ventana vencida del motivo ausente usando la misma política pura.
+        if (!reglas.puedeModificar(ahora, reserva.getInicio(), admin,
+                admin ? "Motivo requerido" : cmd.motivo(), parametros.anticipacionCambioCliente())) {
+            throw new NegocioException(ErrorCodigo.FUERA_DE_POLITICA, "La reserva está fuera del plazo de cancelación.");
+        }
+        if (admin && !reglas.puedeModificar(ahora, reserva.getInicio(), true,
+                cmd.motivo(), parametros.anticipacionCambioCliente())) {
+            throw new NegocioException(ErrorCodigo.MOTIVO_REQUERIDO,
+                    "Indique un motivo de al menos cinco caracteres no blancos.");
+        }
+        boolean excepcional = admin && !reglas.puedeModificar(ahora, reserva.getInicio(), false,
+                null, parametros.anticipacionCambioCliente());
+        var datosAnteriores = datosCancelacion(reserva);
+        reserva.cambiarEstado(EstadoReserva.CANCELADA, ahora);
+        reservas.saveAndFlush(reserva);
+        auditoria.registrarCambio(reserva, usuarios.getReferenceById(actor.id()), AccionAuditoria.CANCELAR,
+                anterior, datosAnteriores, datosCancelacion(reserva), cmd.motivo(), excepcional);
+        String mensaje = "Reserva BT-" + reserva.getId() + " cancelada: "
+                + TiempoNegocio.aLima(reserva.getInicio()).format(
+                        DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
+                + " (hora de Lima).";
+        notificaciones.notificar(reserva.getCliente(), reserva, AccionAuditoria.CANCELAR, mensaje);
+        var asignado = reserva.getBarbero().getUsuario();
+        if (asignado.getId() != actor.id()) {
+            notificaciones.notificar(asignado, reserva, AccionAuditoria.CANCELAR, mensaje);
+        }
+        return ReservaDto.desde(reserva, actor, clock.instant(), parametros);
+    }
+
+    private Map<String, Object> datosCancelacion(Reserva reserva) {
+        return Map.of("inicio", TiempoNegocio.aLima(reserva.getInicio()).toString(),
+                "fin", TiempoNegocio.aLima(reserva.getFin()).toString(),
+                "barberoId", reserva.getBarbero().getId(), "estado", reserva.getEstado().name());
     }
 
     private NegocioException noEncontrado() {

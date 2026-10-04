@@ -15,7 +15,7 @@ import pe.barberturno.common.web.PaginaDto;
 import pe.barberturno.reservations.dto.*;
 
 /**
- * Rutas RF-08/11/13 con sesión: creación CLIENTE con CSRF y consultas autorizadas en servidor.
+ * Rutas RF-08/10/11/13 con sesión, CSRF en escrituras y autorización en servidor.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -25,8 +25,8 @@ public class ReservaController {
     private final ReservaConsultaService consultas;
 
     /**
-     * Delega creación atómica y consultas autorizadas a los servicios transaccionales.
-     * @param reservas servicio atómico de creación
+     * Delega creación, cancelación atómica y consultas autorizadas a los servicios transaccionales.
+     * @param reservas servicio atómico de creación y cancelación
      * @param consultas búsqueda con permisos, filtros y proyección mínima
      */
     public ReservaController(ReservaService reservas, ReservaConsultaService consultas) {
@@ -108,6 +108,20 @@ public class ReservaController {
     @GetMapping("/api/reservas/{id}")
     public ReservaDto detalle(@AuthenticationPrincipal UsuarioAutenticado actor, @PathVariable long id) {
         return consultas.detalle(actor, id);
+    }
+
+    /**
+     * Cancela una reserva propia o administrada con control de versión y política RN-07/08.
+     * @param id identidad de la reserva solicitada
+     * @param cmd cuerpo validado con versión obligatoria y motivo opcional
+     * @param actor identidad CLIENTE o ADMIN revalidada por seguridad
+     * @return HTTP 200 con estado, versión y permisos actualizados
+     * @throws NegocioException si fallan visibilidad, rol, versión, estado, ventana o motivo
+     */
+    @PostMapping("/api/reservas/{id}/cancelacion")
+    public ReservaDto cancelar(@PathVariable long id, @Valid @RequestBody CancelarReservaDto cmd,
+            @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return reservas.cancelar(id, cmd, actor);
     }
 
     private static void validarVacios(Map<String, String> parametros) {
