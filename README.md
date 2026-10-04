@@ -6,6 +6,8 @@ El repositorio y las bases locales están preparados (T-01). El backend ya arran
 
 ## Entorno
 
+El empaquetado de producción de T-33 genera un único jar con Angular: active Java 21 y Node 24.21.0 con fnm, y ejecute `cd backend` y `mvnw.cmd clean verify -Pcon-frontend` (Linux: `./mvnw clean verify -Pcon-frontend`). El build normal no ejecuta npm. Consulte [la guía de despliegue](docs/despliegue.md) para variables obligatorias de `prod`, base endurecida, proxy TLS, CSP, servicio y monitor de health. Proveedor/TLS (P-03), PostgreSQL local actualizado (T-38) y respaldo/recuperación (T-36) siguen pendientes.
+
 | Herramienta | Requisito |
 |---|---|
 | Java | JDK 21; instalación de referencia: `C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot` |
