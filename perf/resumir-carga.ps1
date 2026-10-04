@@ -34,10 +34,11 @@ foreach ($linea in [IO.File]::ReadAllLines((Join-Path $Ejecucion 'resultado-nego
 $rechazos = @()
 $archivoRechazos = Join-Path $Ejecucion 'rechazos-inesperados.tsv'
 if (Test-Path -LiteralPath $archivoRechazos) {
+    $totalRechazos = 0L
     foreach ($fila in @(Import-Csv -LiteralPath $archivoRechazos -Delimiter "`t")) {
         $rechazos += [ordered]@{estado = [int]$fila.estado; codigo = [Uri]::UnescapeDataString($fila.codigo); cantidad = [long]$fila.cantidad}
+        $totalRechazos += [long]$fila.cantidad
     }
-    $totalRechazos = ($rechazos | Measure-Object -Property cantidad -Sum).Sum
     if ([long]$totalRechazos -ne $negocio.rechazosInesperados) { throw 'El desglose de rechazos no coincide con su total.' }
 } elseif ($negocio.Contains('rechazosInesperados')) {
     throw 'Falta el desglose de rechazos de esta ejecución.'
