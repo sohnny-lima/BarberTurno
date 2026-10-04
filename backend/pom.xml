@@ -207,6 +207,58 @@
   </build>
   <profiles>
     <profile>
+      <id>con-frontend</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.6.4</version>
+            <configuration>
+              <workingDirectory>${project.basedir}/../frontend</workingDirectory>
+              <executable>npm</executable>
+            </configuration>
+            <executions>
+              <execution>
+                <id>frontend-instalar</id>
+                <phase>generate-resources</phase>
+                <goals><goal>exec</goal></goals>
+                <configuration><arguments><argument>ci</argument></arguments></configuration>
+              </execution>
+              <execution>
+                <id>frontend-compilar</id>
+                <phase>generate-resources</phase>
+                <goals><goal>exec</goal></goals>
+                <configuration>
+                  <arguments><argument>run</argument><argument>build</argument></arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>frontend-empaquetar</id>
+                <phase>process-resources</phase>
+                <goals><goal>copy-resources</goal></goals>
+                <configuration>
+                  <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/../frontend/dist/frontend/browser</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
       <id>javadoc-muestra</id>
       <build>
         <plugins>

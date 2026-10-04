@@ -6,6 +6,7 @@ import java.io.IOException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pe.barberturno.common.error.ErrorCodigo;
+import pe.barberturno.common.web.SpaForwardFilter;
 
 /**
  * Restringe las cuentas con contraseña temporal a auth y GET del perfil (RF-15, arquitectura §7.2).
@@ -23,7 +24,7 @@ public class PasswordTemporalFilter extends OncePerRequestFilter {
 
     /**
      * Permite auth y GET /api/perfil con contraseña temporal; bloquea el resto con CAMBIO_PASSWORD_REQUERIDO
-     * (403) antes de MVC (§7.2).
+     * (403) antes de MVC (§7.2). Conserva los recursos públicos de la SPA para cargar el cambio de contraseña.
      * @param request petición HTTP actual no nula
      * @param response respuesta HTTP no nula que recibe el resultado
      * @param chain cadena no nula continuada si la acción está permitida
@@ -36,7 +37,7 @@ public class PasswordTemporalFilter extends OncePerRequestFilter {
         var autenticacion = SecurityContextHolder.getContext().getAuthentication();
         String ruta = request.getServletPath();
         if (ruta.isEmpty()) ruta = request.getRequestURI().substring(request.getContextPath().length());
-        boolean permitida = ruta.startsWith("/api/auth/")
+        boolean permitida = SpaForwardFilter.esRecursoPublico(request) || ruta.startsWith("/api/auth/")
                 || ("GET".equals(request.getMethod()) && "/api/perfil".equals(ruta));
         if (!permitida && autenticacion != null
                 && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario

@@ -51,7 +51,7 @@ class SecurityConfigIT {
 
     @ParameterizedTest
     @ValueSource(strings = {"/v3/api-docs", "/v3/api-docs/swagger-config", "/swagger-ui.html",
-            "/swagger-ui/index.html", "/actuator/env", "/actuator/info", "/actuator/health/db", "/login"})
+            "/swagger-ui/index.html", "/actuator/env", "/actuator/info", "/actuator/health/db"})
     void solicitarRutaNoHabilitada_sinAutenticacion_devuelve401(String ruta) throws Exception {
         mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));

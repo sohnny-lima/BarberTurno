@@ -4,6 +4,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import pe.barberturno.common.web.SpaForwardFilter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.config.ObjectPostProcessor;
@@ -19,7 +24,7 @@ import pe.barberturno.common.error.ErrorCodigo;
 /**
  * Autenticación JWT por cookie, CSRF SPA y permisos de rutas implementadas.
  * @author Sohnny Walter Lima Infanzón
- * @version 2.0
+ * @version 3.0
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -38,6 +43,9 @@ public class SecurityConfig {
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
      * Autoriza el resumen RF-14 y gestión de usuarios RF-19 exclusivamente a ADMIN.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
+     * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
+     * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
+     * @param entorno perfiles activos usados para imponer HSTS también detrás del proxy en prod
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
      * @param respuestas errores RFC 9457
@@ -49,7 +57,7 @@ public class SecurityConfig {
      * @throws Exception si no se puede construir la cadena
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, UsuarioJwtConverter converter,
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, Environment entorno, UsuarioJwtConverter converter,
             RespuestaSeguridad respuestas, CookieSesion cookies,
             @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsHabilitada,
             @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerHabilitado,
@@ -64,6 +72,17 @@ public class SecurityConfig {
                 respuestas.escribir(request, response, ErrorCodigo.PROHIBIDO, "No tiene permiso para realizar esta acción.");
         var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrf.setCookieCustomizer(cookie -> cookie.path("/").sameSite("Strict").secure(cookieSecure));
+        http.headers(cabeceras -> cabeceras
+                .httpStrictTransportSecurity(hsts -> hsts
+                        .requestMatcher(peticion -> peticion.isSecure() || entorno.acceptsProfiles(Profiles.of("prod")))
+                        .maxAgeInSeconds(31536000).includeSubDomains(true))
+                .contentTypeOptions(opciones -> {})
+                .frameOptions(frame -> frame.deny())
+                .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                        + "img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; "
+                        + "form-action 'self'; object-src 'none'; frame-ancestors 'none'")));
         http.sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .csrf(config -> config.spa().csrfTokenRepository(csrf)
@@ -92,7 +111,9 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint).accessDeniedHandler(denegado)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
                 .authorizeHttpRequests(permisos -> {
+                    permisos.requestMatchers(SpaForwardFilter::esRecursoPublico).permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/actuator/health").permitAll();
                     permisos.requestMatchers(HttpMethod.HEAD, "/actuator/health").permitAll();
                     if (apiDocsHabilitada) {

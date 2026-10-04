@@ -12,3 +12,32 @@ barberturno:
     correo: ${BT_ADMIN_CORREO}
     password: ${BT_ADMIN_PASSWORD}
     nombre: ${BT_ADMIN_NOMBRE}
+
+# Defensa explícita del perfil aunque cambien los valores comunes.
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  structured:
+    format:
+      console: ecs
