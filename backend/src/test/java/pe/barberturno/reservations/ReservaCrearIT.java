@@ -223,9 +223,9 @@ class ReservaCrearIT extends ReservaPruebaBase {
         "POST /api/reservas/100/reprogramacion", "POST /api/reservas/100/transiciones", "GET /api/reservas/100"})
     void rutasPendientesYConsultasSinPermiso_rechazan(String ruta) throws Exception {
         var partes = ruta.split(" ");
-        var resultado = mvc.perform(conCsrf(request(org.springframework.http.HttpMethod.valueOf(partes[0]), partes[1]), sesion(cliente)));
-        if (ruta.equals("GET /api/reservas/100")) {
-            // T-21 abre el detalle: recurso inexistente y ajeno comparten 404 (CP-02).
+        var resultado = mvc.perform(conCsrf(request(org.springframework.http.HttpMethod.valueOf(partes[0]), partes[1]).contentType("application/json").content("{\"version\":0}"), sesion(cliente)));
+        if (ruta.equals("GET /api/reservas/100") || ruta.equals("POST /api/reservas/100/cancelacion")) {
+            // T-21/T-22 abren detalle y cancelación: recurso inexistente y ajeno comparten 404 (CP-02).
             resultado.andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
         } else {
             resultado.andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
