@@ -1,0 +1,55 @@
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+mat-form-field {
+  width: 100%;
+  min-width: 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.dia {
+  border-top: 1px solid #d8e3e6;
+  padding: 12px 0;
+}
+.intervalo,
+.campos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.intervalo mat-form-field,
+.campos mat-form-field {
+  flex: 1 1 180px;
+}
+.error-intervalo {
+  flex-basis: 100%;
+}
+.lista-bloqueos {
+  padding: 0;
+  list-style: none;
+}
+.lista-bloqueos li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #d8e3e6;
+  overflow-wrap: anywhere;
+}
+.lista-bloqueos p {
+  margin: 6px 0;
+}
+mat-checkbox {
+  margin: 12px 0;
+}

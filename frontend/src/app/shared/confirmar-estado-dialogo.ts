@@ -8,6 +8,9 @@ import { mostrarErrores } from './formulario';
 
 export interface ConfirmarEstadoDatos {
   nombre: string;
+  titulo?: string;
+  texto?: string;
+  boton?: string;
   activar: boolean;
   cambiar: () => Observable<number>;
 }

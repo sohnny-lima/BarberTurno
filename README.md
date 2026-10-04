@@ -255,6 +255,13 @@ pwsh -NoProfile -File ./frontend/tools/verificar-catalogo-http.ps1
 ~~~
 
 Requiere PowerShell 7, PostgreSQL 18 en 5433, la credencial local de desarrollo, Edge instalado en su ruta habitual de Windows y puertos 8080/4200 libres. Por seguridad exige una base de desarrollo sin usuarios: así identifica el ADMIN inicial creado exclusivamente para este ensayo. Genera valores ficticios BT_ADMIN_* solo en el entorno del proceso y los restaura al terminar. Arranca backend dev y Angular, accede por el proxy, crea/lista/edita servicios y barberos, comprueba CSRF en las seis escrituras, desactiva/reactiva y verifica tablas y diálogos a 1280/360 px con Edge headless. La limpieza autorizada para este ensayo elimina solo sus IDs (servicio, perfil de barbero y las dos cuentas) y detiene sus árboles de procesos incluso si falla. Logs, capturas y perfil temporal del navegador quedan en frontend/tmp/, ignorado por Git; no se imprimen credenciales ni cookies. [Evidencia T-17](docs/pruebas/t-17.md).
+Recorrido HTTP y visual de horarios (en la rama `tarea/T-18-horarios-bloqueos` mientras T-18 esté bloqueada por RA-02), con Node 24.21.0 activo:
+
+~~~powershell
+pwsh -NoProfile -File ./frontend/tools/verificar-horarios-http.ps1
+~~~
+
+Requiere los mismos recursos locales y la base dev sin usuarios que el recorrido de catálogo. Crea un ADMIN y un barbero ficticios, guarda y consulta la semana, comprueba el 400 por índice y ocho rechazos CSRF, crea/borra bloqueos individuales y en lote. Edge comprueba 1280/360 px y horas de Lima con la zona del navegador en Madrid. Limpia únicamente los IDs propios, restaura el entorno y detiene los servidores incluso si falla; los logs y capturas quedan ignorados. El 409 de jornada se cubre en JornadaIT mientras no exista la API pública de reservas. [Evidencia y bloqueo T-18/T-42](docs/pruebas/t-18.md).
 E2E (`npx playwright test`) se incorporará en T-34.
 
 ## Medición del porcentaje de Java

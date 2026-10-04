@@ -1,0 +1,175 @@
+<h1>Horarios y bloqueos</h1>
+<p>Configure la semana y los bloqueos de cada profesional. Todas las fechas y horas son de Lima.</p>
+<fieldset [disabled]="ocupado()">
+  <legend class="sr-only">Seleccionar profesional</legend>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Barbero</mat-label>
+    <mat-select [formControl]="seleccion" (selectionChange)="cargarBarbero()">
+      @for (barbero of barberos(); track barbero.id) {
+        <mat-option [value]="barbero.id"
+          >{{ barbero.nombre }}{{ barbero.activo ? '' : ' (inactivo)' }}</mat-option
+        >
+      }
+    </mat-select>
+  </mat-form-field>
+</fieldset>
+@if (ocupado()) {
+  <p role="status">Procesando…</p>
+}
+@if (!barberos().length && !ocupado()) {
+  <p>No hay barberos para configurar.</p>
+}
+@if (mensaje()) {
+  <p role="status" class="mensaje">{{ mensaje() }}</p>
+}
+@if (conflictos().length) {
+  <div role="alert" class="mensaje">
+    <p>Reprograme o cancele primero estas reservas</p>
+    @for (grupo of conflictos(); track $index) {
+      <p>{{ grupo.barbero }}</p>
+      <ul aria-label="Reservas en conflicto">
+        @for (id of grupo.reservas; track id) {
+          <li>BT-{{ id }}</li>
+        }
+      </ul>
+    }
+  </div>
+}
+@if (listo()) {
+  <section class="tarjeta" aria-labelledby="titulo-semana">
+    <h2 id="titulo-semana">Jornada semanal</h2>
+    <p id="ayuda-descanso" class="ayuda">
+      El descanso es el hueco entre dos intervalos. Un día sin intervalos es un día libre.
+    </p>
+    <form [formGroup]="editor.formulario" (ngSubmit)="guardarSemana()">
+      <fieldset [disabled]="ocupado()" aria-describedby="ayuda-descanso">
+        <legend class="sr-only">Intervalos de la semana en Lima</legend>
+        <button type="button" mat-button (click)="editor.copiarLunes()">
+          Copiar el lunes a martes–sábado
+        </button>
+        @for (dia of dias; track dia; let d = $index) {
+          <section class="dia" [attr.aria-label]="dia">
+            <h3>{{ dia }}</h3>
+            @for (fila of editor.delDia(d + 1); track $index; let i = $index) {
+              <div class="intervalo" [formGroup]="fila">
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>{{ dia }} · Inicio {{ i + 1 }}</mat-label>
+                  <input matInput type="time" formControlName="horaInicio" step="60" />
+                  @if (fila.controls.horaInicio.invalid && fila.controls.horaInicio.touched) {
+                    <mat-error>{{ errorCampo(fila.controls.horaInicio) }}</mat-error>
+                  }
+                </mat-form-field>
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>{{ dia }} · Fin {{ i + 1 }}</mat-label>
+                  <input matInput type="time" formControlName="horaFin" step="60" />
+                  @if (fila.controls.horaFin.invalid && fila.controls.horaFin.touched) {
+                    <mat-error>{{ errorCampo(fila.controls.horaFin) }}</mat-error>
+                  }
+                </mat-form-field>
+                <button
+                  type="button"
+                  mat-button
+                  [attr.aria-label]="'Quitar intervalo ' + (i + 1) + ' del ' + dia"
+                  (click)="editor.quitar(fila)"
+                >
+                  Quitar
+                </button>
+                @if (fila.errors && fila.touched) {
+                  <p role="alert" class="error-campo error-intervalo">{{ errorCampo(fila) }}</p>
+                }
+              </div>
+            } @empty {
+              <p class="ayuda">Sin intervalos.</p>
+            }
+            <button
+              type="button"
+              mat-button
+              (click)="editor.agregar(d + 1)"
+              [attr.aria-label]="'Añadir intervalo al ' + dia"
+            >
+              Añadir intervalo
+            </button>
+          </section>
+        }
+        @if (editor.intervalos.errors && editor.formulario.touched) {
+          <p role="alert" class="error-campo">{{ errorCampo(editor.intervalos) }}</p>
+        }
+        <button mat-flat-button type="submit">Guardar semana</button>
+      </fieldset>
+    </form>
+  </section>
+  <section class="tarjeta" aria-labelledby="titulo-bloqueos">
+    <h2 id="titulo-bloqueos">Bloqueos</h2>
+    <form [formGroup]="rango" (ngSubmit)="cargarBloqueos()">
+      <fieldset class="campos" [disabled]="ocupado()">
+        <legend class="sr-only">Rango de consulta en Lima</legend>
+        @for (campo of ['desde', 'hasta']; track campo) {
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>{{ campo === 'desde' ? 'Desde' : 'Hasta' }}</mat-label>
+            <input matInput type="date" [formControlName]="campo" />
+            @if (rango.get(campo)!.invalid && rango.get(campo)!.touched) {
+              <mat-error>{{ errorCampo(rango.get(campo)!) }}</mat-error>
+            }
+          </mat-form-field>
+        }
+        <button mat-button type="submit">Consultar bloqueos</button>
+      </fieldset>
+    </form>
+    <ul class="lista-bloqueos" aria-label="Bloqueos del barbero seleccionado">
+      @for (bloqueo of bloqueos(); track bloqueo.id) {
+        <li>
+          <div>
+            {{ bloqueo.inicio | fechaLima: 'fechaHora' }} –
+            {{ bloqueo.fin | fechaLima: 'fechaHora' }}
+            <p>{{ bloqueo.motivo }}</p>
+          </div>
+          <button
+            mat-button
+            (click)="eliminar(bloqueo)"
+            [attr.aria-label]="'Eliminar bloqueo: ' + bloqueo.motivo"
+          >
+            Eliminar
+          </button>
+        </li>
+      } @empty {
+        <li>No hay bloqueos en el rango consultado.</li>
+      }
+    </ul>
+  </section>
+  <section class="tarjeta" aria-labelledby="titulo-alta">
+    <h2 id="titulo-alta">Nuevo bloqueo</h2>
+    <form #altaForm="ngForm" [formGroup]="alta" (ngSubmit)="crearBloqueo(altaForm)">
+      <fieldset [disabled]="ocupado()">
+        <legend class="sr-only">Fecha, intervalo y motivo del bloqueo en Lima</legend>
+        <div class="campos">
+          @for (campo of ['fecha', 'horaInicio', 'horaFin', 'motivo']; track campo) {
+            <mat-form-field subscriptSizing="dynamic">
+              <mat-label>{{
+                campo === 'fecha'
+                  ? 'Fecha en Lima'
+                  : campo === 'horaInicio'
+                    ? 'Hora de inicio'
+                    : campo === 'horaFin'
+                      ? 'Hora de fin'
+                      : 'Motivo'
+              }}</mat-label>
+              <input
+                matInput
+                [type]="campo === 'fecha' ? 'date' : campo === 'motivo' ? 'text' : 'time'"
+                [formControlName]="campo"
+              />
+              @if (alta.get(campo)!.invalid && alta.get(campo)!.touched) {
+                <mat-error>{{ errorCampo(alta.get(campo)!) }}</mat-error>
+              }
+            </mat-form-field>
+          }
+        </div>
+        @if (alta.errors && alta.touched) {
+          <p role="alert" class="error-campo">{{ errorCampo(alta) }}</p>
+        }
+        <mat-checkbox formControlName="todos">Aplicar a todos los barberos activos</mat-checkbox>
+        <div class="acciones"><button mat-flat-button type="submit">Agregar bloqueo</button></div>
+      </fieldset>
+    </form>
+  </section>
+}
