@@ -1,5 +1,13 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject } from '@angular/core';
+import {
+  afterRenderEffect,
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { provideNativeDateAdapter } from '@angular/material/core';
@@ -11,7 +19,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatStepperModule } from '@angular/material/stepper';
+import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiempo/fecha-datepicker';
@@ -40,6 +48,7 @@ import { ReservaStore } from './reserva.store';
 })
 export class Reservar {
   readonly store = inject(ReservaStore);
+  private readonly stepper = viewChild(MatStepper);
   readonly limites = limitesDatepicker();
   readonly fechaControl = new FormControl<Date | null>(fechaDatepicker(this.store.fecha()));
   private readonly destroyRef = inject(DestroyRef);
@@ -52,6 +61,12 @@ export class Reservar {
 
   constructor() {
     const snackbar = inject(MatSnackBar);
+    // Material comprueba el paso anterior: sincroniza después de actualizar completed.
+    afterRenderEffect(() => {
+      const stepper = this.stepper();
+      const paso = this.store.paso();
+      if (stepper && stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+    });
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {

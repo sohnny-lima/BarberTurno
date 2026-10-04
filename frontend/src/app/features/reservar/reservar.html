@@ -15,9 +15,10 @@
   <mat-stepper
     linear
     [orientation]="movil() ? 'vertical' : 'horizontal'"
-    [selectedIndex]="store.paso()"
     (selectionChange)="store.irPaso($event.selectedIndex)"
   >
+    <ng-template matStepperIcon="edit">✓</ng-template>
+    <ng-template matStepperIcon="done">✓</ng-template>
     <mat-step
       label="Servicio y profesional"
       [completed]="store.pasoUnoCompleto()"
@@ -63,6 +64,7 @@
         <mat-label>Profesional</mat-label>
         <mat-select
           [value]="store.preferencia()"
+          [canSelectNullableOptions]="true"
           [disabled]="store.enviando()"
           (selectionChange)="store.elegirPreferencia($event.value)"
         >

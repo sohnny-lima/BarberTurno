@@ -89,6 +89,30 @@ describe('Vista de reserva guiada', () => {
     );
     expect(f.componentInstance.store.sesion.autenticado()).toBe(false);
   });
+  it('muestra Sin preferencia como selección inicial del profesional', async () => {
+    const f = preparar('');
+    await f.whenStable();
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('mat-select').textContent).toContain('Sin preferencia');
+  });
+  it.each([false, true])(
+    'muestra el paso 3 y permite volver al paso 2, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar('');
+      seleccionar(f);
+      await f.whenStable();
+      f.detectChanges();
+      const stepper = f.debugElement.query(By.directive(MatStepper)).componentInstance;
+      expect(stepper.selectedIndex).toBe(2);
+      const pasos = f.nativeElement.querySelectorAll('mat-step-header');
+      expect(pasos[2].getAttribute(esMovil ? 'aria-expanded' : 'aria-selected')).toBe('true');
+      f.componentInstance.store.irPaso(1);
+      f.detectChanges();
+      await f.whenStable();
+      expect(stepper.selectedIndex).toBe(1);
+    },
+  );
   it('adapta el asistente verticalmente por debajo de 768 px', () => {
     movil = true;
     const f = preparar();

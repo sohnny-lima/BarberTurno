@@ -13,6 +13,7 @@
   flex-direction: column;
   gap: 8px;
   text-align: left;
+  overflow-wrap: anywhere;
   font: inherit;
   color: inherit;
   background: white;
@@ -55,4 +56,9 @@ mat-chip-option {
   .servicio {
     padding: 12px;
   }
+}
+
+.resumen h2,
+.servicio-fijo mat-card-title {
+  overflow-wrap: anywhere;
 }
