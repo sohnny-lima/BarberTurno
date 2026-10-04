@@ -46,13 +46,18 @@ describe('Interceptor de errores', () => {
     expect(router.navigate).not.toHaveBeenCalled();
     expect(abrir).not.toHaveBeenCalled();
   });
-  it('401 NO_AUTENTICADO del login permite recuperar la cookie sin aviso de credenciales', () => {
+  it('401 NO_AUTENTICADO del login muestra el error sin redirigir', () => {
     http.post('/api/auth/login', {}).subscribe({ error: () => undefined });
     peticiones
       .expectOne('/api/auth/login')
-      .flush({ codigo: 'NO_AUTENTICADO' }, { status: 401, statusText: 'Unauthorized' });
+      .flush(
+        { codigo: 'NO_AUTENTICADO', detail: 'Se requiere una sesión válida.' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
     expect(router.navigate).not.toHaveBeenCalled();
-    expect(abrir).not.toHaveBeenCalled();
+    expect(abrir).toHaveBeenCalledWith('Se requiere una sesión válida.', 'Cerrar', {
+      duration: 6000,
+    });
   });
   it('401 del login muestra detail sin redirigir', () => {
     http.post('/api/auth/login', {}).subscribe({ error: () => undefined });
