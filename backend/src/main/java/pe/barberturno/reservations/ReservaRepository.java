@@ -22,6 +22,15 @@ import org.springframework.data.repository.query.Param;
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
 
     /**
+     * Lee servicio y duración RN-13 sin entidades ni bloqueo para la consulta DA-21.
+     * El llamador debe autorizar primero la exclusión; no se consulta el estado del catálogo.
+     * @param id reserva ya autorizada cuya duración de referencia se necesita
+     * @return referencia inmutable o vacío si la reserva no existe
+     */
+    @Query("select new pe.barberturno.reservations.ReservaReferenciaDisponibilidad(r.servicio.id, r.duracionRefMin) from Reserva r where r.id = :id")
+    Optional<ReservaReferenciaDisponibilidad> leerReferenciaDisponibilidad(@Param("id") long id);
+
+    /**
      * Lee datos escalares RF-09 sin poblar el contexto JPA antes de los bloqueos ① ② ③.
      * @param id reserva cuya propiedad y asignación inicial se necesitan
      * @return fotografía o vacío si no existe; debe revalidarse después de esperar
