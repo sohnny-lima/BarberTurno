@@ -62,4 +62,10 @@ public interface BarberoRepository extends JpaRepository<Barbero, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Barbero b where b.id in :ids order by b.id")
     List<Barbero> bloquearPorIds(@Param("ids") Collection<Long> ids);
+
+    /**
+     * Selecciona perfiles habilitados RF-21 sin cargar cuentas ni datos personales.
+     * @return perfiles activos ordenados por identidad
+     */
+    List<Barbero> findByActivoTrueOrderByIdAsc();
 }
