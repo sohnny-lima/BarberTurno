@@ -284,6 +284,14 @@ También verifica filtros, historial y vistas de 1440/360 px; HTTP comprueba CSR
 Limpia exclusivamente sus IDs y detiene servidores y navegador en finally. Logs y capturas en
 frontend/tmp/ (ignorados). [Evidencia T-27](docs/pruebas/t-27.md).
 
+Recorrido HTTP y visual de Reportes (T-30), con Node 24.21.0 activo y después de `backend/mvnw.cmd verify`:
+
+~~~powershell
+.\frontend\tools\verificar-reportes-http.ps1
+~~~
+
+Requiere PowerShell 7, JDK 21, PostgreSQL 18 en 5433, el JAR de verify, Edge local, puertos 8080/4200 libres y dev sin usuarios. Crea el ADMIN inicial de T-10 con `BT_ADMIN_*` ficticias solo en el proceso, prepara servicio/barbero/jornadas como ADMIN y registra un CLIENTE que crea tres reservas por API (la reserva asistida sigue pendiente de T-31). El ADMIN cancela una, compara el resumen y las tres páginas del historial por el proxy con cuatro combinaciones de filtros y comprueba los rechazos por rol y rango. Edge en Europe/Madrid verifica `/admin/reportes`, seis estados y ceros, filtros de catálogo inactivo, barras etiquetadas, horas de Lima y adaptación a 1440/360 px. Limpia solo sus IDs, restaura el entorno y detiene los procesos en `finally`; logs y capturas quedan ignorados en `frontend/tmp/`. No ejecute otra suite PostgreSQL ni otro backend durante el ensayo. [Evidencia T-30](docs/pruebas/t-30.md).
+
 E2E (`npx playwright test`) se incorporará en T-34.
 
 ## Medición del porcentaje de Java
