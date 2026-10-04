@@ -108,7 +108,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
         assertThat(nueva.fin().toInstant()).isEqualTo(instante("11:30"));
         assertThat(nueva.estado()).isEqualTo(EstadoReserva.CONFIRMADA);
         assertThat(nueva.version()).isEqualTo(1);
-        avisos(barbero.getUsuario().getId());
+        avisos(cliente.getId(), barbero.getUsuario().getId());
     }
 
     @Test void cp05_desplazarDiezMinutos_excluyeReservaPropiaEnAmbosSolapes() throws Exception {
@@ -344,7 +344,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
         assertThat(jdbc.queryForObject("select barbero_id from reserva where id=?", Long.class, r2.id())).isEqualTo(barbero.getId());
         assertThat(jdbc.queryForList("select version from reserva", Integer.class)).containsExactly(1, 1);
         assertThat(cantidad("auditoria_reserva")).isEqualTo(4);
-        avisos(barbero.getUsuario().getId(), miguel.getUsuario().getId(),
+        avisos(cliente.getId(), otro.getId(), barbero.getUsuario().getId(), miguel.getUsuario().getId(),
                 barbero.getUsuario().getId(), miguel.getUsuario().getId());
     }
 

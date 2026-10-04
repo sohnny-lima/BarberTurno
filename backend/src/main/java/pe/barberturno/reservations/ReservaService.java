@@ -181,6 +181,7 @@ public class ReservaService {
      * Reprograma RF-09 conservando referencias RN-13, bajo el orden global ① ② ③ (§8).
      * La lectura inicial escalar no deja entidades obsoletas; versión, estado y política se
      * revalidan tras los bloqueos. Reserva, auditoría y avisos se revierten juntos ante cualquier fallo.
+     * RN-15 siempre avisa al cliente; solo los barberos quedan excluidos cuando son el propio actor.
      * @param id reserva propia o administrada que se desea mover
      * @param cmd nuevo inicio, barbero opcional, versión y motivo de la acción
      * @param actor CLIENTE propietario o ADMIN con motivo RN-08
@@ -230,7 +231,8 @@ public class ReservaService {
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima), con " + nuevo.getUsuario().getNombre() + ".";
         var destinatarios = new LinkedHashMap<Long, Usuario>();
-        for (var usuario : List.of(reserva.getCliente(), anterior, nuevo.getUsuario())) {
+        destinatarios.put(reserva.getCliente().getId(), reserva.getCliente());
+        for (var usuario : List.of(anterior, nuevo.getUsuario())) {
             if (usuario.getId() != actor.id()) destinatarios.put(usuario.getId(), usuario);
         }
         destinatarios.values().forEach(usuario ->
