@@ -15,7 +15,7 @@ import pe.barberturno.common.web.PaginaDto;
 import pe.barberturno.reservations.dto.*;
 
 /**
- * Rutas RF-08/09/10/11/13 con sesión, CSRF en escrituras y autorización en servidor.
+ * Rutas RF-08/09/10/11/12/13 con sesión, CSRF en escrituras y autorización en servidor.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -25,8 +25,8 @@ public class ReservaController {
     private final ReservaConsultaService consultas;
 
     /**
-     * Delega creación, reprogramación, cancelación atómica y consultas autorizadas a los servicios transaccionales.
-     * @param reservas servicio atómico de creación, reprogramación y cancelación
+     * Delega creación, reprogramación, cancelación, transiciones y consultas autorizadas a los servicios transaccionales.
+     * @param reservas servicio atómico de creación, reprogramación, cancelación y transiciones
      * @param consultas búsqueda con permisos, filtros y proyección mínima
      */
     public ReservaController(ReservaService reservas, ReservaConsultaService consultas) {
@@ -136,6 +136,20 @@ public class ReservaController {
     public ReservaDto reprogramar(@PathVariable long id, @Valid @RequestBody ReprogramarReservaDto cmd,
             @AuthenticationPrincipal UsuarioAutenticado actor) {
         return reservas.reprogramar(id, cmd, actor);
+    }
+
+    /**
+     * Cambia el estado operativo RF-12 con CSRF, control de versión y ventanas RN-12.
+     * @param id reserva asignada o administrada
+     * @param cmd destino operativo y versión obligatorios validados
+     * @param actor BARBERO o ADMIN autenticado; el servicio comprueba la asignación
+     * @return HTTP 200 con estado, versión y permisos recalculados
+     * @throws NegocioException si falla visibilidad, destino, versión, rol, estado o ventana
+     */
+    @PostMapping("/api/reservas/{id}/transiciones")
+    public ReservaDto transicionar(@PathVariable long id, @Valid @RequestBody TransicionarReservaDto cmd,
+            @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return reservas.transicionar(id, cmd, actor);
     }
 
     private static void validarVacios(Map<String, String> parametros) {
