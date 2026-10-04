@@ -1,11 +1,14 @@
-<h2 mat-dialog-title>{{ datos.activar ? 'Activar' : 'Desactivar' }} {{ datos.nombre }}</h2>
+<h2 mat-dialog-title>
+  {{ datos.titulo ?? (datos.activar ? 'Activar ' : 'Desactivar ') + datos.nombre }}
+</h2>
 <mat-dialog-content>
   @if (!completado()) {
     <p>
       {{
-        datos.activar
-          ? 'Volverá a estar disponible para nuevas reservas.'
-          : 'Dejará de estar disponible para nuevas reservas. El historial se conserva.'
+        datos.texto ??
+          (datos.activar
+            ? 'Volverá a estar disponible para nuevas reservas.'
+            : 'Dejará de estar disponible para nuevas reservas. El historial se conserva.')
       }}
     </p>
   }
@@ -22,7 +25,7 @@
   } @else {
     <button mat-button [disabled]="guardando()" (click)="referencia.close(false)">Cancelar</button>
     <button mat-flat-button [disabled]="guardando()" (click)="confirmar()">
-      {{ guardando() ? 'Guardando…' : datos.activar ? 'Activar' : 'Desactivar' }}
+      {{ guardando() ? 'Guardando…' : (datos.boton ?? (datos.activar ? 'Activar' : 'Desactivar')) }}
     </button>
   }
 </mat-dialog-actions>

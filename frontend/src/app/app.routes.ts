@@ -74,7 +74,12 @@ export const routes: Routes = [
         canActivate: [authGuard, rolGuard(['ADMIN'])],
         loadComponent: () => import('./features/admin/barberos').then((modulo) => modulo.Barberos),
       },
-      ...['horarios', 'reportes', 'usuarios'].map((recurso) => ({
+      {
+        path: 'admin/horarios',
+        canActivate: [authGuard, rolGuard(['ADMIN'])],
+        loadComponent: () => import('./features/admin/horarios').then((modulo) => modulo.Horarios),
+      },
+      ...['reportes', 'usuarios'].map((recurso) => ({
         path: 'admin/' + recurso,
         canActivate: [authGuard, rolGuard(['ADMIN'])],
         loadComponent: proximamente,
