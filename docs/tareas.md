@@ -65,7 +65,7 @@
 | T-27 | Mis citas y avisos en el frontend (P03) | M | T-26, T-23, T-25 | Hecha · revisión: Aprobada | 04/10/2026 | db14fd64fc19d176c589181cc18ab389850ceb58, b244ea97e440296795775ac3ee284bf50f51a6f2, 5e870781b2b13c84fa398143d06febd6676946fe, d6f2b1bab2ac12f65fb694028a4f8777ef2c5c41; cierre 5378bdfe9c1395f2225057030f6cce87b3a118e6; merge 44759cb559340846b3ea167160d1b8759f298fbd; único registro docs posterior por asunto (ver evidencia) |
 | T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Hecha · revisión: Aprobada | 04/10/2026 | 5ac8d01ed70d059ec48b5c1bf6f91529887e14da, b116d3f6a3807ee6ff2a2520018b57c07ad647d5, c91b54a9ad8a3da1a01fb2efcc66e6736ca3a29d, a19d1a15a68dd5f8506ae530f16028cb9599d9fc; cierre 7f145287730a8edef3589e05082870fa7d617d7a; merge d18c0bbef543906defb5bdefd13e68c510664a19 |
 | T-29 | Reportes backend (RF-14) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 09d680be6baf0b941a77fc20ed0b5979eabc5452, 9efe2613135dc9e09f0a32eaba8f49f6703884c0; cierre 5206124d0e5cfd8672135415883cb05c76642e8e; merge 9d80e11cecd73a3b76afbc7e41cb6cb0331fb31e |
-| T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | Pendiente | | |
+| T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | En curso | 04/10/2026 | |
 | T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Pendiente | | |
 | T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Hecha · revisión: Aprobada | 04/10/2026 | 48bfae2, 7cbe4ef, 94da026; cierre bb2adc6; merge 1e62954 |
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
