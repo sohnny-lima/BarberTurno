@@ -68,7 +68,7 @@ try {
     }
     if (-not $lista) { throw 'El backend no alcanzó health UP.' }
     & (Join-Path $raiz 'backend/mvnw.cmd') -B -ntp -f pom.xml test-compile exec:java '-Dexec.mainClass=pe.barberturno.perf.DatosCarga' *> (Join-Path $salida 'generador.log')
-    if ($LASTEXITCODE -ne 0) { throw 'Falló el generador; la transacción se revierte y el ensayo limpia su base.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Falló el generador; el ensayo limpia su base dedicada.' }
     $commit = (& git -C $raiz rev-parse HEAD).Trim()
     $cpu = Get-CimInstance Win32_Processor
     $equipo = Get-CimInstance Win32_ComputerSystem

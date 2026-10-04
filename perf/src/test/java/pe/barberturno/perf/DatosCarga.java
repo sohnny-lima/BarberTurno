@@ -21,7 +21,7 @@ public final class DatosCarga {
     /**
      * Carga 200 clientes, diez barberos, dos servicios y treinta días; rechaza bases con datos.
      * @param args sin argumentos; configuración y contraseña ficticia por entorno
-     * @throws Exception si faltan variables, la base no es exclusiva o falla la transacción
+     * @throws Exception si faltan variables, la base no es exclusiva o falla la transacción o su manifiesto
      */
     public static void main(String[] args) throws Exception {
         String url = requerida("BT_DB_URL");
@@ -32,6 +32,7 @@ public final class DatosCarga {
         String hash = new BCryptPasswordEncoder(12).encode(requerida("BT_PERF_PASSWORD"));
         try (Connection db = DriverManager.getConnection(url, requerida("BT_DB_USER"), requerida("BT_DB_PASSWORD"))) {
             db.setAutoCommit(false);
+            boolean confirmada = false;
             try {
                 if (escalar(db, "SELECT count(*) FROM usuario") != 0
                         || escalar(db, "SELECT count(*) FROM servicio") != 0) {
@@ -88,15 +89,17 @@ public final class DatosCarga {
                 }
                 ejecutar(db, "ANALYZE");
                 db.commit();
+                confirmada = true;
                 Files.createDirectories(Path.of("target"));
                 Files.writeString(Path.of("target/datos.properties"), "fecha=" + fecha + "\nbarberos="
                         + String.join(",", barberos.stream().map(Object::toString).toList())
                         + "\nservicios=" + corto + "," + largo + "\nreservas=" + cantidad + "\nlaborables=" + laborables + "\n");
-                System.out.printf("Carga: clientes=200, barberos=10, jornadas=120, servicios=2, reservas=%d, auditorías=%d, avisos=%d, días laborables=%d, ocupación=41,67 %.%n", cantidad, cantidad, cantidad * 2, laborables);
+                System.out.printf("Carga: clientes=200, barberos=10, jornadas=120, servicios=2, reservas=%d, auditorías=%d, avisos=%d, días laborables=%d, ocupación=41,67 %%.%n", cantidad, cantidad, cantidad * 2, laborables);
             } catch (Exception fallo) {
-                db.rollback();
+                if (!confirmada) db.rollback();
                 // No propagar errores SQL que puedan contener hashes o datos de cuentas.
-                throw new IllegalStateException("Carga revertida; tipo=" + fallo.getClass().getSimpleName()
+                throw new IllegalStateException((confirmada ? "Carga confirmada; falló el manifiesto o resumen; tipo="
+                        : "Carga revertida; tipo=") + fallo.getClass().getSimpleName()
                         + (fallo instanceof SQLException sql ? ", SQLState=" + sql.getSQLState() : ""));
             }
         }

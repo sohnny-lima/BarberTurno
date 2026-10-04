@@ -59,6 +59,8 @@ public class DisponibilidadSimulation extends Simulation {
                 .exec(http("XSRF con sesión").get("/api/auth/sesion").check(status().is(200)))
                 .exec(getCookieValue(CookieKey("XSRF-TOKEN").saveAs("xsrf")))
                 .exec(disponibilidad).exitHereIfFailed()
+                // La respuesta autenticada más reciente puede renovar XSRF: leerlo antes del POST.
+                .exec(getCookieValue(CookieKey("XSRF-TOKEN").saveAs("xsrf")))
                 .exec(session -> {
                     List<Map<String, Object>> franjas = session.getList("franjas");
                     if (franjas.isEmpty()) { SIN_FRANJA.increment(); return session.set("hayFranja", false); }
