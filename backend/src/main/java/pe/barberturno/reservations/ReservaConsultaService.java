@@ -5,11 +5,14 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.barberturno.audit.AuditoriaRepository;
+import pe.barberturno.audit.dto.AuditoriaDto;
 import pe.barberturno.common.config.ParametrosReserva;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.error.NegocioException;
@@ -20,7 +23,7 @@ import pe.barberturno.reservations.dto.ReservaDto;
 import pe.barberturno.users.Rol;
 
 /**
- * Consultas RF-11/13 con autorización en servidor, fechas de Lima y proyección mínima RNF-12.
+ * Consultas RF-11/13/17 con autorización en servidor, fechas de Lima y proyección mínima RNF-12.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -28,6 +31,7 @@ import pe.barberturno.users.Rol;
 @Transactional(readOnly = true)
 public class ReservaConsultaService {
     private final ReservaRepository reservas;
+    private final AuditoriaRepository auditorias;
     private final ReservaAutorizacion autorizacion;
     private final Clock reloj;
     private final ParametrosReserva parametros;
@@ -38,10 +42,12 @@ public class ReservaConsultaService {
      * @param autorizacion política única para recursos concretos
      * @param reloj fuente del instante de evaluación de permisos
      * @param parametros ventanas RN-07/12 utilizadas por el DTO
+     * @param auditorias historial RF-17 con carga de actores
      */
     public ReservaConsultaService(ReservaRepository reservas, ReservaAutorizacion autorizacion,
-            Clock reloj, ParametrosReserva parametros) {
+            Clock reloj, ParametrosReserva parametros, AuditoriaRepository auditorias) {
         this.reservas = reservas;
+        this.auditorias = auditorias;
         this.autorizacion = autorizacion;
         this.reloj = reloj;
         this.parametros = parametros;
@@ -104,6 +110,20 @@ public class ReservaConsultaService {
         var reserva = reservas.buscarDetalle(id).orElseThrow(ReservaConsultaService::noEncontrado);
         if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
         return ReservaDto.desde(reserva, actor, reloj.instant(), parametros);
+    }
+
+    /**
+     * Consulta RF-17 solo para ADMIN o barbero asignado, ocultando recursos ajenos con 404.
+     * @param actor identidad revalidada por seguridad
+     * @param id reserva cuyo historial se solicita
+     * @return cambios en orden cronológico con sus actores y fechas de Lima
+     * @throws NegocioException NO_ENCONTRADO si no existe o es ajena; PROHIBIDO para su CLIENTE propietario
+     */
+    public List<AuditoriaDto> auditoria(UsuarioAutenticado actor, long id) {
+        var reserva = reservas.buscarDetalle(id).orElseThrow(ReservaConsultaService::noEncontrado);
+        if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
+        if (actor.rol() == Rol.CLIENTE) throw prohibido();
+        return auditorias.buscarHistorial(id).stream().map(AuditoriaDto::desde).toList();
     }
 
     private PaginaDto<ReservaDto> consultar(UsuarioAutenticado actor, Long clienteId, Long barberoId,
