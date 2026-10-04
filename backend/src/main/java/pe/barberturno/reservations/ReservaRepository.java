@@ -127,4 +127,29 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
               and r.inicio > :ahora
             """)
     long contarFuturasQueOcupan(@Param("clienteId") Long clienteId, @Param("ahora") Instant ahora);
+
+    /**
+     * Lee propiedad sin cargar relaciones para autorizar excluirReservaId sin revelar reservas ajenas.
+     * @param id identidad de la reserva solicitada
+     * @return propietario o vacío cuando no existe la reserva
+     */
+    @Query("select r.cliente.id from Reserva r where r.id = :id")
+    Optional<Long> buscarClienteId(@Param("id") long id);
+
+    /**
+     * Lee en una consulta ocupaciones MJ-03 del día de Lima para todos los perfiles RF-21.
+     * @param ids perfiles seleccionados; colección no vacía
+     * @param inicio medianoche inclusiva del día
+     * @param fin medianoche exclusiva del siguiente día
+     * @param excluirId reserva ya autorizada que se omite; cero no excluye ninguna
+     * @return reservas de cualquier estado salvo CANCELADA que solapan el día
+     */
+    @Query("""
+            select r from Reserva r where r.barbero.id in :ids
+              and r.estado <> pe.barberturno.reservations.EstadoReserva.CANCELADA
+              and r.inicio < :fin and r.fin > :inicio and r.id <> :excluirId
+            order by r.barbero.id, r.inicio, r.id
+            """)
+    List<Reserva> buscarDia(@Param("ids") java.util.Collection<Long> ids,
+            @Param("inicio") Instant inicio, @Param("fin") Instant fin, @Param("excluirId") long excluirId);
 }

@@ -28,4 +28,13 @@ public interface JornadaRepository extends JpaRepository<Jornada, Long> {
     @Modifying
     @Query("delete from Jornada j where j.barbero.id = :barberoId")
     void borrarPorBarbero(@Param("barberoId") Long barberoId);
+
+    /**
+     * Lee en una consulta los intervalos del día ISO para todos los perfiles solicitados RF-07/RF-21.
+     * @param ids identidades de perfiles; colección no vacía
+     * @param dia día ISO entre lunes 1 y domingo 7
+     * @return jornadas ordenadas por perfil, hora e identidad
+     */
+    @Query("select j from Jornada j where j.barbero.id in :ids and j.diaSemana = :dia order by j.barbero.id, j.horaInicio, j.id")
+    List<Jornada> buscarDia(@Param("ids") java.util.Collection<Long> ids, @Param("dia") int dia);
 }

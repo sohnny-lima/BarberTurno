@@ -30,7 +30,8 @@ public class SecurityConfig {
 
     /**
      * Configura JWT por cookie sin sesiones HTTP y permisos §7.2; impone DEFAULT_CSRF_MATCHER también con JWT
-     * para proteger toda escritura. Añade filtro de contraseña temporal y errores RFC 9457.
+     * para proteger toda escritura. Permite el GET público exacto de disponibilidad RF-07.
+     * Añade filtro de contraseña temporal y errores RFC 9457.
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
      * @param respuestas errores RFC 9457
@@ -108,6 +109,7 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.GET, "/api/barberos/{id}/bloqueos").hasAnyRole("ADMIN", "BARBERO");
                     permisos.requestMatchers(HttpMethod.POST, "/api/barberos/{id}/bloqueos", "/api/bloqueos/lote").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.DELETE, "/api/bloqueos/{id}").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/disponibilidad").permitAll();
                     permisos.anyRequest().denyAll();
                 });
         return http.build();

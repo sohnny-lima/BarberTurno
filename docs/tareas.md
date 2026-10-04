@@ -54,7 +54,7 @@
 | T-16 | Bloqueos backend (RF-06, RF-20 opcional) | M | T-15 | Hecha · revisión: Aprobada | 02/10/2026 | 570f49860f80f5a46479dab3c47917c63c56d067, 3203660d0006b28c43d2fe2fd9674150a6474bd5, c21dbdc8e4134c6a324efa735778ba1b6f400ee8; cierre 130449b6004254901272887acded4af91289dc9e; merge bea40809914823fd367f1b07c89cd37fd327a9a7; único registro docs posterior por asunto en evidencia |
 | T-17 | Administración de servicios y barberos en el frontend (P05, P06) | M | T-12, T-13, T-14 | Hecha · revisión: Aprobada con observaciones | 03/10/2026 | 4e2ff06cd5bd8b48b0843349167365a5e8a1597b, 75017df2a3414f0bea35556d8837ff9835c2a6be, 426ebaba7bd9125a3f465f820c2b16c0b87a6452; cierre 59257c2c916f13b47d9d0c882f16e57e71c9dfdf; merge 6546f2f794bbaf2d16289b34473c586ebc5e733a; único registro docs posterior por asunto en evidencia |
 | T-18 | Horarios y bloqueos en el frontend (P07) | M | T-17, T-16 | Bloqueada (RA-02: 48,32 % Java sin pruebas; decisión P-02) · revisión: Aprobada técnicamente | 03/10/2026 | a6e3395bed566cec888dfb30040658bbe7d04ec0, f3e53a4b57694f3da6311b31428e3898c31cdeb5; cierre 338dd5ec851519d23d59aa35a79e2535756c4c8f; sin merge |
-| T-19 | Disponibilidad backend (RF-07) | M | T-09, T-13, T-16 | Pendiente | | |
+| T-19 | Disponibilidad backend (RF-07) | M | T-09, T-13, T-16 | En curso | 03/10/2026 | |
 | T-20 | Crear reserva con control de concurrencia (RF-08) | M | T-19 | Pendiente | | |
 | T-21 | Consulta de reservas y autorización (RF-11, RF-13) | M | T-20 | Pendiente | | |
 | T-22 | Cancelación (RF-10) | M | T-21 | Pendiente | | |

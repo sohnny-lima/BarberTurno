@@ -38,4 +38,15 @@ public interface BloqueoRepository extends JpaRepository<Bloqueo, Long> {
             """)
     List<Bloqueo> buscarQueSeCruzan(@Param("barberoId") Long barberoId,
             @Param("inicio") Instant inicio, @Param("fin") Instant fin);
+
+    /**
+     * Lee ocupaciones semiabiertas del día de Lima en una consulta para RF-07/RF-21.
+     * @param ids perfiles seleccionados; colección no vacía
+     * @param inicio medianoche inclusiva del día
+     * @param fin medianoche exclusiva del siguiente día
+     * @return bloqueos solapados ordenados por perfil, inicio e identidad
+     */
+    @Query("select b from Bloqueo b where b.barbero.id in :ids and b.inicio < :fin and b.fin > :inicio order by b.barbero.id, b.inicio, b.id")
+    List<Bloqueo> buscarDia(@Param("ids") java.util.Collection<Long> ids,
+            @Param("inicio") Instant inicio, @Param("fin") Instant fin);
 }
