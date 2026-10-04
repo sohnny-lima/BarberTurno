@@ -4,7 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { SesionService } from '../../core/auth/sesion-service';
 import { errorCampo, mostrarErrores } from '../../shared/formulario';
@@ -19,6 +19,7 @@ export class Ingresar {
   private readonly sesion = inject(SesionService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  readonly returnUrl = inject(ActivatedRoute).snapshot.queryParamMap.get('returnUrl');
   readonly cargando = signal(false);
   readonly mensaje = signal('');
   readonly errorCampo = errorCampo;
@@ -44,7 +45,13 @@ export class Ingresar {
       .subscribe({
         next: () => {
           this.formulario.controls.password.reset();
-          void this.router.navigateByUrl(this.sesion.inicio());
+          void this.router.navigateByUrl(
+            !this.sesion.debeCambiarPassword() &&
+              this.returnUrl?.startsWith('/') &&
+              !this.returnUrl.startsWith('//')
+              ? this.returnUrl
+              : this.sesion.inicio(),
+          );
         },
         error: (error) => this.mensaje.set(mostrarErrores(this.formulario, error)),
       });

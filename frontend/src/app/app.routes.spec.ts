@@ -48,6 +48,10 @@ describe('Rutas reales', () => {
     });
     const harness = await RouterTestingHarness.create(ruta);
     expect(TestBed.inject(Router).url).toBe('/reservar');
-    expect(harness.routeNativeElement?.textContent).toContain('Próximamente');
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/servicios?incluirInactivos=false').flush([]);
+    http.expectOne('/api/barberos?incluirInactivos=false').flush([]);
+    harness.detectChanges();
+    expect(harness.routeNativeElement?.textContent).toContain('Reservar un turno');
   });
 });

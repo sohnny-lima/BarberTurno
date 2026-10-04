@@ -47,8 +47,8 @@ export const routes: Routes = [
       },
       {
         path: 'reservar',
-        canActivate: [authGuard, rolGuard(['CLIENTE', 'ADMIN'])],
-        loadComponent: proximamente,
+        loadComponent: () =>
+          import('./features/reservar/reservar').then((modulo) => modulo.Reservar),
         data: { titulo: 'Reservar un turno' },
       },
       {

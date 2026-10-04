@@ -22,7 +22,7 @@
     <div class="acciones">
       <button mat-flat-button type="submit" [disabled]="cargando()">
         {{ cargando() ? 'Ingresando…' : 'Ingresar' }}</button
-      ><a mat-button routerLink="/registro">Crear cuenta</a>
+      ><a mat-button routerLink="/registro" [queryParams]="{ returnUrl }">Crear cuenta</a>
     </div>
   </form>
 </section>
