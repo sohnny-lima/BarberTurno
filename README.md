@@ -219,7 +219,7 @@ Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra 
 
 La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Sin una sesión, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
 
-La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor emite la cookie y verifica la cabecera en toda escritura (T-10/T-11). La SPA carga la sesión antes de arrancar; abre /ingresar sin sesión y redirige a /reservar (CLIENTE) o /agenda (personal) tras el acceso. Estas páginas de negocio son provisionales. /registro incluye el aviso de privacidad académico; /perfil permite editar nombre y teléfono, con correo de solo lectura. Una contraseña temporal obliga a /cambiar-password.
+La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor emite la cookie y verifica la cabecera en toda escritura (T-10/T-11). La SPA carga la sesión antes de arrancar; abre /ingresar sin sesión y redirige a /reservar (CLIENTE) o /agenda (personal) tras el acceso. La reserva guiada y Mis citas están disponibles para el cliente; Agenda sigue provisional hasta T-28. /registro incluye el aviso de privacidad académico; /perfil permite editar nombre y teléfono, con correo de solo lectura. Una contraseña temporal obliga a /cambiar-password.
 
 Calidad del frontend, con Node activo y desde `frontend/`:
 
@@ -269,6 +269,20 @@ Recorrido HTTP y visual de reserva/reprogramación (T-26), con Node 24.21.0 acti
 ~~~
 
 Requiere PowerShell 7, el JAR de `backend verify`, puertos 8080/4200 libres, Edge local y PostgreSQL 18 en 5433 con la base dev sin usuarios. La credencial de BD se carga solo en el proceso desde `.local/barberturno.env`. El ensayo genera `BT_ADMIN_*` ficticios en el entorno del proceso y usa el administrador inicial de T-10, sin modificar cuentas ni el archivo local. Arranca dev y el proxy Angular; registra un cliente, consulta disponibilidad, crea y reprograma con cookies/CSRF. Comprueba DA-21 con catálogo editado y desactivado, y la vista a 360/1440 px en Europe/Madrid, incluida la restauración tras login. Guarda capturas en `frontend/tmp/` (ignoradas por Git), limpia exclusivamente sus registros por ID —incluido el ADMIN inicial— y detiene sus servidores/navegadores en `finally`. [Evidencia de T-26](docs/pruebas/t-26.md).
+
+Recorrido HTTP y visual de Mis citas y avisos (T-27), con Node 24.21.0 activo:
+
+~~~powershell
+.\frontend\tools\verificar-mis-citas-http.ps1
+~~~
+
+Requiere los mismos recursos locales y la base dev sin usuarios que el recorrido de T-26.
+Crea un ADMIN inicial con valores ficticios solo en el proceso, prepara catálogo y jornada por API,
+registra un cliente y crea su reserva. Edge en Europe/Madrid comprueba la tarjeta y el contador,
+marca un aviso, cancela con versión y motivo, y marca todos: contador 1 → 0 → 1 → 0.
+También verifica filtros, historial y vistas de 1440/360 px; HTTP comprueba CSRF y el resultado persistido.
+Limpia exclusivamente sus IDs y detiene servidores y navegador en finally. Logs y capturas en
+frontend/tmp/ (ignorados). [Evidencia T-27](docs/pruebas/t-27.md).
 
 E2E (`npx playwright test`) se incorporará en T-34.
 
