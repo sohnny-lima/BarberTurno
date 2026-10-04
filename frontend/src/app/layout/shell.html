@@ -14,7 +14,9 @@
     <span class="marca">BarberTurno</span>
     @if (sesion.usuario(); as usuario) {
       <span class="identidad">{{ usuario.nombre }} · {{ nombreRol() }}</span>
-      <span hidden aria-hidden="true" data-contador-avisos></span>
+      <span role="status" aria-live="polite" data-contador-avisos
+        >Avisos sin leer: {{ avisos.noLeidas() }}</span
+      >
       <button mat-button (click)="salir()" [disabled]="saliendo()">
         {{ saliendo() ? 'Saliendo…' : 'Salir' }}
       </button>

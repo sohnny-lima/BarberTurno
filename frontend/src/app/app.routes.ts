@@ -54,7 +54,8 @@ export const routes: Routes = [
       {
         path: 'mis-citas',
         canActivate: [authGuard, rolGuard(['CLIENTE'])],
-        loadComponent: proximamente,
+        loadComponent: () =>
+          import('./features/mis-citas/mis-citas').then((modulo) => modulo.MisCitas),
         data: { titulo: 'Mis citas' },
       },
       {

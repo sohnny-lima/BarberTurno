@@ -1,0 +1,26 @@
+<h2 mat-dialog-title>Cancelar {{ reserva.codigo }}</h2>
+<form [formGroup]="formulario" (ngSubmit)="confirmar()">
+  <mat-dialog-content>
+    <p>¿Desea cancelar esta cita? Se liberará su turno.</p>
+    <mat-form-field style="width: 100%">
+      <mat-label>Motivo (opcional)</mat-label>
+      <textarea matInput formControlName="motivo" maxlength="300" rows="3"></textarea>
+      <mat-hint>Hasta 300 caracteres.</mat-hint>
+      <mat-error>{{
+        formulario.controls.motivo.getError('servidor') ||
+          'El motivo no puede superar 300 caracteres.'
+      }}</mat-error>
+    </mat-form-field>
+    @if (mensaje()) {
+      <p class="mensaje" role="alert">{{ mensaje() }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [disabled]="guardando()" (click)="referencia.close()">
+      Conservar cita
+    </button>
+    <button mat-flat-button type="submit" [disabled]="guardando() || formulario.invalid">
+      {{ guardando() ? 'Cancelando…' : 'Cancelar cita' }}
+    </button>
+  </mat-dialog-actions>
+</form>

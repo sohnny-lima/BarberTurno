@@ -16,6 +16,8 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { finalize, map } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 
+import { AvisosService } from '../core/notificaciones/avisos-service';
+
 const CUENTA = { ruta: '/perfil', texto: 'Mi cuenta' };
 const AGENDA = { ruta: '/agenda', texto: 'Agenda' };
 const ADMIN = [
@@ -45,6 +47,7 @@ const ADMIN = [
 })
 export class Shell {
   readonly sesion = inject(SesionService);
+  readonly avisos = inject(AvisosService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly saliendo = signal(false);

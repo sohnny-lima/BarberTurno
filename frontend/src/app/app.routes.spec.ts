@@ -1,3 +1,5 @@
+import { signal } from '@angular/core';
+import { AvisosService } from './core/notificaciones/avisos-service';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -9,7 +11,12 @@ import { SesionService } from './core/auth/sesion-service';
 describe('Rutas reales', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter(routes),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AvisosService, useValue: { noLeidas: signal(3), actualizar: vi.fn() } },
+      ],
     }),
   );
   afterEach(() => TestBed.inject(HttpTestingController).verify());

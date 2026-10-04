@@ -43,3 +43,14 @@ export interface ConsultaDisponibilidad {
   barberoId?: number;
   excluirReservaId?: number;
 }
+export interface CancelarReservaDto {
+  version: number;
+  motivo?: string;
+}
+export interface ConsultaMisReservas {
+  estado?: EstadoReserva;
+  desde?: string;
+  hasta?: string;
+  pagina: number;
+  tamano: number;
+}
