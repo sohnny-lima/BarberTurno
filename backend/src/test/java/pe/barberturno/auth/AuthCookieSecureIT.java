@@ -16,12 +16,32 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "barberturno.seguridad.cookie-secure=true",
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre="})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class AuthCookieSecureIT {
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
 
     @BeforeEach void preparar() { LimpiezaBaseDatos.limpiar(jdbc); }
     @AfterEach void limpiar() { LimpiezaBaseDatos.limpiar(jdbc); }
+
+    @Test void tokenInvalido_borraSesionConSecureYSinCambiarProblemDetail() throws Exception {
+        var r = mvc.perform(get("/api/auth/sesion").secure(true)
+                .cookie(new Cookie("BT_SESION", "invalido")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO")).andReturn();
+        Cookie borrada = r.getResponse().getCookie("BT_SESION");
+        assertThat(borrada).isNotNull();
+        assertThat(borrada.getValue()).isEmpty();
+        assertThat(borrada.getMaxAge()).isZero();
+        assertThat(borrada.getSecure()).isTrue();
+        assertThat(borrada.isHttpOnly()).isTrue();
+        assertThat(borrada.getPath()).isEqualTo("/");
+        assertThat(borrada.getDomain()).isNull();
+        assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
+        mvc.perform(get("/api/servicios").secure(true)).andExpect(status().isOk());
+        mvc.perform(get("/api/perfil").secure(true)).andExpect(status().isUnauthorized())
+                .andExpect(result -> assertThat(result.getResponse().getCookie("BT_SESION")).isNull());
+    }
 
     @Test void cookie_seguraConfigurada_seAplicaASesionCsrfCambioPasswordYLogout() throws Exception {
         Cookie xsrf = mvc.perform(get("/api/auth/sesion").secure(true))

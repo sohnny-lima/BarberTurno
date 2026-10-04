@@ -14,11 +14,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
     catchError((error: HttpErrorResponse) => {
       const problema = error.error as Partial<ProblemDetail> | null;
       const ruta = peticion.url.split('?')[0];
-      if (
-        error.status === 401 &&
-        ((ruta === '/api/auth/sesion' && peticion.method === 'GET') ||
-          (ruta === '/api/auth/login' && problema?.codigo === 'NO_AUTENTICADO'))
-      ) {
+      if (error.status === 401 && ruta === '/api/auth/sesion' && peticion.method === 'GET') {
         return throwError(() => error);
       }
       if (error.status === 401 && ruta !== '/api/auth/login' && ruta !== '/api/auth/registro') {

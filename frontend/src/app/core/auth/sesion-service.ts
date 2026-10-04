@@ -6,7 +6,6 @@ import {
   CambiarPasswordDto,
   LoginDto,
   PerfilDto,
-  ProblemDetail,
   RegistroDto,
   UsuarioSesionDto,
 } from '../modelos/identidad';
@@ -30,19 +29,7 @@ export class SesionService {
     );
   }
   login(datos: LoginDto) {
-    return this.api.login(datos).pipe(
-      catchError((error: HttpErrorResponse) => {
-        // Una cookie revocada impide llegar al login. Logout público la elimina con CSRF.
-        if (
-          error.status === 401 &&
-          (error.error as Partial<ProblemDetail> | null)?.codigo === 'NO_AUTENTICADO'
-        ) {
-          return this.logout().pipe(switchMap(() => this.api.login(datos)));
-        }
-        return throwError(() => error);
-      }),
-      tap((usuario) => this.identidad.set(usuario)),
-    );
+    return this.api.login(datos).pipe(tap((usuario) => this.identidad.set(usuario)));
   }
   registrar(datos: RegistroDto) {
     return this.api.registrar(datos).pipe(tap((usuario) => this.identidad.set(usuario)));

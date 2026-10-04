@@ -17,16 +17,17 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
     }
 
     /**
-     * Lee solo BT_SESION; omite token en POST logout para limpiar cookies inválidas. Dos cookies no vacías
+     * Lee solo BT_SESION; omite token en POST login, registro y logout para recuperar sesiones (DA-22). Dos cookies no vacías
      * producen un token inválido y evitan identidad ambigua.
      * @param request petición HTTP actual no nula
-     * @return token de cookie; nulo si no existe o es logout, e inválido ante cookies ambiguas
+     * @return token de cookie; nulo si no existe o es POST de login, registro o logout, e inválido ante cookies ambiguas
      */
     @Override
     public String resolve(HttpServletRequest request) {
-        // Logout debe borrar también una cookie caducada o revocada.
+        // La autenticación pública permite sustituir o borrar una cookie caducada o revocada.
         String ruta = request.getRequestURI().substring(request.getContextPath().length());
-        if ("POST".equals(request.getMethod()) && "/api/auth/logout".equals(ruta)) return null;
+        if ("POST".equals(request.getMethod()) && ("/api/auth/logout".equals(ruta)
+                || "/api/auth/login".equals(ruta) || "/api/auth/registro".equals(ruta))) return null;
         if (request.getCookies() == null) return null;
         String token = null;
         for (var cookie : request.getCookies()) {

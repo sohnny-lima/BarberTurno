@@ -1,17 +1,17 @@
 package pe.barberturno.auth;
 
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import pe.barberturno.auth.dto.*;
 import pe.barberturno.common.security.UsuarioActual;
+import pe.barberturno.common.security.CookieSesion;
 import pe.barberturno.users.Usuario;
 
 /**
  * API de identidad en /api/auth; permite registro y login públicos y exige CSRF en toda escritura (§7.2).
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -19,21 +19,21 @@ public class AuthController {
     private final AuthService auth;
     private final JwtService jwt;
     private final UsuarioActual actual;
-    private final boolean secure;
+    private final CookieSesion cookies;
 
     /**
-     * Inyecta identidad, firmante y servicios; aplica Secure a la cookie según la configuración del entorno.
+     * Inyecta identidad, firmante y política de cookies compartida con la recuperación de sesión DA-22.
      * @param auth servicio no nulo de identidad y revalidación
      * @param jwt servicio no nulo que emite sesiones firmadas
      * @param actual identidad revalidada; nula solo en consultas públicas
-     * @param secure si BT_SESION usa Secure; true en producción
+     * @param cookies política compartida de emisión y borrado de BT_SESION según el perfil
      */
     public AuthController(AuthService auth, JwtService jwt, UsuarioActual actual,
-            @Value("${barberturno.seguridad.cookie-secure:false}") boolean secure) {
+            CookieSesion cookies) {
         this.auth = auth;
         this.jwt = jwt;
         this.actual = actual;
-        this.secure = secure;
+        this.cookies = cookies;
     }
 
     /**
@@ -45,7 +45,7 @@ public class AuthController {
     public UsuarioSesionDto sesion() { return auth.sesion(actual.id()); }
 
     /**
-     * POST /api/auth/registro público: crea CLIENTE (201) y fija BT_SESION. Exige CSRF; rechaza VALIDACION
+     * POST /api/auth/registro público: crea CLIENTE (201) y sustituye BT_SESION aun si fue revocada (DA-22). Exige CSRF; rechaza VALIDACION
      * (400), CORREO_DUPLICADO (409) o PROHIBIDO (403) ante CSRF inválido.
      * @param datos entrada no nula validada por MVC; el servicio aplica las reglas de negocio
      * @return identidad pública y cookie BT_SESION, con el estado HTTP indicado
@@ -56,7 +56,7 @@ public class AuthController {
     }
 
     /**
-     * POST /api/auth/login público: autentica y fija BT_SESION (200). Exige CSRF; rechaza CREDENCIALES_INVALIDAS
+     * POST /api/auth/login público: autentica y sustituye BT_SESION (200), aun si era inválida (DA-22). Exige CSRF; rechaza CREDENCIALES_INVALIDAS
      * o CUENTA_BLOQUEADA_TEMPORALMENTE (401), y PROHIBIDO (403) por CSRF.
      * @param datos entrada no nula validada por MVC; el servicio aplica las reglas de negocio
      * @return identidad pública y cookie BT_SESION, con el estado HTTP indicado
@@ -76,7 +76,7 @@ public class AuthController {
     public ResponseEntity<Void> cambiarPassword(@Valid @RequestBody CambiarPasswordDto datos) {
         Usuario usuario = auth.cambiarPassword(actual.id(), datos);
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,
-                cookie(jwt.emitir(usuario)).maxAge(JwtService.VIGENCIA).build().toString()).build();
+                cookies.emitir(jwt.emitir(usuario)).toString()).build();
     }
 
     /**
@@ -87,17 +87,12 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,
-                cookie("").maxAge(0).build().toString()).build();
+                cookies.borrar().toString()).build();
     }
 
     private ResponseEntity<UsuarioSesionDto> respuesta(Usuario usuario, HttpStatus estado) {
         return ResponseEntity.status(estado).header(HttpHeaders.SET_COOKIE,
-                cookie(jwt.emitir(usuario)).maxAge(JwtService.VIGENCIA).build().toString())
+                cookies.emitir(jwt.emitir(usuario)).toString())
                 .body(auth.sesion(usuario));
-    }
-
-    private ResponseCookie.ResponseCookieBuilder cookie(String valor) {
-        return ResponseCookie.from("BT_SESION", valor).httpOnly(true)
-                .secure(secure).sameSite("Strict").path("/");
     }
 }

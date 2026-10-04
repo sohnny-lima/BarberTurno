@@ -338,6 +338,130 @@ class AuthIT {
         }
     }
 
+    @ParameterizedTest @ValueSource(strings = {"cambio", "restablecimiento", "desactivacion"})
+    void recuperacion_cookieRevocada_permiteLoginRegistroYBorraEn401SinAceptarToken(String causa) throws Exception {
+        Cookie anterior = cookieSesion(registrar(registro(CORREO)).andExpect(status().isCreated()).andReturn());
+        long clienteId = usuarios.findByCorreo(CORREO).orElseThrow().getId();
+        String password = PASSWORD;
+        Cookie admin = null;
+        if (!causa.equals("cambio")) {
+            // El inicializador de T-10 crea el ADMIN; ninguna promoción por SQL.
+            new AdminInicialRunner(auth, "admin-recuperacion@ejemplo.test", "ClaveAdmin123", "Admin ficticio")
+                    .run(new DefaultApplicationArguments());
+            admin = cookieSesion(login("admin-recuperacion@ejemplo.test", "ClaveAdmin123")
+                    .andExpect(status().isOk()).andReturn());
+        }
+        switch (causa) {
+            case "cambio" -> {
+                password = "NuevaClave456";
+                mvc.perform(conCsrf(put("/api/auth/password")).cookie(anterior)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+                                Map.of("passwordActual", PASSWORD, "passwordNueva", password))))
+                        .andExpect(status().isNoContent());
+            }
+            case "restablecimiento" -> {
+                var reset = mvc.perform(conCsrf(post("/api/usuarios/" + clienteId + "/restablecer-password"))
+                        .cookie(admin)).andExpect(status().isOk()).andReturn();
+                password = json.readTree(reset.getResponse().getContentAsString()).get("passwordTemporal").asString();
+            }
+            case "desactivacion" -> mvc.perform(conCsrf(patch("/api/usuarios/" + clienteId + "/estado"))
+                    .cookie(admin).contentType(MediaType.APPLICATION_JSON).content("{\"activo\":false}"))
+                    .andExpect(status().isOk());
+            default -> throw new IllegalArgumentException("Causa de revocación desconocida.");
+        }
+
+        comprobarBorrado(mvc.perform(get("/api/auth/sesion").cookie(anterior)));
+        comprobarBorrado(mvc.perform(get("/api/perfil").cookie(anterior)));
+        comprobarBorrado(mvc.perform(get("/api/servicios").cookie(anterior)));
+        mvc.perform(get("/api/servicios")).andExpect(status().isOk());
+        mvc.perform(get("/api/auth/sesion")).andExpect(status().isUnauthorized())
+                .andExpect(result -> assertThat(result.getResponse().getCookie("BT_SESION")).isNull());
+
+        var alta = mvc.perform(conCsrf(post("/api/auth/registro")).cookie(anterior)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+                        registro("nuevo-recuperacion@ejemplo.test"))))
+                .andExpect(status().isCreated()).andReturn();
+        comprobarCookie(cookieSesion(alta), 28800);
+        mvc.perform(get("/api/perfil").cookie(cookieSesion(alta))).andExpect(status().isOk());
+
+        if (causa.equals("desactivacion")) {
+            // No se permite entrar a una cuenta inactiva. Reactivar no resucita su JWT anterior.
+            mvc.perform(conCsrf(post("/api/auth/login")).cookie(anterior)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+                            Map.of("correo", CORREO, "password", PASSWORD))))
+                    .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.codigo").value("CREDENCIALES_INVALIDAS"));
+            mvc.perform(conCsrf(patch("/api/usuarios/" + clienteId + "/estado")).cookie(admin)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":true}"))
+                    .andExpect(status().isOk());
+            comprobarBorrado(mvc.perform(get("/api/perfil").cookie(anterior)));
+        }
+        var acceso = mvc.perform(conCsrf(post("/api/auth/login")).cookie(anterior)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+                        Map.of("correo", CORREO, "password", password))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.debeCambiarPassword").value(causa.equals("restablecimiento"))).andReturn();
+        comprobarCookie(cookieSesion(acceso), 28800);
+        assertThat(cookieSesion(acceso).getValue()).isNotEqualTo(anterior.getValue());
+        mvc.perform(get("/api/perfil").cookie(cookieSesion(acceso))).andExpect(status().isOk());
+        comprobarBorrado(mvc.perform(get("/api/perfil").cookie(anterior)));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"login,ausente,false", "login,incorrecto,false", "registro,ausente,false", "registro,incorrecto,false",
+            "login,ausente,true", "login,incorrecto,true", "registro,ausente,true", "registro,incorrecto,true"})
+    void recuperacion_sesionValidaORevocadaConCsrfInvalido_mantiene403(String ruta, String csrf, boolean revocada) throws Exception {
+        Cookie sesion = cookieSesion(registrar(registro(CORREO)).andReturn());
+        if (revocada) {
+            var usuario = usuarios.findByCorreo(CORREO).orElseThrow();
+            usuario.cambiarPassword(usuario.getPasswordHash(), false, reloj.instant());
+            usuarios.saveAndFlush(usuario);
+        }
+        var peticion = post("/api/auth/" + ruta).cookie(sesion).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(ruta.equals("login")
+                        ? Map.of("correo", CORREO, "password", PASSWORD) : registro("otro@ejemplo.test")));
+        if (csrf.equals("incorrecto")) peticion.cookie(xsrf()).header("X-XSRF-TOKEN", "incorrecto");
+        mvc.perform(peticion).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
+        assertThat(usuarios.count()).isEqualTo(1);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"malformado", "firma", "caducado", "ambiguo"})
+    void recuperacion_tokenInvalido_borraCookieEnPublicaYProtegida(String causa) throws Exception {
+        Cookie original = cookieSesion(registrar(registro(CORREO)).andReturn());
+        Cookie[] cookies = {original};
+        switch (causa) {
+            case "malformado" -> cookies = new Cookie[]{new Cookie("BT_SESION", "malformado")};
+            case "firma" -> {
+                String token = original.getValue();
+                int firma = token.lastIndexOf('.') + 1;
+                cookies = new Cookie[]{new Cookie("BT_SESION", token.substring(0, firma)
+                        + (token.charAt(firma) == 'a' ? 'b' : 'a') + token.substring(firma + 1))};
+            }
+            case "caducado" -> reloj.adelantar(Duration.ofHours(8));
+            case "ambiguo" -> cookies = new Cookie[]{original, new Cookie("BT_SESION", original.getValue())};
+            default -> throw new IllegalArgumentException("Causa de invalidez desconocida.");
+        }
+        comprobarBorrado(mvc.perform(get("/api/auth/sesion").cookie(cookies)));
+        comprobarBorrado(mvc.perform(get("/api/perfil").cookie(cookies)));
+        mvc.perform(get("/api/servicios")).andExpect(status().isOk());
+        mvc.perform(conCsrf(post("/api/auth/login")).cookie(cookies).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("correo", CORREO, "password", PASSWORD))))
+                .andExpect(status().isOk());
+        mvc.perform(conCsrf(post("/api/auth/registro")).cookie(cookies).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(registro("nuevo@ejemplo.test")))).andExpect(status().isCreated());
+    }
+
+    private void comprobarBorrado(ResultActions solicitud) throws Exception {
+        var resultado = solicitud.andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"))
+                .andExpect(jsonPath("$.detail").value("Se requiere una sesión válida.")).andReturn();
+        Cookie borrada = cookieSesion(resultado);
+        comprobarCookie(borrada, 0);
+        assertThat(borrada.getValue()).isEmpty();
+        assertThat(borrada.getDomain()).isNull();
+        assertThat(resultado.getResponse().getHeaders("Set-Cookie"))
+                .anySatisfy(valor -> assertThat(valor).startsWith("BT_SESION=;").contains("Max-Age=0"));
+    }
     private Map<String, Object> registro(String correo) {
         return Map.of("nombre", "Cliente de prueba", "correo", correo,
                 "telefono", "999111222", "password", PASSWORD, "aceptaPrivacidad", true);
