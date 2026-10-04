@@ -40,6 +40,7 @@ export class ReservaStore {
   readonly preferencia = signal<number | null>(null);
   readonly fecha = signal(fechaHoyLima());
   readonly franjas = signal<FranjaDto[]>([]);
+  readonly duracionDisponibilidad = signal<number | null>(null);
   readonly franja = signal<FranjaDto | null>(null);
   readonly barberoId = signal<number | null>(null);
   readonly reserva = signal<ReservaDto | null>(null);
@@ -54,7 +55,11 @@ export class ReservaStore {
   readonly servicio = computed(() => {
     const reserva = this.reserva();
     return reserva
-      ? { ...reserva.servicio, duracionMin: reserva.duracionMin, precio: reserva.precioRef }
+      ? {
+          ...reserva.servicio,
+          duracionMin: this.duracionDisponibilidad() ?? reserva.duracionMin,
+          precio: reserva.precioRef,
+        }
       : (this.servicios().find((s) => s.id === this.servicioId()) ?? null);
   });
   readonly profesional = computed(() => this.barberos().find((b) => b.id === this.barberoId()));
@@ -142,6 +147,7 @@ export class ReservaStore {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(({ datos, guardada }) => {
+        this.duracionDisponibilidad.set(datos.duracionMin);
         this.franjas.set(datos.franjas);
         if (guardada) {
           const franja = datos.franjas.find(
@@ -253,6 +259,7 @@ export class ReservaStore {
       });
   }
   private limpiarFranja() {
+    this.duracionDisponibilidad.set(null);
     this.franjas.set([]);
     this.franja.set(null);
     this.barberoId.set(null);

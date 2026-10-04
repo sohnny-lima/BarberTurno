@@ -78,9 +78,14 @@ describe('Store de reserva guiada', () => {
       debeCambiarPassword: false,
     });
   }
-  function franjas() {
+  function franjas(duracionMin = 30) {
     const r = http.expectOne((r) => r.url === '/api/disponibilidad');
-    r.flush({ servicioId: 1, fecha: store.fecha(), duracionMin: 30, franjas: [franjaPrueba] });
+    r.flush({
+      servicioId: 1,
+      fecha: store.fecha(),
+      duracionMin,
+      franjas: [{ ...franjaPrueba, fin: fechaHoyLima(1) + 'T10:' + duracionMin + ':00-05:00' }],
+    });
     return r.request;
   }
   function seleccion() {
@@ -257,7 +262,7 @@ describe('Store de reserva guiada', () => {
     store.elegirServicio(10);
     expect(store.servicioId()).toBe(1);
     store.cargarFranjas();
-    const solicitud = franjas();
+    const solicitud = franjas(40);
     expect(solicitud.params.get('excluirReservaId')).toBe('7');
     store.elegirFranja(store.franjas()[0]);
   }
@@ -272,6 +277,34 @@ describe('Store de reserva guiada', () => {
     expect(r.request.body).toEqual({ inicio: franjaPrueba.inicio, barberoId: 2, version: 4 });
     r.flush(reservaPrueba);
   });
+  it.each([true, false])(
+    'usa la respuesta de reprogramación con catálogo activo=%s y duración distinta',
+    (activo) => {
+      sesion();
+      store.inicializar(7);
+      http
+        .expectOne('/api/servicios?incluirInactivos=false')
+        .flush([{ ...servicioPrueba, duracionMin: 60, precio: 99, activo }]);
+      http.expectOne('/api/barberos?incluirInactivos=false').flush(barberosPrueba);
+      http.expectOne('/api/reservas/7').flush(reservaPrueba);
+      store.cargarFranjas();
+      const consulta = http.expectOne((r) => r.url === '/api/disponibilidad');
+      expect(consulta.request.params.get('servicioId')).toBe('1');
+      expect(consulta.request.params.get('excluirReservaId')).toBe('7');
+      const franja = { ...franjaPrueba, fin: fechaHoyLima(1) + 'T10:40:00-05:00' };
+      consulta.flush({ servicioId: 1, fecha: store.fecha(), duracionMin: 40, franjas: [franja] });
+      expect(store.duracionDisponibilidad()).toBe(40);
+      expect(store.servicio()?.duracionMin).toBe(40);
+      expect(store.servicio()?.precio).toBe(22);
+      expect(store.franjas()).toEqual([franja]);
+      store.elegirFranja(store.franjas()[0]);
+      expect(store.franja()?.fin).toBe(franja.fin);
+      store.confirmar();
+      const envio = http.expectOne('/api/reservas/7/reprogramacion');
+      expect(envio.request.body).toEqual({ inicio: franja.inicio, barberoId: 2, version: 4 });
+      envio.flush(reservaPrueba);
+    },
+  );
   it('ADMIN requiere motivo de experiencia de usuario y lo envía en reprogramación', () => {
     sesion('ADMIN');
     reprogramar();
