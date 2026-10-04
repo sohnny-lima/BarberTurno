@@ -342,7 +342,12 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Criterios de aceptación:** Esc y el clic fuera no cierran el diálogo; "Cerrar" sí; "Copiar" sigue funcionando.
 - **Pruebas:** Vitest que comprueba la configuración del diálogo al abrirlo tras un alta de cuenta nueva.
 - **Prioridad:** S; se agrupa con el encargo de T-18.
-### T-43 · Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35)- **Origen:** revisión de T-35, O-1. En la carga de 50 usuarios, 29 POST de reserva (2,4 % de los intentos) devolvieron un código distinto de `FRANJA_NO_DISPONIBLE` y `LIMITE_RESERVAS_ACTIVAS`, y la simulación no conserva cuál.- **Alcance:** en `perf/`, registrar el estado HTTP y el `codigo` de cada rechazo inesperado (sin ampliar la lista de respuestas aceptadas), repetir la carga y clasificar los rechazos. Si alguno es un 503 por `lock_timeout` o un 500, es un hallazgo de concurrencia (RNF-05) con su análisis; si son rechazos de negocio legítimos, documentarlos.- **Criterios de aceptación:** informe con el desglose de los rechazos inesperados por estado y código; RNF-01 sigue cumpliéndose.- **Prioridad:** S; antes de T-37.
+
+### T-43 · Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35)
+- **Origen:** revisión de T-35, O-1. En la carga de 50 usuarios, 29 POST de reserva (2,4 % de los intentos) devolvieron un código distinto de `FRANJA_NO_DISPONIBLE` y `LIMITE_RESERVAS_ACTIVAS`, y la simulación no conserva cuál.
+- **Alcance:** en `perf/`, registrar el estado HTTP y el `codigo` de cada rechazo inesperado (sin ampliar la lista de respuestas aceptadas), repetir la carga y clasificar los rechazos. Si alguno es un 503 por `lock_timeout` o un 500, es un hallazgo de concurrencia (RNF-05) con su análisis; si son rechazos de negocio legítimos, documentarlos.
+- **Criterios de aceptación:** informe con el desglose de los rechazos inesperados por estado y código; RNF-01 sigue cumpliéndose.
+- **Prioridad:** S; antes de T-37.
 
 ---
 
