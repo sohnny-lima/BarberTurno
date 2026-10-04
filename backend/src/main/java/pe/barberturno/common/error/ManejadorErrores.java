@@ -16,11 +16,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -30,9 +35,10 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Traduce errores de MVC y servicios a RFC 9457 sin revelar detalles técnicos.
+ * Conserva los estados 405/415 con VALIDACION y devuelve 406 sin cuerpo cuando no hay representación aceptable.
  * Los filtros anteriores a MVC requieren sus propios manejadores en T-10.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @RestControllerAdvice
 public class ManejadorErrores {
@@ -187,6 +193,32 @@ public class ManejadorErrores {
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail noEncontrado(HttpServletRequest peticion) {
         return problema(ErrorCodigo.NO_ENCONTRADO, "El recurso solicitado no existe.", peticion);
+    }
+
+    /**
+     * Conserva los rechazos 4xx de método y negociación de contenido de MVC sin exponer detalles internos.
+     * El 406 carece de cuerpo porque el cliente no acepta la representación; otros estados usan el 500 genérico.
+     * @param excepcion rechazo MVC de método, tipo de entrada o representación de salida
+     * @param peticion petición actual, usada como instancia pública del problema
+     * @return respuesta con VALIDACION para 405/415, vacía para 406 o ERROR_INTERNO para estados ajenos a 4xx
+     */
+    @ExceptionHandler({HttpMediaTypeNotSupportedException.class, HttpRequestMethodNotSupportedException.class,
+            HttpMediaTypeNotAcceptableException.class})
+    public ResponseEntity<ProblemDetail> clienteMvc(Exception excepcion, HttpServletRequest peticion) {
+        if (!(excepcion instanceof ErrorResponse error) || !error.getStatusCode().is4xxClientError()) {
+            return ResponseEntity.internalServerError().body(interno(excepcion, peticion));
+        }
+        var estado = error.getStatusCode();
+        LOG.warn("Petición rechazada por método o contenido no admitido (HTTP {}).", estado.value());
+        if (estado.value() == 406) {
+            return ResponseEntity.status(estado).build();
+        }
+        String detalle = estado.value() == 405
+                ? "El método solicitado no está permitido."
+                : "El tipo de contenido de la solicitud no está admitido.";
+        ProblemDetail problema = problema(ErrorCodigo.VALIDACION, detalle, peticion);
+        problema.setStatus(estado.value());
+        return ResponseEntity.status(estado).body(problema);
     }
 
     /**

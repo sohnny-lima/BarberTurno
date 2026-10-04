@@ -30,6 +30,7 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
@@ -39,6 +40,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -129,6 +134,85 @@ class ManejadorErroresTest {
     void leerParametro_obligatorioAusente_devuelveValidacion() throws Exception {
         comprobar(mvc.perform(get("/prueba/parametro")), ErrorCodigo.VALIDACION, "/prueba/parametro")
                 .andExpect(jsonPath("$.errores").isEmpty());
+    }
+
+    @Test
+    void metodoNoPermitido_enMvc_devuelve405ConProblemaHabitual() throws Exception {
+        mvc.perform(post("/prueba/parametro"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("about:blank"))
+                .andExpect(jsonPath("$.title").value(ErrorCodigo.VALIDACION.titulo()))
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.detail").value("El método solicitado no está permitido."))
+                .andExpect(jsonPath("$.instance").value("/prueba/parametro"))
+                .andExpect(jsonPath("$.codigo").value("VALIDACION"))
+                .andExpect(jsonPath("$.errores").isEmpty());
+    }
+
+    @ParameterizedTest
+    @MethodSource("rechazosMvc")
+    void clienteMvc_conEstado4xx_registraWarnSinTrazaNiDatos(Exception error, int estado) throws Exception {
+        Logger logger = (Logger) LoggerFactory.getLogger(ManejadorErrores.class);
+        ListAppender<ILoggingEvent> captura = new ListAppender<>();
+        captura.start();
+        logger.addAppender(captura);
+        try {
+            controlador.error = error;
+            var respuesta = mvc.perform(get("/prueba/error")).andExpect(status().is(estado));
+            if (estado == 406) {
+                respuesta.andExpect(content().string(""));
+            } else {
+                respuesta.andExpect(jsonPath("$.status").value(estado))
+                        .andExpect(jsonPath("$.codigo").value("VALIDACION"))
+                        .andExpect(jsonPath("$.errores").isEmpty());
+            }
+            assertThat(captura.list).hasSize(1);
+            var evento = captura.list.getFirst();
+            assertThat(evento.getLevel()).isEqualTo(ch.qos.logback.classic.Level.WARN);
+            assertThat(evento.getThrowableProxy()).isNull();
+            assertThat(evento.getFormattedMessage()).contains("HTTP " + estado)
+                    .doesNotContain("secreto-ficticio", "persona@ejemplo.test", "Exception");
+            assertThat(respuesta.andReturn().getResponse().getContentAsString())
+                    .doesNotContain("secreto-ficticio", "persona@ejemplo.test", "Exception");
+        } finally {
+            logger.detachAppender(captura);
+            captura.stop();
+        }
+    }
+
+    static Stream<Arguments> rechazosMvc() {
+        return Stream.of(
+                Arguments.of(new HttpMediaTypeNotSupportedException("secreto-ficticio persona@ejemplo.test"), 415),
+                Arguments.of(new HttpRequestMethodNotSupportedException("secreto-ficticio persona@ejemplo.test"), 405),
+                Arguments.of(new HttpMediaTypeNotAcceptableException("secreto-ficticio persona@ejemplo.test"), 406));
+    }
+
+    @Test
+    void representacionNoAceptable_conHtml_devuelve406SinCuerpoNiTipo() throws Exception {
+        controlador.error = new HttpMediaTypeNotAcceptableException("Detalle interno ficticio");
+        mvc.perform(get("/prueba/error").accept(MediaType.TEXT_HTML))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(content().string(""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .doesNotExist("Content-Type"));
+    }
+
+    @Test
+    void clienteMvc_conEstado5xx_conservaErrorInterno() {
+        var error = org.mockito.Mockito.spy(new HttpMediaTypeNotSupportedException("Detalle ficticio"));
+        when(error.getStatusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
+        var respuesta = new ManejadorErrores().clienteMvc(error, new MockHttpServletRequest("POST", "/prueba/error"));
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(respuesta.getBody().getProperties()).containsEntry("codigo", "ERROR_INTERNO");
+    }
+
+    @Test
+    void clienteMvc_sinErrorResponse_conservaErrorInterno() {
+        var respuesta = new ManejadorErrores().clienteMvc(new IllegalStateException("Detalle ficticio"),
+                new MockHttpServletRequest("GET", "/prueba/error"));
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(respuesta.getBody().getProperties()).containsEntry("codigo", "ERROR_INTERNO");
     }
     @ParameterizedTest
     @MethodSource("versiones")

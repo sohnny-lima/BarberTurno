@@ -336,6 +336,8 @@ Notas de diseño:
 | 500 | `ERROR_INTERNO` | Error no controlado. Mensaje genérico; la traza solo va al log, sin datos sensibles. *(Añadido el 01/10/2026.)* |
 | 503 | `RECURSO_OCUPADO` | `lock_timeout` (SQLState `55P03`) o interbloqueo (`40P01`). La interfaz sugiere reintentar. |
 
+Nota (T-46, 04/10/2026): los rechazos estándar de Spring MVC por método no permitido (405) o tipo de contenido no soportado (415) conservan su estado HTTP y usan `VALIDACION` con `errores: []`; una representación no aceptable (406) se devuelve sin cuerpo. No se añade un código de error.
+
 ### 6.3 Endpoints
 
 **Autenticación y perfil**
