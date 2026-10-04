@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.filtros mat-form-field {
+  flex: 1 1 180px;
+}
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #b5c7cf;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.intervalo,
+.cliente {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.cliente {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+@media (max-width: 599px) {
+  .filtros mat-form-field {
+    flex-basis: 100%;
+  }
+  .intervalo {
+    flex-basis: 100%;
+  }
+}

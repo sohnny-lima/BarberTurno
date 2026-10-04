@@ -1,0 +1,60 @@
+<h2 mat-dialog-title>Cambios de {{ reserva.codigo }}</h2>
+<mat-dialog-content aria-live="polite" [attr.aria-busy]="cargando()">
+  @if (cargando()) {
+    <p>Cargando cambios…</p>
+  }
+  @if (mensaje()) {
+    <p role="alert">{{ mensaje() }}</p>
+    <button mat-button (click)="cargar()">Reintentar</button>
+  } @else if (!cargando() && !filas().length) {
+    <p>No hay cambios registrados.</p>
+  }
+  @for (fila of filas(); track $index) {
+    <article>
+      <h3>{{ acciones[fila.accion] }} · {{ fila.creadoEn | fechaLima }}</h3>
+      <p>Actor: {{ fila.actorNombre }}</p>
+      <p>
+        {{ fila.estadoAnterior ? estados[fila.estadoAnterior] : 'Sin reserva' }} →
+        {{ estados[fila.estadoNuevo] }}
+      </p>
+      <div class="valores">
+        <p>
+          <strong>Anterior:</strong>
+          @if (fila.datosAnteriores; as anterior) {
+            @if (anterior.estado) {
+              {{ estados[anterior.estado] }}<br />
+            }
+            @if (anterior.inicio) {
+              {{ anterior.inicio | fechaLima }} – {{ anterior.fin | fechaLima: 'hora' }}<br />
+            }
+            @if (anterior.barberoId !== undefined) {
+              Barbero #{{ anterior.barberoId }}
+            }
+          } @else {
+            Sin reserva
+          }
+        </p>
+        <p>
+          <strong>Nuevo:</strong>
+          @if (fila.datosNuevos.estado) {
+            {{ estados[fila.datosNuevos.estado] }}<br />
+          }
+          @if (fila.datosNuevos.inicio) {
+            {{ fila.datosNuevos.inicio | fechaLima }} – {{ fila.datosNuevos.fin | fechaLima: 'hora'
+            }}<br />
+          }
+          @if (fila.datosNuevos.barberoId !== undefined) {
+            Barbero #{{ fila.datosNuevos.barberoId }}
+          }
+        </p>
+      </div>
+      <p>Motivo: {{ fila.motivo || 'Sin motivo' }}</p>
+      @if (fila.excepcional) {
+        <p class="excepcion">Excepción administrativa</p>
+      }
+    </article>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cerrar</button>
+</mat-dialog-actions>

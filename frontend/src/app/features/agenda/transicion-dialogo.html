@@ -1,0 +1,14 @@
+<h2 mat-dialog-title>{{ accion }} · {{ datos.reserva.codigo }}</h2>
+<mat-dialog-content>
+  <p>¿Desea aplicar «{{ accion }}» a la cita de {{ datos.reserva.cliente.nombre }}?</p>
+  <p>{{ datos.reserva.inicio | fechaLima }} · {{ datos.reserva.servicio.nombre }}</p>
+  @if (mensaje()) {
+    <p role="alert">{{ mensaje() }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button [disabled]="guardando()" (click)="referencia.close()">Volver</button>
+  <button mat-flat-button [disabled]="guardando()" (click)="confirmar()">
+    {{ guardando() ? 'Guardando…' : accion }}
+  </button>
+</mat-dialog-actions>

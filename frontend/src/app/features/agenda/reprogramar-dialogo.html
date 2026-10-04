@@ -1,0 +1,74 @@
+<h2 mat-dialog-title>Reprogramar {{ datos.reserva.codigo }}</h2>
+<form [formGroup]="formulario" (ngSubmit)="confirmar()">
+  <mat-dialog-content>
+    <p>{{ datos.reserva.servicio.nombre }} · {{ datos.reserva.cliente.nombre }}</p>
+    <p>
+      Cita actual: {{ datos.reserva.inicio | fechaLima }} –
+      {{ datos.reserva.fin | fechaLima: 'hora' }}
+    </p>
+    <mat-form-field>
+      <mat-label>Fecha de Lima</mat-label>
+      <input
+        matInput
+        type="date"
+        formControlName="fecha"
+        [min]="min"
+        [max]="max"
+        (change)="cargar()"
+      />
+      <mat-error>Seleccione una fecha válida.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Barbero</mat-label>
+      <mat-select formControlName="barberoId" (selectionChange)="cargar()">
+        @for (barbero of datos.barberos; track barbero.id) {
+          @if (barbero.activo) {
+            <mat-option [value]="barbero.id">{{ barbero.nombre }}</mat-option>
+          }
+        }
+      </mat-select>
+      <mat-error>Seleccione un barbero.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Franja disponible (Lima)</mat-label>
+      <mat-select formControlName="inicio">
+        @for (franja of franjas(); track franja.inicio) {
+          <mat-option [value]="franja.inicio"
+            >{{ franja.inicio | fechaLima: 'hora' }} –
+            {{ franja.fin | fechaLima: 'hora' }}</mat-option
+          >
+        }
+      </mat-select>
+      <mat-error>Seleccione una franja disponible.</mat-error>
+    </mat-form-field>
+    @if (cargando()) {
+      <p role="status">Consultando franjas…</p>
+    } @else if (!franjas().length && !mensaje()) {
+      <p role="status">No hay franjas disponibles. Pruebe otra fecha o profesional.</p>
+    }
+    <mat-form-field>
+      <mat-label>Motivo obligatorio</mat-label>
+      <textarea matInput formControlName="motivo" maxlength="300" rows="3"></textarea>
+      <mat-hint>Entre 5 y 300 caracteres; se registrará en la auditoría.</mat-hint>
+      <mat-error>{{
+        formulario.controls.motivo.getError('servidor') ||
+          'Ingrese un motivo de entre 5 y 300 caracteres.'
+      }}</mat-error>
+    </mat-form-field>
+    @if (mensaje()) {
+      <p role="alert">{{ mensaje() }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [disabled]="guardando()" (click)="referencia.close()">
+      Conservar cita
+    </button>
+    <button
+      mat-flat-button
+      type="submit"
+      [disabled]="guardando() || cargando() || formulario.invalid"
+    >
+      {{ guardando() ? 'Guardando…' : 'Reprogramar' }}
+    </button>
+  </mat-dialog-actions>
+</form>

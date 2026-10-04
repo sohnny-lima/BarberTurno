@@ -1,0 +1,20 @@
+article {
+  border-bottom: 1px solid #b5c7cf;
+  padding-block: 12px;
+}
+p {
+  overflow-wrap: anywhere;
+}
+.excepcion {
+  font-weight: 700;
+  color: #812b22;
+}
+.valores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.valores p {
+  flex: 1 1 200px;
+  margin-block: 4px;
+}

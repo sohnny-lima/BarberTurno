@@ -54,3 +54,34 @@ export interface ConsultaMisReservas {
   pagina: number;
   tamano: number;
 }
+
+export interface ConsultaAgenda {
+  desde: string;
+  hasta: string;
+  barberoId?: number;
+  pagina: number;
+  tamano: number;
+}
+export type EstadoTransicion = 'CONFIRMADA' | 'EN_ATENCION' | 'COMPLETADA' | 'NO_ASISTIO';
+export interface TransicionReservaDto {
+  estado: EstadoTransicion;
+  version: number;
+}
+export interface DatosAuditoria {
+  inicio?: string;
+  fin?: string;
+  barberoId?: number;
+  estado?: EstadoReserva;
+}
+export interface AuditoriaDto {
+  accion:
+    'CREAR' | 'REPROGRAMAR' | 'CANCELAR' | 'CONFIRMAR' | 'INICIAR' | 'COMPLETAR' | 'NO_ASISTIO';
+  actorNombre: string;
+  creadoEn: string;
+  estadoAnterior: EstadoReserva | null;
+  estadoNuevo: EstadoReserva;
+  datosAnteriores: DatosAuditoria | null;
+  datosNuevos: DatosAuditoria;
+  motivo: string | null;
+  excepcional: boolean;
+}
