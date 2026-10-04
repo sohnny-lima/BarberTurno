@@ -41,4 +41,20 @@ class ReservaConfirmacionManualIT extends ReservaPruebaBase {
         assertThat(cantidad("reserva")).isOne();
         assertThat(cantidad("notificacion")).isEqualTo(4);
     }
+
+    @Test void confirmarCreadaPorApiManual_200AuditoriaYAvisoCliente() throws Exception {
+        var pendiente = crearHttp(cliente, cmd(barbero, "10:00"));
+        mvc.perform(conCsrf(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                "/api/reservas/{id}/transiciones", pendiente.id()).contentType("application/json")
+                .content("{\"estado\":\"CONFIRMADA\",\"version\":0}"), sesion(barbero.getUsuario())))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.estado").value("CONFIRMADA"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.version").value(1));
+        assertThat(jdbc.queryForObject("select estado_anterior from auditoria_reserva where accion='CONFIRMAR'", String.class))
+                .isEqualTo("PENDIENTE");
+        assertThat(jdbc.queryForList("select usuario_id from notificacion where tipo='CONFIRMAR'", Long.class))
+                .containsExactly(cliente.getId());
+        assertThat(cantidad("auditoria_reserva")).isEqualTo(2);
+        assertThat(cantidad("notificacion")).isEqualTo(3);
+    }
 }
