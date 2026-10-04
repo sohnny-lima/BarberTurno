@@ -56,7 +56,7 @@
 | T-18 | Horarios y bloqueos en el frontend (P07) | M | T-17, T-16 | Bloqueada (RA-02: 48,32 % Java sin pruebas; decisión P-02) · revisión: Aprobada técnicamente | 03/10/2026 | a6e3395bed566cec888dfb30040658bbe7d04ec0, f3e53a4b57694f3da6311b31428e3898c31cdeb5; cierre 338dd5ec851519d23d59aa35a79e2535756c4c8f; sin merge |
 | T-19 | Disponibilidad backend (RF-07) | M | T-09, T-13, T-16 | Hecha · revisión: Aprobada | 03/10/2026 | 2b8a5266a028734a0e9c7441e797868ff8021c39, aa65400b46e368b46e9bd9ca6dea56a0a9d69733; cierre 38ba7e694da60d6058a892bdb648c35fbc77545c; merge b5db0c501c573540c6f066f4685e28f9cdb336e9 |
 | T-20 | Crear reserva con control de concurrencia (RF-08) | M | T-19 | Hecha · revisión: Aprobada | 03/10/2026 | 053a1ee91b11e930420f84a7b14ae44b37432b18, 7939cf3f176818ca27b89f6d5be50106e170f511; cierre 82d2b2116999d646a79fbf4344b624c31c1ef61f; merge 895bde72f10635aee161685d2d2aa38e90c002a9; único registro docs posterior por asunto en evidencia |
-| T-21 | Consulta de reservas y autorización (RF-11, RF-13) | M | T-20 | Pendiente | | |
+| T-21 | Consulta de reservas y autorización (RF-11, RF-13) | M | T-20 | En curso | 03/10/2026 | |
 | T-22 | Cancelación (RF-10) | M | T-21 | Pendiente | | |
 | T-23 | Reprogramación (RF-09) | M | T-22 | Pendiente | | |
 | T-24 | Transiciones de estado (RF-12) | M | T-21 | Pendiente | | |

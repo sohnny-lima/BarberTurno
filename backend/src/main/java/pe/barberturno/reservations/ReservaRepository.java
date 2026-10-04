@@ -1,6 +1,11 @@
 package pe.barberturno.reservations;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -10,11 +15,31 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * Consultas de ocupación RN-03, RN-04 y RN-20 y bloqueo ③ de reservas según arquitectura §8.
+ * Persistencia de reservas: ocupación RN-03/04/20, bloqueo ③ (§8) y consultas paginadas RF-11/13.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
-public interface ReservaRepository extends JpaRepository<Reserva, Long> {
+public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
+
+    /**
+     * Pagina filtros RF-11/13 con relaciones to-one en la consulta de contenido, evitando N+1.
+     * Spring Data calcula el total con una consulta separada sin cargar esas relaciones.
+     * @param filtros predicados de propiedad y búsqueda ya autorizados por el servicio
+     * @param pagina límites y orden estable por inicio e identidad
+     * @return página con cliente, barbero, usuario asignado y servicio disponibles
+     */
+    @Override
+    @EntityGraph(attributePaths = {"cliente", "barbero.usuario", "servicio"})
+    Page<Reserva> findAll(Specification<Reserva> filtros, Pageable pagina);
+
+    /**
+     * Lee un detalle sin bloqueo con todas las relaciones necesarias para autorización y DTO.
+     * @param id identidad solicitada
+     * @return reserva o vacío; el servicio oculta también los recursos ajenos con 404
+     */
+    @EntityGraph(attributePaths = {"cliente", "barbero.usuario", "servicio"})
+    @Query("select r from Reserva r where r.id = :id")
+    Optional<Reserva> buscarDetalle(@Param("id") long id);
 
     /**
      * Carga ocupación futura RN-17 después del bloqueo ②; incluye todo estado salvo CANCELADA (MJ-03).

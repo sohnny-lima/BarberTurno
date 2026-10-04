@@ -221,10 +221,15 @@ class ReservaCrearIT extends ReservaPruebaBase {
     @ParameterizedTest @ValueSource(strings = {
         "GET /api/reservas", "PUT /api/reservas", "POST /api/reservas/100/cancelacion",
         "POST /api/reservas/100/reprogramacion", "POST /api/reservas/100/transiciones", "GET /api/reservas/100"})
-    void rutasDeTareasPosteriores_cerradas(String ruta) throws Exception {
+    void rutasPendientesYConsultasSinPermiso_rechazan(String ruta) throws Exception {
         var partes = ruta.split(" ");
-        mvc.perform(conCsrf(request(org.springframework.http.HttpMethod.valueOf(partes[0]), partes[1]), sesion(cliente)))
-                .andExpect(status().isForbidden());
+        var resultado = mvc.perform(conCsrf(request(org.springframework.http.HttpMethod.valueOf(partes[0]), partes[1]), sesion(cliente)));
+        if (ruta.equals("GET /api/reservas/100")) {
+            // T-21 abre el detalle: recurso inexistente y ajeno comparten 404 (CP-02).
+            resultado.andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
+        } else {
+            resultado.andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
+        }
     }
 
     @Test void falloDelSegundoAviso_revierteReservaAuditoriaYPrimerAviso() throws Exception {
