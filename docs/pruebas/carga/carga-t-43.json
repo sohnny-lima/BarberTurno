@@ -1,0 +1,137 @@
+{
+  "entorno": {
+    "fecha": "2026-10-04T07:31:14.6280581-05:00",
+    "commit": "1af96404c926d7b663637b40be7c37c0c00940d5",
+    "usuarios": 50,
+    "segundos": 300,
+    "cpu": [
+      "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz"
+    ],
+    "nucleos": 6.0,
+    "procesadoresLogicos": 12.0,
+    "ramGiB": 19.85,
+    "sistema": "Microsoft Windows 11 Home Single Language",
+    "versionSistema": "10.0.26200",
+    "java": "Temurin 21.0.8+9",
+    "postgres": "18.0",
+    "gatling": "3.16.0",
+    "plugin": "4.21.12"
+  },
+  "informeLocal": "disponibilidadsimulation-20261004123122160",
+  "peticiones": [
+    {
+      "nombre": "All Requests",
+      "solicitudes": 19766.0,
+      "ok": 19743.0,
+      "ko": 23.0,
+      "erroresPorcentaje": 0.12,
+      "peticionesSegundo": 65.67,
+      "minMs": 1.0,
+      "p50Ms": 4.0,
+      "p75Ms": 6.0,
+      "p95Ms": 264.0,
+      "p99Ms": 299.0,
+      "maxMs": 742.0,
+      "mediaMs": 25.0,
+      "desviacionMs": 73.0
+    },
+    {
+      "nombre": "Disponibilidad",
+      "solicitudes": 14363.0,
+      "ok": 14363.0,
+      "ko": 0.0,
+      "erroresPorcentaje": 0.0,
+      "peticionesSegundo": 47.72,
+      "minMs": 2.0,
+      "p50Ms": 4.0,
+      "p75Ms": 5.0,
+      "p95Ms": 11.0,
+      "p99Ms": 32.0,
+      "maxMs": 742.0,
+      "mediaMs": 6.0,
+      "desviacionMs": 16.0
+    },
+    {
+      "nombre": "XSRF inicial",
+      "solicitudes": 1403.0,
+      "ok": 1403.0,
+      "ko": 0.0,
+      "erroresPorcentaje": 0.0,
+      "peticionesSegundo": 4.66,
+      "minMs": 1.0,
+      "p50Ms": 2.0,
+      "p75Ms": 3.0,
+      "p95Ms": 5.0,
+      "p99Ms": 12.0,
+      "maxMs": 447.0,
+      "mediaMs": 3.0,
+      "desviacionMs": 14.0
+    },
+    {
+      "nombre": "Login cliente",
+      "solicitudes": 1403.0,
+      "ok": 1403.0,
+      "ko": 0.0,
+      "erroresPorcentaje": 0.0,
+      "peticionesSegundo": 4.66,
+      "minMs": 252.0,
+      "p50Ms": 272.0,
+      "p75Ms": 287.0,
+      "p95Ms": 323.0,
+      "p99Ms": 438.0,
+      "maxMs": 681.0,
+      "mediaMs": 281.0,
+      "desviacionMs": 34.0
+    },
+    {
+      "nombre": "XSRF con sesión",
+      "solicitudes": 1403.0,
+      "ok": 1403.0,
+      "ko": 0.0,
+      "erroresPorcentaje": 0.0,
+      "peticionesSegundo": 4.66,
+      "minMs": 1.0,
+      "p50Ms": 2.0,
+      "p75Ms": 2.0,
+      "p95Ms": 5.0,
+      "p99Ms": 12.0,
+      "maxMs": 47.0,
+      "mediaMs": 2.0,
+      "desviacionMs": 3.0
+    },
+    {
+      "nombre": "Crear reserva",
+      "solicitudes": 1194.0,
+      "ok": 1171.0,
+      "ko": 23.0,
+      "erroresPorcentaje": 1.93,
+      "peticionesSegundo": 3.97,
+      "minMs": 4.0,
+      "p50Ms": 6.0,
+      "p75Ms": 9.0,
+      "p95Ms": 21.0,
+      "p99Ms": 159.0,
+      "maxMs": 325.0,
+      "mediaMs": 11.0,
+      "desviacionMs": 26.0
+    }
+  ],
+  "negocio": {
+    "creadas": 300,
+    "conflictosEsperados": 0,
+    "limitesEsperados": 871,
+    "recorridosConsulta": 12960,
+    "recorridosCrear": 1403,
+    "sinFranja": 209,
+    "rechazosInesperados": 23
+  },
+  "rechazosInesperados": [
+    {
+      "estado": 409,
+      "codigo": "CLIENTE_CON_RESERVA_SOLAPADA",
+      "cantidad": 23
+    }
+  ],
+  "asercionesGatling": "BUILD SUCCESS; umbrales originales cumplidos",
+  "limpieza": "DROP DATABASE"
+}
