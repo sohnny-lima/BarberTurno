@@ -341,6 +341,150 @@ class DisponibilidadIT {
         assertThat(p95).isLessThan(200.0);
     }
 
+    @ParameterizedTest @CsvSource({"CLIENTE,true", "CLIENTE,false", "ADMIN,true", "ADMIN,false"})
+    void reprogramacion_catalogoModificadoYDesactivado_conservaReferencia(Rol rol, boolean especifico) throws Exception {
+        var sesion = sesionExclusion(rol);
+        cambiarDuracionCatalogo();
+        var creacion = consultar(consultaModo(especifico, FECHA));
+        assertThat(creacion.duracionMin()).isEqualTo(40);
+        assertThat(creacion.franjas()).isNotEmpty().allSatisfy(f ->
+                assertThat(Duration.between(f.inicio(), f.fin())).isEqualTo(Duration.ofMinutes(40)));
+        assertThat(horas(creacion)).doesNotContain("17:30");
+
+        SqlPruebas.limpiar();
+        var referencia = consultar(consultaModo(especifico, FECHA)
+                .param("excluirReservaId", bt101.getId().toString()).cookie(sesion));
+        var sql = SqlPruebas.sentencias();
+        assertThat(sql).anyMatch(q -> q.contains("duracion_ref_min") && q.contains("servicio_id"));
+        assertThat(sql).noneMatch(q -> q.contains("for no key update") || q.contains("for update")
+                || q.startsWith("insert") || q.startsWith("update"));
+        assertThat(referencia.duracionMin()).isEqualTo(30);
+        assertThat(horas(referencia)).contains("10:00", "17:30").hasSize(36);
+        assertThat(referencia.franjas()).allSatisfy(f ->
+                assertThat(Duration.between(f.inicio(), f.fin())).isEqualTo(Duration.ofMinutes(30)));
+
+        servicio.desactivar(reloj.instant());
+        servicios.saveAndFlush(servicio);
+        var inactivo = consultar(consultaModo(especifico, FECHA)
+                .param("excluirReservaId", bt101.getId().toString()).cookie(sesion));
+        assertThat(inactivo).isEqualTo(referencia);
+        mvc.perform(consultaModo(especifico, FECHA)).andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.codigo").value("RECURSO_INACTIVO"));
+        var reserva = reservas.findById(bt101.getId()).orElseThrow();
+        assertThat(reserva.getDuracionRefMin()).isEqualTo((short) 30);
+        assertThat(reserva.getVersion()).isEqualTo(bt101.getVersion());
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void reprogramacion_todasLasFranjasPublicadasAceptadasPorPost_yRejillaOcupadaRechazada(boolean inactivo) throws Exception {
+        var sesion = sesionExclusion(Rol.CLIENTE);
+        cambiarDuracionCatalogo();
+        if (inactivo) {
+            servicio.desactivar(reloj.instant());
+            servicios.saveAndFlush(servicio);
+        }
+        var resultado = consultar(peticion(FECHA).param("excluirReservaId", bt101.getId().toString()).cookie(sesion));
+        assertThat(resultado.duracionMin()).isEqualTo(30);
+        assertThat(resultado.franjas()).hasSize(36);
+        assertThat(horas(resultado)).contains("17:30").doesNotContain("16:00");
+        Cookie csrf = mvc.perform(get("/api/auth/sesion").cookie(sesion)).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        int version = bt101.getVersion();
+        for (var f : resultado.franjas()) {
+            assertThat(disponibilidad.validarFranja(carlos.getId(), f.inicio().toInstant(),
+                    f.fin().toInstant(), bt101.getId())).as(f.inicio().toString()).isEmpty();
+            var respuesta = mvc.perform(post("/api/reservas/{id}/reprogramacion", bt101.getId())
+                    .cookie(sesion, csrf).header("X-XSRF-TOKEN", csrf.getValue())
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+                            Map.of("inicio", f.inicio(), "barberoId", carlos.getId(), "version", version))))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.duracionMin").value(30)).andReturn();
+            var reserva = json.readTree(respuesta.getResponse().getContentAsString());
+            version = reserva.get("version").asInt();
+            assertThat(OffsetDateTime.parse(reserva.get("inicio").asText())).isEqualTo(f.inicio());
+            assertThat(OffsetDateTime.parse(reserva.get("fin").asText())).isEqualTo(f.fin());
+            assertThat(reserva.get("servicio").get("id").asLong()).isEqualTo(servicio.getId());
+            assertThat(reserva.get("precioRef").decimalValue()).isEqualByComparingTo(bt101.getPrecioRef());
+        }
+        var antes = jdbc.queryForList("select * from reserva where id = ?", bt101.getId());
+        assertThat(disponibilidad.validarFranja(carlos.getId(), instante(FECHA, "16:00"),
+                instante(FECHA, "16:30"), bt101.getId())).contains(ErrorCodigo.FRANJA_NO_DISPONIBLE);
+        mvc.perform(post("/api/reservas/{id}/reprogramacion", bt101.getId())
+                .cookie(sesion, csrf).header("X-XSRF-TOKEN", csrf.getValue())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
+                        Map.of("inicio", TiempoNegocio.aLima(instante(FECHA, "16:00")), "version", version))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("FRANJA_NO_DISPONIBLE"));
+        assertThat(jdbc.queryForList("select * from reserva where id = ?", bt101.getId())).isEqualTo(antes);
+    }
+
+    @ParameterizedTest @CsvSource({"CLIENTE,false", "CLIENTE,true", "ADMIN,false", "ADMIN,true"})
+    void reprogramacion_servicioDistinto_400InclusoFueraDeHorizonte(Rol rol, boolean fueraHorizonte) throws Exception {
+        var sesion = sesionExclusion(rol);
+        var otro = servicios.saveAndFlush(new Servicio("Otro ficticio", "Servicio distinto", (short) 30,
+                servicio.getPrecio(), reloj.instant()));
+        mvc.perform(get("/api/disponibilidad").param("servicioId", otro.getId().toString())
+                .param("barberoId", carlos.getId().toString())
+                .param("fecha", (fueraHorizonte ? FECHA.plusDays(60) : FECHA).toString())
+                .param("excluirReservaId", bt101.getId().toString()).cookie(sesion))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"))
+                .andExpect(jsonPath("$.detail").value("El servicio solicitado debe coincidir con el de la reserva."));
+    }
+
+    @Test void reprogramacion_reservaAjenaYServicioDistinto_404AntesDeLeerReferenciaOCatalogo() throws Exception {
+        var actor = datos.cliente("ajeno");
+        jdbc.update("update usuario set password_hash = ? where id = ?", passwords.encode(PASSWORD), actor.getId());
+        var sesion = login(actor);
+        SqlPruebas.limpiar();
+        mvc.perform(get("/api/disponibilidad").param("servicioId", "999999")
+                .param("fecha", FECHA.plusDays(60).toString()).param("barberoId", carlos.getId().toString())
+                .param("excluirReservaId", bt101.getId().toString()).cookie(sesion))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"))
+                .andExpect(jsonPath("$.detail").value("Recurso no encontrado."));
+        assertThat(SqlPruebas.sentencias()).noneMatch(q -> q.contains("duracion_ref_min") || q.contains(" from servicio "));
+    }
+
+    @Test void reprogramacion_barberoInactivo_422AunqueServicioInactivo() throws Exception {
+        var sesion = sesionExclusion(Rol.CLIENTE);
+        servicio.desactivar(reloj.instant());
+        servicios.saveAndFlush(servicio);
+        carlos.desactivar(reloj.instant());
+        barberos.saveAndFlush(carlos);
+        mvc.perform(peticion(FECHA).param("excluirReservaId", bt101.getId().toString()).cookie(sesion))
+                .andExpect(status().isUnprocessableContent()).andExpect(jsonPath("$.codigo").value("RECURSO_INACTIVO"))
+                .andExpect(jsonPath("$.detail").value("El barbero está inactivo."));
+        var sinPerfiles = consultar(consultaModo(false, FECHA)
+                .param("excluirReservaId", bt101.getId().toString()).cookie(sesion));
+        assertThat(sinPerfiles.duracionMin()).isEqualTo(30);
+        assertThat(sinPerfiles.franjas()).isEmpty();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"2026-09-27", "2026-10-29"})
+    void reprogramacion_fueraHorizonte_conservaDuracionReferenciaSinFranjas(String fecha) throws Exception {
+        var sesion = sesionExclusion(Rol.CLIENTE);
+        cambiarDuracionCatalogo();
+        servicio.desactivar(reloj.instant());
+        servicios.saveAndFlush(servicio);
+        var resultado = consultar(peticion(LocalDate.parse(fecha))
+                .param("excluirReservaId", bt101.getId().toString()).cookie(sesion));
+        assertThat(resultado.duracionMin()).isEqualTo(30);
+        assertThat(resultado.franjas()).isEmpty();
+    }
+
+    private void cambiarDuracionCatalogo() {
+        servicio.editar(servicio.getNombre(), servicio.getDescripcion(), (short) 40, servicio.getPrecio(), reloj.instant());
+        servicios.saveAndFlush(servicio);
+    }
+
+    private Cookie sesionExclusion(Rol rol) throws Exception {
+        Usuario actor = rol == Rol.CLIENTE ? cliente : datos.cliente("admin-referencia");
+        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol.name(), passwords.encode(PASSWORD), actor.getId());
+        return login(actor);
+    }
+
+    private MockHttpServletRequestBuilder consultaModo(boolean especifico, LocalDate fecha) {
+        var consulta = get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
+                .param("fecha", fecha.toString());
+        return especifico ? consulta.param("barberoId", carlos.getId().toString()) : consulta;
+    }
+
     private MockHttpServletRequestBuilder peticion(LocalDate fecha) {
         return get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
                 .param("fecha", fecha.toString()).param("barberoId", carlos.getId().toString());
