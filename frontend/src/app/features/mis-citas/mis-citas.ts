@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, ValidatorFn } from '@angular/forms';
@@ -29,6 +30,7 @@ export const rangoFechas: ValidatorFn = (grupo) => {
 @Component({
   selector: 'app-mis-citas',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
