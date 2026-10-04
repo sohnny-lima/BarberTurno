@@ -307,3 +307,27 @@ La ejecución real queda pendiente hasta que exista el remoto (P-04). [Evidencia
 T-01 establece el primer commit en `main`. Para las tareas posteriores se usan ramas `tarea/T-XX-descripcion-corta`, commits Conventional Commits en español con `[T-XX]` e integración local mediante `git merge --no-ff`. No se configura ni se publica un remoto en esta etapa.
 
 Los archivos de trabajo usan UTF-8 y LF; `.cmd`, `.bat` y `.ps1` usan CRLF según `.gitattributes`. `docs/apf2/` está exceptuado de la normalización y del formato automático para preservar el original.
+
+## Prueba de carga (T-35, RNF-01)
+
+Proyecto Maven independiente en `perf/`, fuera del build del backend y de la CI. Desde la raíz, con JDK 21:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot'
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+.\backend\mvnw.cmd -B -ntp -f perf/pom.xml test
+cd backend
+.\mvnw.cmd -B -ntp verify
+cd ..
+# Ensayo breve y después carga oficial; ejecutar siempre de forma secuencial.
+.\perf\ejecutar-carga.ps1 -Usuarios 5 -Segundos 20
+.\perf\ejecutar-carga.ps1
+```
+
+El script requiere PowerShell 7, puerto 8080 libre, PostgreSQL 18 en 5433, el rol `barberturno`, `BT_DB_PASSWORD`/`BT_JWT_SECRET` en el entorno o en `.local/barberturno.env` y acceso administrativo mediante `.local/pgpass.conf`. Rechaza una `barberturno_perf` preexistente; crea esa base, aplica Flyway arrancando el jar con `dev`, genera datos ficticios y ejecuta 50 usuarios sostenidos durante 300 s. El `finally` detiene su backend y elimina exclusivamente la base creada, también ante un fallo; restaura las variables del proceso. No ejecute `verify`, otro backend ni otra carga simultáneamente contra PostgreSQL.
+
+Se genera una contraseña efímera solo en el entorno, o se acepta `BT_PERF_PASSWORD` externa conforme a RN-25; nunca se muestra ni se guarda en el manifiesto. El generador Java usa semilla 35 y empieza mañana en Lima; `-Fecha yyyy-MM-dd` permite repetir la agenda dentro del horizonte vigente. Crea 200 clientes, 10 barberos, 2 servicios, jornadas lunes–sábado y 30 días con 41,67 % de ocupación mediante reservas asistidas por un ADMIN ficticio (exentas del límite RN-20). Los clientes 100–199 quedan libres para autoservicio.
+
+La mezcla 90/10 corresponde a recorridos: el 10 % incluye XSRF, login, consulta y creación en una franja recién vista. Los domingos pueden no ofrecer franjas y se registran aparte. Solo `409 FRANJA_NO_DISPONIBLE` y `422 LIMITE_RESERVAS_ACTIVAS` son OK esperados, comprobando estado **y** código; los demás fallos cuentan. Se exige p95 de disponibilidad ≤ 2000 ms, errores de disponibilidad y globales < 1 %, y al menos una creación real. La pausa de 1 s forma parte de cada usuario concurrente. Las propiedades de duración y concurrencia solo se reducen en el ensayo breve.
+
+Logs por ejecución y metadatos sin secretos en `perf/target/ejecuciones/`; HTML y estadísticas locales en `perf/target/gatling/`, todo ignorado por Git. El resumen compartible se conserva en [docs/pruebas/carga](docs/pruebas/carga/) y la evidencia en [T-35](docs/pruebas/t-35.md). Si no hay permiso para crear la base, el script falla sin tocar otra: la alternativa manual prevista es vaciar y usar exclusivamente `barberturno_test`, comprobar antes que no contiene datos que deban conservarse, adaptar explícitamente la protección de destino y documentarlo; no hay fallback automático que borre datos preexistentes.

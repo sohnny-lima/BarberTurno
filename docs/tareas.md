@@ -70,7 +70,7 @@
 | T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Hecha · revisión: Aprobada | 04/10/2026 | 48bfae2, 7cbe4ef, 94da026; cierre bb2adc6; merge 1e62954 |
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
 | T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
-| T-35 | Prueba de carga (RNF-01) | S | T-32 | Pendiente | | |
+| T-35 | Prueba de carga (RNF-01) | S | T-32 | En curso | 04/10/2026 | |
 | T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | Pendiente | | |
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
 | T-38 | Actualizar el PostgreSQL 18 local a la última menor (18.6) | S | — (recomendada antes de T-06) | Pendiente | | |
