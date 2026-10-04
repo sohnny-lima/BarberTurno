@@ -69,7 +69,7 @@ describe('Alta y edición de barberos', () => {
     expect(dialogos.open).toHaveBeenCalledTimes(1);
     expect(dialogos.open).toHaveBeenCalledWith(
       PasswordTemporalDialogo,
-      expect.objectContaining({ data: password }),
+      expect.objectContaining({ data: password, disableClose: true }),
     );
   });
   it('vincula ADMIN con la variante excluyente y limpia la contraseña al cambiar de modo', () => {
