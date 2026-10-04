@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { ReservasApi } from '../../core/api/reservas-api';
 import { ReservaDto } from '../../core/modelos/reservas';
+import { motivoObligatorio } from '../../shared/motivo-obligatorio';
 import { mostrarErrores } from '../../shared/formulario';
 
 export type ResultadoCancelacion = 'cancelada' | 'actualizada';
@@ -25,12 +26,18 @@ export type ResultadoCancelacion = 'cancelada' | 'actualizada';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CancelarDialogo {
-  readonly reserva = inject<ReservaDto>(MAT_DIALOG_DATA);
+  readonly reserva = inject<ReservaDto & { motivoObligatorio?: boolean }>(MAT_DIALOG_DATA);
   readonly referencia = inject(MatDialogRef<CancelarDialogo, ResultadoCancelacion>);
   private readonly api = inject(ReservasApi);
   private readonly destroyRef = inject(DestroyRef);
   readonly formulario = new FormGroup({
-    motivo: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(300)] }),
+    motivo: new FormControl('', {
+      nonNullable: true,
+      validators: [
+        Validators.maxLength(300),
+        ...(this.reserva.motivoObligatorio ? [motivoObligatorio] : []),
+      ],
+    }),
   });
   readonly guardando = signal(false);
   readonly mensaje = signal('');
@@ -57,7 +64,7 @@ export class CancelarDialogo {
       .subscribe({
         next: () => this.referencia.close('cancelada'),
         error: (error: HttpErrorResponse) => {
-          if (error.status === 409 && error.error?.codigo === 'VERSION_DESACTUALIZADA') {
+          if (error.status === 409) {
             this.referencia.close('actualizada');
           } else {
             this.mensaje.set(mostrarErrores(this.formulario, error));

@@ -72,3 +72,42 @@ describe('Cancelación de una cita', () => {
     expect(referencia.close).not.toHaveBeenCalled();
   });
 });
+
+describe('Cancelación administrativa con motivo obligatorio', () => {
+  let http: HttpTestingController;
+  const referencia = { close: vi.fn(), disableClose: false };
+  beforeEach(() => {
+    referencia.close.mockClear();
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: MAT_DIALOG_DATA, useValue: { ...RESERVA_PRUEBA, motivoObligatorio: true } },
+        { provide: MatDialogRef, useValue: referencia },
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+  afterEach(() => http.verify());
+  it.each(['', '   ', 'abcd', 'x'.repeat(301)])(
+    'rechaza motivo vacío o inválido "%s"',
+    (motivo) => {
+      const fixture = TestBed.createComponent(CancelarDialogo);
+      fixture.componentInstance.formulario.controls.motivo.setValue(motivo);
+      fixture.componentInstance.confirmar();
+      http.expectNone('/api/reservas/101/cancelacion');
+      expect(fixture.componentInstance.formulario.invalid).toBe(true);
+    },
+  );
+  it('explica el motivo obligatorio y envía su valor recortado con la versión', () => {
+    const fixture = TestBed.createComponent(CancelarDialogo);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Motivo obligatorio');
+    fixture.componentInstance.formulario.controls.motivo.setValue('  Cambio ficticio  ');
+    fixture.componentInstance.confirmar();
+    const peticion = http.expectOne('/api/reservas/101/cancelacion');
+    expect(peticion.request.body).toEqual({ motivo: 'Cambio ficticio', version: 7 });
+    peticion.flush(RESERVA_PRUEBA);
+    expect(referencia.close).toHaveBeenCalledWith('cancelada');
+  });
+});

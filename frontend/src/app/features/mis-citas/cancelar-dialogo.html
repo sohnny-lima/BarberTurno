@@ -3,12 +3,20 @@
   <mat-dialog-content>
     <p>¿Desea cancelar esta cita? Se liberará su turno.</p>
     <mat-form-field style="width: 100%">
-      <mat-label>Motivo (opcional)</mat-label>
+      <mat-label>{{
+        reserva.motivoObligatorio ? 'Motivo obligatorio' : 'Motivo (opcional)'
+      }}</mat-label>
       <textarea matInput formControlName="motivo" maxlength="300" rows="3"></textarea>
-      <mat-hint>Hasta 300 caracteres.</mat-hint>
+      <mat-hint>{{
+        reserva.motivoObligatorio
+          ? 'Entre 5 y 300 caracteres; se registrará en la auditoría.'
+          : 'Hasta 300 caracteres.'
+      }}</mat-hint>
       <mat-error>{{
         formulario.controls.motivo.getError('servidor') ||
-          'El motivo no puede superar 300 caracteres.'
+          (reserva.motivoObligatorio
+            ? 'Ingrese un motivo de entre 5 y 300 caracteres.'
+            : 'El motivo no puede superar 300 caracteres.')
       }}</mat-error>
     </mat-form-field>
     @if (mensaje()) {

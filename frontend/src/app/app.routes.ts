@@ -61,7 +61,7 @@ export const routes: Routes = [
       {
         path: 'agenda',
         canActivate: [authGuard, rolGuard(['BARBERO', 'ADMIN'])],
-        loadComponent: proximamente,
+        loadComponent: () => import('./features/agenda/agenda').then((modulo) => modulo.Agenda),
         data: { titulo: 'Agenda' },
       },
       {
