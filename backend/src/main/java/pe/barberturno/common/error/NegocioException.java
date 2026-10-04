@@ -79,8 +79,8 @@ public class NegocioException extends RuntimeException {
     }
 
     /**
-     * Lista inmutable de campos inválidos sin valores rechazados; vacía para rechazos sin validación.
-     * @return lista inmutable de campos inválidos; vacía si no es validación
+     * {@return lista inmutable de campos inválidos sin valores rechazados; vacía para rechazos sin
+     * validación}
      */
     public List<ErrorCampo> errores() { return errores; }
 
@@ -91,8 +91,8 @@ public class NegocioException extends RuntimeException {
     public ErrorCodigo codigo() { return codigo; }
 
     /**
-     * Extensiones públicas con copia superficial no modificable; no sustituyen propiedades estándar RFC 9457.
-     * @return mapa superficial no modificable de extensiones públicas
+     * {@return mapa superficial no modificable de extensiones públicas} Sus entradas no sustituyen las
+     * propiedades estándar de RFC 9457.
      */
     public Map<String, Object> detalles() { return detalles; }
 }

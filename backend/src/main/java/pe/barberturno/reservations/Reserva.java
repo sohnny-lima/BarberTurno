@@ -145,107 +145,82 @@ public class Reserva {
         this.actualizadoEn = actualizadoEn;
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
 
-    /**
-     * Usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02).
-     * @return usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02).
-     */
+    /** {@return usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02)} */
     public Usuario getCliente() {
         return cliente;
     }
 
-    /**
-     * Perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
-     * @return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
-     */
+    /** {@return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo} */
     public Barbero getBarbero() {
         return barbero;
     }
 
-    /**
-     * Servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13.
-     * @return servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13.
-     */
+    /** {@return servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13} */
     public Servicio getServicio() {
         return servicio;
     }
 
     /**
-     * Inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
-     * @return inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
+     * {@return inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
+     * nulo}
      */
     public Instant getInicio() {
         return inicio;
     }
 
-    /**
-     * Fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
-     * @return fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo.
-     */
+    /** {@return fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo} */
     public Instant getFin() {
         return fin;
     }
 
     /**
-     * Duración en minutos copiada del catálogo al crear la reserva e inmutable al reprogramar (RN-13).
-     * @return duración en minutos copiada del catálogo al crear la reserva e inmutable al reprogramar (RN-13).
+     * {@return duración en minutos copiada del catálogo al crear la reserva e inmutable al reprogramar
+     * (RN-13)}
      */
     public short getDuracionRefMin() {
         return duracionRefMin;
     }
 
     /**
-     * Precio referencial en soles copiado al crear la reserva; numeric(8,2), conservado según RN-13.
-     * @return precio referencial en soles copiado al crear la reserva; numeric(8,2), conservado según RN-13.
+     * {@return precio referencial en soles copiado al crear la reserva; numeric(8,2), conservado según
+     * RN-13}
      */
     public BigDecimal getPrecioRef() {
         return precioRef;
     }
 
-    /**
-     * Estado persistido de la máquina RN-10; solo CANCELADA libera la franja (RN-14).
-     * @return estado persistido de la máquina RN-10; solo CANCELADA libera la franja (RN-14).
-     */
+    /** {@return estado persistido de la máquina RN-10; solo CANCELADA libera la franja (RN-14)} */
     public EstadoReserva getEstado() {
         return estado;
     }
 
-    /**
-     * Identidad del actor que creó la reserva, cliente o administrador; no nula.
-     * @return identidad del actor que creó la reserva, cliente o administrador; no nula.
-     */
+    /** {@return identidad del actor que creó la reserva, cliente o administrador; no nula} */
     public Usuario getCreadaPor() {
         return creadaPor;
     }
 
     /**
-     * Versión para bloqueo optimista; la API la exige y una diferencia produce VERSION_DESACTUALIZADA.
-     * @return versión para bloqueo optimista; la API la exige y una diferencia produce VERSION_DESACTUALIZADA.
+     * {@return versión para bloqueo optimista; la API la exige y una diferencia produce
+     * VERSION_DESACTUALIZADA}
      */
     public int getVersion() {
         return version;
     }
 
     /**
-     * Instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz; no nulo.
-     * @return instante absoluto de creación, aportado por el Clock del servicio y persistido como timestamptz;
-     * no nulo.
+     * {@return instante absoluto de creación, aportado por el Clock del servicio y persistido como
+     * timestamptz; no nulo}
      */
     public Instant getCreadoEn() {
         return creadoEn;
     }
 
-    /**
-     * Instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
-     * @return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo.
-     */
+    /** {@return instante absoluto del último cambio, aportado por el Clock del servicio; no nulo} */
     public Instant getActualizadoEn() {
         return actualizadoEn;
     }

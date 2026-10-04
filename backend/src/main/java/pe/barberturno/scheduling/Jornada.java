@@ -68,42 +68,27 @@ public class Jornada {
         this.diaSemana = diaSemana;
     }
 
-    /**
-     * Identificador persistente generado por V1; nulo hasta persistir la entidad.
-     * @return identificador persistente generado por V1; nulo hasta persistir la entidad.
-     */
+    /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
     }
 
-    /**
-     * Perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
-     * @return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo.
-     */
+    /** {@return perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo} */
     public Barbero getBarbero() {
         return barbero;
     }
 
-    /**
-     * Día semanal ISO entre 1 (lunes) y 7 (domingo), persistido en dia_semana.
-     * @return día semanal ISO entre 1 (lunes) y 7 (domingo), persistido en dia_semana.
-     */
+    /** {@return día semanal ISO entre 1 (lunes) y 7 (domingo), persistido en dia_semana} */
     public short getDiaSemana() {
         return diaSemana;
     }
 
-    /**
-     * Hora inclusiva de jornada en America/Lima; no nula y anterior a hora_fin (RN-17).
-     * @return hora inclusiva de jornada en America/Lima; no nula y anterior a hora_fin (RN-17).
-     */
+    /** {@return hora inclusiva de jornada en America/Lima; no nula y anterior a hora_fin (RN-17)} */
     public LocalTime getHoraInicio() {
         return horaInicio;
     }
 
-    /**
-     * Hora exclusiva de jornada en America/Lima; no nula y posterior a hora_inicio (RN-17).
-     * @return hora exclusiva de jornada en America/Lima; no nula y posterior a hora_inicio (RN-17).
-     */
+    /** {@return hora exclusiva de jornada en America/Lima; no nula y posterior a hora_inicio (RN-17)} */
     public LocalTime getHoraFin() {
         return horaFin;
     }
