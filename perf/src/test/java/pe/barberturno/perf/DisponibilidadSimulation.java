@@ -23,6 +23,7 @@ public class DisponibilidadSimulation extends Simulation {
     private static final LongAdder CONSULTAS = new LongAdder();
     private static final LongAdder RECORRIDOS_CREAR = new LongAdder();
     private static final LongAdder SIN_FRANJA = new LongAdder();
+    private static final RechazosReserva RECHAZOS = new RechazosReserva();
 
     /**
      * Configura carga cerrada de 300 segundos, drenaje final y aserciones sin relajar umbrales.
@@ -71,9 +72,12 @@ public class DisponibilidadSimulation extends Simulation {
                             .set("destino", ((Number) ids.get(azar.nextInt(ids.size()))).longValue());
                 })
                 .doIf("#{hayFranja}").then(
-                    exec(http("Crear reserva").post("/api/reservas").header("X-XSRF-TOKEN", "#{xsrf}")
+                    exec(session -> session.remove("estadoReserva").remove("codigoReserva"))
+                    .exec(http("Crear reserva").post("/api/reservas").header("X-XSRF-TOKEN", "#{xsrf}")
                         .body(StringBody("{\"servicioId\":#{servicio},\"barberoId\":#{destino},\"inicio\":\"#{inicio}\"}"))
-                        .check(status().in(201, 409, 422).saveAs("estadoReserva"))
+                        // Capturar antes de validar: también conserva 500/503 y cuerpos sin código.
+                        .check(status().saveAs("estadoReserva"), jsonPath("$.codigo").optional().saveAs("codigoReserva"))
+                        .check(status().in(201, 409, 422))
                         .checkIf(session -> session.getInt("estadoReserva") != 201).then(
                             jsonPath("$.codigo").validate("rechazo esperado exacto", (codigo, session) -> {
                                 if (!ResultadoReserva.esperado(session.getInt("estadoReserva"), codigo)) {
@@ -83,6 +87,10 @@ public class DisponibilidadSimulation extends Simulation {
                             }))
                         .checkIf(session -> session.getInt("estadoReserva") == 201).then(jsonPath("$.id").exists()))
                     .exec(session -> {
+                        if (session.contains("estadoReserva")) {
+                            RECHAZOS.registrar(session.getInt("estadoReserva"),
+                                    session.contains("codigoReserva") ? session.getString("codigoReserva") : null);
+                        }
                         if (!session.isFailed()) {
                             switch (session.getInt("estadoReserva")) {
                                 case 201 -> CREADAS.increment();
@@ -113,7 +121,7 @@ public class DisponibilidadSimulation extends Simulation {
     }
 
     /**
-     * Conserva conteos agregados sin sesiones ni credenciales y exige al menos una reserva nueva.
+     * Conserva conteos y desglose HTTP/código sin sesiones ni credenciales; exige un 201 real.
      * @throws UncheckedIOException si no se puede escribir el resumen de negocio
      * @throws IllegalStateException si no se creó ninguna reserva real durante el ensayo
      */
@@ -123,7 +131,8 @@ public class DisponibilidadSimulation extends Simulation {
             Files.writeString(Path.of("target/resultado-negocio.properties"), "creadas=" + CREADAS.sum()
                         + "\nconflictosEsperados=" + CONFLICTOS.sum() + "\nlimitesEsperados=" + LIMITES.sum()
                         + "\nrecorridosConsulta=" + CONSULTAS.sum() + "\nrecorridosCrear=" + RECORRIDOS_CREAR.sum()
-                        + "\nsinFranja=" + SIN_FRANJA.sum() + "\n");
+                        + "\nsinFranja=" + SIN_FRANJA.sum() + "\nrechazosInesperados=" + RECHAZOS.total() + "\n");
+            Files.writeString(Path.of("target/rechazos-inesperados.tsv"), RECHAZOS.resumen());
         } catch (IOException error) { throw new UncheckedIOException(error); }
         if (CREADAS.sum() == 0) throw new IllegalStateException("La carga no creó ninguna reserva real.");
     }

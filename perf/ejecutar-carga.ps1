@@ -90,11 +90,15 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target/datos.properties') -Destination $salida
     [IO.File]::WriteAllText((Join-Path $salida 'commit.txt'), "$commit`n", [Text.UTF8Encoding]::new($false))
     Remove-Item -LiteralPath (Join-Path $PSScriptRoot 'target/resultado-negocio.properties') -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $PSScriptRoot 'target/rechazos-inesperados.tsv') -ErrorAction SilentlyContinue
     Write-Output "Backend listo; base exclusiva sembrada. Gatling: $Usuarios usuarios, $Segundos segundos."
     & (Join-Path $raiz 'backend/mvnw.cmd') -B -ntp -f pom.xml gatling:test "-Dperf.usuarios=$Usuarios" "-Dperf.segundos=$Segundos" *> (Join-Path $salida 'gatling.log')
     $resultadoGatling = $LASTEXITCODE
     if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'target/resultado-negocio.properties')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target/resultado-negocio.properties') -Destination $salida
+    }
+    if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'target/rechazos-inesperados.tsv')) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target/rechazos-inesperados.tsv') -Destination $salida
     }
     if ($resultadoGatling -ne 0) { throw 'Gatling falló; conserve el informe y analice el fallo sin alterar aserciones.' }
     Write-Output 'Gatling: BUILD SUCCESS. Informes locales en perf/target/gatling/.'
