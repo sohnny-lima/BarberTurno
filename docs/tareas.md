@@ -80,7 +80,7 @@
 | T-42 | Contraseña temporal: el diálogo solo se cierra con "Cerrar" (revisión de T-17) | S | T-17 (con T-18) | Hecha · revisión: Aprobada | 03/10/2026 | 276dd9685dd045bbab46eff272b2350c1dbd0972; merge 37d29c65e3a6f3eb5a07531db56175568f635549 |
 | T-43 | Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35) | S | T-35 | Hecha · revisión: Aprobada | 04/10/2026 | `79aef82c5b12a05c46e7c9af3b6a23a07f57ec9a`, `1af96404c926d7b663637b40be7c37c0c00940d5`, cierre `de68dd86da75f3336d47375a8c4c398e21c056d3`; merge `e3f11db9a1206dec14ad982119e887db70e6b162`; único registro docs por asunto (evidencia) |
 | T-44 | Disponibilidad en modo reprogramación con la duración de referencia (hallazgo de T-26, DA-21) | M | T-19, T-23 | Hecha · revisión: Aprobada | 04/10/2026 | 2fb19053c31ef461181693caeafc8517f6f57d85, 9e009de9b658d45d124b5c9a00db640de226cade; cierre 333f7b973fafa580c29f7d7686578d5c0c0b6aa0; merge 204500443a17572d3d1f9fc02ea8e97600028888; único registro docs posterior por asunto (ver evidencia) |
-| T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | Pendiente | | |
+| T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | En curso | | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
