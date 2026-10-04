@@ -262,15 +262,14 @@ pwsh -NoProfile -File ./frontend/tools/verificar-horarios-http.ps1
 ~~~
 
 Requiere los mismos recursos locales y la base dev sin usuarios que el recorrido de catálogo. Crea un ADMIN y un barbero ficticios, guarda y consulta la semana, comprueba el 400 por índice y ocho rechazos CSRF, crea/borra bloqueos individuales y en lote. Edge comprueba 1280/360 px y horas de Lima con la zona del navegador en Madrid. Limpia únicamente los IDs propios, restaura el entorno y detiene los servidores incluso si falla; los logs y capturas quedan ignorados. El 409 de jornada se cubre en JornadaIT mientras no exista la API pública de reservas. [Evidencia y bloqueo T-18/T-42](docs/pruebas/t-18.md).
-Recorrido HTTP de reserva y diagnóstico de reprogramación (avance de T-26 en la rama tarea/T-26-reserva-guiada):
+Recorrido HTTP y visual de reserva/reprogramación (T-26), con Node 24.21.0 activo:
 
 ~~~powershell
 .\frontend\tools\verificar-reserva-http.ps1
 ~~~
 
-Requiere PowerShell 7, el JAR generado por backend verify, puerto 8080 libre, PostgreSQL 18 en 5433 y BT_DB_PASSWORD junto con credenciales BT_ADMIN_CORREO/BT_ADMIN_PASSWORD de un ADMIN autorizado, en el entorno o en .local/barberturno.env. Ejecute después de verify y sin otra suite contra PostgreSQL. El script crea servicio/barbero/jornada por API ADMIN, registra un cliente ficticio, consulta disponibilidad, reserva y reprograma con cookies/CSRF; limpia exclusivamente sus IDs y detiene el backend dev en finally. Incluye el diagnóstico de duración de catálogo y servicio desactivado.
+Requiere PowerShell 7, el JAR de `backend verify`, puertos 8080/4200 libres, Edge local y PostgreSQL 18 en 5433 con la base dev sin usuarios. La credencial de BD se carga solo en el proceso desde `.local/barberturno.env`. El ensayo genera `BT_ADMIN_*` ficticios en el entorno del proceso y usa el administrador inicial de T-10, sin modificar cuentas ni el archivo local. Arranca dev y el proxy Angular; registra un cliente, consulta disponibilidad, crea y reprograma con cookies/CSRF. Comprueba DA-21 con catálogo editado y desactivado, y la vista a 360/1440 px en Europe/Madrid, incluida la restauración tras login. Guarda capturas en `frontend/tmp/` (ignoradas por Git), limpia exclusivamente sus registros por ID —incluido el ADMIN inicial— y detiene sus servidores/navegadores en `finally`. [Evidencia de T-26](docs/pruebas/t-26.md).
 
-T-26 está Bloqueada: disponibilidad de reprogramación aún no usa la duración de referencia ni permite conservar servicio desactivado, y faltan las credenciales ADMIN para completar este ensayo. No se presenta el avance como integrado ni como prueba HTTP aprobada. [Evidencia y requisitos para desbloquear](docs/pruebas/t-26.md).
 E2E (`npx playwright test`) se incorporará en T-34.
 
 ## Medición del porcentaje de Java
