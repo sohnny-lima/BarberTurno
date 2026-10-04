@@ -3,11 +3,13 @@ package pe.barberturno.reservations;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import pe.barberturno.audit.dto.AuditoriaDto;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.error.NegocioException;
 import pe.barberturno.common.security.UsuarioAutenticado;
@@ -15,7 +17,7 @@ import pe.barberturno.common.web.PaginaDto;
 import pe.barberturno.reservations.dto.*;
 
 /**
- * Rutas RF-08/09/10/11/12/13 con sesión, CSRF en escrituras y autorización en servidor.
+ * Rutas RF-08/09/10/11/12/13/17 con sesión, CSRF en escrituras y autorización en servidor.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -150,6 +152,18 @@ public class ReservaController {
     public ReservaDto transicionar(@PathVariable long id, @Valid @RequestBody TransicionarReservaDto cmd,
             @AuthenticationPrincipal UsuarioAutenticado actor) {
         return reservas.transicionar(id, cmd, actor);
+    }
+
+    /**
+     * Expone el historial RF-17 al personal autorizado según la matriz §7.2.
+     * @param actor identidad autenticada del solicitante
+     * @param id reserva concreta cuyo historial se consulta
+     * @return HTTP 200 con los cambios ordenados del más antiguo al más reciente
+     * @throws NegocioException PROHIBIDO para el CLIENTE propietario; NO_ENCONTRADO para reserva inexistente o ajena
+     */
+    @GetMapping("/api/reservas/{id}/auditoria")
+    public List<AuditoriaDto> auditoria(@AuthenticationPrincipal UsuarioAutenticado actor, @PathVariable long id) {
+        return consultas.auditoria(actor, id);
     }
 
     private static void validarVacios(Map<String, String> parametros) {

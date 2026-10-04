@@ -60,7 +60,7 @@
 | T-22 | Cancelación (RF-10) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 75377633d2d494bf0afd6d5b1f73f5d29de22e74, b58e26fb34f880d9459085e2083b9c4aabe94020; cierre ab45b1bb6c359ed9d42ac0b30213d8e9f710734d; merge 7efb8d3088389ca4e5d433b8c21215e12ac2a2f7 |
 | T-23 | Reprogramación (RF-09) | M | T-22 | Hecha · revisión: Aprobada | 04/10/2026 | de24a36, c0578d4; cierre 8559899; merge b43e264 |
 | T-24 | Transiciones de estado (RF-12) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 836586bb77532815713adf697220564a7b51b61c · 24d876f26ab1e4bdda809fff728849364994e399 · 37ff5d71713f5ff56a6cd5ecedd963b90ca46ddd · merge 718e86b13af5f03f57ab9a7c6dd7d94cfa12da1e |
-| T-25 | API de auditoría y avisos (RF-16, RF-17) | M | T-24 | Pendiente | | |
+| T-25 | API de auditoría y avisos (RF-16, RF-17) | M | T-24 | En curso | | |
 | T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | Pendiente | | |
 | T-27 | Mis citas y avisos en el frontend (P03) | M | T-26, T-23, T-25 | Pendiente | | |
 | T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Pendiente | | |
