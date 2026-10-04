@@ -219,7 +219,7 @@ Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra 
 
 La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Sin una sesión, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
 
-La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor emite la cookie y verifica la cabecera en toda escritura (T-10/T-11). La SPA carga la sesión antes de arrancar; abre /ingresar sin sesión y redirige a /reservar (CLIENTE) o /agenda (personal) tras el acceso. La reserva guiada y Mis citas están disponibles para el cliente; Agenda sigue provisional hasta T-28. /registro incluye el aviso de privacidad académico; /perfil permite editar nombre y teléfono, con correo de solo lectura. Una contraseña temporal obliga a /cambiar-password.
+La página inicial contiene la barra Material «BarberTurno», un tema M3 generado desde navy `#173c4d` y teal `#087f8c`, y locale `es-PE`. HttpClient usa la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`. El servidor emite la cookie y verifica la cabecera en toda escritura (T-10/T-11). La SPA carga la sesión antes de arrancar; abre /ingresar sin sesión y redirige a /reservar (CLIENTE) o /agenda (personal) tras el acceso. La reserva guiada y Mis citas están disponibles para el cliente; /agenda ofrece día/semana, atención y auditoría para BARBERO y ADMIN, con reprogramación y cancelación administrativa por permisos del servidor. /registro incluye el aviso de privacidad académico; /perfil permite editar nombre y teléfono, con correo de solo lectura. Una contraseña temporal obliga a /cambiar-password.
 
 Calidad del frontend, con Node activo y desde `frontend/`:
 
@@ -301,6 +301,14 @@ node --test tools/verificar-medicion.test.mjs
 El medidor de T-05 cuenta LOC físicas sin comentarios ni líneas vacías de Java, TS, HTML, SCSS/CSS y SQL en `backend/src`, `frontend/src`, `frontend/e2e` y `perf/`. Informa Java con y sin pruebas; la carga es un subconjunto de pruebas y se desglosa aparte. Las exclusiones aparecen con su motivo, incluida la paleta generada de Material. `--json` incluye el detalle por archivo; `--escribir` añade una sección fechada a la [medición acumulada](docs/pruebas/medicion-java.md), y puede combinarse con `--json`.
 
 Las plantillas TS se cuentan como literales opacos, sin analizar sus interpolaciones; el analizador no interpreta regex TS ni dollar quoting SQL. El commit identifica HEAD; se cuenta el árbol de trabajo, por lo que conviene medir sin cambios en las fuentes. La interpretación final de RA-02 corresponde al docente (P-02). [Evidencia de T-05](docs/pruebas/t-05.md).
+
+Recorrido HTTP y visual de Agenda (T-28), con Node 24.21.0 activo y después de backend/mvnw.cmd verify:
+
+~~~powershell
+.\frontend\tools\verificar-agenda-http.ps1
+~~~
+
+Requiere JDK 21, PostgreSQL 18 en 5433, el JAR de verify, Edge local, puertos 8080/4200 libres y dev sin usuarios para reconocer su ADMIN inicial. Crea ADMIN con BT_ADMIN_* ficticias solo en el proceso, barbero/servicio/jornadas y cliente por API; cambia la contraseña temporal del barbero por API. Comprueba las filas, motivos obligatorios de ADMIN y el BARBERO sin selector a 1440/360 px, con Edge en Europe/Madrid. Luego ajusta exclusivamente su reserva ficticia a un minuto antes del reloj real (inicio/fin y versión), consulta la agenda del día, inicia/completa por HTTP y consulta la auditoría como ADMIN. Verifica CSRF, rol y versión antigua. No promueve roles por SQL. Limpia por IDs y detiene sus procesos en finally; logs/capturas quedan en frontend/tmp/, ignorado. No ejecute otra suite PostgreSQL ni otro backend durante el recorrido. [Evidencia T-28](docs/pruebas/t-28.md).
 
 ## Integración continua
 
