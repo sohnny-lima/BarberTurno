@@ -144,6 +144,7 @@ export class BarberoDialogo {
               .subscribe(() =>
                 this.dialogos.open(PasswordTemporalDialogo, {
                   data: datos.passwordTemporal,
+                  disableClose: true,
                   width: '480px',
                   maxWidth: 'calc(100vw - 32px)',
                   autoFocus: 'first-tabbable',
