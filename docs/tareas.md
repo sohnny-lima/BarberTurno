@@ -61,7 +61,7 @@
 | T-23 | Reprogramación (RF-09) | M | T-22 | Hecha · revisión: Aprobada | 04/10/2026 | de24a36, c0578d4; cierre 8559899; merge b43e264 |
 | T-24 | Transiciones de estado (RF-12) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 836586bb77532815713adf697220564a7b51b61c · 24d876f26ab1e4bdda809fff728849364994e399 · 37ff5d71713f5ff56a6cd5ecedd963b90ca46ddd · merge 718e86b13af5f03f57ab9a7c6dd7d94cfa12da1e |
 | T-25 | API de auditoría y avisos (RF-16, RF-17) | M | T-24 | Hecha · revisión: Aprobada | 04/10/2026 | 808bede, 8b22a16, d0fda86; merge f90cc73 |
-| T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | Pendiente | | |
+| T-26 | Reserva guiada en el frontend (P02) | M | T-12, T-20 | En curso | 04/10/2026 | |
 | T-27 | Mis citas y avisos en el frontend (P03) | M | T-26, T-23, T-25 | Pendiente | | |
 | T-28 | Agenda en el frontend (P04) | M | T-27, T-24 | Pendiente | | |
 | T-29 | Reportes backend (RF-14) | M | T-21 | Hecha · revisión: Aprobada | 04/10/2026 | 09d680be6baf0b941a77fc20ed0b5979eabc5452, 9efe2613135dc9e09f0a32eaba8f49f6703884c0; cierre 5206124d0e5cfd8672135415883cb05c76642e8e; merge 9d80e11cecd73a3b76afbc7e41cb6cb0331fb31e |
