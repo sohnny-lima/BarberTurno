@@ -81,7 +81,7 @@
 | T-43 | Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35) | S | T-35 | Hecha · revisión: Aprobada | 04/10/2026 | `79aef82c5b12a05c46e7c9af3b6a23a07f57ec9a`, `1af96404c926d7b663637b40be7c37c0c00940d5`, cierre `de68dd86da75f3336d47375a8c4c398e21c056d3`; merge `e3f11db9a1206dec14ad982119e887db70e6b162`; único registro docs por asunto (evidencia) |
 | T-44 | Disponibilidad en modo reprogramación con la duración de referencia (hallazgo de T-26, DA-21) | M | T-19, T-23 | Hecha · revisión: Aprobada | 04/10/2026 | 2fb19053c31ef461181693caeafc8517f6f57d85, 9e009de9b658d45d124b5c9a00db640de226cade; cierre 333f7b973fafa580c29f7d7686578d5c0c0b6aa0; merge 204500443a17572d3d1f9fc02ea8e97600028888; único registro docs posterior por asunto (ver evidencia) |
 | T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | Hecha · revisión: Aprobada | 04/10/2026 | a33352fff1d62f289a3be4601ea37817c9b64aa6, 2fe0aa00b34cd5d7ddc0d0d91dc7b08d0aa25527, e03ab236f52cddbf51504ee163b6acf13767486f; cierre cef254acc83490be89a5470ab6c3babad0a86d4a; merge 44b28399af19a99145c77e71b973e2d49a992977; único registro docs posterior por asunto (evidencia) |
-| T-46 | Errores estándar de Spring MVC con su estado HTTP (revisión de T-33) | S | T-08 | Pendiente | | |
+| T-46 | Errores estándar de Spring MVC con su estado HTTP (revisión de T-33) | S | T-08 | En curso | 04/10/2026 | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
