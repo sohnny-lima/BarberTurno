@@ -68,7 +68,7 @@
 | T-30 | Reportes en el frontend (P08) | M | T-29, T-28 | Hecha · revisión: Aprobada | 04/10/2026 | bb34647d22061d942a5259563b773e7f0d4554b7, 79db54cd7dcd91af5d9fc2bc9d1a44f80b5612cd, c86162fae853fc08fe2556328ffa0efcc106ae74, b71424253a4774b0c3fe24e8f5c109e1d64dc10d; cierre e106cd4f1bf129ecd2906463929e78c1b1e459e1; merge 48bbf6577db1587cf5fd9454a98f666acb315e8c; registro posterior por asunto (ver evidencia) |
 | T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Hecha · revisión: Aprobada | 04/10/2026 | `4e24320`, incorporación main `9fa6c9a`, `a90882d`, `171bd96`, cierre `810b19a`; merge `d074c11c4f0897143d0b4d959911974a05e17525`; único registro posterior por asunto en evidencia |
 | T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Hecha · revisión: Aprobada | 04/10/2026 | 48bfae2, 7cbe4ef, 94da026; cierre bb2adc6; merge 1e62954 |
-| T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Pendiente | | |
+| T-33 | Empaquetado y endurecimiento de producción | M | T-30 | En curso | 04/10/2026 | |
 | T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
 | T-35 | Prueba de carga (RNF-01) | M | T-32 | Hecha · revisión: Aprobada con observaciones | 04/10/2026 | `a782d90`, `4fcebac`, `e464b20`, cierre `472b268`; merge `7591e7a`; registro docs por asunto |
 | T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | Pendiente | | |
