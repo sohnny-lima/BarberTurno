@@ -24,4 +24,21 @@ class ReservaConfirmacionManualIT extends ReservaPruebaBase {
                 .isInstanceOfSatisfying(pe.barberturno.common.error.NegocioException.class,
                         e -> assertThat(e.codigo()).isEqualTo(pe.barberturno.common.error.ErrorCodigo.FRANJA_NO_DISPONIBLE));
     }
+
+    @Test void cancelarCreadaConConfirmacionManual_200PendienteACancelada() throws Exception {
+        var dto = crearHttp(cliente, cmd(barbero, "10:00"));
+        assertThat(dto.estado()).isEqualTo(pe.barberturno.reservations.EstadoReserva.PENDIENTE);
+        var resultado = mvc.perform(conCsrf(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                        "/api/reservas/{id}/cancelacion", dto.id())
+                        .contentType("application/json").content("{\"version\":0}"), sesion(cliente)))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.estado").value("CANCELADA"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.version").value(1))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.permisos.cancelar").value(false));
+        assertThat(jdbc.queryForObject("select estado_anterior from auditoria_reserva where accion='CANCELAR'",
+                String.class)).isEqualTo("PENDIENTE");
+        assertThat(cantidad("reserva")).isOne();
+        assertThat(cantidad("notificacion")).isEqualTo(4);
+    }
 }

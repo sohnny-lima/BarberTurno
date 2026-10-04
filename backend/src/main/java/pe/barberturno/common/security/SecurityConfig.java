@@ -31,7 +31,7 @@ public class SecurityConfig {
     /**
      * Configura JWT por cookie sin sesiones HTTP y permisos §7.2; impone DEFAULT_CSRF_MATCHER también con JWT
      * para proteger toda escritura. Permite el GET público exacto de disponibilidad RF-07 y POST /api/reservas solo CLIENTE (RF-08).
-     * Autoriza los GET RF-11/13 por rol; el servicio impone propiedad y asignación en cada consulta.
+     * Permite cancelación RF-10 solo a CLIENTE o ADMIN con CSRF. Autoriza los GET RF-11/13 por rol; el servicio impone propiedad y asignación en cada consulta.
      * Añade filtro de contraseña temporal y errores RFC 9457.
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
@@ -115,6 +115,7 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.GET, "/api/reservas/mias").hasRole("CLIENTE");
                     permisos.requestMatchers(HttpMethod.GET, "/api/reservas").hasAnyRole("BARBERO", "ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/reservas/{id}").authenticated();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/reservas/{id}/cancelacion").hasAnyRole("CLIENTE", "ADMIN");
                     permisos.anyRequest().denyAll();
                 });
         return http.build();
