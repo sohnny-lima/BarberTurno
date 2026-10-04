@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -35,10 +37,11 @@ public class SecurityConfig {
      * Permite transiciones RF-12 solo a BARBERO o ADMIN; el servicio comprueba asignación y RN-12.
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
      * Autoriza el resumen RF-14 y gestión de usuarios RF-19 exclusivamente a ADMIN.
-     * Añade filtro de contraseña temporal y errores RFC 9457.
+     * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
      * @param respuestas errores RFC 9457
+     * @param cookies política compartida de borrado de sesión que conserva los atributos de emisión
      * @param apiDocsHabilitada habilitación de OpenAPI
      * @param swaggerHabilitado habilitación de Swagger
      * @param cookieSecure seguridad de cookies según perfil
@@ -47,12 +50,16 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, UsuarioJwtConverter converter,
-            RespuestaSeguridad respuestas,
+            RespuestaSeguridad respuestas, CookieSesion cookies,
             @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsHabilitada,
             @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerHabilitado,
             @Value("${barberturno.seguridad.cookie-secure:false}") boolean cookieSecure) throws Exception {
-        var entryPoint = (org.springframework.security.web.AuthenticationEntryPoint) (request, response, error) ->
-                respuestas.escribir(request, response, ErrorCodigo.NO_AUTENTICADO, "Se requiere una sesión válida.");
+        var entryPoint = (org.springframework.security.web.AuthenticationEntryPoint) (request, response, error) -> {
+            if (error instanceof OAuth2AuthenticationException) {
+                response.addHeader(HttpHeaders.SET_COOKIE, cookies.borrar().toString());
+            }
+            respuestas.escribir(request, response, ErrorCodigo.NO_AUTENTICADO, "Se requiere una sesión válida.");
+        };
         var denegado = (org.springframework.security.web.access.AccessDeniedHandler) (request, response, error) ->
                 respuestas.escribir(request, response, ErrorCodigo.PROHIBIDO, "No tiene permiso para realizar esta acción.");
         var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
