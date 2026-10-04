@@ -6,6 +6,14 @@ import org.junit.jupiter.api.Test;
 /** Comprueba que la herramienta no escriba otras bases ni oculte rechazos inesperados. */
 class ProteccionesCargaTest {
     @Test
+    void bcrypt_enProyectoIndependiente_funcionaConCosteDoce() {
+        var encoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(12);
+        String clave = "Carga35" + java.util.UUID.randomUUID();
+        String hash = encoder.encode(clave);
+        assertTrue(hash.startsWith("$2a$12$"));
+        assertTrue(encoder.matches(clave, hash));
+    }
+    @Test
     void base_fueraDeLaDedicada_rechaza() {
         for (String url : new String[]{"jdbc:postgresql://localhost:5433/barberturno_test",
                 "jdbc:postgresql://localhost:5433/barberturno", "jdbc:postgresql://remoto:5433/barberturno_perf",
