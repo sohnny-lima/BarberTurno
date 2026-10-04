@@ -80,6 +80,7 @@
 | T-42 | Contraseña temporal: el diálogo solo se cierra con "Cerrar" (revisión de T-17) | S | T-17 (con T-18) | Hecha · revisión: Aprobada | 03/10/2026 | 276dd9685dd045bbab46eff272b2350c1dbd0972; merge 37d29c65e3a6f3eb5a07531db56175568f635549 |
 | T-43 | Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35) | S | T-35 | Hecha · revisión: Aprobada | 04/10/2026 | `79aef82c5b12a05c46e7c9af3b6a23a07f57ec9a`, `1af96404c926d7b663637b40be7c37c0c00940d5`, cierre `de68dd86da75f3336d47375a8c4c398e21c056d3`; merge `e3f11db9a1206dec14ad982119e887db70e6b162`; único registro docs por asunto (evidencia) |
 | T-44 | Disponibilidad en modo reprogramación con la duración de referencia (hallazgo de T-26, DA-21) | M | T-19, T-23 | Hecha · revisión: Aprobada | 04/10/2026 | 2fb19053c31ef461181693caeafc8517f6f57d85, 9e009de9b658d45d124b5c9a00db640de226cade; cierre 333f7b973fafa580c29f7d7686578d5c0c0b6aa0; merge 204500443a17572d3d1f9fc02ea8e97600028888; único registro docs posterior por asunto (ver evidencia) |
+| T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | Pendiente | | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -355,6 +356,13 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** en `DisponibilidadService.consultarFranjas`, cuando hay `excluirReservaId` (ya autorizado): leer la reserva sin bloqueo, exigir que `servicioId` sea el suyo (si no, 400 `VALIDACION`), usar su `duracion_ref` para las candidatas y para `duracionMin`, y no exigir que el servicio siga activo; el barbero sigue debiendo estar activo. Sin cambios en `validarFranja` ni en la reprogramación.
 - **Criterios de aceptación:** con una reserva de 30 min cuyo servicio pasa a 40 min y después se desactiva, la consulta de reprogramación devuelve franjas de 30 min y `duracionMin = 30`; toda franja listada es aceptada por `POST /api/reservas/{id}/reprogramacion` (prueba de coincidencia); `servicioId` distinto → 400; sin `excluirReservaId`, el comportamiento no cambia.
 - **Prioridad:** M; bloquea la integración de T-26.
+
+### T-45 · Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22)
+- **Origen:** recorrido de T-31 (encargo 035): tras restablecer la contraseña, la cookie revocada sigue en el navegador y el siguiente login recibe 401 `NO_AUTENTICADO`; también fallan las rutas públicas (sesión, catálogo, disponibilidad) hasta que caduca.
+- **Alcance (backend):** `CookieBearerTokenResolver` devuelve `null` también para `POST /api/auth/login` y `POST /api/auth/registro`; el *entry point* del resource server, cuando el fallo es de token (inválido, caducado, revocado o cookie ambigua), añade `Set-Cookie: BT_SESION=; Max-Age=0` con los mismos atributos (`Path`, `HttpOnly`, `SameSite`, `Secure` según perfil). El 401 y su `ProblemDetail` no cambian.
+- **Criterios de aceptación:** con una cookie revocada: login correcto → 200 y cookie nueva; registro → 201; `GET /api/auth/sesion` → 401 que borra la cookie y la siguiente petición pública → 200; ninguna ruta protegida acepta el token revocado. El rodeo del frontend de T-31 (si existe) se mantiene inocuo o se simplifica.
+- **Pruebas:** `*IT` de los casos anteriores (cambio de contraseña, restablecimiento por ADMIN y desactivación) y comprobación de los atributos de la cookie borrada.
+- **Prioridad:** M (seguridad y uso); después de T-31.
 
 ---
 
