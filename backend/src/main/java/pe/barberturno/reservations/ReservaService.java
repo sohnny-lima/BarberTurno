@@ -17,7 +17,8 @@ import pe.barberturno.scheduling.*;
 import pe.barberturno.users.*;
 
 /**
- * Creación RF-08, reprogramación RF-09 con bloqueos ① ② ③ y cancelación RF-10; trazabilidad atómica RN-15.
+ * Creación RF-08, reprogramación RF-09, cancelación RF-10 y transiciones RF-12.
+ * Aplica los bloqueos de §8 y la trazabilidad atómica RN-15.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -35,7 +36,7 @@ public class ReservaService {
     private final ReservaAutorizacion autorizacion;
 
     /**
-     * Recibe colaboradores de creación, reprogramación y cancelación atómicas.
+     * Recibe colaboradores de creación, reprogramación, cancelación y transiciones atómicas.
      * @param reservas persistencia y consultas RN-04/20
      * @param usuarios bloqueo ① del cliente
      * @param barberos bloqueo ② de agenda
@@ -234,6 +235,64 @@ public class ReservaService {
         }
         destinatarios.values().forEach(usuario ->
                 notificaciones.notificar(usuario, reserva, AccionAuditoria.REPROGRAMAR, mensaje));
+        return ReservaDto.desde(reserva, actor, clock.instant(), parametros);
+    }
+
+    /**
+     * Aplica RN-10/11/12 bajo bloqueo ③; reserva, auditoría y avisos RN-15 son atómicos.
+     * Evalúa visibilidad, destino operativo, versión y política después de adquirir el bloqueo.
+     * @param id identidad de la reserva que se bloquea sin precarga JPA
+     * @param cmd destino obligatorio y versión optimista leída por el actor
+     * @param actor BARBERO asignado o ADMIN con identidad revalidada
+     * @return reserva con estado, versión y permisos actualizados para el actor
+     * @throws NegocioException si es inexistente o ajena (404), el destino no es operativo (400),
+     * el rol no está autorizado (403), la versión o transición son inválidas (409), o falla RN-12 (422)
+     * @throws org.springframework.dao.DataIntegrityViolationException si falla una escritura de la transacción
+     */
+    @Transactional
+    public ReservaDto transicionar(long id, TransicionarReservaDto cmd, UsuarioAutenticado actor) {
+        var reserva = reservas.bloquearPorId(id).orElseThrow(this::noEncontrado); // ③, sin precarga
+        if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
+        if (cmd.estado() == null || cmd.estado() == EstadoReserva.PENDIENTE || cmd.estado() == EstadoReserva.CANCELADA) {
+            throw new NegocioException(ErrorCodigo.VALIDACION, "Seleccione un destino operativo válido.");
+        }
+        if (cmd.version() != reserva.getVersion()) {
+            throw new NegocioException(ErrorCodigo.VERSION_DESACTUALIZADA, "La reserva cambió. Actualice sus datos.");
+        }
+        EstadoReserva anterior = reserva.getEstado();
+        Instant ahora = clock.instant();
+        var resultado = new PoliticaTransiciones().evaluar(actor.rol(),
+                actor.id() == reserva.getBarbero().getUsuario().getId(), anterior, cmd.estado(),
+                ahora, reserva.getInicio(), Duration.ofMinutes(parametros.toleranciaInicioMin()),
+                parametros.anticipacionCambioCliente(), null);
+        switch (resultado) {
+            case TRANSICION_INVALIDA -> throw new NegocioException(ErrorCodigo.TRANSICION_INVALIDA,
+                    "El estado actual no permite la transición solicitada.");
+            case PROHIBIDO -> throw new NegocioException(ErrorCodigo.PROHIBIDO,
+                    "Su rol no permite esta transición.");
+            case FUERA_DE_VENTANA -> throw new NegocioException(ErrorCodigo.FUERA_DE_VENTANA,
+                    "La reserva está fuera de la ventana de atención.");
+            case PERMITIDA -> { }
+        }
+        var accion = Map.of(EstadoReserva.CONFIRMADA, AccionAuditoria.CONFIRMAR,
+                EstadoReserva.EN_ATENCION, AccionAuditoria.INICIAR,
+                EstadoReserva.COMPLETADA, AccionAuditoria.COMPLETAR,
+                EstadoReserva.NO_ASISTIO, AccionAuditoria.NO_ASISTIO).get(cmd.estado());
+        String etiqueta = Map.of(EstadoReserva.CONFIRMADA, "confirmada", EstadoReserva.EN_ATENCION, "en atención",
+                EstadoReserva.COMPLETADA, "completada", EstadoReserva.NO_ASISTIO, "no asistió").get(cmd.estado());
+        reserva.cambiarEstado(cmd.estado(), ahora);
+        reservas.saveAndFlush(reserva);
+        auditoria.registrarCambio(reserva, usuarios.getReferenceById(actor.id()), accion,
+                anterior, Map.of("estado", anterior.name()), Map.of("estado", cmd.estado().name()), null, false);
+        String mensaje = "Reserva BT-" + id + ": estado actualizado a " + etiqueta
+                + ", " + TiempoNegocio.aLima(reserva.getInicio()).format(
+                        DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
+                + " (hora de Lima).";
+        notificaciones.notificar(reserva.getCliente(), reserva, accion, mensaje);
+        var asignado = reserva.getBarbero().getUsuario();
+        if (accion == AccionAuditoria.CONFIRMAR && asignado.getId() != actor.id()) {
+            notificaciones.notificar(asignado, reserva, accion, mensaje);
+        }
         return ReservaDto.desde(reserva, actor, clock.instant(), parametros);
     }
 
