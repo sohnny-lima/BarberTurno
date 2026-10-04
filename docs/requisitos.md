@@ -43,7 +43,7 @@ Límites: **una sede**, **hasta 10 profesionales activos**, una reserva = **un c
 | ID | Restricción | Origen |
 |---|---|---|
 | RA-01 | Alternativa seleccionada A1: SPA **Angular** + API **Spring Boot (Java)** + **PostgreSQL**. A2 (Spring MVC + Thymeleaf) queda como contingencia. | [Inf p. 3, 10, 23] |
-| RA-02 | Java debe representar **≥ 50 %** del código fuente del producto (A1 estima 60 %). Métrica: LOC Java propias ÷ LOC totales del producto × 100. Se excluyen dependencias, generados, comentarios, líneas vacías y documentación. Se informa también la cifra sin pruebas. | [Inf p. 10] |
+| RA-02 | El backend se implementa en **Java** (A1). *Reclasificada el 04/10/2026 por el responsable:* el porcentaje de Java (A1 estimaba 60 %) es solo una **métrica informativa** de seguimiento, sin umbral; no bloquea tareas ni justifica mover lógica entre capas, que se reparte por responsabilidad (la lógica de negocio sigue en el servidor por diseño, DA-15). Medición: LOC Java propias ÷ LOC totales, con y sin pruebas, excluyendo dependencias, generados, comentarios, líneas vacías y documentación. | [Inf p. 10] |
 | RA-03 | El porcentaje no se demuestra con mockups ni por el framework: se mide en el repositorio con una herramienta reproducible (tarea T-05). | [Inf p. 10] |
 | RA-04 | Trazabilidad RF → pantalla → prueba. Se conservan los IDs del APF1/APF2. | [Inf p. 7, 30] |
 | RA-05 | Documentación de clases con Javadoc (`@author`, `@version`, `@param`, `@return`, `@throws`) al menos en las clases de dominio y servicios. | [Inf p. 37] |
@@ -210,7 +210,7 @@ Cada mejora queda incorporada en los requisitos, en la arquitectura y en las tar
 | ID | Pendiente | Quién decide | Impacto si no se resuelve |
 |---|---|---|---|
 | P-01 | Validar reglas, precios, jornadas y el límite de 2 h con un representante de la barbería [Inf p. 3, 24]. | Estudiante / negocio | Se usan los valores académicos actuales. |
-| P-02 | Confirmar con el docente el método de conteo del % Java (RA-02) y si cuentan HTML, SCSS y SQL. **Urgente desde el 03/10/2026:** con T-18, Java es el 48,32 % del producto sin pruebas (61,28 % con pruebas; 58,8 % sin pruebas si no cuentan HTML ni SCSS) y la proyección al cierre ronda el 48 % sin pruebas. Ver la revisión de T-18 (O-1). | Docente / estudiante | T-05 mide ambas variantes. Actualización del 04/10/2026: con el backend completo, `main` + T-18 da **57,50 %** sin pruebas (72,74 % con pruebas) y T-18 se integra. Con las pantallas que faltan (T-26…T-28, T-30, T-31), la proyección al cierre es ≈ 45 % sin pruebas y ≈ 64 % con pruebas: la decisión sigue siendo necesaria antes de T-26. |
+| P-02 | ~~Confirmar con el docente el método de conteo del % Java (RA-02).~~ **Resuelta el 04/10/2026 por el responsable:** el % de Java no es un requisito de aprobación; el requisito real (backend en Java) ya se cumple. RA-02 queda como métrica informativa (con T-18 integrada, 57,50 % sin pruebas y 72,74 % con pruebas). | Estudiante | — |
 | P-03 | Proveedor de alojamiento, dominio y certificado TLS para producción (RNF-02, RNF-03). | Estudiante | T-33 deja todo listo para cualquier host con Java 21 + PostgreSQL. |
 | P-04 | Crear el repositorio remoto (GitHub) para activar la CI. | Estudiante | La CI (T-04) solo corre al hacer push a un remoto. |
 | P-05 | Fechas reales de los siguientes avances y de la entrega final (la línea base propone el 20/12/2026). | Docente | Se usa el Gantt del APF2. |

@@ -535,6 +535,8 @@ Los casos CP-01…CP-19 (requisitos §9.1) se ejecutan y registran en `docs/prue
 - **Respaldo** (RNF-09): `pg_dump -Fc` diario con retención de 14 días. El procedimiento de restauración está documentado y ensayado (T-36). En caso de interrupción, el plan del APF2 prevé un registro manual que el administrador concilia después con la reserva asistida (RF-18) [Inf p. 4].
 
 ## 12. Medición del porcentaje de Java (RA-02)
+**Métrica informativa (04/10/2026):** el responsable aclaró que el porcentaje no es un requisito de aprobación. Se sigue midiendo como dato técnico, sin umbrales ni alertas, y **no** condiciona el diseño: frontend y backend se reparten el trabajo por responsabilidad, no por número de líneas.
+
 `node tools/medir-java.mjs` cuenta las líneas de código (sin vacías ni comentarios) por lenguaje en `backend/src`, `frontend/src`, `frontend/e2e` y `perf/`, excluyendo dependencias, `dist`, `target`, generados y `docs`. Informa: (a) el % Java con pruebas, (b) el % Java sin pruebas, y (c) el desglose por lenguaje (Java, TS, HTML, SCSS, SQL). El resultado se guarda en `docs/pruebas/medicion-java.md` en cada hito. Las decisiones que favorecen el objetivo **sin artificios**: la lógica de negocio está toda en Java (incluido el cálculo de permisos de `ReservaDto.permisos`), los datos de demostración se cargan en Java y Angular Material evita escribir componentes de UI propios.
 
 ---
