@@ -69,7 +69,7 @@
 | T-31 | Reserva asistida y gestión de usuarios (RF-18, RF-19) | S | T-30 | Hecha · revisión: Aprobada | 04/10/2026 | `4e24320`, incorporación main `9fa6c9a`, `a90882d`, `171bd96`, cierre `810b19a`; merge `d074c11c4f0897143d0b4d959911974a05e17525`; único registro posterior por asunto en evidencia |
 | T-32 | Datos de demostración y corrida manual automatizada | M | T-25, T-29 | Hecha · revisión: Aprobada | 04/10/2026 | 48bfae2, 7cbe4ef, 94da026; cierre bb2adc6; merge 1e62954 |
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Hecha · revisión: Aprobada con observaciones | 04/10/2026 | `a870290615fbaa3b099683645645628c68b52d91`, `d9432ce15ae2903ee62b38ef565689da95160b6d`, `f92038500ee3840c9447d353a587008c5cb4aff7`, cierre `e53e0917d1c33293949ddf6114c8d108fd2bb33b`; merge `532920bc9f788badc78a35ec700716a218462e5b`; único registro posterior por asunto en evidencia |
-| T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Pendiente | | |
+| T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | En curso | 04/10/2026 | |
 | T-35 | Prueba de carga (RNF-01) | M | T-32 | Hecha · revisión: Aprobada con observaciones | 04/10/2026 | `a782d90`, `4fcebac`, `e464b20`, cierre `472b268`; merge `7591e7a`; registro docs por asunto |
 | T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | Pendiente | | |
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
