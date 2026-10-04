@@ -34,6 +34,7 @@ public class SecurityConfig {
      * Permite reprogramación RF-09 y cancelación RF-10 solo a CLIENTE o ADMIN con CSRF. Autoriza los GET RF-11/13 por rol; el servicio impone propiedad y asignación en cada consulta.
      * Permite transiciones RF-12 solo a BARBERO o ADMIN; el servicio comprueba asignación y RN-12.
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
+     * Autoriza el resumen RF-14 exclusivamente a ADMIN.
      * Añade filtro de contraseña temporal y errores RFC 9457.
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
@@ -122,6 +123,7 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.GET, "/api/reservas/{id}/auditoria").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/notificaciones", "/api/notificaciones/conteo").authenticated();
                     permisos.requestMatchers(HttpMethod.POST, "/api/notificaciones/{id}/lectura", "/api/notificaciones/lectura").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/reportes/resumen").hasRole("ADMIN");
                     permisos.anyRequest().denyAll();
                 });
         return http.build();
