@@ -78,7 +78,7 @@
 | T-40 | Javadoc completo, generación HTML reproducible y muestra para la exposición | M | T-13 (antes de T-14) | Hecha · revisión: Aprobada | 01/10/2026 | `d03544c7e7d9c01618a97ccde9f770af6b21006b`, `bc58ad9a9154855dd83e1a5d3d82999d22860b81`, `5792d461afd9fa47ee59829ebffc4aaae88f6b73`, `ce725a5cd7e55351c833f8f7b56a1abac8e9e53c`; `ce6cc994157a78e161931139254456a56dc8d483`, `3951ea4a6df7ee3350d09a2a8d061067ca6aacba`, `fe7e348056e204ec1a0e2878780da1979f1fed92`; `c0a5564efc7b388cb3c6ffff5b30f53647096c5d`; merge `0da66c574ddcae79e33e002d9c669d1609f7b416`; registro posterior por asunto (evidencia) |
 | T-41 | Javadoc: quitar la duplicación entre descripción y `@return` en los *getters* | C | T-40 (antes de T-37) | Hecha · revisión: Aprobada | 04/10/2026 | `2d70929c3c007dbe771346f39ea5b02f1389175f`, cierre `156486771bc1c3f58ad4c6ba7cef486c60e8c269`, merge `7f4c0cecec1c0980fd44fc2e042c564f6f8b0d52`; registro posterior por asunto (ver evidencia) |
 | T-42 | Contraseña temporal: el diálogo solo se cierra con "Cerrar" (revisión de T-17) | S | T-17 (con T-18) | Hecha · revisión: Aprobada | 03/10/2026 | 276dd9685dd045bbab46eff272b2350c1dbd0972; merge 37d29c65e3a6f3eb5a07531db56175568f635549 |
-| T-43 | Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35) | S | T-35 | Pendiente | | |
+| T-43 | Carga: registrar y clasificar los rechazos de reserva inesperados (revisión de T-35) | S | T-35 | En curso | | |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 

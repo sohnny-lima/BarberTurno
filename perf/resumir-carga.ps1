@@ -27,9 +27,20 @@ foreach ($fila in [regex]::Matches($html, '<tr id="(?:ROOT|req_[^"]+)"[^>]*>(.*?
 if ($peticiones.Count -ne 6) { throw 'Se esperaban seis filas: global y cinco peticiones HTTP.' }
 $negocio = [ordered]@{}
 foreach ($linea in [IO.File]::ReadAllLines((Join-Path $Ejecucion 'resultado-negocio.properties'))) {
-    if ($linea -match '^(creadas|conflictosEsperados|limitesEsperados|recorridosConsulta|recorridosCrear|sinFranja)=(\d+)$') {
+    if ($linea -match '^(creadas|conflictosEsperados|limitesEsperados|recorridosConsulta|recorridosCrear|sinFranja|rechazosInesperados)=(\d+)$') {
         $negocio[$Matches[1]] = [int]$Matches[2]
     }
+}
+$rechazos = @()
+$archivoRechazos = Join-Path $Ejecucion 'rechazos-inesperados.tsv'
+if (Test-Path -LiteralPath $archivoRechazos) {
+    foreach ($fila in @(Import-Csv -LiteralPath $archivoRechazos -Delimiter "`t")) {
+        $rechazos += [ordered]@{estado = [int]$fila.estado; codigo = [Uri]::UnescapeDataString($fila.codigo); cantidad = [long]$fila.cantidad}
+    }
+    $totalRechazos = ($rechazos | Measure-Object -Property cantidad -Sum).Sum
+    if ([long]$totalRechazos -ne $negocio.rechazosInesperados) { throw 'El desglose de rechazos no coincide con su total.' }
+} elseif ($negocio.Contains('rechazosInesperados')) {
+    throw 'Falta el desglose de rechazos de esta ejecución.'
 }
 $log = [IO.File]::ReadAllText((Join-Path $Ejecucion 'gatling.log'))
 if (-not $log.Contains('BUILD SUCCESS')) { throw 'Solo se resumen ejecuciones Gatling terminadas correctamente.' }
@@ -38,6 +49,7 @@ $resumen = [ordered]@{
     informeLocal = Split-Path $Informe -Leaf
     peticiones = $peticiones
     negocio = $negocio
+    rechazosInesperados = $rechazos
     asercionesGatling = 'BUILD SUCCESS; umbrales originales cumplidos'
     limpieza = [IO.File]::ReadAllText((Join-Path $Ejecucion 'limpieza.log')).Trim()
 }
