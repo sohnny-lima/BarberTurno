@@ -47,12 +47,22 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Verificar el backend con PostgreSQL real
-        run: ./mvnw -B -ntp verify
+        # pipefail conserva el código de Maven aunque la salida pase por tee.
+        shell: bash
+        run: ./mvnw -B -ntp verify 2>&1 | tee maven-verify.log
         env:
           SPRING_PROFILES_ACTIVE: test
           BT_DB_URL: jdbc:postgresql://localhost:5432/barberturno_test
           BT_DB_USER: barberturno
           BT_DB_PASSWORD: barberturno_ci_efimera
+      - name: Resumir los errores de Maven como anotaciones
+        # Las anotaciones son públicas en la API; los logs exigen autenticación.
+        if: failure()
+        shell: bash
+        run: |
+          grep -E '^\[ERROR\]' maven-verify.log | grep -v -E '^\[ERROR\] *$' | head -n 10 \
+            | sed -e 's/%/%25/g' -e 's/\r//g' \
+            | while IFS= read -r linea; do echo "::error title=Maven verify::${linea}"; done
       - name: Publicar cobertura y resultados de pruebas
         if: always()
         uses: actions/upload-artifact@v7
