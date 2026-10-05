@@ -71,7 +71,7 @@
 | T-33 | Empaquetado y endurecimiento de producción | M | T-30 | Hecha · revisión: Aprobada con observaciones | 04/10/2026 | `a870290615fbaa3b099683645645628c68b52d91`, `d9432ce15ae2903ee62b38ef565689da95160b6d`, `f92038500ee3840c9447d353a587008c5cb4aff7`, cierre `e53e0917d1c33293949ddf6114c8d108fd2bb33b`; merge `532920bc9f788badc78a35ec700716a218462e5b`; único registro posterior por asunto en evidencia |
 | T-34 | E2E, responsive, compatibilidad y accesibilidad | M | T-32, T-33 | Hecha · revisión: Aprobada con observaciones | 04/10/2026 | b8e1480, e057625, 623e312, e62938c; merge ce24f27; todos los hashes en notas |
 | T-35 | Prueba de carga (RNF-01) | M | T-32 | Hecha · revisión: Aprobada con observaciones | 04/10/2026 | `a782d90`, `4fcebac`, `e464b20`, cierre `472b268`; merge `7591e7a`; registro docs por asunto |
-| T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | Pendiente | | |
+| T-36 | Respaldo y restauración (RNF-09) | M | T-33, T-38 | En curso | 04/10/2026 | — |
 | T-37 | Evidencias de aceptación y cierre documental | M | T-34, T-35, T-36 | Pendiente | | |
 | T-38 | Actualizar el PostgreSQL 18 local a la última menor (18.6) | S | — (recomendada antes de T-06) | Hecha · revisión: Aprobada | 04/10/2026 | instalación por el responsable; pasos posteriores y evidencia por Claude Code ([t-38.md](pruebas/t-38.md)) |
 | T-39 | Ajustes menores del esqueleto backend (revisión de T-02) | S | T-02 (recomendada antes de T-04) | Hecha · revisión: Aprobada | 01/10/2026 | `84fd47e`; cierre `5a6a374cba7e53a681ceb513bdef4dee754c89a0`; merge `7cfbfec200bb98ea059da164e64bafc3a94d35ec`; registro por asunto (ver evidencia) |
