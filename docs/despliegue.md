@@ -4,7 +4,7 @@ T-33 · 04/10/2026. Un jar sirve Angular y la API en el mismo origen (DA-06, DA-
 
 ## Requisitos y construcción
 
-El servidor requiere Java 21, PostgreSQL 18 **en la última versión menor publicada** (DA-16), almacenamiento persistente y TLS en el proveedor o un proxy inverso. El PostgreSQL 18.0 local se admite solo para desarrollo; actualizarlo es T-38. Node 24.21.0 y npm solo se necesitan para construir el artefacto.
+El servidor requiere Java 21, PostgreSQL 18 **en la última versión menor publicada** (DA-16), almacenamiento persistente y TLS en el proveedor o un proxy inverso. El entorno local de desarrollo usa la 18.6 desde el 04/10/2026 (T-38). Node 24.21.0 y npm solo se necesitan para construir el artefacto.
 
 Desde una copia limpia, active Java 21 y Node 24.21.0 con fnm (DA-18). En Windows:
 
