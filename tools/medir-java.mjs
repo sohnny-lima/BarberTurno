@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * LOC físicas propias para RA-02/RA-03, sin dependencias (Node 20 y 24).
+ * LOC físicas propias para RA-02 (métrica informativa) y RA-03, sin dependencias (Node 20 y 24).
  * Cuenta una línea si conserva algún carácter no blanco al retirar comentarios.
  * No es un parser: plantillas TS opacas, incluidas sus interpolaciones;
  * no analiza interpolaciones anidadas, regex TS ni dollar quoting SQL.
@@ -256,10 +256,10 @@ async function main() {
     const destino = join(RAIZ, 'docs/pruebas/medicion-java.md');
     await mkdir(dirname(destino), { recursive: true });
     const introduccion = '# Medición del porcentaje de Java\n\n'
-      + 'RA-02 exige ≥ 50 % de LOC Java propias sobre el código fuente total. RA-03 exige una medición reproducible.\n'
+      + 'RA-02 es una métrica informativa, sin umbral (reclasificada por el responsable el 04/10/2026). RA-03 exige una medición reproducible.\n'
       + 'Se excluyen dependencias, generados, comentarios, líneas vacías y documentación. '
       + 'Se informan las variantes con y sin pruebas, incluyendo HTML, SCSS/CSS y SQL. '
-      + 'La interpretación académica final y los lenguajes admitidos dependen del docente (P-02).\n\n'
+      + 'P-02 está resuelta: el requisito es el backend en Java; el porcentaje solo se informa.\n\n'
       + 'Repetir con ' + citar('node tools/medir-java.mjs --escribir') + '; cada ejecución añade una sección fechada. '
       + 'Las plantillas TS se tratan como literales opacos, sin analizar interpolaciones anidadas. '
       + 'No se analizan regex TS ni dollar quoting SQL.\n\n';

@@ -76,7 +76,7 @@ test('--escribir crea la introducción y añade secciones sin reemplazar evidenc
   assert.equal(primera.status, 0, primera.stderr);
   const destino = join(raiz, 'docs/pruebas/medicion-java.md');
   const antes = readFileSync(destino, 'utf8');
-  assert.match(antes, /RA-02[\s\S]*docente \(P-02\)/);
+  assert.match(antes, /RA-02[\s\S]*informativa[\s\S]*P-02 está resuelta/);
   const segunda = ejecutar(script, ['--escribir', '--json'], raiz);
   assert.equal(segunda.status, 0, segunda.stderr);
   JSON.parse(segunda.stdout);

@@ -246,11 +246,14 @@ Cada mejora queda incorporada en los requisitos, en la arquitectura y en las tar
 | RF-20 | P07 | `POST /api/bloqueos/lote` | T-16 (opcional) | CP-07 |
 | RF-21 | P02 | `GET /api/disponibilidad` sin `barberoId` | T-19 (opcional) | — |
 | RNF-01 | — | disponibilidad | T-35 | CP-12 |
+| RNF-02 | — | operación (`/actuator/health`) | T-33, T-36 | — (medición tras el despliegue, P-03) |
 | RNF-03/04/12 | — | seguridad | T-10, T-21, T-33 | CP-02, CP-12 |
 | RNF-05 | — | reservas | T-06, T-20, T-23 | CP-03 |
 | RNF-06/07/08/11 | todas | — | T-34 | CP-11 |
 | RNF-09 | — | — | T-36 | CP-12 |
 | RNF-10 | — | — | T-04, T-09 | CP-12 |
+| RNF-13 | todas | tiempo (`TiempoNegocio`, `core/tiempo`) | T-08, T-18, T-26, T-28, T-34 | E2E T-34 (navegador en Europe/Madrid) |
+| RNF-14 | — | observabilidad | T-08, T-33 | CP-12 |
 
 ### 9.1 Casos de prueba de aceptación
 CP-01…CP-12 se conservan del APF2 [Inf p. 31]. Se añaden casos para las mejoras:
