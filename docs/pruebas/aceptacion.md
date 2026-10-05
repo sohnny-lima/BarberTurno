@@ -276,7 +276,7 @@ RA-02 fue reclasificada por el responsable el 04/10/2026: porcentaje **informati
 ## Riesgos residuales y pendientes del responsable
 
 - 403 intermitente al cancelar en Firefox: observación O-1 de [revisión T-34](revision-t-34.md), inicialmente no reproducida; conservar seguimiento aunque la ejecución actual pase.
-- CI nunca ejecutada en remoto: P-04; solo verificación local, sin push.
+- ~~CI nunca ejecutada en remoto~~: **resuelto el 05/10/2026** (P-04): primer CI verde en GitHub Actions, ejecución [37314699514](https://github.com/sohnny-lima/BarberTurno/actions/runs/37314699514); el primer run destapó una dependencia de orden en las pruebas, corregida en T-47 ([ci-primer-run.md](ci-primer-run.md)).
 - PostgreSQL local escucha en todas las interfaces por configuración del instalador; acceso limitado por `pg_hba.conf`. Decisión del responsable, sin cambiar configuración.
 - Poco espacio libre en C:; navegadores/temporales Playwright se guardan en `frontend/tmp/` de D:.
 - Bundle inicial cerca de presupuesto: aproximadamente 490 de 500 kB; cifra actual en la verificación.

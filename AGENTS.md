@@ -41,6 +41,8 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 **Ningún agente, sin permiso explícito del responsable:** hace push a un remoto, publica, borra datos o historial de Git, cambia la tecnología base (RA-01), modifica `docs/apf2/`, ni introduce servicios de pago o externos.
 
 ## 5. Flujo de trabajo de una tarea (Codex)
+> **Modo freeze desde el 05/10/2026** (decisión del responsable, tras completar T-01…T-47 y el primer CI verde): solo se admiten correcciones de bugs reproducibles, problemas de CI, requisitos pendientes o defectos necesarios para el cierre. Nada de funcionalidades nuevas ni refactorizaciones sin ese motivo.
+
 1. Elegir la primera tarea `Pendiente` cuyas dependencias estén en `Hecha`. Marcarla `En curso`.
 2. Releer la tarea, las RF/RN/CP que cita y las secciones de la arquitectura a las que enlaza.
 3. Crear la rama `tarea/T-XX-descripcion-corta` desde `main`.
