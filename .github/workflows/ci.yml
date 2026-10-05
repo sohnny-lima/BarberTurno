@@ -60,9 +60,16 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          grep -E '^\[ERROR\]' maven-verify.log | grep -v -E '^\[ERROR\] *$' | head -n 10 \
-            | sed -e 's/%/%25/g' -e 's/\r//g' \
-            | while IFS= read -r linea; do echo "::error title=Maven verify::${linea}"; done
+          limpiar() { sed -e 's/%/%25/g' -e 's/\r//g'; }
+          # Cada prueba fallida con la línea siguiente (mensaje de la aserción o excepción).
+          awk '/<<< (FAILURE|ERROR)!/ { cab = $0; getline msg; print cab " :: " msg }' maven-verify.log \
+            | head -n 8 | limpiar \
+            | while IFS= read -r linea; do echo "::error title=Prueba fallida::${linea}"; done
+          grep -E '^\[ERROR\]' maven-verify.log | grep -v -E '^\[ERROR\] *$|<<< (FAILURE|ERROR)!' | head -n 2 \
+            | limpiar | while IFS= read -r linea; do echo "::error title=Maven verify::${linea}"; done
+          # Orden real de ejecución de las clases (útil para reproducir dependencias de orden).
+          orden=$(grep -oE 'in pe\.barberturno\.[A-Za-z0-9_.]+' maven-verify.log | sed 's/^in pe\.barberturno\.//' | paste -sd ',' -)
+          echo "::notice title=Orden de clases::${orden}"
       - name: Publicar cobertura y resultados de pruebas
         if: always()
         uses: actions/upload-artifact@v7
