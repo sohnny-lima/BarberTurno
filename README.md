@@ -16,7 +16,7 @@ El empaquetado de producción de T-33 genera un único jar con Angular: active J
 | Base de datos | PostgreSQL 18 en `localhost:5433`; el PostgreSQL 17 de `:5432` no se usa |
 | Control de versiones | Git, rama principal `main` |
 
-No se requiere Docker para las pruebas locales. La zona horaria del negocio es `America/Lima`. PostgreSQL local es 18.0, aceptado transitoriamente por DA-16; su actualización corresponde a T-38.
+No se requiere Docker para las pruebas locales. La zona horaria del negocio es `America/Lima`. PostgreSQL local es 18.6 (actualizado en T-38, DA-16).
 
 ## Preparar PostgreSQL local
 
