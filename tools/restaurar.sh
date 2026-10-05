@@ -26,6 +26,8 @@ trap 'exit 1' HUP INT TERM
 "$(binario psql)" -X -w -q -v ON_ERROR_STOP=1 \
     --dbname="${PGMAINTENANCE_DB:-postgres}" -v base="$base" -v rol="$rol" <<'SQL'
 CREATE DATABASE :"base" OWNER :"rol" TEMPLATE template0;
+REVOKE CONNECT, TEMPORARY ON DATABASE :"base" FROM PUBLIC;
+GRANT CONNECT ON DATABASE :"base" TO :"rol";
 SQL
 # El administrador solo necesita acceso a la base de mantenimiento. En el
 # ensayo el dueño se autentica con contraseña exclusivamente en el entorno.

@@ -79,6 +79,16 @@ ORDER BY n.nspname COLLATE "C", c.relname COLLATE "C"
         $tabla = [Text.Encoding]::UTF8.GetString([Convert]::FromHexString($campos[1]))
         Write-Output ("Tabla {0}: {1} filas" -f $tabla, $campos[2])
     }
+    # Repetir desde el dump sin origen para ensayar la recuperación con resumen.
+    Consultar-Administrador 'DROP DATABASE barberturno_restore;' | Out-Null
+    $creada = $false
+    & $bash ./tools/restaurar.sh ($dump.FullName.Replace('\', '/')) $baseNueva barberturno
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la restauración real usando el resumen.' }
+    $creada = $true
+    if ((Consultar-Administrador "SELECT count(*) FROM pg_database d CROSS JOIN LATERAL aclexplode(d.datacl) a WHERE d.datname = 'barberturno_restore' AND a.grantee = 0 AND a.privilege_type IN ('CONNECT', 'TEMPORARY');") -ne '0') {
+        throw 'La base restaurada permite acceso a PUBLIC.'
+    }
+    Write-Output 'OK: recuperación sin origen usando resumen; PUBLIC sin CONNECT/TEMPORARY.'
     $reloj.Stop()
     Write-Output ("PostgreSQL {0}; dump={1} bytes; respaldo={2:F3}s; respaldo+restauración+origen={3:F3}s; ensayo={4:F3}s; tablas={5}" -f $version, $dump.Length, $segundosRespaldo, $segundosOrigen, $reloj.Elapsed.TotalSeconds, $actual.Count)
     if ($reloj.Elapsed.TotalHours -gt 4) { throw 'Se excedió el RTO de cuatro horas.' }
