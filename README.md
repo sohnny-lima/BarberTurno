@@ -372,6 +372,12 @@ Recorrido HTTP y Edge a 1440/360 px, tras el verify del backend y con Node 24.21
 
 Requiere JDK 21, PostgreSQL 18 en 5433, el JAR de verify, Edge local, puertos 8080/4200 libres y dev sin usuarios. Crea ADMIN mediante el inicializador T-10 con BT_ADMIN_* ficticias solo en el proceso y crea el resto por API, sin promoción SQL. Verifica CP-17/19, CSRF, actor y avisos, búsqueda, Copiar, estados y los cuatro pasos. Limpia exclusivamente sus IDs y detiene sus procesos en finally; logs y capturas sin contraseñas quedan en frontend/tmp/, ignorado. No ejecute otra suite PostgreSQL ni otro backend simultáneamente. [Evidencia T-31](docs/pruebas/t-31.md).
 
+## Respaldo y restauración (T-36)
+
+Los scripts `tools/respaldo.sh BASE DIRECTORIO` y `tools/restaurar.sh DUMP BASE_NUEVA ROL [BASE_ORIGEN]` funcionan en Linux y Git Bash. Use los binarios de PostgreSQL 18 con `PG_BIN`, conexión por variables `PG*` y credenciales solo en el entorno o `PGPASSFILE`. Guarde los dumps fuera del repositorio y pause las escrituras durante el respaldo con resumen; la retención es de 14 días y la restauración rechaza destinos existentes.
+
+El [procedimiento de recuperación](docs/pruebas/recuperacion.md) contiene programación diaria, operación y resultados cronometrados. Pruebas de scripts: `sh tools/verificar-respaldo.sh` (sin PostgreSQL). Ensayo real local con PowerShell 7: `.\tools\ensayar-recuperacion.ps1`; crea y retira exclusivamente `barberturno_restore` a partir de la demo. No lo ejecute a la vez que `verify` u otra suite PostgreSQL.
+
 ## Integración continua
 
 El workflow [CI](.github/workflows/ci.yml) se ejecuta con cada push a cualquier rama y cada pull request. Dos trabajos independientes en Ubuntu verifican el proyecto:

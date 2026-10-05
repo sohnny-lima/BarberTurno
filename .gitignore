@@ -36,3 +36,6 @@ pgpass.conf
 
 # Logs
 *.log
+
+# Copias de PostgreSQL (el destino habitual está fuera del repositorio)
+*.dump
