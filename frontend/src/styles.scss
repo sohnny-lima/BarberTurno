@@ -34,6 +34,11 @@ a {
   outline: 3px solid #087f8c;
   outline-offset: 3px;
 }
+// Material elimina el outline del input; conservar una señal explícita al usar teclado.
+input.mat-mdc-input-element:focus-visible {
+  outline: 3px solid #087f8c;
+  outline-offset: 3px;
+}
 .pagina-identidad {
   max-width: 660px;
   margin: 0 auto;
