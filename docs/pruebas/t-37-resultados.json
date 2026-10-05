@@ -1,0 +1,1132 @@
+{
+  "fecha": "2026-10-04",
+  "zona": "America/Lima",
+  "commit": "94dbe992217151ea6a2bc7b4c33a359ebf1bcd39",
+  "comando": "mvnw.cmd -B -ntp verify",
+  "pruebas": null,
+  "fallos": null,
+  "errores": null,
+  "omitidas": null,
+  "suites": [
+    {
+      "clase": "pe.barberturno.auth.AuthCookieSecureIT",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.auth.AuthIT",
+      "pruebas": 51,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.auth.JwtConfigTest",
+      "pruebas": 9,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.auth.PoliticaPasswordTest",
+      "pruebas": 6,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.BarberTurnoApplicationIT",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.catalog.ServicioIT",
+      "pruebas": 61,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.config.ConfiguracionBaseDatosIT",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.config.ConfiguracionPerfilesTest",
+      "pruebas": 5,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.config.ConfiguracionProduccionTest",
+      "pruebas": 16,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.config.ParametrosReservaTest",
+      "pruebas": 9,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.error.ManejadorErroresIT",
+      "pruebas": 4,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.error.ManejadorErroresTest",
+      "pruebas": 69,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.error.NegocioExceptionTest",
+      "pruebas": 11,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.security.CabecerasSeguridadIT",
+      "pruebas": 13,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.security.CookieBearerTokenResolverTest",
+      "pruebas": 8,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.security.DocumentacionIT",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.security.SecurityConfigIT",
+      "pruebas": 21,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.security.UsuarioActualSecurityTest",
+      "pruebas": 3,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.time.ClockConfigTest",
+      "pruebas": 1,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.time.TiempoNegocioTest",
+      "pruebas": 5,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.web.PaginaDtoTest",
+      "pruebas": 9,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.common.web.SpaForwardIT",
+      "pruebas": 37,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.demo.DatosDemoRunnerIT",
+      "pruebas": 7,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.EsquemaIT",
+      "pruebas": 19,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.RepositoriosIT",
+      "pruebas": 16,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.AuditoriaAvisosIT",
+      "pruebas": 44,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.CancelacionIT",
+      "pruebas": 53,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ConcurrenciaReservaIT",
+      "pruebas": 31,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.CorridaManualIT",
+      "pruebas": 1,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ErroresMvcIT",
+      "pruebas": 3,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.EstadoReservaTest",
+      "pruebas": 43,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.PoliticaTransicionesTest",
+      "pruebas": 231,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReglasTemporalesTest",
+      "pruebas": 9,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReporteIT",
+      "pruebas": 30,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReprogramacionIT",
+      "pruebas": 115,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReservaAsistidaIT",
+      "pruebas": 8,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReservaConfirmacionManualIT",
+      "pruebas": 4,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReservaConsultaIT",
+      "pruebas": 43,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReservaCrearIT",
+      "pruebas": 42,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReservaDtoTest",
+      "pruebas": 20,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.ReservaTest",
+      "pruebas": 38,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.TransicionesIT",
+      "pruebas": 59,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.reservations.UsuarioAdminIT",
+      "pruebas": 23,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.BarberoIT",
+      "pruebas": 81,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.BloqueoIT",
+      "pruebas": 83,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.BloqueoServiceTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.CalculadoraFranjasTest",
+      "pruebas": 12,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.DisponibilidadIT",
+      "pruebas": 75,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.DisponibilidadServiceTest",
+      "pruebas": 1,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.JornadaIT",
+      "pruebas": 48,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.scheduling.JornadaServiceTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    },
+    {
+      "clase": "pe.barberturno.users.PerfilIT",
+      "pruebas": 46,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0
+    }
+  ],
+  "evidenciasSeleccionadas": [
+    {
+      "prueba": "AuditoriaAvisosIT#auditoria_permisosUniformes",
+      "invocaciones": 5,
+      "aprobadas": 5
+    },
+    {
+      "prueba": "AuditoriaAvisosIT#avisos_cadaRolLeeSoloLosSuyosYMarcaIdempotentemente",
+      "invocaciones": 3,
+      "aprobadas": 3
+    },
+    {
+      "prueba": "AuditoriaAvisosIT#cp18_crearConfirmarCancelar_historialYDestinatariosExactos",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "AuthIT#login_cincoFallos_bloqueaQuinceMinutosYDesbloqueaEnElLimite",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "AuthIT#recuperacion_cookieRevocada_permiteLoginRegistroYBorraEn401SinAceptarToken",
+      "invocaciones": 3,
+      "aprobadas": 3
+    },
+    {
+      "prueba": "AuthIT#recuperacion_sesionValidaORevocadaConCsrfInvalido_mantiene403",
+      "invocaciones": 8,
+      "aprobadas": 8
+    },
+    {
+      "prueba": "AuthIT#registro_correoConOtrasMayusculas_devuelve409",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "AuthIT#registro_datosInvalidos_devuelve400SinCrearUsuario",
+      "invocaciones": 8,
+      "aprobadas": 8
+    },
+    {
+      "prueba": "AuthIT#registro_valido_normalizaConsentimientoHashYClaimsSinExponerDatos",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "BarberoIT#cp08_reservasFuturasVigentes_contadorCorrectoYFilasIntactas",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "BarberoIT#editar_desactivarYReactivar_conservaCuentaEHistorialYRevocaSesion",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "BarberoIT#listado_contactosEInactivosSoloAdmin_ordenadoPorNombre",
+      "invocaciones": 4,
+      "aprobadas": 4
+    },
+    {
+      "prueba": "BloqueoIT#cp07_bt101CruzaBloqueo_conflictoConId_yFranjaLibreCrea",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "BloqueoIT#lote_conflictoEnUnPerfil_noCreaNinguno_yAgrupaTodosLosConflictos",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "BloqueoIT#lote_sinConflictos_creaTodos_bloqueaUnaVezEnOrdenAntesDeConsultar",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "CabecerasSeguridadIT#responder_enHttps_imponeHstsYCsp",
+      "invocaciones": 4,
+      "aprobadas": 4
+    },
+    {
+      "prueba": "CancelacionIT#adminATreintaMinutos_motivoInsuficiente422",
+      "invocaciones": 6,
+      "aprobadas": 6
+    },
+    {
+      "prueba": "CancelacionIT#adminConMotivo_registraExcepcionSoloFueraDeVentanaCliente",
+      "invocaciones": 4,
+      "aprobadas": 4
+    },
+    {
+      "prueba": "CancelacionIT#cp06_ventanaCliente_limiteExactoPermitido",
+      "invocaciones": 5,
+      "aprobadas": 5
+    },
+    {
+      "prueba": "CancelacionIT#sesionValidaCsrfIncorrecto_403ClienteYAdmin",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "CancelacionIT#sesionValidaSinCsrf_403ClienteYAdmin",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "ConcurrenciaReservaIT#cp03_diezClientesMismaFranja_unExitoYNueveConflictos",
+      "invocaciones": 20,
+      "aprobadas": 20
+    },
+    {
+      "prueba": "DisponibilidadIT#corrida_publicaSinSesion_intervalosCompletosContiguosYDesfaseLima",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "DisponibilidadIT#rf21_fusionaPerfilesOrdenados_omiteInactivosYNoTieneNmasUno",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "DisponibilidadIT#validacion_todaCandidataDeRejillaCoincideConConsulta_yClasificaCodigo",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ErroresMvcIT#health_conAcceptHtml_devuelve406SinCuerpoNiTipo",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ErroresMvcIT#reservar_conSesionClienteCsrfYTexto_devuelve415ValidacionSinEscrituras",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "JornadaIT#cp07_bt101NoCabeEntera_conflictoConIdSinCambios",
+      "invocaciones": 5,
+      "aprobadas": 5
+    },
+    {
+      "prueba": "JornadaIT#cp16_semanaInvalida_devuelve400ConIndiceYConservaFilas",
+      "invocaciones": 16,
+      "aprobadas": 16
+    },
+    {
+      "prueba": "ManejadorErroresTest#clienteMvc_conEstado4xx_registraWarnSinTrazaNiDatos",
+      "invocaciones": 3,
+      "aprobadas": 3
+    },
+    {
+      "prueba": "ManejadorErroresTest#metodoNoPermitido_enMvc_devuelve405ConProblemaHabitual",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "PerfilIT#cp17_cambioValido_revocaAmbasCookiesAntiguasYRenuevaLaSesionActual",
+      "invocaciones": 3,
+      "aprobadas": 3
+    },
+    {
+      "prueba": "PerfilIT#perfil_obtenerYActualizar_persisteSoloLosCamposEditables",
+      "invocaciones": 3,
+      "aprobadas": 3
+    },
+    {
+      "prueba": "ReporteIT#cp10_conciliaTodasLasSumasYElHistorial",
+      "invocaciones": 9,
+      "aprobadas": 9
+    },
+    {
+      "prueba": "ReprogramacionIT#cp05_franjaLibre_conservaPrecioDuracionYServicioAunqueCatalogoCambieYSeDesactive",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReprogramacionIT#cp05_franjaOcupada_conservaFilaCompletaVersionReferenciasYAuditoria",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReprogramacionIT#sesionValidaSinCsrfOIncorrecto403_clienteYAdmin",
+      "invocaciones": 4,
+      "aprobadas": 4
+    },
+    {
+      "prueba": "ReservaAsistidaIT#adminConSesion_csrfAusenteOIncorrecto403",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "ReservaAsistidaIT#cp19_ocupada409_libre201_conActorAdminYAvisos",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaConsultaIT#agendaSemanalLunesDomingoYFronteraLima",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaConsultaIT#cp02_adminVeTodasYFiltraDimensionesYCombinacion",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaConsultaIT#cp02_carlosNoVeMiguelYFiltroForzado",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaConsultaIT#cp02_clienteSoloPropiasY404Uniforme",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaConsultaIT#telefonoSoloPersonalYDatosMinimos",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaCrearIT#cp04_contiguas_ambas201",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaCrearIT#cp13_clienteConDosBarberos_409",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaCrearIT#cp15_cuartaFutura_422",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ReservaCrearIT#rolNoAutorizado_403",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "ServicioIT#cp08_editarPrecioYDuracionYDesactivar_conservaTodaLaReservaExistente",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "TransicionesIT#cp09_flujoCompleto_asignadoYAdminTresAuditoriasYAvisos",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "TransicionesIT#cp09_versionAntigua_precedeAPoliticaTemporal",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "TransicionesIT#saltarEstadoORepetir_409",
+      "invocaciones": 8,
+      "aprobadas": 8
+    },
+    {
+      "prueba": "TransicionesIT#sesionValidaSinCsrfOIncorrecto_403SinEscrituras",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "UsuarioAdminIT#buscaNombreCorreoSinMayusculas_filtraRolPaginaYSinDatosInternos",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "UsuarioAdminIT#cp17_temporalRevocaSesionAnterior_exigeCambioYDesbloqueaAcceso",
+      "invocaciones": 1,
+      "aprobadas": 1
+    },
+    {
+      "prueba": "UsuarioAdminIT#escrituras_sesionValidaSinCsrfOCsrfIncorrecto403",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "UsuarioAdminIT#rolNoAutorizado403_enTodasLasRutas",
+      "invocaciones": 2,
+      "aprobadas": 2
+    },
+    {
+      "prueba": "UsuarioAdminIT#ultimoAdmin_yPropiaCuenta_noSeDesactivan409",
+      "invocaciones": 1,
+      "aprobadas": 1
+    }
+  ],
+  "cobertura": [
+    {
+      "paquete": "TOTAL",
+      "cubiertas": 1778,
+      "perdidas": 19,
+      "total": 1797,
+      "porcentaje": 98.94
+    },
+    {
+      "paquete": "pe.barberturno.reservations",
+      "cubiertas": 356,
+      "perdidas": 0,
+      "total": 356,
+      "porcentaje": 100.0
+    },
+    {
+      "paquete": "pe.barberturno.scheduling",
+      "cubiertas": 397,
+      "perdidas": 2,
+      "total": 399,
+      "porcentaje": 99.5
+    }
+  ],
+  "e2e": {
+    "comando": "npm run e2e",
+    "fecha": "2026-10-04",
+    "commit": "94dbe992217151ea6a2bc7b4c33a359ebf1bcd39",
+    "estadisticas": {
+      "total": 28,
+      "expected": 28,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "ok": true
+    },
+    "escenarios": [
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela",
+        "resultado": "expected",
+        "duracionMs": 12820
+      },
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas",
+        "resultado": "expected",
+        "duracionMs": 1387
+      },
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "03 · Carlos inicia y completa la atención y confirma BT-100 en Semana",
+        "resultado": "expected",
+        "duracionMs": 4727
+      },
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes",
+        "resultado": "expected",
+        "duracionMs": 6882
+      },
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "05 · cliente redirigido de administración y protegido después de logout",
+        "resultado": "expected",
+        "duracionMs": 1110
+      },
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad",
+        "resultado": "expected",
+        "duracionMs": 6981
+      },
+      {
+        "proyecto": "chromium-1440",
+        "escenario": "07 · registro con privacidad y edición persistente del perfil (CP-01)",
+        "resultado": "expected",
+        "duracionMs": 2079
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela",
+        "resultado": "expected",
+        "duracionMs": 8322
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas",
+        "resultado": "expected",
+        "duracionMs": 1057
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "03 · Carlos inicia y completa la atención y confirma BT-100 en Semana",
+        "resultado": "expected",
+        "duracionMs": 4423
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes",
+        "resultado": "expected",
+        "duracionMs": 6275
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "05 · cliente redirigido de administración y protegido después de logout",
+        "resultado": "expected",
+        "duracionMs": 1127
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad",
+        "resultado": "expected",
+        "duracionMs": 4200
+      },
+      {
+        "proyecto": "chromium-360",
+        "escenario": "07 · registro con privacidad y edición persistente del perfil (CP-01)",
+        "resultado": "expected",
+        "duracionMs": 2076
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela",
+        "resultado": "expected",
+        "duracionMs": 23855
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas",
+        "resultado": "expected",
+        "duracionMs": 1838
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "03 · Carlos inicia y completa la atención y confirma BT-100 en Semana",
+        "resultado": "expected",
+        "duracionMs": 6375
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes",
+        "resultado": "expected",
+        "duracionMs": 10286
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "05 · cliente redirigido de administración y protegido después de logout",
+        "resultado": "expected",
+        "duracionMs": 1880
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad",
+        "resultado": "expected",
+        "duracionMs": 9078
+      },
+      {
+        "proyecto": "firefox-1440",
+        "escenario": "07 · registro con privacidad y edición persistente del perfil (CP-01)",
+        "resultado": "expected",
+        "duracionMs": 3400
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela",
+        "resultado": "expected",
+        "duracionMs": 16704
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas",
+        "resultado": "expected",
+        "duracionMs": 2076
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "03 · Carlos inicia y completa la atención y confirma BT-100 en Semana",
+        "resultado": "expected",
+        "duracionMs": 6547
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes",
+        "resultado": "expected",
+        "duracionMs": 11162
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "05 · cliente redirigido de administración y protegido después de logout",
+        "resultado": "expected",
+        "duracionMs": 1888
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad",
+        "resultado": "expected",
+        "duracionMs": 6361
+      },
+      {
+        "proyecto": "firefox-360",
+        "escenario": "07 · registro con privacidad y edición persistente del perfil (CP-01)",
+        "resultado": "expected",
+        "duracionMs": 3176
+      }
+    ],
+    "axe": [
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-ingresar",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-reservar-servicio",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-reservar-franja",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-reservar-confirmacion",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-mis-citas",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-agenda-dia",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-agenda-semana",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-servicios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-horarios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-reportes",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-1440",
+        "analisis": "axe-perfil",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-ingresar",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-reservar-servicio",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-reservar-franja",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-reservar-confirmacion",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-mis-citas",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-agenda-dia",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-agenda-semana",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-servicios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-horarios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-reportes",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "chromium-360",
+        "analisis": "axe-perfil",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-ingresar",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-reservar-servicio",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-reservar-franja",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-reservar-confirmacion",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-mis-citas",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-agenda-dia",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-agenda-semana",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-servicios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-horarios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-reportes",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-1440",
+        "analisis": "axe-perfil",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-ingresar",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-reservar-servicio",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-reservar-franja",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-reservar-confirmacion",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-mis-citas",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-agenda-dia",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-agenda-semana",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-servicios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-horarios",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-reportes",
+        "violaciones": 0
+      },
+      {
+        "proyecto": "firefox-360",
+        "analisis": "axe-perfil",
+        "violaciones": 0
+      }
+    ],
+    "usabilidadAutomatizada": [
+      {
+        "proyecto": "chromium-1440",
+        "metricas": {
+          "pasos": 3,
+          "limite": 5,
+          "duracionMs": 4340
+        }
+      },
+      {
+        "proyecto": "chromium-360",
+        "metricas": {
+          "pasos": 3,
+          "limite": 5,
+          "duracionMs": 4281
+        }
+      },
+      {
+        "proyecto": "firefox-1440",
+        "metricas": {
+          "pasos": 3,
+          "limite": 5,
+          "duracionMs": 7109
+        }
+      },
+      {
+        "proyecto": "firefox-360",
+        "metricas": {
+          "pasos": 3,
+          "limite": 5,
+          "duracionMs": 6848
+        }
+      }
+    ],
+    "sha256": "D3111E4D0925FD3E8B628A4201E52E44363FB11864A93B7495484B9AA99416D7",
+    "htmlBytes": 621387
+  }
+}

@@ -199,6 +199,36 @@ Set-Location ..
 node tools/verificar-enlaces-html.mjs entregables/apf2-final/javadoc/html
 ~~~
 
+## Recorrido para la sustentación
+
+Guion de **7–9 minutos**, basado en `docs/apf2/LEEME.txt` y el informe APF2 §16. Consulte el [registro de aceptación](docs/pruebas/aceptacion.md), la [plantilla de usabilidad](docs/pruebas/usabilidad-plantilla.md) y el [informe E2E](docs/pruebas/e2e/index.html) para defender los resultados medidos.
+
+Prepare la base antes de exponer: la carga demo conserva ediciones y no reinicia el guion. `barberturno_demo_t32` contiene datos ficticios conservados; revise su estado sin borrar información. Las referencias BT-100…BT-104 aparecen en la auditoría como `referenciaDemo`; el código visible es generado, así que identifique también cliente, fecha y hora.
+
+En PowerShell, configure JDK 21 y proporcione la contraseña ficticia solo al entorno del proceso (la misma de la primera carga si las cuentas ya existen). El ADMIN inicial conserva su contraseña; configure sus variables ficticias `BT_ADMIN_*` en el entorno antes de la primera carga o use el ADMIN demo si se creó. No anote claves en el guion ni en capturas.
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot'
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+$claveDemo = Read-Host 'Contraseña ficticia de demo (RN-25)' -AsSecureString
+$env:BT_DEMO_PASSWORD = [Net.NetworkCredential]::new('', $claveDemo).Password
+cd backend
+.\mvnw.cmd spring-boot:run '-Dspring-boot.run.profiles=dev,demo' '-Dspring-boot.run.arguments=--barberturno.reloj-fijo=2026-09-28T09:00:00-05:00 --spring.datasource.url=jdbc:postgresql://localhost:5433/barberturno_demo_t32'
+```
+
+En otra terminal active Node 24.21.0 con fnm según la sección de arranque frontend y ejecute `npm start` desde `frontend/`; abra `http://localhost:4200`. Espere al catálogo de Carlos y Miguel: health puede responder antes de completar la carga. Clientes: `cliente@ejemplo.test`, `ana@ejemplo.test`, `luis@ejemplo.test`; barberos: `carlos@ejemplo.test`, `miguel@ejemplo.test`; administrador: `BT_ADMIN_CORREO` o `admin-demo@ejemplo.test` si se creó. Las cuentas demo comparten `BT_DEMO_PASSWORD`; el ADMIN inicial puede usar otra clave.
+
+Antes de exponer prepare como ADMIN una reserva asistida de Ana, Barba con Carlos, **28/09/2026 09:10**, comprobando que la franja esté libre. A las 09:00 entra en la ventana de atención; esta preparación reproduce E2E sin cambiar el reloj ni las reglas. Para el conflicto use dos sesiones independientes de navegador, Ana y Luis.
+
+| Recorrido | Guion y resultado que mostrar | Tiempo |
+|---|---|---|
+| 1 · Cliente | Reserve Corte clásico con Carlos el 01/10 en franja libre. Muestre tres pasos, Mis citas y aviso; reprograme a otra franja libre y cancele. Hora siempre de Lima. | 2 min |
+| 2 · BT-104 | En Mis citas ubique la equivalente del 28/09 a las 10:00. Con reloj 09:00 falta una hora: sin Reprogramar/Cancelar y con ayuda del límite. La API también aplica CP-06. | 45 s |
+| 3 · Barbero | Como Carlos, agenda Día 28/09: inicie y complete la atención preparada de 09:10. Cambie a Semana y confirme la equivalente BT-100 del 29/09 a las 11:00. Muestre su historial. | 1 min 30 s |
+| 4 · Administrador | Edite servicio y jornada compatible. Bloqueo 01/10 10:10–10:20 cruza BT-101: conflicto. Cree otro en franja libre (K1 16–17 ya viene en demo). En Reportes filtre 27/09–01/10 y concilie estados/agrupaciones con las filas. | 2 min |
+| 5 · Conflicto | Ana y Luis consultan la misma franja, por ejemplo 02/10 11:00 si está libre. Confirmen: una 201 y otra 409 con aviso/recarga; elija la contigua. El ensayo secuencial muestra disponibilidad; concurrencia real acreditada por CP-03 y E2E 06. | 1 min 15 s |
+
+Total orientativo **7 min 30 s**, más transiciones y explicación hasta 9 min. Termine ambos servidores con Ctrl+C, retire la clave de esa terminal con `Remove-Item Env:BT_DEMO_PASSWORD` y cierre las sesiones. No ejecute `verify` ni E2E con estos servidores abiertos.
 ## Arranque y pruebas del frontend
 
 Node **24.21.0** se instala con fnm 1.38.1 para este proyecto, sin cambiar el Node global. La raíz contiene `.node-version`; `frontend/package.json` exige `^24.15.0`. Desde la raíz, en otra terminal PowerShell:
