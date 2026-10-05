@@ -217,7 +217,45 @@ npm start
 
 La búsqueda recursiva permite que fnm encuentre `.node-version` también desde `frontend/`. Repita la activación de fnm en cada sesión; no use `nvm use`. Versiones verificadas: Node `v24.21.0`, npm `11.19.0`.
 
-Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra las denegaciones en `frontend/package.json` (`allowScripts`); para aprobar uno, primero se documenta el motivo en DA-19 y luego se ejecuta `npm install-scripts approve <paquete>` desde `frontend/`.
+Según DA-19, npm 11 deniega por defecto los scripts de instalación y registra las denegaciones en `frontend/package.json` (`allowScripts`); para aprobar uno, primero se documenta el motivo en DA-19 y luego se ejecuta `npm install-scripts approve <paquete>` desde `frontend/`. Playwright y axe no requieren aprobar scripts: los navegadores se descargan explícitamente.
+
+### Recorrido E2E local (T-34)
+
+Con Node 24.21.0 activo mediante fnm, PostgreSQL 18 en 5433 y el rol de aplicación
+configurado en el entorno o en `.local/barberturno.env`, ejecute desde `frontend/`:
+
+```powershell
+npm ci
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $PWD 'tmp/navegadores'
+New-Item -ItemType Directory -Force tmp/descargas | Out-Null
+$env:TEMP = Join-Path $PWD 'tmp/descargas'
+$env:TMP = $env:TEMP
+npx playwright install chromium firefox
+npm run e2e
+```
+
+La descarga se hace una vez. `npm run e2e` fija JDK 21 únicamente en su proceso,
+empaqueta el jar con `-Pcon-frontend` y ejecuta los seis escenarios y CP-01 en Chromium y
+Firefox, a 1440 × 900 y 360 × 800, con zona `Europe/Madrid`. La fixture usa
+`dev,demo`, el reloj fijo del 28/09/2026 a las 09:00 Lima y el puerto 18034;
+genera credenciales ficticias efímeras en el entorno y detiene el jar al terminar.
+No necesita arrancar Angular ni el backend por separado.
+
+Intenta crear `barberturno_e2e` con el rol de aplicación. Si no puede, utiliza
+`barberturno_test`, **vaciando sus ocho tablas de negocio antes y después de cada
+proyecto**; conserva Flyway. No ejecute `verify`, otra suite PostgreSQL ni la
+aplicación a la vez. La suite comprueba conexiones y puertos antes de empezar y
+usa `frontend/tmp/e2e.lock` para impedir dos ejecuciones E2E simultáneas.
+Tras una interrupción externa, compruebe que no queda su jar antes de retirar
+ese archivo de bloqueo; el cierre normal lo retira automáticamente.
+
+El informe HTML con los resultados de axe se guarda en
+[docs/pruebas/e2e/index.html](docs/pruebas/e2e/index.html), sin videos ni trazas.
+`npm run lint` también comprueba los tipos de `e2e/`; `format:check` incluye la
+suite. El empaquetado E2E omite la ejecución de pruebas Maven y no sustituye a
+`mvnw.cmd verify`. La CI conserva su verificación habitual; los E2E se ejecutan
+en local. La prueba automatizada de pasos/tiempo no sustituye la evaluación con
+cinco participantes de CP-11 (P-07).
 
 La SPA se sirve en `http://localhost:4200`. `npm start` carga `proxy.conf.json` desde `angular.json`: `/api` se reenvía a `http://localhost:8080`. Arranque el backend en `dev` desde `backend/` para usarlo. Sin una sesión, `GET http://localhost:4200/api/x` devuelve 401. Detenga cada servidor con Ctrl+C.
 
