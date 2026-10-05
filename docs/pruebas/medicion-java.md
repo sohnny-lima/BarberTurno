@@ -1,7 +1,7 @@
 # Medición del porcentaje de Java
 
-RA-02 exige ≥ 50 % de LOC Java propias sobre el código fuente total. RA-03 exige una medición reproducible.
-Se excluyen dependencias, generados, comentarios, líneas vacías y documentación. Se informan las variantes con y sin pruebas, incluyendo HTML, SCSS/CSS y SQL. La interpretación académica final y los lenguajes admitidos dependen del docente (P-02).
+RA-02 es una métrica informativa, sin umbral, desde la reclasificación del responsable del 04/10/2026. RA-03 exige una medición reproducible. Los registros anteriores conservan sus resultados históricos.
+Se excluyen dependencias, generados, comentarios, líneas vacías y documentación. Se informan las variantes con y sin pruebas, incluyendo HTML, SCSS/CSS y SQL. P-02 está resuelta: el backend en Java es el requisito académico y el porcentaje no condiciona el diseño ni el cierre.
 
 Repetir con `node tools/medir-java.mjs --escribir`; cada ejecución añade una sección fechada. Las plantillas TS se tratan como literales opacos, sin analizar interpolaciones anidadas. No se analizan regex TS ni dollar quoting SQL.
 
@@ -283,6 +283,52 @@ La carga se informa aparte como subconjunto de pruebas y se suma una sola vez al
 - `perf/target/`: Dependencias, salida, documentación o datos locales.
 
 Raíces aún ausentes: frontend/e2e.
+
+Límites léxicos: plantillas TS opacas (incluidas interpolaciones), sin interpolaciones anidadas ni regex TS; SQL sin dollar quoting.
+Se mide el árbol de trabajo; el commit identifica HEAD y no certifica ausencia de cambios locales.
+
+## Medición · 2026-10-05T03:37:15.285Z · commit 94dbe99
+
+Node: v24.21.0. Raíces: `backend/src`, `frontend/src`, `frontend/e2e`, `perf`.
+Extensiones contadas: .java, .ts, .html, .scss, .css, .sql.
+LOC físicas sin líneas vacías ni comentarios; las cadenas conservan sus marcadores de comentario.
+Fuera del cálculo: JSON/YAML de configuración, package-lock.json, mvnw*, Markdown, docs, dependencias y generados.
+
+| Lenguaje | Producto | Pruebas | Carga (incluida en pruebas) | Total |
+|---|---:|---:|---:|---:|
+| Java | 4284 | 9040 | 345 | 13324 |
+| TS | 3978 | 4534 | 0 | 8512 |
+| HTML | 1704 | 1 | 0 | 1705 |
+| SCSS | 568 | 0 | 0 | 568 |
+| CSS | 0 | 0 | 0 | 0 |
+| SQL | 109 | 0 | 0 | 109 |
+| Total | 10643 | 13575 | 345 | 24218 |
+
+**Java con pruebas:** 55.02 % (Java total ÷ total).
+**Java sin pruebas:** 40.25 % (Java de producto ÷ producto).
+La carga se informa aparte como subconjunto de pruebas y se suma una sola vez al total.
+
+### Exclusiones auditables
+
+- `backend/src/main/resources/application-demo.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-dev.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-prod.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-test.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application.yml`: Extensión fuera del cálculo.
+- `backend/src/test/resources/static/main-prueba.js`: Extensión fuera del cálculo.
+- `backend/src/test/scripts/verificar-spa-prod.mjs`: Extensión fuera del cálculo.
+- `frontend/src/app/core/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/features/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/layout/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/shared/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/theme-colors.scss`: Generado explícito: schematic de Angular Material.
+- `frontend/e2e/ejecutar.ps1`: Extensión fuera del cálculo.
+- `perf/ejecutar-carga.ps1`: Extensión fuera del cálculo.
+- `perf/pom.xml`: Extensión fuera del cálculo.
+- `perf/resumir-carga.ps1`: Extensión fuera del cálculo.
+- `perf/target/`: Dependencias, salida, documentación o datos locales.
+
+Raíces aún ausentes: ninguna.
 
 Límites léxicos: plantillas TS opacas (incluidas interpolaciones), sin interpolaciones anidadas ni regex TS; SQL sin dollar quoting.
 Se mide el árbol de trabajo; el commit identifica HEAD y no certifica ausencia de cambios locales.
