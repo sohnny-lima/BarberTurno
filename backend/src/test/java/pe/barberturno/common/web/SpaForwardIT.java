@@ -19,7 +19,6 @@ import pe.barberturno.users.Rol;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -99,7 +98,12 @@ class SpaForwardIT {
     @ValueSource(strings = {"POST", "PUT", "PATCH", "DELETE"})
     @WithMockUser(roles = "ADMIN")
     void escribirRutaAngular_conCsrfYAdmin_noAbreEscrituras(String metodo) throws Exception {
-        mvc.perform(request(HttpMethod.valueOf(metodo), "/agenda").with(csrf()).accept("text/html"))
+        // CSRF real (cookie + cabecera): el postprocesador csrf() sustituiría el repositorio del
+        // contexto compartido por uno de sesión y rompería las clases que se ejecutan después.
+        var xsrf = mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        assertThat(xsrf).isNotNull();
+        mvc.perform(request(HttpMethod.valueOf(metodo), "/agenda").cookie(xsrf)
+                        .header("X-XSRF-TOKEN", xsrf.getValue()).accept("text/html"))
                 .andExpect(status().isForbidden())
                 .andExpect(result -> assertThat(result.getResponse().getForwardedUrl()).isNull());
     }
