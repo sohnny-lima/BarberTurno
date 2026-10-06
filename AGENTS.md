@@ -12,6 +12,7 @@ BarberTurno es un sistema web de reservas y turnos para una barbería de una sed
 | `docs/requisitos.md` | RF, RNF, reglas de negocio (RN), restricciones académicas (RA), mejoras (MJ), contradicciones, supuestos, pendientes, trazabilidad y CP | Claude Code |
 | `docs/arquitectura.md` | Stack y versiones, módulos, modelo de datos (DDL), contratos de API, seguridad, concurrencia, pruebas, decisiones (DA) | Claude Code |
 | `docs/tareas.md` | Plan de tareas T-01…T-37, su estado y las notas de cierre | Claude Code (plan) · Codex (estado y notas) |
+| `docs/diseno/` | Especificaciones de diseño visual aprobadas (T-48: `t-48.md` e imágenes de referencia) | Claude Code |
 | `docs/pruebas/` | Evidencias: aceptación, cobertura, carga, recuperación y % Java | Codex |
 | `README.md` | Arranque rápido | Codex |
 
