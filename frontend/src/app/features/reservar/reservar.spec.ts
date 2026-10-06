@@ -93,7 +93,29 @@ describe('Vista de reserva guiada', () => {
     const f = preparar('');
     await f.whenStable();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('mat-select').textContent).toContain('Sin preferencia');
+    expect(f.nativeElement.querySelector('[data-profesional=sin-preferencia]').checked).toBe(true);
+  });
+  it('agrupa horas por Lima incluso cuando los instantes tienen otro desfase', () => {
+    const f = preparar('');
+    f.componentInstance.store.franjas.set([
+      { inicio: '2026-10-05T16:59:00Z', fin: '2026-10-05T17:29:00Z', barberoIds: [2] },
+      { inicio: '2026-10-05T17:00:00Z', fin: '2026-10-05T17:30:00Z', barberoIds: [2] },
+    ]);
+    const grupos = f.componentInstance.gruposHoras();
+    expect(grupos.map((g) => [g.nombre, g.franjas.map((franja) => franja.inicio)])).toEqual([
+      ['Mañana', ['2026-10-05T16:59:00Z']],
+      ['Tarde', ['2026-10-05T17:00:00Z']],
+    ]);
+  });
+  it('presenta siete días dentro de los límites civiles sin desplazar hoy', () => {
+    const f = preparar('');
+    const dias = f.componentInstance.dias;
+    expect(dias).toHaveLength(7);
+    expect(dias[0]).toBe(fechaHoyLima());
+    expect(dias[6]).toBe(fechaHoyLima(6));
+    expect(dias.every((dia) => dia <= fechaCivil(f.componentInstance.limites.max))).toBe(true);
+    expect(f.componentInstance.fechaLegible('2026-09-28')).toContain('lunes');
+    expect(f.componentInstance.fechaLegible('2026-09-28')).toContain('28 de setiembre');
   });
   it.each([false, true])(
     'muestra el paso 3 y permite volver al paso 2, móvil=%s',
@@ -106,18 +128,18 @@ describe('Vista de reserva guiada', () => {
       const stepper = f.debugElement.query(By.directive(MatStepper)).componentInstance;
       expect(stepper.selectedIndex).toBe(2);
       const pasos = f.nativeElement.querySelectorAll('mat-step-header');
-      expect(pasos[2].getAttribute(esMovil ? 'aria-expanded' : 'aria-selected')).toBe('true');
+      expect(pasos[2].getAttribute('aria-selected')).toBe('true');
       f.componentInstance.store.irPaso(1);
       f.detectChanges();
       await f.whenStable();
       expect(stepper.selectedIndex).toBe(1);
     },
   );
-  it('adapta el asistente verticalmente por debajo de 768 px', () => {
+  it('conserva el asistente horizontal por debajo de 768 px', () => {
     movil = true;
     const f = preparar();
     expect(f.debugElement.query(By.directive(MatStepper)).componentInstance.orientation).toBe(
-      'vertical',
+      'horizontal',
     );
   });
   it('usa límites civiles de Lima y rechaza entradas de calendario fuera de rango', () => {

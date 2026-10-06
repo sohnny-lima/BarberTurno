@@ -3,6 +3,7 @@ import {
   afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
@@ -13,7 +14,6 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -26,6 +26,7 @@ import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiemp
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { SelectorCliente } from '../../shared/selector-cliente';
 import { ReservaStore } from './reserva.store';
+import { sumarDias } from '../../core/tiempo/semana-lima';
 
 @Component({
   selector: 'app-reservar',
@@ -34,7 +35,6 @@ import { ReservaStore } from './reserva.store';
     SelectorCliente,
     MatButtonModule,
     MatCardModule,
-    MatChipsModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
@@ -61,6 +61,52 @@ export class Reservar {
     { initialValue: false },
   );
 
+  readonly numeroPaso = computed(() => this.store.paso() + (this.store.asistida() ? 2 : 1));
+  readonly pasos = computed(() =>
+    Array.from({ length: this.store.asistida() ? 4 : 3 }, (_, i) => i + 1),
+  );
+  readonly dias = Array.from({ length: 7 }, (_, i) =>
+    sumarDias(fechaCivil(this.limites.min), i),
+  ).filter((dia) => dia <= fechaCivil(this.limites.max));
+  readonly gruposHoras = computed(() => {
+    const hora = new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    });
+    return [
+      {
+        nombre: 'Mañana',
+        franjas: this.store.franjas().filter((f) => Number(hora.format(new Date(f.inicio))) < 12),
+      },
+      {
+        nombre: 'Tarde',
+        franjas: this.store.franjas().filter((f) => Number(hora.format(new Date(f.inicio))) >= 12),
+      },
+    ];
+  });
+  fechaLegible(fecha: string, formato: 'larga' | 'dia' | 'numero' = 'larga') {
+    const opciones: Intl.DateTimeFormatOptions =
+      formato === 'larga'
+        ? { weekday: 'long', day: 'numeric', month: 'long' }
+        : formato === 'dia'
+          ? { weekday: 'short' }
+          : { day: 'numeric' };
+    return new Intl.DateTimeFormat('es-PE', { ...opciones, timeZone: 'America/Lima' }).format(
+      new Date(fecha + 'T12:00:00-05:00'),
+    );
+  }
+  elegirDia(fecha: string, evento: Event) {
+    this.store.elegirFecha(fecha);
+    (evento.currentTarget as HTMLElement).scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
+  iniciales(nombre: string) {
+    return nombre
+      .split(' ')
+      .map((parte) => parte[0])
+      .slice(0, 2)
+      .join('');
+  }
   constructor() {
     const snackbar = inject(MatSnackBar);
     // Material comprueba el paso anterior: sincroniza después de actualizar completed.
