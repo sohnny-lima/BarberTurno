@@ -83,6 +83,8 @@
 | T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | Hecha · revisión: Aprobada | 04/10/2026 | a33352fff1d62f289a3be4601ea37817c9b64aa6, 2fe0aa00b34cd5d7ddc0d0d91dc7b08d0aa25527, e03ab236f52cddbf51504ee163b6acf13767486f; cierre cef254acc83490be89a5470ab6c3babad0a86d4a; merge 44b28399af19a99145c77e71b973e2d49a992977; único registro docs posterior por asunto (evidencia) |
 | T-46 | Errores estándar de Spring MVC con su estado HTTP (revisión de T-33) | S | T-08 | Hecha · revisión: Aprobada | 04/10/2026 | `691308c`, `f622687`, `30cad4e`; merge `5076e13` |
 | T-47 | Primer CI real: dependencia de orden entre `SpaForwardIT` y `SecurityConfigIT` (P-04) | M | T-33, T-04 | Hecha · revisión: Aprobada | 05/10/2026 | `6df34b2`, `59d647a` (diagnóstico en la CI), `d6f5c50` (corrección) |
+| T-49 | Diagnóstico del 403 intermitente de Firefox (CSRF; T-34 O-1, reproducido en T-48) | M | T-34 | En curso (diagnóstico) | 06/10/2026 | — |
+| T-50 | Comprobación del requisito de avisos para BARBERO y ADMIN (RF-16, CP-18) | S | T-25, T-27 | En curso (análisis) | 06/10/2026 | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -377,6 +379,18 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** `SpaForwardIT` usa el CSRF real (cookie y cabecera); la CI publica como anotaciones públicas el mensaje de cada prueba fallida, las líneas `[ERROR]` y el orden de clases cuando `verify` falla.
 - **Criterios de aceptación:** ambas clases pasan en orden directo e inverso; CI verde en GitHub Actions. Cumplidos (ejecución 37314699514). Evidencia: [ci-primer-run.md](pruebas/ci-primer-run.md).
 - **Prioridad:** M (cierre de P-04).
+
+### T-49 · Diagnóstico del 403 intermitente de Firefox (CSRF)
+- **Origen:** T-34 O-1 (403 en una cancelación de Firefox 1440, no reproducido) y T-48 (encargo 055: 403 en transiciones y cancelación de Firefox con la cabecera `X-XSRF-TOKEN` distinta de la cookie `XSRF-TOKEN`; el servidor rechazó correctamente).
+- **Alcance:** diagnóstico, sin cambiar el producto. Secuencia, condiciones y frecuencia del fallo; comparación de `main` y T-48 en condiciones equivalentes (worktrees aislados, mismo arnés, misma instrumentación); emisión, renovación y envío del token CSRF (autenticación, cierre de sesión, navegaciones y peticiones simultáneas); hipótesis con la evidencia que las respalda o descarta; lo que queda sin demostrar. Solo `barberturno_test`, una ejecución a la vez, evidencias redactadas (huellas, nunca valores).
+- **Responsable del diagnóstico:** Gemini (lectura del producto; ejecuta solo el script de diagnóstico autorizado). Revisión: Claude.
+- **Si se confirma un defecto con reproducción fiable:** Claude revisa el diagnóstico, Codex aplica una corrección mínima con prueba de regresión y Gemini la comprueba de forma independiente. Prohibido desactivar CSRF, añadir reintentos que oculten el fallo o refactorizar fuera del problema. Si no se confirma, se entrega el diagnóstico y sus límites sin tocar el producto.
+- **Prioridad:** M (fiabilidad de escrituras en Firefox; RNF-07).
+
+### T-50 · Comprobación del requisito de avisos para BARBERO y ADMIN
+- **Origen:** revisión de T-48: BARBERO y ADMIN tienen contador de avisos pero ninguna pantalla para leerlos.
+- **Alcance:** análisis (Gemini, solo lectura): contrastar RF-16, RN-15, CP-18, MJ-05, la arquitectura (§6, §7.2) y T-25/T-27 con el comportamiento actual y concluir, con citas, si la pantalla ausente es un **requisito pendiente** o una **funcionalidad nueva**. No se implementa nada en esta tarea.
+- **Prioridad:** S.
 
 ---
 
