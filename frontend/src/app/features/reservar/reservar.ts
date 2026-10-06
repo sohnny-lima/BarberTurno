@@ -102,7 +102,8 @@ export class Reservar {
   constructor() {
     const snackbar = inject(MatSnackBar);
     const elemento = inject<ElementRef<HTMLElement>>(ElementRef);
-    let pasoEnfocado: number | undefined;
+    // La primera presentación conserva el foco; una selección restaurada cambia este índice.
+    let pasoEnfocado = 0;
     let fotograma: number | undefined;
     this.destroyRef.onDestroy(() => {
       if (fotograma !== undefined) cancelAnimationFrame(fotograma);

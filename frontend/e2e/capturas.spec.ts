@@ -54,6 +54,9 @@ test('capturas reales de Reservar, Mis citas y Agenda', async ({ page }, info) =
   await page.goto('/reservar');
   await expect(page.locator('[data-servicio]')).not.toHaveCount(0);
   await capturar(page, info, 'reservar-paso1');
+  await expect(page.locator('body')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
   if (info.project.use.viewport?.width === 360) {
     const servicio = await page.locator('[data-servicio]').first().boundingBox();
     const titulo = await page.getByRole('heading', { level: 1 }).boundingBox();
@@ -64,12 +67,17 @@ test('capturas reales de Reservar, Mis citas y Agenda', async ({ page }, info) =
   await expect(page.locator('aside[aria-label="Su cita"]')).toContainText('Carlos');
   await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
   await expect(page.locator('[data-franja]')).not.toHaveCount(0);
+  await expect(page.locator('[data-paso="1"]')).toBeFocused();
   await capturar(page, info, 'reservar-paso2');
   await page.locator('[data-franja]').first().click();
   await expect(page.locator('[data-confirmar]')).toBeVisible();
+  await expect(page.locator('[data-paso="2"]')).toBeFocused();
   await capturar(page, info, 'reservar-paso3');
   await page.goto('/mis-citas');
   await expect(page.locator('app-reserva-tarjeta')).not.toHaveCount(0);
+  const precios = await page.locator('app-reserva-tarjeta').allTextContents();
+  expect(precios.every((texto) => /S[/]\s\d+\.\d{2}/.test(texto))).toBe(true);
+  expect(precios.some((texto) => /S[/]\s{2,}/.test(texto))).toBe(false);
   await capturar(page, info, 'mis-citas');
   await entrar(page, 'admin-e2e@ejemplo.test');
   await page.goto('/agenda');

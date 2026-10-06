@@ -89,6 +89,49 @@ describe('Vista de reserva guiada', () => {
     );
     expect(f.componentInstance.store.sesion.autenticado()).toBe(false);
   });
+  it.each([
+    [false, 'CLIENTE'],
+    [true, 'CLIENTE'],
+    [false, 'ADMIN'],
+    [true, 'ADMIN'],
+  ])('conserva el foco en la primera presentación, móvil=%s rol=%s', async (esMovil, rol) => {
+    movil = esMovil as boolean;
+    const focoInicial = document.activeElement;
+    const f = preparar(rol as string);
+    await f.whenStable();
+    await new Promise<void>((resolver) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolver())),
+    );
+    expect(document.activeElement).toBe(focoInicial);
+  });
+  it.each([false, true])('enfoca la selección restaurada, móvil=%s', async (esMovil) => {
+    movil = esMovil;
+    const fecha = fechaHoyLima();
+    sessionStorage.setItem(
+      'barberturno.reserva',
+      JSON.stringify({
+        servicioId: 1,
+        preferencia: null,
+        fecha,
+        inicio: fecha + 'T10:00:00-05:00',
+        barberoId: 2,
+      }),
+    );
+    const f = preparar();
+    http
+      .expectOne((r) => r.url === '/api/disponibilidad')
+      .flush({
+        franjas: [
+          { inicio: fecha + 'T10:00:00-05:00', fin: fecha + 'T10:30:00-05:00', barberoIds: [2] },
+        ],
+      });
+    f.detectChanges();
+    await f.whenStable();
+    expect(f.componentInstance.store.paso()).toBe(2);
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(f.nativeElement.querySelector('[data-paso="2"]')),
+    );
+  });
   it('muestra Sin preferencia como selección inicial del profesional', async () => {
     const f = preparar('');
     await f.whenStable();

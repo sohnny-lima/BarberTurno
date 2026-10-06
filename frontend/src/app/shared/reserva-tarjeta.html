@@ -20,7 +20,8 @@
       {{ reserva().barbero.nombre }}
     </p>
     <p>
-      {{ reserva().precioRef | currency: 'PEN' : 'S/ ' }} · {{ reserva().duracionMin }} minutos ·
+      {{ reserva().precioRef | currency: 'PEN' : 'S/' : '1.2-2' : 'es-PE' }} ·
+      {{ reserva().duracionMin }} minutos ·
       {{ reserva().codigo }}
     </p>
     <div class="acciones">

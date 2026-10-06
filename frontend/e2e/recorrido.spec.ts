@@ -81,6 +81,8 @@ async function fechaFranja(page: Page, fecha: string, hora: string) {
     'data-fecha-consultada',
     fecha,
   );
+  // La fecha se presenta antes de que termine la consulta de sus horas.
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   await page.getByRole('button', { name: new RegExp(`^${hora}–`) }).click();
   await expect(page.locator('.resumen')).toContainText(hora);
 }
