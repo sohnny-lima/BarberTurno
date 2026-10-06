@@ -61,9 +61,13 @@ async function ingresar(page: Page, correo: string) {
 
 async function comprobarSalida(page: Page) {
   const abrir = page.getByRole('button', { name: 'Abrir menú', exact: true });
-  if (await abrir.isVisible()) await abrir.click();
+  if (await abrir.isVisible()) {
+    await abrir.focus();
+    await abrir.click();
+  }
   await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
   if (await abrir.isVisible()) {
+    await expect(page.locator('#menu-principal').getByRole('link').first()).toBeFocused();
     await page.keyboard.press('Escape');
     // El cajón devuelve el foco al terminar su animación; no anticipar el siguiente Enter.
     await expect(page.locator('mat-sidenav')).toBeHidden();
@@ -335,7 +339,13 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
           campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
       ),
   ).toBe(true);
+  // Material enfoca Nombre al terminar de abrir; esperar evita que intercepte el relleno.
+  await expect(page.getByLabel('Nombre', { exact: true })).toBeFocused();
   await page.getByLabel('Descripción', { exact: true }).fill('Corte y acabado de demostración E2E');
+  await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Corte clásico');
+  await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue(
+    'Corte y acabado de demostración E2E',
+  );
   await page.getByRole('button', { name: 'Guardar servicio', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('table')).toContainText('Corte y acabado de demostración E2E');
@@ -506,6 +516,8 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
   const servicios: ServicioDto[] = await (await page.request.get('/api/servicios')).json();
   const barberos: BarberoDto[] = await (await page.request.get('/api/barberos')).json();
+  expect(servicios.map((s) => s.nombre)).toContain('Corte clásico');
+  expect(barberos.map((b) => b.nombre)).toContain('Carlos');
   const creada: ReservaDto = await (
     await escribir(page.request, '/api/reservas', {
       servicioId: servicios.find((s) => s.nombre === 'Corte clásico')!.id,
