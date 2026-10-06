@@ -86,6 +86,7 @@
 | T-49 | Diagnóstico del 403 intermitente de Firefox (CSRF; T-34 O-1, reproducido en T-48) | M | T-34 | En curso (diagnóstico) | 06/10/2026 | — |
 | T-50 | Comprobación del requisito de avisos para BARBERO y ADMIN (RF-16, CP-18) | S | T-25, T-27 | Hecha (análisis g018; decisión del responsable: requisito pendiente para BARBERO → T-51) | 06/10/2026 | — |
 | T-51 | Lectura de avisos del BARBERO desde el contador de la cabecera (RF-16, CP-18, C-14, DA-25) | M | T-25, T-27, T-50 | Pendiente | — | — |
+| T-52 | Comprobación conjunta de T-48 y T-51 en una rama de integración (cabecera compartida) | M | T-48, T-51 | Pendiente | — | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -400,6 +401,13 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Criterios de aceptación:** un BARBERO ve y marca **solo sus** avisos desde la cabecera en escritorio y a 360 px; el contador baja al marcar; el CLIENTE conserva su panel en Mis citas; el ADMIN no ve el acceso nuevo; ningún usuario ve avisos ajenos (la autorización la impone el servidor); accesible con teclado y lector de pantalla (botón con nombre, diálogo con título, foco devuelto al cerrar).
 - **Pruebas:** unitarias del shell (el acceso solo aparece para BARBERO; el diálogo muestra el panel), E2E: Carlos lee y marca un aviso propio de una reserva de un cliente y no ve avisos de otros usuarios; Ana sigue leyendo los suyos en Mis citas; el ADMIN no tiene el acceso. Backend: las IT existentes de aislamiento (`AuditoriaAvisosIT`) siguen pasando sin cambios.
 - **Prioridad:** M (requisito pendiente RF-16/CP-18).
+
+### T-52 · Comprobación conjunta de T-48 y T-51
+- **Origen:** petición del responsable (06/10/2026): T-48 (rediseño, rama `tarea/T-48-interfaz-tailwind`) y T-51 (avisos del BARBERO, rama `tarea/T-51-avisos-barbero`) cambian la misma cabecera; hay que comprobarlas juntas antes de decidir la integración.
+- **Alcance:** rama `tarea/T-52-integracion-t48-t51` desde `main` con `merge --no-ff` de T-48 y después de T-51; resolución de conflictos (la cabecera final es la de T-48 con el acceso de T-51 integrado en el riel y en la cabecera móvil); pruebas combinadas. **No se integra en `main`.** T-49 (CSRF) queda fuera de esta comprobación y se integrará aparte.
+- **Criterios de aceptación:** navegación por rol, contador y diálogo de avisos del BARBERO, foco (devuelto al cerrar el diálogo; cambios de paso de Reservar), escritorio y 360 px sin desplazamiento horizontal, axe sin violaciones, presupuesto sin elevar; todas las pruebas de ambas ramas pasan.
+- **Pruebas:** lint, formato, Vitest (Lima y Madrid), build, E2E y capturas en Chromium y Firefox a 1440 y 360 px, `AuditoriaAvisosIT`.
+- **Prioridad:** M.
 
 ---
 
