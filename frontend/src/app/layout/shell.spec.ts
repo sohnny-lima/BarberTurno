@@ -8,7 +8,7 @@ import { MatSidenav } from '@angular/material/sidenav';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 import { Rol } from '../core/modelos/identidad';
@@ -59,6 +59,31 @@ describe('Shell adaptable', () => {
       '(max-width: 767.98px)',
     );
   });
+  it.each([true, false])(
+    'una navegación cierra el cajón y enfoca el contenido solo en móvil: móvil=%s',
+    async (esMovil) => {
+      movil.next({ matches: esMovil });
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(MatSidenav))
+        .componentInstance as MatSidenav;
+      if (esMovil) {
+        await menu.open();
+        fixture.detectChanges();
+      }
+      expect(menu.opened).toBe(true);
+      expect(await TestBed.inject(Router).navigateByUrl('/?redireccion=ingresar')).toBe(true);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(menu.opened).toBe(!esMovil);
+      if (esMovil) {
+        // El cierre de Material termina fuera de la estabilidad de Angular.
+        await vi.waitFor(() =>
+          expect(document.activeElement).toBe(fixture.nativeElement.querySelector('main')),
+        );
+      }
+    },
+  );
   it.each([
     ['CLIENTE', ['Reservar', 'Mis citas', 'Mi cuenta']],
     ['BARBERO', ['Agenda', 'Mi cuenta']],

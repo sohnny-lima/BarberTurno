@@ -4,19 +4,21 @@ import {
   Component,
   computed,
   DestroyRef,
+  ElementRef,
   inject,
   Injector,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 
-import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { finalize, map } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, finalize, map } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 
 import { AvisosService } from '../core/notificaciones/avisos-service';
@@ -57,6 +59,8 @@ export class Shell {
   private dialogoAvisosActivo = false;
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly menu = viewChild(MatSidenav);
+  private readonly contenido = viewChild<ElementRef<HTMLElement>>('contenido');
   readonly saliendo = signal(false);
   readonly movil = toSignal(
     inject(BreakpointObserver)
@@ -91,6 +95,23 @@ export class Shell {
         this.sesion.rol() ?? 'CLIENTE'
       ],
   );
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((evento) => evento instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        const menu = this.menu();
+        if (!this.movil() || !menu?.opened) return;
+        void menu.close().then(() => {
+          // Material puede restaurar el disparador; la navegación sitúa el foco en su destino.
+          if (!this.destroyRef.destroyed && this.movil()) {
+            this.contenido()?.nativeElement.focus();
+          }
+        });
+      });
+  }
   async abrirAvisos() {
     if (this.dialogoAvisosActivo) return;
     this.dialogoAvisosActivo = true;
