@@ -1,26 +1,78 @@
 @use '@angular/material' as mat;
 @use './theme-colors' as colores;
+@font-face {
+  font-family: 'Big Shoulders Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/big-shoulders/files/big-shoulders-latin-wght-normal.woff2')
+    format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2')
+    format('woff2');
+}
 
 html {
   height: 100%;
-
+  scroll-padding-top: 72px;
   @include mat.theme(
     (
       color: (
         primary: colores.$primary-palette,
         tertiary: colores.$tertiary-palette,
       ),
-      typography: Arial,
+      typography: (
+        plain-family: 'Atkinson Hyperlegible Next Variable',
+        brand-family: 'Big Shoulders Variable',
+        medium-weight: 600,
+      ),
       density: 0,
     )
   );
+  @include mat.theme-overrides(
+    (
+      primary: var(--color-cordoban),
+      on-primary: white,
+      tertiary: var(--color-petroleo),
+      surface: var(--color-cal),
+      on-surface: var(--color-tinta),
+      on-surface-variant: var(--color-texto-2),
+      outline: var(--color-borde-control),
+    )
+  );
+  @include mat.button-overrides(
+    (
+      filled-container-height: 48px,
+      outlined-container-height: 44px,
+      text-container-height: 44px,
+      filled-container-shape: var(--radius-control),
+      outlined-container-shape: var(--radius-control),
+      text-container-shape: var(--radius-control),
+      text-label-text-color: var(--color-petroleo),
+      outlined-outline-color: var(--color-borde-control),
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: var(--radius-control),
+    )
+  );
+  @include mat.paginator-overrides(
+    (
+      container-background-color: transparent,
+    )
+  );
 }
-
 body {
   color-scheme: light;
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
+  background: var(--color-cal);
+  color: var(--color-tinta);
+  font: 16px/1.5 var(--font-cuerpo);
   margin: 0;
   min-height: 100%;
 }
@@ -28,33 +80,39 @@ body {
   box-sizing: border-box;
 }
 a {
-  color: #086573;
+  color: var(--color-petroleo);
 }
 :focus-visible {
-  outline: 3px solid #087f8c;
-  outline-offset: 3px;
+  outline: 3px solid var(--color-petroleo);
+  outline-offset: 2px;
 }
-// Material elimina el outline del input; conservar una señal explícita al usar teclado.
 input.mat-mdc-input-element:focus-visible {
-  outline: 3px solid #087f8c;
-  outline-offset: 3px;
-}
-.pagina-identidad {
-  max-width: 660px;
-  margin: 0 auto;
+  outline: 3px solid var(--color-petroleo);
+  outline-offset: 2px;
 }
 h1 {
-  font-size: 30px;
+  font: 800 56px/1.05 var(--font-display);
   margin: 0 0 12px;
+}
+h2 {
+  font-size: 20px;
 }
 p {
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
+button,
+input {
+  font: inherit;
+}
+.pagina-identidad {
+  max-width: 660px;
+  margin: 0 auto;
+}
 .tarjeta {
   background: white;
-  border: 1px solid #d8e3e6;
-  border-radius: 10px;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
   padding: 24px;
   margin: 20px 0;
 }
@@ -66,26 +124,81 @@ p {
 .acciones {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 .mensaje {
-  background: #edf5f6;
+  background: var(--color-confirmada-fondo);
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 .ayuda {
   font-size: 14px;
-  color: #435d67;
+  color: var(--color-texto-2);
 }
 .error-campo {
   color: var(--mat-sys-error);
   margin: 0;
 }
+.riesgo {
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--color-no-asistio),
+      outlined-label-text-color: var(--color-no-asistio),
+      outlined-outline-color: var(--color-riesgo-borde),
+    )
+  );
+}
+.tique {
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+  overflow: hidden;
+  margin-block: 20px;
+}
+.tique-banda {
+  background: var(--color-tinta);
+  color: white;
+  padding: 18px 24px;
+}
+.tique-banda strong {
+  color: var(--color-laton);
+}
+.tique-hora {
+  font: 800 52px/1 var(--font-display);
+  margin: 8px 0;
+}
+.tique-cuerpo {
+  padding: 24px;
+  border-top: 2px dashed var(--color-linea);
+}
 @media (max-width: 767.98px) {
-  .tarjeta {
+  h1 {
+    font-size: 40px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+  .tarjeta,
+  .tique-cuerpo {
     padding: 16px;
   }
-  h1 {
-    font-size: 26px;
+  .acciones > :is(button, a) {
+    flex: 1 1 9rem;
+  }
+  // Excepción única DA-24 / diseño §6 bis: progreso compacto accesible en Reservar.
+  app-reservar .mat-horizontal-stepper-header-container {
+    display: none;
+  }
+  html:has(app-reservar .barra-reserva) {
+    scroll-padding-bottom: 150px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
   }
 }
