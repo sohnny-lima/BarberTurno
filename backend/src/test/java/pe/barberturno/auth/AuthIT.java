@@ -151,6 +151,11 @@ class AuthIT {
                         .anyMatch(valor -> valor.startsWith("XSRF-TOKEN="))).isFalse();
                 assertThat(resultado.getRequest().getSession(false)).isNull();
             }
+            // Un fragmento ausente cruza los mismos filtros que los recursos estáticos existentes.
+            var fragmento = mvc.perform(get("/chunk-t49-ausente.js").cookie(sesion, csrf))
+                    .andExpect(status().isNotFound()).andReturn();
+            assertThat(fragmento.getResponse().getHeaders("Set-Cookie").stream()
+                    .anyMatch(valor -> valor.startsWith("XSRF-TOKEN="))).isFalse();
             assertThat(registros.list.stream().anyMatch(evento -> evento.getFormattedMessage()
                     .contains("Replaced CSRF Token"))).isFalse();
         } finally {

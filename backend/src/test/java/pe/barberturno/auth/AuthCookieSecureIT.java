@@ -62,11 +62,19 @@ class AuthCookieSecureIT {
         assertThat(sesion.getMaxAge()).isEqualTo(28800);
         assertThat(sesion.getPath()).isEqualTo("/");
         assertThat(sesion.getAttribute("SameSite")).isEqualTo("Strict");
+        comprobarBorradoCsrf(r.getResponse().getCookie("XSRF-TOKEN"));
+        xsrf = mvc.perform(get("/api/auth/sesion").secure(true).cookie(sesion))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        assertThat(xsrf).isNotNull();
+        assertThat(xsrf.getSecure()).isTrue();
+        assertThat(xsrf.isHttpOnly()).isFalse();
         r = mvc.perform(put("/api/auth/password").secure(true).cookie(xsrf, sesion)
                 .header("X-XSRF-TOKEN", xsrf.getValue()).contentType("application/json")
                 .content("""
                         {"passwordActual":"ClaveCliente123","passwordNueva":"OtraClave456"}
                         """)).andExpect(status().isNoContent()).andReturn();
+        // DA-26 no renueva CSRF al cambiar la contraseña, aunque sí renueva el JWT.
+        assertThat(r.getResponse().getCookie("XSRF-TOKEN")).isNull();
         sesion = r.getResponse().getCookie("BT_SESION");
         assertThat(sesion).isNotNull();
         assertThat(sesion.getSecure()).isTrue();
@@ -83,5 +91,16 @@ class AuthCookieSecureIT {
         assertThat(borrada.isHttpOnly()).isTrue();
         assertThat(borrada.getPath()).isEqualTo("/");
         assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
+        comprobarBorradoCsrf(r.getResponse().getCookie("XSRF-TOKEN"));
+    }
+
+    private void comprobarBorradoCsrf(Cookie cookie) {
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getValue()).isEmpty();
+        assertThat(cookie.getMaxAge()).isZero();
+        assertThat(cookie.getSecure()).isTrue();
+        assertThat(cookie.isHttpOnly()).isFalse();
+        assertThat(cookie.getPath()).isEqualTo("/");
+        assertThat(cookie.getAttribute("SameSite")).isEqualTo("Strict");
     }
 }
