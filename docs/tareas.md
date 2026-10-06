@@ -86,7 +86,7 @@
 | T-49 | Diagnóstico del 403 intermitente de Firefox (CSRF; T-34 O-1, reproducido en T-48) | M | T-34 | En curso (diagnóstico) | 06/10/2026 | — |
 | T-50 | Comprobación del requisito de avisos para BARBERO y ADMIN (RF-16, CP-18) | S | T-25, T-27 | Hecha (análisis g018; decisión del responsable: requisito pendiente para BARBERO → T-51) | 06/10/2026 | — |
 | T-51 | Lectura de avisos del BARBERO desde el contador de la cabecera (RF-16, CP-18, C-14, DA-25) | M | T-25, T-27, T-50 | Pendiente | — | — |
-| T-52 | Comprobación conjunta de T-48 y T-51 en una rama de integración (cabecera compartida) | M | T-48, T-51 | Pendiente | — | — |
+| T-52 | Comprobación conjunta de T-48 y T-51 en una rama de integración (cabecera compartida) | M | T-48, T-51 | En curso | 06/10/2026 | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
