@@ -26,7 +26,7 @@ import { paginadorEspanol } from '../../shared/paginador-es';
   providers: [{ provide: MatPaginatorIntl, useFactory: paginadorEspanol }],
   templateUrl: './avisos-panel.html',
   styles: [
-    'li { padding: 16px 0; border-bottom: 1px solid #d8e3e6; } ul { list-style: none; padding: 0; }',
+    ':host { display: block; min-width: 0; } section { min-height: 240px; margin-top: 0; } li { padding: 16px 0; border-bottom: 1px solid var(--color-linea); } ul { list-style: none; padding: 0; } .nuevo { color: var(--color-petroleo); } .nuevo::before { content: "● "; }',
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

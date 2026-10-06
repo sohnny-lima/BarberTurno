@@ -14,6 +14,13 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   // Material mueve el contenido al área live tras anunciarlo; analizar el DOM estable.
   await expect(page.locator('mat-snack-bar-container [aria-hidden="true"]')).toHaveCount(0);
+  expect(
+    await page
+      .locator('mat-form-field')
+      .evaluateAll((campos) =>
+        campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
+      ),
+  ).toBe(true);
   const resultados = await new AxeBuilder({ page }).analyze();
   const relevantes = resultados.violations.map(({ id, impact, nodes }) => ({
     id,
@@ -24,12 +31,11 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     body: JSON.stringify(relevantes, null, 2),
     contentType: 'application/json',
   });
+  expect(relevantes, nombre).toEqual([]);
   expect(
-    relevantes.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')),
-    nombre,
-  ).toEqual([]);
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
     nombre,
   ).toBe(true);
 }
@@ -43,25 +49,41 @@ async function ingresar(page: Page, correo: string) {
     elemento.dispatchEvent(new Event('input', { bubbles: true }));
   }, process.env['BT_DEMO_PASSWORD']!);
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  await comprobarSalida(page);
   // La identidad aparece antes de que termine la navegación; no abortar esa transición.
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 }
 
+async function comprobarSalida(page: Page) {
+  const abrir = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await abrir.isVisible()) await abrir.click();
+  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  if (await abrir.isVisible()) await page.keyboard.press('Escape');
+}
+
 async function seleccionar(page: Page, etiqueta: string, opcion: string) {
+  if (etiqueta === 'Profesional') {
+    await page.getByRole('radio', { name: new RegExp(opcion) }).check();
+    return;
+  }
   await page.getByRole('combobox', { name: etiqueta, exact: true }).click();
   await page.getByRole('option', { name: opcion, exact: true }).click();
 }
 
 async function fechaFranja(page: Page, fecha: string, hora: string) {
   // NativeDateAdapter usa los campos civiles locales del calendario, incluso en Madrid.
-  const entrada = page.getByLabel('Fecha de la cita (Lima)', { exact: true });
+  const entrada = page.getByLabel('Otra fecha (Lima)', { exact: true });
   const [ano, mes, dia] = fecha.split('-');
   await entrada.fill(`${mes}/${dia}/${ano}`);
   await entrada.press('Tab');
-  await expect(page.getByText(`Fecha consultada: ${fecha} (Lima)`, { exact: true })).toBeVisible();
-  await page.getByRole('option', { name: new RegExp(`^${hora}–`) }).click();
+  await expect(page.locator('[data-fecha-consultada]')).toHaveAttribute(
+    'data-fecha-consultada',
+    fecha,
+  );
+  // La fecha se presenta antes de que termine la consulta de sus horas.
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await page.getByRole('button', { name: new RegExp(`^${hora}–`) }).click();
   await expect(page.locator('.resumen')).toContainText(hora);
 }
 
@@ -69,7 +91,7 @@ async function prepararReserva(page: Page, fecha: string, hora: string) {
   await page.goto('/reservar');
   await page.getByRole('button', { name: /Corte clásico/ }).click();
   await seleccionar(page, 'Profesional', 'Carlos');
-  await page.getByRole('button', { name: 'Elegir fecha y franja', exact: true }).click();
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
   await fechaFranja(page, fecha, hora);
 }
 
@@ -140,17 +162,28 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await page.getByRole('button', { name: /Corte clásico/ }).click();
   await seleccionar(page, 'Profesional', 'Carlos');
   await revisar(page, testInfo, 'reservar-servicio');
-  await page.getByRole('button', { name: 'Elegir fecha y franja' }).click();
-  const entrada = page.getByLabel('Fecha de la cita (Lima)', { exact: true });
+  const avanzar = page.getByRole('button', { name: 'Elegir fecha y hora' });
+  await avanzar.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-paso="1"]')).toBeFocused();
+  const entrada = page.getByLabel('Otra fecha (Lima)', { exact: true });
   await entrada.fill('10/01/2026');
   await entrada.press('Tab');
   await expect(
-    page.getByText('Fecha consultada: 2026-10-01 (Lima)', { exact: true }),
+    page.getByRole('heading', { name: 'jueves, 1 de octubre', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('option', { name: /^11:00–11:30/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^11:00–11:30/ })).toBeVisible();
   await revisar(page, testInfo, 'reservar-franja');
-  await page.getByRole('option', { name: /^11:00–11:30/ }).click();
-  await expect(page.locator('.resumen')).toContainText('11:00–11:30');
+  const hora = page.getByRole('button', { name: /^11:00–11:30/ });
+  await hora.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-paso="2"]')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Confirmar reserva', exact: true })).toBeFocused();
+  await expect(page.locator('.resumen .tique-hora')).toHaveText('11:00');
+  await expect(page.locator('.resumen .tique-banda')).toContainText(
+    'Hasta las 11:30, hora de Lima',
+  );
   await revisar(page, testInfo, 'reservar-confirmacion');
   const respuesta = page.waitForResponse(
     (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
@@ -168,13 +201,24 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await expect(page.locator('app-avisos-panel')).toContainText(creada.codigo);
   await revisar(page, testInfo, 'mis-citas');
   await tarjeta.getByRole('link', { name: 'Reprogramar' }).click();
-  await page.getByRole('button', { name: 'Elegir fecha y franja' }).click();
+  await page.getByRole('button', { name: 'Elegir fecha y hora' }).click();
   await fechaFranja(page, '2026-10-01', '12:00');
   await page.getByRole('button', { name: 'Confirmar reprogramación' }).click();
   await expect(page).toHaveURL(/\/mis-citas/);
   tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: creada.codigo });
   await expect(tarjeta).toContainText('12:00');
   await tarjeta.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(
+    await page
+      .getByRole('dialog')
+      .locator('mat-form-field')
+      .evaluateAll(
+        (campos) =>
+          campos.length > 0 &&
+          campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
+      ),
+  ).toBe(true);
   const cancelacion = page.waitForResponse((r) =>
     r.url().endsWith(`/api/reservas/${creada.id}/cancelacion`),
   );
@@ -210,7 +254,7 @@ test('02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de d
   await page.goto('/mis-citas');
   const tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: cercana });
   await expect(tarjeta).toContainText('10:00');
-  await expect(tarjeta).toContainText('Faltan menos de dos horas');
+  await expect(tarjeta).toContainText('Faltan menos de 2 horas');
   await expect(tarjeta.getByRole('link', { name: 'Reprogramar' })).toHaveCount(0);
   await expect(tarjeta.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
 });
@@ -227,11 +271,32 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
   await revisar(page, testInfo, 'agenda-dia');
   for (const accion of ['Iniciar atención', 'Completar']) {
     await fila.getByRole('button', { name: accion, exact: true }).click();
+    const transicion = page.waitForResponse(
+      (r) => r.url().endsWith('/transiciones') && r.request().method() === 'POST',
+    );
     await page.getByRole('dialog').getByRole('button', { name: accion, exact: true }).click();
+    const respuestaTransicion = await transicion;
+    if (respuestaTransicion.status() !== 200) {
+      const cabeceras = await respuestaTransicion.request().allHeaders();
+      const cookie = /(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(cabeceras['cookie'] ?? '')?.[1];
+      await testInfo.attach('diagnostico-transicion', {
+        body: JSON.stringify({
+          accion,
+          status: respuestaTransicion.status(),
+          csrfPresente: !!cabeceras['x-xsrf-token'],
+          cookieCsrfPresente: !!cookie,
+          csrfCoincide: !!cookie && decodeURIComponent(cookie) === cabeceras['x-xsrf-token'],
+          sesionPresente: (cabeceras['cookie'] ?? '').includes('BT_SESION='),
+        }),
+        contentType: 'application/json',
+      });
+    }
+    expect(respuestaTransicion.status()).toBe(200);
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
   await expect(fila).toContainText('Completada');
-  await seleccionar(page, 'Vista', 'Semana (lunes a domingo)');
+  await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
   const solicitud = page.getByRole('article', { name: pendiente, exact: true });
   await expect(solicitud).toContainText('Pendiente');
   await solicitud.getByRole('button', { name: 'Confirmar', exact: true }).click();
@@ -250,6 +315,17 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   ).toBeVisible();
   await revisar(page, testInfo, 'servicios');
   await page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(
+    await page
+      .getByRole('dialog')
+      .locator('mat-form-field')
+      .evaluateAll(
+        (campos) =>
+          campos.length > 0 &&
+          campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
+      ),
+  ).toBe(true);
   await page.getByLabel('Descripción', { exact: true }).fill('Corte y acabado de demostración E2E');
   await page.getByRole('button', { name: 'Guardar servicio', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -305,6 +381,8 @@ test('05 · cliente redirigido de administración y protegido después de logout
   await ingresar(page, 'cliente@ejemplo.test');
   await page.goto('/admin/servicios');
   await expect(page).toHaveURL(/\/reservar/);
+  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await menu.isVisible()) await menu.click();
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await page.goto('/mis-citas');
   await expect(page).toHaveURL(/\/ingresar/);
@@ -342,13 +420,11 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
     expect([...estados].sort()).toEqual([201, 409]);
     const perdedor = paginas[estados.indexOf(409)];
     await expect(perdedor.getByRole('alert')).toContainText(/franja.*(disponible|ocupada)/i);
-    await expect(
-      perdedor.getByRole('listbox', { name: 'Franjas disponibles en Lima' }),
-    ).toBeVisible();
-    await expect(perdedor.getByRole('option', { name: /^11:00–/ })).toHaveCount(0);
-    await expect(perdedor.getByRole('option', { name: /^11:30–/ })).toBeVisible();
+    await expect(perdedor.getByRole('region', { name: 'Horas disponibles' })).toBeVisible();
+    await expect(perdedor.getByRole('button', { name: /^11:00–/ })).toHaveCount(0);
+    await expect(perdedor.getByRole('button', { name: /^11:30–/ })).toBeVisible();
     // CP-04: el fin del ganador es también un comienzo disponible y reservable.
-    await perdedor.getByRole('option', { name: /^11:30–12:00/ }).click();
+    await perdedor.getByRole('button', { name: /^11:30–12:00/ }).click();
     const contigua = perdedor.waitForResponse(
       (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
     );
@@ -375,7 +451,7 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   }
   await page.getByRole('checkbox', { name: 'Acepto el aviso de privacidad' }).check();
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  await comprobarSalida(page);
   await page.goto('/perfil');
   await expect(page.getByLabel('Correo (solo lectura)', { exact: true })).toHaveValue(correo);
   await page.getByLabel('Nombre', { exact: true }).fill('Cliente E2E actualizado');

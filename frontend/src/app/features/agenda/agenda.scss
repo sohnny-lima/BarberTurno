@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 :host {
   display: block;
 }
@@ -7,18 +8,64 @@
   align-items: center;
   gap: 16px;
 }
-.filtros mat-form-field {
+.filtros > mat-form-field {
+  min-width: 0;
   flex: 1 1 180px;
 }
-.fila {
+mat-button-toggle-group {
+  @include mat.button-toggle-overrides(
+    (
+      shape: var(--radius-control),
+      height: 48px,
+      selected-state-background-color: var(--color-tinta),
+      selected-state-text-color: white,
+    )
+  );
+}
+.navegar-fecha {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.navegar-fecha mat-form-field {
+  min-width: 0;
+  width: 180px;
+}
+.navegar-fecha > button:not(.hoy) {
+  min-width: 44px;
+  padding: 0;
+  font-size: 24px;
+}
+.acciones-fecha {
+  display: flex;
+  gap: 8px;
+}
+.resumen-conteos {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  gap: 4px 12px;
+  color: var(--color-texto-2);
+  font-size: 14px;
+  margin-top: 16px;
+}
+.linea-tiempo {
+  min-height: 260px;
+  margin-top: 24px;
+}
+.fila {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
   gap: 16px;
-  border: 1px solid #b5c7cf;
-  border-radius: 12px;
-  padding: 16px;
+  align-items: start;
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+  padding: 20px;
   margin-bottom: 12px;
+}
+.fila.terminada {
+  background: var(--color-cal);
 }
 .intervalo,
 .cliente {
@@ -26,21 +73,74 @@
   gap: 6px;
   overflow-wrap: anywhere;
 }
-.cliente {
-  flex: 1 1 200px;
-  min-width: 0;
+.intervalo {
+  font-variant-numeric: tabular-nums;
+}
+.intervalo strong {
+  font: 800 36px/1 var(--font-display);
+  white-space: nowrap;
+}
+.intervalo span {
+  font-size: 13px;
+  color: var(--color-texto-2);
+}
+.cliente strong {
+  font-size: 18px;
+}
+.cliente a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  justify-self: start;
 }
 .acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
+  grid-column: 2 / -1;
 }
-@media (max-width: 599px) {
-  .filtros mat-form-field {
+.ahora {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-cordoban);
+  font-weight: 700;
+  margin-block: 16px;
+}
+.ahora::after {
+  content: '';
+  height: 2px;
+  background: currentColor;
+  flex: 1;
+}
+@media (max-width: 767.98px) {
+  .filtros > mat-form-field {
     flex-basis: 100%;
   }
-  .intervalo {
-    flex-basis: 100%;
+  .navegar-fecha {
+    width: 100%;
+  }
+  .navegar-fecha mat-form-field {
+    flex: 1;
+  }
+  .filtros {
+    gap: 12px;
+  }
+  .acciones-fecha {
+    width: 100%;
+  }
+  .acciones-fecha > button {
+    flex: 1;
+  }
+  .fila {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+  .intervalo strong {
+    font-size: 30px;
+  }
+  app-estado-reserva-chip {
+    grid-column: 2;
+  }
+  .acciones {
+    grid-column: 1 / -1;
   }
 }

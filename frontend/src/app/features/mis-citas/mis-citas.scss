@@ -1,23 +1,38 @@
 :host {
   display: block;
-  max-width: 1000px;
-  margin: 0 auto;
 }
 .filtros {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   margin: 24px 0;
 }
 .filtros mat-form-field {
-  flex: 1 1 180px;
+  flex: 1 1 140px;
   min-width: 0;
 }
 .error-campo {
   flex-basis: 100%;
 }
+.lista-citas {
+  min-height: 240px;
+}
+.abrir-filtros {
+  display: none;
+}
 @media (max-width: 767.98px) {
+  .abrir-filtros {
+    display: block;
+    margin-top: 16px;
+    width: 100%;
+  }
+  .filtros {
+    display: none;
+  }
+  .filtros.abiertos {
+    display: flex;
+  }
   .filtros mat-form-field {
     flex-basis: 100%;
   }

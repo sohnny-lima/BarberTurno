@@ -3,10 +3,9 @@ import { spawnSync } from 'node:child_process';
 const tablas =
   'notificacion, auditoria_reserva, reserva, bloqueo, jornada, barbero, servicio, usuario';
 
-/** Solo admite las dos bases de prueba autorizadas; nunca la de desarrollo. */
-export function sql(sentencia: string, base = process.env['BT_E2E_DB'] ?? 'postgres') {
-  if (!['postgres', 'barberturno_e2e', 'barberturno_test'].includes(base))
-    throw new Error('Base E2E no autorizada.');
+/** Solo admite barberturno_test; nunca crea bases ni usa la de desarrollo. */
+export function sql(sentencia: string, base = process.env['BT_E2E_DB'] ?? 'barberturno_test') {
+  if (base !== 'barberturno_test') throw new Error('Base E2E no autorizada.');
   return spawnSync(
     process.env['BT_E2E_PSQL'] ?? 'C:/Program Files/PostgreSQL/18/bin/psql.exe',
     [

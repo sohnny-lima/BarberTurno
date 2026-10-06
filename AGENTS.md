@@ -12,6 +12,7 @@ BarberTurno es un sistema web de reservas y turnos para una barbería de una sed
 | `docs/requisitos.md` | RF, RNF, reglas de negocio (RN), restricciones académicas (RA), mejoras (MJ), contradicciones, supuestos, pendientes, trazabilidad y CP | Claude Code |
 | `docs/arquitectura.md` | Stack y versiones, módulos, modelo de datos (DDL), contratos de API, seguridad, concurrencia, pruebas, decisiones (DA) | Claude Code |
 | `docs/tareas.md` | Plan de tareas T-01…T-37, su estado y las notas de cierre | Claude Code (plan) · Codex (estado y notas) |
+| `docs/diseno/` | Especificaciones de diseño visual aprobadas (T-48: `t-48.md` e imágenes de referencia) | Claude Code |
 | `docs/pruebas/` | Evidencias: aceptación, cobertura, carga, recuperación y % Java | Codex |
 | `README.md` | Arranque rápido | Codex |
 
@@ -42,6 +43,7 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 
 ## 5. Flujo de trabajo de una tarea (Codex)
 > **Modo freeze desde el 05/10/2026** (decisión del responsable, tras completar T-01…T-47 y el primer CI verde): solo se admiten correcciones de bugs reproducibles, problemas de CI, requisitos pendientes o defectos necesarios para el cierre. Nada de funcionalidades nuevas ni refactorizaciones sin ese motivo.
+> **Excepción autorizada el 05/10/2026:** T-48 (interfaz con Tailwind, MJ-19, DA-24), limitada a la capa visual del frontend; el freeze se mantiene para lógica, backend y funcionalidades. T-48 se revisa con el responsable antes de integrarse en `main`.
 
 1. Elegir la primera tarea `Pendiente` cuyas dependencias estén en `Hecha`. Marcarla `En curso`.
 2. Releer la tarea, las RF/RN/CP que cita y las secciones de la arquitectura a las que enlaza.

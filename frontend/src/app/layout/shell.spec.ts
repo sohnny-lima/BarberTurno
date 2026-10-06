@@ -77,14 +77,34 @@ describe('Shell adaptable', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     expect(fixture.componentInstance.enlaces().map((enlace) => enlace.texto)).toEqual(esperado);
-    expect(fixture.nativeElement.querySelector('mat-toolbar').textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.usuario').textContent).toContain(
       'Usuario ficticio',
     );
-    expect(fixture.nativeElement.querySelector('mat-toolbar').textContent).toContain('Salir');
+    expect(fixture.nativeElement.querySelector('.usuario').textContent).toContain('Salir');
     expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
       'Avisos sin leer: 3',
     );
   });
+  it.each([
+    ['CLIENTE', false],
+    ['CLIENTE', true],
+    ['BARBERO', true],
+    ['ADMIN', true],
+  ] as [Rol, boolean][])(
+    'oculta el distintivo vacío de %s y conserva su estado accesible, móvil=%s',
+    (rol, esMovil) => {
+      entrar(rol);
+      movil.next({ matches: esMovil });
+      (TestBed.inject(AvisosService).noLeidas as ReturnType<typeof signal<number>>).set(0);
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.distintivo')).toHaveLength(0);
+      expect(fixture.nativeElement.querySelector('.contador-personal')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
+        'Avisos sin leer: 0',
+      );
+    },
+  );
   it('con contraseña temporal solo ofrece cambiarla y salir', () => {
     entrar('BARBERO', true);
     const fixture = TestBed.createComponent(Shell);

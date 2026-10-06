@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -31,6 +32,7 @@ export const rangoFechas: ValidatorFn = (grupo) => {
   selector: 'app-mis-citas',
   imports: [
     NgTemplateOutlet,
+    RouterLink,
     ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -62,6 +64,7 @@ export class MisCitas {
     { validators: rangoFechas },
   );
   readonly estados = Object.entries(ESTADOS_RESERVA);
+  readonly filtrosAbiertos = signal(false);
   readonly historial = signal(false);
   readonly filas = signal<ReservaDto[]>([]);
   readonly cargando = signal(false);

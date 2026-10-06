@@ -23,7 +23,7 @@
       @for (aviso of filas(); track aviso.id) {
         <li>
           <p>
-            <strong>{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong> ·
+            <strong [class.nuevo]="!aviso.leida">{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong> ·
             {{ aviso.creadoEn | fechaLima }}
           </p>
           <p>{{ aviso.mensaje }}</p>
@@ -39,7 +39,7 @@
           }
         </li>
       } @empty {
-        <li>No tiene avisos.</li>
+        <li role="status">No tiene avisos.</li>
       }
     </ul>
   }

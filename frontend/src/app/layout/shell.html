@@ -1,46 +1,104 @@
 <a class="saltar" href="#contenido">Saltar al contenido</a>
-<header>
-  <mat-toolbar>
-    @if (movil()) {
-      <button
-        mat-button
-        (click)="menu.toggle()"
-        [attr.aria-expanded]="menu.opened"
-        aria-controls="menu-principal"
-      >
-        Menú
-      </button>
-    }
-    <span class="marca">BarberTurno</span>
-    @if (sesion.usuario(); as usuario) {
-      <span class="identidad">{{ usuario.nombre }} · {{ nombreRol() }}</span>
-      <span role="status" aria-live="polite" data-contador-avisos
-        >Avisos sin leer: {{ avisos.noLeidas() }}</span
-      >
-      <button mat-button (click)="salir()" [disabled]="saliendo()">
-        {{ saliendo() ? 'Saliendo…' : 'Salir' }}
-      </button>
-    }
-  </mat-toolbar>
-</header>
 <mat-sidenav-container>
-  <mat-sidenav #menu id="menu-principal" [mode]="movil() ? 'over' : 'side'" [opened]="!movil()">
-    <nav aria-label="Navegación principal">
-      <mat-nav-list>
+  <mat-sidenav
+    #menu
+    id="menu-principal"
+    role="complementary"
+    aria-label="Navegación y cuenta"
+    [mode]="movil() ? 'over' : 'side'"
+    [opened]="!movil()"
+  >
+    <div class="riel">
+      <div class="marca"><span aria-hidden="true" class="simbolo">///</span> BARBERTURNO</div>
+      <nav aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
           <a
-            mat-list-item
+            class="enlace"
             [routerLink]="enlace.ruta"
             routerLinkActive="activo"
             ariaCurrentWhenActive="page"
             (click)="movil() && menu.close()"
-            >{{ enlace.texto }}</a
           >
+            {{ enlace.texto }}
+            @if (
+              enlace.ruta === '/mis-citas' && sesion.rol() === 'CLIENTE' && avisos.noLeidas() > 0
+            ) {
+              <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
+            }
+          </a>
         }
-      </mat-nav-list>
-    </nav>
+      </nav>
+      @if (sesion.usuario(); as usuario) {
+        <div class="usuario">
+          <strong>{{ usuario.nombre }}</strong>
+          <span>{{ nombreRol() }}</span>
+          @if (!movil()) {
+            <span role="status" aria-live="polite" data-contador-avisos
+              >Avisos sin leer: {{ avisos.noLeidas() }}</span
+            >
+          }
+          <button mat-button (click)="salir()" [disabled]="saliendo()">
+            {{ saliendo() ? 'Saliendo…' : 'Salir' }}
+          </button>
+        </div>
+      }
+    </div>
   </mat-sidenav>
   <mat-sidenav-content>
+    @if (movil()) {
+      <header class="cabecera">
+        <button
+          mat-button
+          (click)="menu.toggle()"
+          aria-label="Abrir menú"
+          [attr.aria-expanded]="menu.opened"
+          aria-controls="menu-principal"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M4 6h16M4 12h16M4 18h16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+        <span class="marca">BARBERTURNO</span>
+        @if (sesion.usuario()) {
+          @if (sesion.rol() === 'CLIENTE') {
+            <a
+              mat-button
+              routerLink="/mis-citas"
+              [attr.aria-label]="'Avisos: ' + avisos.noLeidas() + ' sin leer'"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zm5 3h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+              </svg>
+              @if (avisos.noLeidas() > 0) {
+                <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
+              }
+            </a>
+            <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
+              >Avisos sin leer: {{ avisos.noLeidas() }}</span
+            >
+          } @else if (avisos.noLeidas() > 0) {
+            <span class="contador-personal" role="status" aria-live="polite" data-contador-avisos
+              ><span class="etiqueta-contador">Avisos sin leer: </span>{{ avisos.noLeidas() }}</span
+            >
+          } @else {
+            <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
+              >Avisos sin leer: 0</span
+            >
+          }
+        }
+      </header>
+    }
     <main id="contenido" tabindex="-1"><router-outlet /></main>
     <footer>BarberTurno · Una sede en Huamanga · Proyecto académico con datos ficticios</footer>
   </mat-sidenav-content>
