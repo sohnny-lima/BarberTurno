@@ -42,6 +42,7 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 
 ## 5. Flujo de trabajo de una tarea (Codex)
 > **Modo freeze desde el 05/10/2026** (decisión del responsable, tras completar T-01…T-47 y el primer CI verde): solo se admiten correcciones de bugs reproducibles, problemas de CI, requisitos pendientes o defectos necesarios para el cierre. Nada de funcionalidades nuevas ni refactorizaciones sin ese motivo.
+> **Excepción autorizada el 05/10/2026:** T-48 (interfaz con Tailwind, MJ-19, DA-24), limitada a la capa visual del frontend; el freeze se mantiene para lógica, backend y funcionalidades. T-48 se revisa con el responsable antes de integrarse en `main`.
 
 1. Elegir la primera tarea `Pendiente` cuyas dependencias estén en `Hecha`. Marcarla `En curso`.
 2. Releer la tarea, las RF/RN/CP que cita y las secciones de la arquitectura a las que enlaza.

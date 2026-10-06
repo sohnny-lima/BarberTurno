@@ -83,6 +83,7 @@
 | T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | Hecha · revisión: Aprobada | 04/10/2026 | a33352fff1d62f289a3be4601ea37817c9b64aa6, 2fe0aa00b34cd5d7ddc0d0d91dc7b08d0aa25527, e03ab236f52cddbf51504ee163b6acf13767486f; cierre cef254acc83490be89a5470ab6c3babad0a86d4a; merge 44b28399af19a99145c77e71b973e2d49a992977; único registro docs posterior por asunto (evidencia) |
 | T-46 | Errores estándar de Spring MVC con su estado HTTP (revisión de T-33) | S | T-08 | Hecha · revisión: Aprobada | 04/10/2026 | `691308c`, `f622687`, `30cad4e`; merge `5076e13` |
 | T-47 | Primer CI real: dependencia de orden entre `SpaForwardIT` y `SecurityConfigIT` (P-04) | M | T-33, T-04 | Hecha · revisión: Aprobada | 05/10/2026 | `6df34b2`, `59d647a` (diagnóstico en la CI), `d6f5c50` (corrección) |
+| T-48 | Interfaz con Tailwind, fase 1: tema, fuentes, navegación, Reservar, Mis citas y Agenda (MJ-19, DA-24; excepción al freeze) | S | T-26, T-27, T-28, T-34 | En curso | 05/10/2026 | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -377,6 +378,21 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** `SpaForwardIT` usa el CSRF real (cookie y cabecera); la CI publica como anotaciones públicas el mensaje de cada prueba fallida, las líneas `[ERROR]` y el orden de clases cuando `verify` falla.
 - **Criterios de aceptación:** ambas clases pasan en orden directo e inverso; CI verde en GitHub Actions. Cumplidos (ejecución 37314699514). Evidencia: [ci-primer-run.md](pruebas/ci-primer-run.md).
 - **Prioridad:** M (cierre de P-04).
+
+### T-48 · Interfaz con Tailwind, fase 1 (MJ-19, DA-24)
+- **Origen:** autorización del responsable (05/10/2026) para modernizar la interfaz con Tailwind manteniendo el modo freeze para lógica, backend y funcionalidades. Propuesta visual aprobada el 05/10/2026 (lienzo de revisión; capturas y plan en la evidencia).
+- **Alcance:** solo frontend y solo capa visual. Subtareas, cada una con su commit en `tarea/T-48-interfaz-tailwind`:
+  - **T-48.a Base de estilos:** Tailwind 4.3.3 sin preflight, Fontsource (Big Shoulders y Atkinson Hyperlegible Next), tokens únicos (arquitectura DA-24), tema de Material con la paleta nueva, foco visible y estilos globales.
+  - **T-48.b Navegación:** riel lateral oscuro en escritorio; en ≤ 767 px, cabecera de una fila con menú, marca y avisos (contador accesible) y el cajón actual; «Saltar al contenido» y «Salir» se conservan.
+  - **T-48.c Reservar:** servicios con precio y duración destacados; profesional como grupo de opciones; tira de días dentro de los límites actuales más «Otra fecha» (calendario de Material); horas del mismo ancho agrupadas en mañana y tarde; fecha legible; resumen lateral (escritorio) y barra de acción fija (móvil); «tique de turno» en el paso 3. Incluye los modos reprogramación y asistida (ADMIN).
+  - **T-48.d Mis citas:** primera cita de «Próximas» como tique, resto como filas con bloque de fecha; filtros plegables en móvil; avisos al lado (escritorio) o debajo (móvil); textos en «usted».
+  - **T-48.e Agenda:** línea de tiempo por día, resumen de conteos, navegación día anterior/siguiente/hoy, vista Día/Semana, una acción principal por cita (la primera transición permitida), «No asistió» como acción de riesgo, teléfono como enlace `tel:`, marca «Ahora» en la vista del día actual; modo ADMIN (selector de barbero, reprogramar y cancelar).
+  - **T-48.f Verificación y evidencia** (`docs/pruebas/t-48.md` con capturas de 1440 y 360 px).
+- **Fuera de alcance:** backend, API, DDL, reglas RN, permisos, validaciones, textos de error del servidor, nuevas funcionalidades (p. ej., autorregistro de barberos), las demás pantallas (fase 2, tarea aparte tras la revisión del responsable) e integración en `main`.
+- **Criterios de aceptación:** las acciones visibles siguen saliendo de `ReservaDto.permisos` y del store sin lógica nueva; ningún control cortado ni desplazamiento horizontal de página a 360 px; objetivos táctiles ≥ 44 px (48 px en acciones principales); foco visible y no tapado por elementos fijos (WCAG 2.4.11); estados de carga, vacío y error visibles y anunciados; las pantallas no rediseñadas siguen funcionando con el tema nuevo; presupuesto de producción sin elevar.
+- **Pruebas:** `npm run lint`, `npm run format:check`, Vitest en Lima y en Europe/Madrid, `npm run build` (producción), E2E Playwright en Chromium y Firefox a 1440 y 360 px con axe sin violaciones; las pruebas existentes solo se ajustan por cambios de marcado, sin debilitarlas.
+- **Revisión:** Claude por subtarea; Gemini en solo lectura antes de implementar (propuesta y plan), tras las tres pantallas (capturas y código) y al cerrar la fase (diff y evidencias).
+- **Prioridad:** S (mejora de experiencia; apoya RNF-06 y CP-11).
 
 ---
 
