@@ -3,79 +3,140 @@
   display: block;
   min-height: 100dvh;
 }
-mat-toolbar {
-  @include mat.toolbar-overrides(
-    (
-      container-background-color: #173c4d,
-      container-text-color: white,
-    )
-  );
-  @include mat.button-overrides(
-    (
-      text-label-text-color: white,
-    )
-  );
-  gap: 12px;
-  height: auto;
-  min-height: 64px;
-  flex-wrap: wrap;
-  padding: 12px 20px;
-}
-.marca {
-  font-size: 24px;
-  font-weight: 700;
-}
-.identidad {
-  margin-left: auto;
-  font-size: 14px;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
 mat-sidenav-container {
-  min-height: calc(100dvh - 88px);
+  min-height: 100dvh;
+  @include mat.sidenav-overrides(
+    (
+      content-background-color: var(--color-cal),
+      container-background-color: var(--color-tinta),
+      container-text-color: white,
+      container-shape: 0,
+    )
+  );
 }
 mat-sidenav {
-  width: 216px;
-  background: #e7f0f3;
+  width: 248px;
+}
+.riel {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 16px;
+  color: white;
+}
+.marca {
+  font: 800 26px/1 var(--font-display);
+  white-space: nowrap;
+}
+.simbolo {
+  color: var(--color-laton);
+  letter-spacing: -3px;
+  margin-right: 8px;
+}
+nav {
+  display: grid;
+  gap: 8px;
+  margin-top: 32px;
+}
+.enlace {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
 }
 .activo {
-  background: #cfe5e8;
-  font-weight: 700;
+  background: var(--color-laton);
+  color: var(--color-tinta);
+}
+.distintivo {
+  background: var(--color-laton);
+  color: var(--color-tinta);
+  border-radius: 30px;
+  padding: 0 7px;
+  font-size: 13px;
+}
+.activo .distintivo {
+  background: var(--color-tinta);
+  color: white;
+}
+.usuario {
+  margin-top: auto;
+  padding: 24px 8px 0;
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--color-texto-2);
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--color-laton),
+    )
+  );
+}
+.usuario button {
+  justify-self: start;
 }
 main {
-  padding: 28px 36px;
+  padding: 40px 48px;
   min-width: 0;
+  max-width: 1400px;
+  margin: auto;
 }
 footer {
-  padding: 0 36px 24px;
-  font-size: 12px;
-  color: #435d67;
+  padding: 0 48px 24px;
+  font-size: 13px;
+  color: var(--color-texto-2);
 }
 .saltar {
   position: fixed;
   left: 16px;
   top: -100px;
-  z-index: 10;
+  z-index: 100;
   background: white;
   padding: 12px;
 }
 .saltar:focus {
   top: 12px;
 }
+.cabecera {
+  position: sticky;
+  top: 0;
+  height: 56px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  color: white;
+  background: var(--color-tinta);
+  @include mat.button-overrides(
+    (
+      text-label-text-color: white,
+      text-horizontal-padding: 8px,
+    )
+  );
+}
+.cabecera .marca {
+  flex: 1;
+  font-size: 24px;
+}
+.cabecera button {
+  min-width: 44px;
+}
+.contador-personal {
+  font-size: 13px;
+  width: 86px;
+  line-height: 1.2;
+}
 @media (max-width: 767.98px) {
-  mat-toolbar {
-    padding: 10px 12px;
-    gap: 8px;
-  }
-  .marca {
-    font-size: 21px;
-  }
-  .identidad {
-    order: 2;
-    width: 100%;
-  }
   main {
-    padding: 20px 16px;
+    padding: 24px 16px;
   }
   footer {
     padding: 0 16px 20px;

@@ -77,10 +77,10 @@ describe('Shell adaptable', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     expect(fixture.componentInstance.enlaces().map((enlace) => enlace.texto)).toEqual(esperado);
-    expect(fixture.nativeElement.querySelector('mat-toolbar').textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.usuario').textContent).toContain(
       'Usuario ficticio',
     );
-    expect(fixture.nativeElement.querySelector('mat-toolbar').textContent).toContain('Salir');
+    expect(fixture.nativeElement.querySelector('.usuario').textContent).toContain('Salir');
     expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
       'Avisos sin leer: 3',
     );
