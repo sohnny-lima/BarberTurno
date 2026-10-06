@@ -13,7 +13,7 @@ export default defineConfig({
   retries: 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },
-  reporter: [['list'], ['html', { outputFolder: '../docs/pruebas/t-52/e2e', open: 'never' }]],
+  reporter: [['list'], ['html', { outputFolder: '../docs/pruebas/t-54/e2e', open: 'never' }]],
   use: {
     baseURL: 'http://localhost:18034',
     timezoneId: 'Europe/Madrid',

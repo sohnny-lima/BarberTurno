@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { type Page, type TestInfo } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { type Page, type Response, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
 import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
@@ -86,6 +87,16 @@ async function seleccionar(page: Page, etiqueta: string, opcion: string) {
   }
   await page.getByRole('combobox', { name: etiqueta, exact: true }).click();
   await page.getByRole('option', { name: opcion, exact: true }).click();
+}
+
+/** Compara el token enviado por el navegador sin imprimir su valor en informes ni aserciones. */
+async function huellaCsrf(respuesta: Response) {
+  const token = await respuesta.request().headerValue('X-XSRF-TOKEN');
+  expect(Boolean(token)).toBe(true);
+  return createHash('sha256')
+    .update(token ?? '')
+    .digest('hex')
+    .slice(0, 12);
 }
 
 async function fechaFranja(page: Page, fecha: string, hora: string) {
@@ -404,9 +415,7 @@ test('05 · cliente redirigido de administración y protegido después de logout
   await ingresar(page, 'cliente@ejemplo.test');
   await page.goto('/admin/servicios');
   await expect(page).toHaveURL(/\/reservar/);
-  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
-  if (await menu.isVisible()) await menu.click();
-  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await salirConRespuesta(page);
   await page.goto('/mis-citas');
   await expect(page).toHaveURL(/\/ingresar/);
 });
@@ -621,4 +630,30 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await salirConRespuesta(page);
   await ingresar(page, 'admin-e2e@ejemplo.test');
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
+});
+
+test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async ({ page }) => {
+  const primerLogin = page.waitForResponse(
+    (r) => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST',
+  );
+  await ingresar(page, 'cliente@ejemplo.test');
+  const primeraRespuesta = await primerLogin;
+  expect(primeraRespuesta.status()).toBe(200);
+  const primeraHuella = await huellaCsrf(primeraRespuesta);
+  await salirConRespuesta(page);
+  // Desde aquí no hay goto ni reload: el formulario es el que abrió la SPA al salir.
+  await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
+  await page.getByLabel('Contraseña', { exact: true }).evaluate((elemento, valor) => {
+    (elemento as HTMLInputElement).value = valor;
+    elemento.dispatchEvent(new Event('input', { bubbles: true }));
+  }, process.env['BT_DEMO_PASSWORD']!);
+  const segundoLogin = page.waitForResponse(
+    (r) => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+  const segundaRespuesta = await segundoLogin;
+  expect(segundaRespuesta.status()).toBe(200);
+  expect(await huellaCsrf(segundaRespuesta)).not.toBe(primeraHuella);
+  await comprobarSalida(page);
+  await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
 });

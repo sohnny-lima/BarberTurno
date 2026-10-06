@@ -17,14 +17,15 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import pe.barberturno.common.error.ErrorCodigo;
 
 /**
- * Autenticación JWT por cookie, CSRF SPA y permisos de rutas implementadas.
+ * Autenticación JWT por cookie, CSRF SPA estable durante la sesión (DA-26) y permisos de rutas implementadas.
  * @author Sohnny Walter Lima Infanzón
- * @version 3.0
+ * @version 3.2
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -36,8 +37,23 @@ public class SecurityConfig {
     }
 
     /**
+     * Comparte la política XSRF-TOKEN entre el filtro SPA y la renovación explícita de login, registro y logout.
+     * La cookie es legible por Angular, restringida al mismo sitio y segura según el perfil.
+     * @param cookieSecure uso de HTTPS para la cookie, desactivado solo en desarrollo y pruebas locales
+     * @return repositorio común con Path=/, SameSite=Strict y HttpOnly=false
+     */
+    @Bean
+    public CookieCsrfTokenRepository csrfTokenRepository(
+            @Value("${barberturno.seguridad.cookie-secure:false}") boolean cookieSecure) {
+        var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrf.setCookieCustomizer(cookie -> cookie.path("/").sameSite("Strict").secure(cookieSecure));
+        return csrf;
+    }
+
+    /**
      * Configura JWT por cookie sin sesiones HTTP y permisos §7.2; impone DEFAULT_CSRF_MATCHER también con JWT
      * para proteger toda escritura. Permite el GET público exacto de disponibilidad RF-07 y POST /api/reservas a CLIENTE o ADMIN (RF-08/18).
+     * Conserva el token CSRF entre peticiones JWT; AuthController emite uno nuevo al cambiar la sesión (DA-26).
      * Permite reprogramación RF-09 y cancelación RF-10 solo a CLIENTE o ADMIN con CSRF. Autoriza los GET RF-11/13 por rol; el servicio impone propiedad y asignación en cada consulta.
      * Permite transiciones RF-12 solo a BARBERO o ADMIN; el servicio comprueba asignación y RN-12.
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
@@ -50,18 +66,17 @@ public class SecurityConfig {
      * @param converter revalidación de identidad
      * @param respuestas errores RFC 9457
      * @param cookies política compartida de borrado de sesión que conserva los atributos de emisión
+     * @param csrf repositorio compartido de CSRF para la SPA y los cambios explícitos de sesión
      * @param apiDocsHabilitada habilitación de OpenAPI
      * @param swaggerHabilitado habilitación de Swagger
-     * @param cookieSecure seguridad de cookies según perfil
      * @return cadena sin sesiones HTTP
      * @throws Exception si no se puede construir la cadena
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, Environment entorno, UsuarioJwtConverter converter,
-            RespuestaSeguridad respuestas, CookieSesion cookies,
+            RespuestaSeguridad respuestas, CookieSesion cookies, CookieCsrfTokenRepository csrf,
             @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsHabilitada,
-            @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerHabilitado,
-            @Value("${barberturno.seguridad.cookie-secure:false}") boolean cookieSecure) throws Exception {
+            @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerHabilitado) throws Exception {
         var entryPoint = (org.springframework.security.web.AuthenticationEntryPoint) (request, response, error) -> {
             if (error instanceof OAuth2AuthenticationException) {
                 response.addHeader(HttpHeaders.SET_COOKIE, cookies.borrar().toString());
@@ -70,8 +85,6 @@ public class SecurityConfig {
         };
         var denegado = (org.springframework.security.web.access.AccessDeniedHandler) (request, response, error) ->
                 respuestas.escribir(request, response, ErrorCodigo.PROHIBIDO, "No tiene permiso para realizar esta acción.");
-        var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        csrf.setCookieCustomizer(cookie -> cookie.path("/").sameSite("Strict").secure(cookieSecure));
         http.headers(cabeceras -> cabeceras
                 .httpStrictTransportSecurity(hsts -> hsts
                         .requestMatcher(peticion -> peticion.isSecure() || entorno.acceptsProfiles(Profiles.of("prod")))
@@ -86,6 +99,7 @@ public class SecurityConfig {
         http.sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .csrf(config -> config.spa().csrfTokenRepository(csrf)
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
                         .withObjectPostProcessor(new ObjectPostProcessor<CsrfFilter>() {
                             /**
                              * Restaura CSRF en toda escritura aun con bearer; evita la exclusión automática de
