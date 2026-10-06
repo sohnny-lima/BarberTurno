@@ -85,6 +85,20 @@ describe('Shell adaptable', () => {
       'Avisos sin leer: 3',
     );
   });
+  it.each([false, true])(
+    'oculta el distintivo vacío y conserva su estado accesible, móvil=%s',
+    (esMovil) => {
+      entrar('CLIENTE');
+      movil.next({ matches: esMovil });
+      (TestBed.inject(AvisosService).noLeidas as ReturnType<typeof signal<number>>).set(0);
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.distintivo')).toHaveLength(0);
+      expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
+        'Avisos sin leer: 0',
+      );
+    },
+  );
   it('con contraseña temporal solo ofrece cambiarla y salir', () => {
     entrar('BARBERO', true);
     const fixture = TestBed.createComponent(Shell);

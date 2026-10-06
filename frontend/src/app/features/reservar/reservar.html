@@ -11,7 +11,7 @@
   <p>Elija su servicio y una franja disponible. Todas las horas corresponden a Lima.</p>
   @if (store.mensaje()) {
     <div class="mensaje" role="alert">
-      <p>{{ store.mensaje() }}</p>
+      <p><strong>No se pudo completar la solicitud.</strong> {{ store.mensaje() }}</p>
       @if (store.limiteReservas()) {
         <a routerLink="/mis-citas">Ver Mis citas</a>
       }
@@ -38,6 +38,7 @@
       <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
       @if (store.asistida()) {
         <mat-step label="Cliente" [completed]="!!store.cliente()" [editable]="!store.enviando()">
+          <h2 tabindex="-1" data-paso="0">Elija el cliente</h2>
           <app-selector-cliente
             [deshabilitado]="store.enviando()"
             (elegido)="store.elegirCliente($event)"
@@ -60,6 +61,9 @@
         [completed]="store.pasoUnoCompleto()"
         [editable]="!store.enviando()"
       >
+        <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 1 : 0">
+          Elija servicio y profesional
+        </h2>
         @if (store.reserva(); as reserva) {
           <mat-card class="servicio-fijo">
             <mat-card-header
@@ -161,7 +165,7 @@
         [completed]="store.pasoDosCompleto()"
         [editable]="!store.enviando()"
       >
-        <h2>Elija el día</h2>
+        <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 2 : 1">Elija el día</h2>
         <div class="dias" role="group" aria-label="Días disponibles">
           @for (dia of dias; track dia; let primero = $first) {
             <button
@@ -261,6 +265,9 @@
         </div>
       </mat-step>
       <mat-step label="Revisar y confirmar" [editable]="!store.enviando()">
+        <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 3 : 2">
+          Revise y confirme su turno
+        </h2>
         @if (store.servicio(); as servicio) {
           @if (store.franja(); as franja) {
             <div class="tique resumen" role="group" aria-label="Resumen de la cita">

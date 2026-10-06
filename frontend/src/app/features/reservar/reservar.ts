@@ -6,6 +6,7 @@ import {
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   viewChild,
 } from '@angular/core';
@@ -109,11 +110,25 @@ export class Reservar {
   }
   constructor() {
     const snackbar = inject(MatSnackBar);
+    const elemento = inject<ElementRef<HTMLElement>>(ElementRef);
+    let pasoEnfocado: number | undefined;
+    let fotograma: number | undefined;
+    this.destroyRef.onDestroy(() => {
+      if (fotograma !== undefined) cancelAnimationFrame(fotograma);
+    });
     // Material comprueba el paso anterior: sincroniza después de actualizar completed.
     afterRenderEffect(() => {
       const stepper = this.stepper();
       const paso = Math.max(0, this.store.paso() + (this.store.asistida() ? 1 : 0));
-      if (stepper && stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+      if (!stepper) return;
+      if (stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+      if (pasoEnfocado === paso) return;
+      pasoEnfocado = paso;
+      if (fotograma !== undefined) cancelAnimationFrame(fotograma);
+      // Espera el marcado del nuevo paso, también al restaurar o elegir una hora desde el store.
+      fotograma = requestAnimationFrame(() => {
+        elemento.nativeElement.querySelector<HTMLElement>('[data-paso="' + paso + '"]')?.focus();
+      });
     });
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(this.destroyRef))

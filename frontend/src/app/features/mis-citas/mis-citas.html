@@ -63,7 +63,9 @@
     @if (cargando()) {
       <p role="status">Cargando citas…</p>
     } @else if (mensaje()) {
-      <p class="mensaje" role="alert">{{ mensaje() }}</p>
+      <p class="mensaje" role="alert">
+        <strong>No se pudieron cargar las citas.</strong> {{ mensaje() }}
+      </p>
       <button mat-button (click)="cargar()">Reintentar</button>
     } @else {
       @for (reserva of filas(); track reserva.id; let primera = $first) {
@@ -83,14 +85,16 @@
         <a mat-stroked-button routerLink="/reservar">Reservar un turno</a>
       }
     }
-    <mat-paginator
-      [length]="total()"
-      [pageIndex]="pagina()"
-      [pageSize]="tamano()"
-      [pageSizeOptions]="[10, 20, 50]"
-      (page)="paginar($event)"
-      showFirstLastButtons
-      aria-label="Páginas de citas"
-    />
+    @if (!mensaje()) {
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pagina()"
+        [pageSize]="tamano()"
+        [pageSizeOptions]="[10, 20, 50]"
+        (page)="paginar($event)"
+        showFirstLastButtons
+        aria-label="Páginas de citas"
+      />
+    }
   </section>
 </ng-template>

@@ -153,7 +153,10 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await page.getByRole('button', { name: /Corte clásico/ }).click();
   await seleccionar(page, 'Profesional', 'Carlos');
   await revisar(page, testInfo, 'reservar-servicio');
-  await page.getByRole('button', { name: 'Elegir fecha y hora' }).click();
+  const avanzar = page.getByRole('button', { name: 'Elegir fecha y hora' });
+  await avanzar.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-paso="1"]')).toBeFocused();
   const entrada = page.getByLabel('Fecha de la cita (Lima)', { exact: true });
   await entrada.fill('10/01/2026');
   await entrada.press('Tab');
@@ -162,7 +165,12 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /^11:00–11:30/ })).toBeVisible();
   await revisar(page, testInfo, 'reservar-franja');
-  await page.getByRole('button', { name: /^11:00–11:30/ }).click();
+  const hora = page.getByRole('button', { name: /^11:00–11:30/ });
+  await hora.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-paso="2"]')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Cambiar fecha u hora' })).toBeFocused();
   await expect(page.locator('.resumen')).toContainText('11:00–11:30');
   await revisar(page, testInfo, 'reservar-confirmacion');
   const respuesta = page.waitForResponse(

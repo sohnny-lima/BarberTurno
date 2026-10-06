@@ -32,7 +32,6 @@ async function capturar(page: Page, info: TestInfo, nombre: string, cargando = f
   const carpeta = resolve('../docs/pruebas/t-48/capturas');
   mkdirSync(carpeta, { recursive: true });
   await page.evaluate(() => {
-    (document.activeElement as HTMLElement)?.blur();
     window.scrollTo(0, 0);
   });
   await page.screenshot({
@@ -99,7 +98,10 @@ test('estados de carga, vacío y error con API simulada', async ({ page }, info)
       await expect(
         page.getByRole('status').filter({ hasText: 'No tiene citas próximas' }),
       ).toBeVisible();
-    if (estado === 'error') await expect(page.locator('main [role="alert"]')).toBeVisible();
+    if (estado === 'error') {
+      await expect(page.locator('main [role="alert"]')).toBeVisible();
+      await expect(page.locator('mat-paginator[aria-label="Páginas de citas"]')).toHaveCount(0);
+    }
     await capturar(page, info, `mis-citas-${estado}`, estado === 'carga');
     await page.unroute('**/api/reservas/mias?**');
   }
@@ -151,4 +153,31 @@ test('estados de Reservar y Agenda con API simulada', async ({ page }, info) => 
       await page.unroute(pantalla.api);
     }
   }
+});
+
+test('error de horas con aviso transitorio por encima de la barra móvil', async ({
+  page,
+}, info) => {
+  await entrar(page, 'cliente@ejemplo.test');
+  await page.route('**/api/disponibilidad?**', async (ruta) => {
+    await ruta.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'No se pudieron cargar las horas. Intente nuevamente.' }),
+    });
+  });
+  await page.goto('/reservar');
+  await page.getByRole('button', { name: /Corte clásico/ }).click();
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
+  await expect(page.locator('main [role="alert"]')).toContainText(
+    'No se pudieron cargar las horas',
+  );
+  const aviso = page.locator('.aviso-transitorio');
+  await expect(aviso).toBeVisible();
+  if (info.project.use.viewport?.width === 360) {
+    const panel = await aviso.boundingBox();
+    const barra = await page.locator('.barra-reserva').boundingBox();
+    expect(panel!.y + panel!.height).toBeLessThanOrEqual(barra!.y);
+  }
+  await capturar(page, info, 'reservar-2-error');
 });

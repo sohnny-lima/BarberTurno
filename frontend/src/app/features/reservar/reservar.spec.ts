@@ -129,10 +129,16 @@ describe('Vista de reserva guiada', () => {
       expect(stepper.selectedIndex).toBe(2);
       const pasos = f.nativeElement.querySelectorAll('mat-step-header');
       expect(pasos[2].getAttribute('aria-selected')).toBe('true');
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(f.nativeElement.querySelector('[data-paso="2"]')),
+      );
       f.componentInstance.store.irPaso(1);
       f.detectChanges();
       await f.whenStable();
       expect(stepper.selectedIndex).toBe(1);
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(f.nativeElement.querySelector('[data-paso="1"]')),
+      );
     },
   );
   it('conserva el asistente horizontal por debajo de 768 px', () => {

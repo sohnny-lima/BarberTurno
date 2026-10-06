@@ -131,6 +131,10 @@ input {
   padding: 12px;
   border-radius: var(--radius-control);
 }
+.mensaje[role='alert'] {
+  color: var(--color-no-asistio);
+  background: var(--color-no-asistio-fondo);
+}
 .ayuda {
   font-size: 14px;
   color: var(--color-texto-2);
@@ -199,9 +203,15 @@ mat-snack-bar-container {
   .acciones > :is(button, a) {
     flex: 1 1 9rem;
   }
-  // Excepción única DA-24 / diseño §6 bis: progreso compacto accesible en Reservar.
+  // Excepción DA-24 / diseño §6 bis ampliada por encargo 055: cabecera y relleno móvil.
   app-reservar .mat-horizontal-stepper-header-container {
     display: none;
+  }
+  app-reservar .mat-horizontal-stepper-content {
+    padding-inline: 0;
+  }
+  body:has(app-reservar .barra-reserva) .aviso-transitorio {
+    margin-bottom: calc(140px + env(safe-area-inset-bottom));
   }
   html:has(app-reservar .barra-reserva) {
     scroll-padding-bottom: 150px;
