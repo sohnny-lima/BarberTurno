@@ -42,7 +42,7 @@ async function capturar(
   expect(
     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
   ).toEqual([]);
-  const carpeta = resolve('../docs/pruebas/t-52/capturas');
+  const carpeta = resolve('../docs/pruebas/t-54/capturas');
   const guardar = guardarTodo || info.project.use.browserName === 'chromium';
   if (guardar) mkdirSync(carpeta, { recursive: true });
   await page.evaluate(() => {
