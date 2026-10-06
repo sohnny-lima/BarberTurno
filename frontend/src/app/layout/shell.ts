@@ -5,9 +5,12 @@ import {
   computed,
   DestroyRef,
   inject,
+  Injector,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -34,6 +37,15 @@ const ADMIN = [
 @Component({
   selector: 'app-shell',
   imports: [MatButtonModule, MatSidenavModule, RouterLink, RouterLinkActive, RouterOutlet],
+  // Los defaults visuales se cargan con el shell lazy, incluidos sus diálogos.
+  providers: [
+    { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
+    MatDialog,
+    {
+      provide: MAT_DIALOG_DEFAULT_OPTIONS,
+      useFactory: () => ({ ...new MatDialogConfig(), injector: inject(Injector) }),
+    },
+  ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

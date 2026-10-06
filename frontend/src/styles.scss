@@ -207,7 +207,7 @@ mat-snack-bar-container {
   app-reservar .mat-horizontal-stepper-header-container {
     display: none;
   }
-  app-reservar .mat-horizontal-stepper-content {
+  app-reservar .mat-horizontal-content-container {
     padding-inline: 0;
   }
   body:has(app-reservar .barra-reserva) .aviso-transitorio {

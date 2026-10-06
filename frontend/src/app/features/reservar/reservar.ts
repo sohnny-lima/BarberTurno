@@ -25,6 +25,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiempo/fecha-datepicker';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
+import { fechaPresentacion } from '../../shared/fecha-presentacion';
 import { SelectorCliente } from '../../shared/selector-cliente';
 import { ReservaStore } from './reserva.store';
 import { sumarDias } from '../../core/tiempo/semana-lima';
@@ -86,17 +87,7 @@ export class Reservar {
       },
     ];
   });
-  fechaLegible(fecha: string, formato: 'larga' | 'dia' | 'numero' = 'larga') {
-    const opciones: Intl.DateTimeFormatOptions =
-      formato === 'larga'
-        ? { weekday: 'long', day: 'numeric', month: 'long' }
-        : formato === 'dia'
-          ? { weekday: 'short' }
-          : { day: 'numeric' };
-    return new Intl.DateTimeFormat('es-PE', { ...opciones, timeZone: 'America/Lima' }).format(
-      new Date(fecha + 'T12:00:00-05:00'),
-    );
-  }
+  readonly fechaLegible = fechaPresentacion;
   elegirDia(fecha: string, evento: Event) {
     this.store.elegirFecha(fecha);
     (evento.currentTarget as HTMLElement).scrollIntoView?.({ block: 'nearest', inline: 'nearest' });

@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   FormControl,
   FormGroup,
@@ -81,6 +81,9 @@ export class Agenda {
     }),
     vista: new FormControl<'dia' | 'semana'>('dia', { nonNullable: true }),
     barberoId: new FormControl<number | null>(null),
+  });
+  readonly vista = toSignal(this.formulario.controls.vista.valueChanges, {
+    initialValue: this.formulario.controls.vista.value,
   });
   readonly barberos = signal<BarberoDto[]>([]);
   readonly filas = signal<ReservaDto[]>([]);

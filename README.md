@@ -282,8 +282,10 @@ El informe HTML con los resultados de axe se guarda en
 [docs/pruebas/t-48/e2e/index.html](docs/pruebas/t-48/e2e/index.html), sin videos ni trazas.
 El arnés compila con las dependencias ya instaladas y empaqueta sin ejecutar `npm ci`.
 Para las capturas de T-48, ejecute `npm run e2e:capturas` por separado: verifica axe
-y desplazamiento horizontal, y guarda PNG de 1440 y 360 px en
-`docs/pruebas/t-48/capturas/`, incluidos estados de carga, vacío y error simulados.
+y desplazamiento horizontal en Chromium y Firefox a 1440 y 360 px. Solo los PNG de
+Chromium se guardan en `docs/pruebas/t-48/capturas/`, incluidos estados de carga,
+vacío y error simulados; los de Firefox quedan como adjuntos locales en
+`frontend/test-results/` (ignorado por Git).
 `npm run lint` también comprueba los tipos de `e2e/`; `format:check` incluye la
 suite. El empaquetado E2E omite la ejecución de pruebas Maven y no sustituye a
 `mvnw.cmd verify`. La CI conserva su verificación habitual; los E2E se ejecutan

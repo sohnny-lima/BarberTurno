@@ -57,7 +57,7 @@
   <p role="alert">{{ errorBarberos() }}</p>
   <button mat-button (click)="cargarBarberos()">Reintentar carga de barberos</button>
 }
-@if (formulario.controls.vista.value === 'semana') {
+@if (vista() === 'semana') {
   <p>
     Periodo: {{ grupos()[0].instante | fechaLima: 'fecha' }} al
     {{ grupos()[grupos().length - 1].instante | fechaLima: 'fecha' }} · Horario de Lima

@@ -85,15 +85,21 @@ describe('Shell adaptable', () => {
       'Avisos sin leer: 3',
     );
   });
-  it.each([false, true])(
-    'oculta el distintivo vacío y conserva su estado accesible, móvil=%s',
-    (esMovil) => {
-      entrar('CLIENTE');
+  it.each([
+    ['CLIENTE', false],
+    ['CLIENTE', true],
+    ['BARBERO', true],
+    ['ADMIN', true],
+  ] as [Rol, boolean][])(
+    'oculta el distintivo vacío de %s y conserva su estado accesible, móvil=%s',
+    (rol, esMovil) => {
+      entrar(rol);
       movil.next({ matches: esMovil });
       (TestBed.inject(AvisosService).noLeidas as ReturnType<typeof signal<number>>).set(0);
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelectorAll('.distintivo')).toHaveLength(0);
+      expect(fixture.nativeElement.querySelector('.contador-personal')).toBeNull();
       expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
         'Avisos sin leer: 0',
       );

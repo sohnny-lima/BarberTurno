@@ -14,6 +14,13 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   // Material mueve el contenido al área live tras anunciarlo; analizar el DOM estable.
   await expect(page.locator('mat-snack-bar-container [aria-hidden="true"]')).toHaveCount(0);
+  expect(
+    await page
+      .locator('mat-form-field')
+      .evaluateAll((campos) =>
+        campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
+      ),
+  ).toBe(true);
   const resultados = await new AxeBuilder({ page }).analyze();
   const relevantes = resultados.violations.map(({ id, impact, nodes }) => ({
     id,
@@ -199,6 +206,17 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: creada.codigo });
   await expect(tarjeta).toContainText('12:00');
   await tarjeta.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(
+    await page
+      .getByRole('dialog')
+      .locator('mat-form-field')
+      .evaluateAll(
+        (campos) =>
+          campos.length > 0 &&
+          campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
+      ),
+  ).toBe(true);
   const cancelacion = page.waitForResponse((r) =>
     r.url().endsWith(`/api/reservas/${creada.id}/cancelacion`),
   );
@@ -251,7 +269,27 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
   await revisar(page, testInfo, 'agenda-dia');
   for (const accion of ['Iniciar atención', 'Completar']) {
     await fila.getByRole('button', { name: accion, exact: true }).click();
+    const transicion = page.waitForResponse(
+      (r) => r.url().endsWith('/transiciones') && r.request().method() === 'POST',
+    );
     await page.getByRole('dialog').getByRole('button', { name: accion, exact: true }).click();
+    const respuestaTransicion = await transicion;
+    if (respuestaTransicion.status() !== 200) {
+      const cabeceras = await respuestaTransicion.request().allHeaders();
+      const cookie = /(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(cabeceras['cookie'] ?? '')?.[1];
+      await testInfo.attach('diagnostico-transicion', {
+        body: JSON.stringify({
+          accion,
+          status: respuestaTransicion.status(),
+          csrfPresente: !!cabeceras['x-xsrf-token'],
+          cookieCsrfPresente: !!cookie,
+          csrfCoincide: !!cookie && decodeURIComponent(cookie) === cabeceras['x-xsrf-token'],
+          sesionPresente: (cabeceras['cookie'] ?? '').includes('BT_SESION='),
+        }),
+        contentType: 'application/json',
+      });
+    }
+    expect(respuestaTransicion.status()).toBe(200);
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
   await expect(fila).toContainText('Completada');
@@ -275,6 +313,17 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   ).toBeVisible();
   await revisar(page, testInfo, 'servicios');
   await page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(
+    await page
+      .getByRole('dialog')
+      .locator('mat-form-field')
+      .evaluateAll(
+        (campos) =>
+          campos.length > 0 &&
+          campos.every((campo) => campo.classList.contains('mat-form-field-appearance-outline')),
+      ),
+  ).toBe(true);
   await page.getByLabel('Descripción', { exact: true }).fill('Corte y acabado de demostración E2E');
   await page.getByRole('button', { name: 'Guardar servicio', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

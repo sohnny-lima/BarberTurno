@@ -1,4 +1,4 @@
-/** Formatea únicamente la presentación de un instante, siempre en Lima. */
+/** Presenta una fecha civil ISO o un instante, siempre en Lima. */
 export function fechaPresentacion(
   instante: string,
   formato: 'larga' | 'dia' | 'numero' | 'mes' = 'larga',
@@ -12,6 +12,6 @@ export function fechaPresentacion(
           ? { day: 'numeric' }
           : { month: 'short' };
   return new Intl.DateTimeFormat('es-PE', { ...opciones, timeZone: 'America/Lima' }).format(
-    new Date(instante),
+    new Date(/^\d{4}-\d{2}-\d{2}$/.test(instante) ? instante + 'T12:00:00-05:00' : instante),
   );
 }
