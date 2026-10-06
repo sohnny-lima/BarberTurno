@@ -1,4 +1,5 @@
 # BarberTurno — Arquitectura
+| DA-25 | 06/10/2026 | **Avisos del BARBERO desde la cabecera (T-51, C-13).** El contador de avisos de la cabecera ofrece al BARBERO un acceso al mismo componente de panel de avisos que usa Mis citas (por ejemplo, en un diálogo), con la API existente `/api/notificaciones` (propios, §7.2). Sin cambios de API, permisos, DDL ni RN-15. El CLIENTE sigue usando Mis citas; el ADMIN conserva el contador (siempre 0 por RN-15) sin acceso nuevo. | RF-16 («cada usuario», pantalla «P03, cabecera») y CP-18 exigen que el barbero vea sus avisos; hoy recibe avisos sin poder leerlos (g018). Reutilizar el panel es el cambio mínimo admitido por el freeze. | Pantalla o ruta nueva de avisos (funcionalidad nueva); avisos para ADMIN (RN-15 no los genera); ocultar el contador al barbero (incumpliría RF-16). |
 
 > Versión 1.0 · 01/10/2026 · Responsable: Claude Code (arquitecto)
 > Relacionados: [requisitos.md](requisitos.md) · [tareas.md](tareas.md) · [../AGENTS.md](../AGENTS.md)
@@ -127,7 +128,7 @@ src/app/
 ├── core/       api/ (un servicio HttpClient por recurso), auth/ (SesionService con signals, guards authGuard/rolGuard,
 │               interceptor de errores), modelos/ (interfaces TS espejo de los DTO), tiempo/ (pipe fechaLima, utilidades)
 ├── shared/     estado-reserva-chip, confirmar-dialogo, motivo-dialogo, vacio/cargando, validadores de formulario
-├── layout/     shell con barra superior (contador de avisos) y navegación según el rol
+├── layout/     shell con barra superior (contador de avisos; para BARBERO abre el panel de avisos, DA-25) y navegación según el rol
 └── features/
     ├── auth/         ingresar, registro, cambiar-password                         (P01)
     ├── perfil/                                                                    (P01)
