@@ -122,13 +122,15 @@ describe('Shell adaptable', () => {
       movil.next({ matches: esMovil });
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
-      const boton = fixture.nativeElement.querySelector('[aria-haspopup="dialog"]');
+      const botones = fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]');
+      expect(botones).toHaveLength(rol === 'BARBERO' ? 1 : 0);
+      const boton = botones[0];
       if (rol === 'BARBERO') {
         if (esMovil) expect(boton.querySelector('svg')).not.toBeNull();
         else expect(boton.textContent).toContain('Ver avisos');
         expect(boton.getAttribute('aria-label')).toBe('Ver avisos: 3 sin leer');
       } else {
-        expect(boton).toBeNull();
+        expect(boton).toBeUndefined();
       }
     },
   );

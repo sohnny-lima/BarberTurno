@@ -37,7 +37,7 @@
               >Avisos sin leer: {{ avisos.noLeidas() }}</span
             >
           }
-          @if (sesion.rol() === 'BARBERO') {
+          @if (!movil() && sesion.rol() === 'BARBERO') {
             <button
               mat-button
               (click)="abrirAvisos()"
