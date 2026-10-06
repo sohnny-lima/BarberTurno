@@ -5,11 +5,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatSidenav } from '@angular/material/sidenav';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 import { Rol } from '../core/modelos/identidad';
 import { Shell } from './shell';
@@ -103,6 +103,34 @@ describe('Shell adaptable', () => {
       }
     },
   );
+  it('evita diálogos duplicados ante dos pulsaciones durante la carga y permite reabrir al cerrar', async () => {
+    const cierre = new Subject<void>();
+    const abrirDialogo = vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => cierre } as unknown as MatDialogRef<AvisosDialogo>);
+    entrar('BARBERO');
+    const fixture = TestBed.createComponent(Shell);
+    fixture.detectChanges();
+    const boton = fixture.nativeElement.querySelector(
+      '[aria-haspopup="dialog"]',
+    ) as HTMLButtonElement;
+    const apertura = vi.spyOn(fixture.componentInstance, 'abrirAvisos');
+    boton.click();
+    boton.click();
+    // Ambas pulsaciones ocurren antes de que se resuelva la importación diferida.
+    expect(abrirDialogo).not.toHaveBeenCalled();
+    await Promise.all(apertura.mock.results.map((resultado) => resultado.value));
+    expect(abrirDialogo).toHaveBeenCalledExactlyOnceWith(
+      AvisosDialogo,
+      expect.objectContaining({ autoFocus: '[mat-dialog-close]', restoreFocus: true }),
+    );
+    await fixture.componentInstance.abrirAvisos();
+    expect(abrirDialogo).toHaveBeenCalledOnce();
+    cierre.next();
+    await fixture.componentInstance.abrirAvisos();
+    expect(abrirDialogo).toHaveBeenCalledTimes(2);
+    cierre.complete();
+  });
   it('no ofrece Ver avisos sin sesión', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
