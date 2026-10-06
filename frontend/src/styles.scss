@@ -148,6 +148,20 @@ input {
     )
   );
 }
+mat-snack-bar-container {
+  @include mat.snack-bar-overrides(
+    (
+      container-color: var(--color-tinta),
+      supporting-text-color: white,
+      button-color: var(--color-laton),
+    )
+  );
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--color-laton),
+    )
+  );
+}
 .tique {
   background: white;
   border: 1px solid var(--color-linea);

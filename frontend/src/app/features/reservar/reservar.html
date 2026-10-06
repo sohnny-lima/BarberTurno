@@ -28,12 +28,14 @@
     </div>
     <p>Paso {{ numeroPaso() }} de {{ pasos().length }}</p>
   </div>
-  <div class="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+  <div class="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
     <mat-stepper
       linear
       orientation="horizontal"
       (selectionChange)="store.irPaso($event.selectedIndex - (store.asistida() ? 1 : 0))"
     >
+      <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
+      <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
       @if (store.asistida()) {
         <mat-step label="Cliente" [completed]="!!store.cliente()" [editable]="!store.enviando()">
           <app-selector-cliente
@@ -138,7 +140,12 @@
           </button>
         }
         <div class="acciones" [class.barra-reserva]="movil() && store.paso() === 0">
-          <span class="resumen-corto">{{ store.servicio()?.nombre || 'Elija un servicio' }}</span>
+          <span class="resumen-corto"
+            >{{ store.servicio()?.nombre || 'Elija un servicio' }}
+            @if (store.servicio(); as servicio) {
+              · S/ {{ servicio.precio.toFixed(2) }}
+            }
+          </span>
           <button
             mat-flat-button
             type="button"
@@ -198,6 +205,7 @@
         </mat-form-field>
         <section
           class="horas"
+          [attr.data-fecha-consultada]="store.fecha()"
           [attr.aria-busy]="store.consultando()"
           aria-label="Horas disponibles"
         >
@@ -241,7 +249,12 @@
           }
         </section>
         <div class="acciones" [class.barra-reserva]="movil() && store.paso() === 1">
-          <span class="resumen-corto">{{ store.servicio()?.nombre }}</span>
+          <span class="resumen-corto"
+            >{{ store.servicio()?.nombre }}
+            @if (store.servicio(); as servicio) {
+              · S/ {{ servicio.precio.toFixed(2) }}
+            }
+          </span>
           <button mat-button type="button" (click)="store.irPaso(0)" [disabled]="store.enviando()">
             Cambiar servicio o profesional
           </button>
@@ -347,7 +360,9 @@
         <p>Elija un servicio para comenzar.</p>
       }
       <p class="ayuda">Profesional</p>
-      <strong>{{ store.profesional()?.nombre || 'Sin preferencia' }}</strong>
+      <strong>{{
+        store.preferencia() === null ? 'Sin preferencia' : nombreBarbero(store.preferencia()!)
+      }}</strong>
       <p class="ayuda">Fecha y hora</p>
       <strong>{{ fechaLegible(store.fecha()) }}</strong>
       @if (store.franja(); as franja) {

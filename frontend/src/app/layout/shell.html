@@ -1,6 +1,13 @@
 <a class="saltar" href="#contenido">Saltar al contenido</a>
 <mat-sidenav-container>
-  <mat-sidenav #menu id="menu-principal" [mode]="movil() ? 'over' : 'side'" [opened]="!movil()">
+  <mat-sidenav
+    #menu
+    id="menu-principal"
+    role="complementary"
+    aria-label="Navegación y cuenta"
+    [mode]="movil() ? 'over' : 'side'"
+    [opened]="!movil()"
+  >
     <div class="riel">
       <div class="marca"><span aria-hidden="true" class="simbolo">///</span> BARBERTURNO</div>
       <nav aria-label="Navegación principal">

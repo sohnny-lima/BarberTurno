@@ -24,12 +24,11 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     body: JSON.stringify(relevantes, null, 2),
     contentType: 'application/json',
   });
+  expect(relevantes, nombre).toEqual([]);
   expect(
-    relevantes.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')),
-    nombre,
-  ).toEqual([]);
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
     nombre,
   ).toBe(true);
 }
@@ -43,13 +42,24 @@ async function ingresar(page: Page, correo: string) {
     elemento.dispatchEvent(new Event('input', { bubbles: true }));
   }, process.env['BT_DEMO_PASSWORD']!);
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  await comprobarSalida(page);
   // La identidad aparece antes de que termine la navegación; no abortar esa transición.
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 }
 
+async function comprobarSalida(page: Page) {
+  const abrir = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await abrir.isVisible()) await abrir.click();
+  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  if (await abrir.isVisible()) await page.keyboard.press('Escape');
+}
+
 async function seleccionar(page: Page, etiqueta: string, opcion: string) {
+  if (etiqueta === 'Profesional') {
+    await page.getByRole('radio', { name: new RegExp(opcion) }).check();
+    return;
+  }
   await page.getByRole('combobox', { name: etiqueta, exact: true }).click();
   await page.getByRole('option', { name: opcion, exact: true }).click();
 }
@@ -60,8 +70,11 @@ async function fechaFranja(page: Page, fecha: string, hora: string) {
   const [ano, mes, dia] = fecha.split('-');
   await entrada.fill(`${mes}/${dia}/${ano}`);
   await entrada.press('Tab');
-  await expect(page.getByText(`Fecha consultada: ${fecha} (Lima)`, { exact: true })).toBeVisible();
-  await page.getByRole('option', { name: new RegExp(`^${hora}–`) }).click();
+  await expect(page.locator('[data-fecha-consultada]')).toHaveAttribute(
+    'data-fecha-consultada',
+    fecha,
+  );
+  await page.getByRole('button', { name: new RegExp(`^${hora}–`) }).click();
   await expect(page.locator('.resumen')).toContainText(hora);
 }
 
@@ -69,7 +82,7 @@ async function prepararReserva(page: Page, fecha: string, hora: string) {
   await page.goto('/reservar');
   await page.getByRole('button', { name: /Corte clásico/ }).click();
   await seleccionar(page, 'Profesional', 'Carlos');
-  await page.getByRole('button', { name: 'Elegir fecha y franja', exact: true }).click();
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
   await fechaFranja(page, fecha, hora);
 }
 
@@ -140,16 +153,16 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await page.getByRole('button', { name: /Corte clásico/ }).click();
   await seleccionar(page, 'Profesional', 'Carlos');
   await revisar(page, testInfo, 'reservar-servicio');
-  await page.getByRole('button', { name: 'Elegir fecha y franja' }).click();
+  await page.getByRole('button', { name: 'Elegir fecha y hora' }).click();
   const entrada = page.getByLabel('Fecha de la cita (Lima)', { exact: true });
   await entrada.fill('10/01/2026');
   await entrada.press('Tab');
   await expect(
-    page.getByText('Fecha consultada: 2026-10-01 (Lima)', { exact: true }),
+    page.getByRole('heading', { name: 'jueves, 1 de octubre', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('option', { name: /^11:00–11:30/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^11:00–11:30/ })).toBeVisible();
   await revisar(page, testInfo, 'reservar-franja');
-  await page.getByRole('option', { name: /^11:00–11:30/ }).click();
+  await page.getByRole('button', { name: /^11:00–11:30/ }).click();
   await expect(page.locator('.resumen')).toContainText('11:00–11:30');
   await revisar(page, testInfo, 'reservar-confirmacion');
   const respuesta = page.waitForResponse(
@@ -168,7 +181,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await expect(page.locator('app-avisos-panel')).toContainText(creada.codigo);
   await revisar(page, testInfo, 'mis-citas');
   await tarjeta.getByRole('link', { name: 'Reprogramar' }).click();
-  await page.getByRole('button', { name: 'Elegir fecha y franja' }).click();
+  await page.getByRole('button', { name: 'Elegir fecha y hora' }).click();
   await fechaFranja(page, '2026-10-01', '12:00');
   await page.getByRole('button', { name: 'Confirmar reprogramación' }).click();
   await expect(page).toHaveURL(/\/mis-citas/);
@@ -210,7 +223,7 @@ test('02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de d
   await page.goto('/mis-citas');
   const tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: cercana });
   await expect(tarjeta).toContainText('10:00');
-  await expect(tarjeta).toContainText('Faltan menos de dos horas');
+  await expect(tarjeta).toContainText('Faltan menos de 2 horas');
   await expect(tarjeta.getByRole('link', { name: 'Reprogramar' })).toHaveCount(0);
   await expect(tarjeta.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
 });
@@ -231,7 +244,8 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
   await expect(fila).toContainText('Completada');
-  await seleccionar(page, 'Vista', 'Semana (lunes a domingo)');
+  await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
   const solicitud = page.getByRole('article', { name: pendiente, exact: true });
   await expect(solicitud).toContainText('Pendiente');
   await solicitud.getByRole('button', { name: 'Confirmar', exact: true }).click();
@@ -305,6 +319,8 @@ test('05 · cliente redirigido de administración y protegido después de logout
   await ingresar(page, 'cliente@ejemplo.test');
   await page.goto('/admin/servicios');
   await expect(page).toHaveURL(/\/reservar/);
+  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await menu.isVisible()) await menu.click();
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await page.goto('/mis-citas');
   await expect(page).toHaveURL(/\/ingresar/);
@@ -342,13 +358,11 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
     expect([...estados].sort()).toEqual([201, 409]);
     const perdedor = paginas[estados.indexOf(409)];
     await expect(perdedor.getByRole('alert')).toContainText(/franja.*(disponible|ocupada)/i);
-    await expect(
-      perdedor.getByRole('listbox', { name: 'Franjas disponibles en Lima' }),
-    ).toBeVisible();
-    await expect(perdedor.getByRole('option', { name: /^11:00–/ })).toHaveCount(0);
-    await expect(perdedor.getByRole('option', { name: /^11:30–/ })).toBeVisible();
+    await expect(perdedor.getByRole('region', { name: 'Horas disponibles' })).toBeVisible();
+    await expect(perdedor.getByRole('button', { name: /^11:00–/ })).toHaveCount(0);
+    await expect(perdedor.getByRole('button', { name: /^11:30–/ })).toBeVisible();
     // CP-04: el fin del ganador es también un comienzo disponible y reservable.
-    await perdedor.getByRole('option', { name: /^11:30–12:00/ }).click();
+    await perdedor.getByRole('button', { name: /^11:30–12:00/ }).click();
     const contigua = perdedor.waitForResponse(
       (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
     );
@@ -375,7 +389,7 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   }
   await page.getByRole('checkbox', { name: 'Acepto el aviso de privacidad' }).check();
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  await comprobarSalida(page);
   await page.goto('/perfil');
   await expect(page.getByLabel('Correo (solo lectura)', { exact: true })).toHaveValue(correo);
   await page.getByLabel('Nombre', { exact: true }).fill('Cliente E2E actualizado');

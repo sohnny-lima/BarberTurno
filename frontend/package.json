@@ -10,7 +10,8 @@
     "lint": "ng lint && tsc -p tsconfig.e2e.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1"
+    "e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1",
+    "e2e:capturas": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1 --config=playwright.capturas.config.ts"
   },
   "private": true,
   "packageManager": "npm@11.19.0",
