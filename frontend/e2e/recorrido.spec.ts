@@ -54,10 +54,10 @@ async function ingresar(page: Page, correo: string) {
     elemento.dispatchEvent(new Event('input', { bubbles: true }));
   }, process.env['BT_DEMO_PASSWORD']!);
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
-  await comprobarSalida(page);
-  // La identidad aparece antes de que termine la navegación; no abortar esa transición.
+  // Esperar el destino evita abrir el menú mientras NavigationEnd lo está cerrando.
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await comprobarSalida(page);
 }
 
 async function comprobarSalida(page: Page) {
@@ -483,6 +483,7 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   }
   await page.getByRole('checkbox', { name: 'Acepto el aviso de privacidad' }).check();
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/registro(?:\?|$)/);
   await comprobarSalida(page);
   await page.goto('/perfil');
   await expect(page.getByLabel('Correo (solo lectura)', { exact: true })).toHaveValue(correo);
@@ -641,14 +642,11 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   expect(primeraRespuesta.status()).toBe(200);
   const primeraHuella = await huellaCsrf(primeraRespuesta);
   await salirConRespuesta(page);
-  // El logout conserva abierto el cajón móvil; cerrarlo por teclado libera el formulario.
-  const cajon = page.locator('mat-sidenav');
   const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
   if (await menu.isVisible()) {
-    await expect(cajon).not.toHaveClass(/mat-drawer-animating/);
-    await cajon.getByRole('link').first().focus();
-    await page.keyboard.press('Escape');
-    await expect(cajon).toBeHidden();
+    // La navegación debe cerrar el cajón y llevar el foco a la pantalla destino.
+    await expect(page.locator('mat-sidenav')).toBeHidden();
+    await expect(page.locator('main')).toBeFocused();
   }
   // Desde aquí no hay goto ni reload: el formulario es el que abrió la SPA al salir.
   await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
@@ -663,6 +661,6 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   const segundaRespuesta = await segundoLogin;
   expect(segundaRespuesta.status()).toBe(200);
   expect(await huellaCsrf(segundaRespuesta)).not.toBe(primeraHuella);
-  await comprobarSalida(page);
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
+  await comprobarSalida(page);
 });
