@@ -641,6 +641,15 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   expect(primeraRespuesta.status()).toBe(200);
   const primeraHuella = await huellaCsrf(primeraRespuesta);
   await salirConRespuesta(page);
+  // El logout conserva abierto el cajón móvil; cerrarlo por teclado libera el formulario.
+  const cajon = page.locator('mat-sidenav');
+  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await menu.isVisible()) {
+    await expect(cajon).not.toHaveClass(/mat-drawer-animating/);
+    await cajon.getByRole('link').first().focus();
+    await page.keyboard.press('Escape');
+    await expect(cajon).toBeHidden();
+  }
   // Desde aquí no hay goto ni reload: el formulario es el que abrió la SPA al salir.
   await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
   await page.getByLabel('Contraseña', { exact: true }).evaluate((elemento, valor) => {
