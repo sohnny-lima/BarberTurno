@@ -83,7 +83,7 @@
 | T-45 | Recuperación ante una cookie de sesión inválida o revocada (hallazgo de T-31, DA-22) | M | T-10, T-11 | Hecha · revisión: Aprobada | 04/10/2026 | a33352fff1d62f289a3be4601ea37817c9b64aa6, 2fe0aa00b34cd5d7ddc0d0d91dc7b08d0aa25527, e03ab236f52cddbf51504ee163b6acf13767486f; cierre cef254acc83490be89a5470ab6c3babad0a86d4a; merge 44b28399af19a99145c77e71b973e2d49a992977; único registro docs posterior por asunto (evidencia) |
 | T-46 | Errores estándar de Spring MVC con su estado HTTP (revisión de T-33) | S | T-08 | Hecha · revisión: Aprobada | 04/10/2026 | `691308c`, `f622687`, `30cad4e`; merge `5076e13` |
 | T-47 | Primer CI real: dependencia de orden entre `SpaForwardIT` y `SecurityConfigIT` (P-04) | M | T-33, T-04 | Hecha · revisión: Aprobada | 05/10/2026 | `6df34b2`, `59d647a` (diagnóstico en la CI), `d6f5c50` (corrección) |
-| T-49 | Diagnóstico y corrección del 403 intermitente de Firefox (CSRF; T-34 O-1, reproducido en T-48; DA-26) | M | T-34 | En curso (diagnóstico hecho: defecto confirmado; corrección pendiente) | 06/10/2026 | — |
+| T-49 | Diagnóstico y corrección del 403 intermitente de Firefox (CSRF; T-34 O-1, reproducido en T-48; DA-26) | M | T-34 | En curso (encargo 059: corrección y regresión DA-26; revisión independiente pendiente) | 06/10/2026 | — |
 | T-50 | Comprobación del requisito de avisos para BARBERO y ADMIN (RF-16, CP-18) | S | T-25, T-27 | Hecha (análisis g018; decisión del responsable: requisito pendiente para BARBERO → T-51) | 06/10/2026 | — |
 | T-51 | Lectura de avisos del BARBERO desde el contador de la cabecera (RF-16, CP-18, C-14, DA-25) | M | T-25, T-27, T-50 | Pendiente | — | — |
 

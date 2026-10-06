@@ -130,6 +130,100 @@ class AuthIT {
                 .andExpect(jsonPath("$.correo").value(CORREO));
     }
 
+    @Test void csrf_trasLogin_getsAutenticadosNoRenuevanCookieNiRegistranReemplazo() throws Exception {
+        crear(Rol.CLIENTE, false);
+        Cookie sesion = cookieSesion(login(CORREO, PASSWORD).andReturn());
+        Cookie csrf = mvc.perform(get("/api/auth/sesion").cookie(sesion))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(
+                org.springframework.security.web.csrf.CsrfAuthenticationStrategy.class);
+        var nivelAnterior = logger.getLevel();
+        var registros = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        registros.start();
+        logger.addAppender(registros);
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        try {
+            for (String ruta : new String[]{"/api/notificaciones/conteo", "/api/auth/sesion",
+                    "/api/servicios", "/api/notificaciones/conteo", "/api/auth/sesion"}) {
+                var resultado = mvc.perform(get(ruta).cookie(sesion, csrf))
+                        .andExpect(status().isOk()).andReturn();
+                assertThat(resultado.getResponse().getHeaders("Set-Cookie").stream()
+                        .anyMatch(valor -> valor.startsWith("XSRF-TOKEN="))).isFalse();
+                assertThat(resultado.getRequest().getSession(false)).isNull();
+            }
+            assertThat(registros.list.stream().anyMatch(evento -> evento.getFormattedMessage()
+                    .contains("Replaced CSRF Token"))).isFalse();
+        } finally {
+            logger.setLevel(nivelAnterior);
+            logger.detachAppender(registros);
+            registros.stop();
+        }
+    }
+
+    @Test void csrf_trasLogin_escrituraConTokenInicialFuncionaDespuesDeVariosGets() throws Exception {
+        crear(Rol.CLIENTE, false);
+        Cookie sesion = cookieSesion(login(CORREO, PASSWORD).andReturn());
+        Cookie vigente = mvc.perform(get("/api/auth/sesion").cookie(sesion))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        String tokenInicial = vigente.getValue();
+        // Simula el navegador: aplica cada Set-Cookie, pero conserva la cabecera ya leída.
+        for (String ruta : new String[]{"/api/notificaciones/conteo", "/api/auth/sesion",
+                "/api/notificaciones/conteo"}) {
+            var resultado = mvc.perform(get(ruta).cookie(sesion, vigente))
+                    .andExpect(status().isOk()).andReturn();
+            for (Cookie cookie : resultado.getResponse().getCookies()) {
+                if (cookie.getName().equals("XSRF-TOKEN")) vigente = cookie;
+            }
+        }
+        mvc.perform(post("/api/notificaciones/lectura").cookie(sesion, vigente)
+                .header("X-XSRF-TOKEN", tokenInicial)).andExpect(status().isNoContent());
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"registro", "login", "logout"})
+    void csrf_cambioDeSesion_invalidaCookieYEmiteTokenNuevoEnSiguienteGet(String ruta) throws Exception {
+        if (!ruta.equals("registro")) crear(Rol.CLIENTE, false);
+        Cookie anterior = xsrf();
+        var solicitud = post("/api/auth/" + ruta).cookie(anterior)
+                .header("X-XSRF-TOKEN", anterior.getValue()).contentType(MediaType.APPLICATION_JSON);
+        if (ruta.equals("registro")) solicitud.content(json.writeValueAsString(registro(CORREO)));
+        if (ruta.equals("login")) solicitud.content(json.writeValueAsString(
+                Map.of("correo", CORREO, "password", PASSWORD)));
+        if (ruta.equals("logout")) solicitud.cookie(new Cookie("BT_SESION",
+                jwt.emitir(usuarios.findByCorreo(CORREO).orElseThrow())));
+        var resultado = mvc.perform(solicitud).andExpect(status().is(ruta.equals("registro") ? 201
+                : ruta.equals("login") ? 200 : 204)).andReturn();
+        Cookie borrada = resultado.getResponse().getCookie("XSRF-TOKEN");
+        assertThat(borrada != null && borrada.getMaxAge() == 0 && borrada.getValue().isEmpty()).isTrue();
+        assertThat(borrada.getPath()).isEqualTo("/");
+        assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
+        assertThat(borrada.isHttpOnly()).isFalse();
+        assertThat(borrada.getSecure()).isFalse();
+        var siguiente = mvc.perform(get("/api/auth/sesion").cookie(cookieSesion(resultado)))
+                .andExpect(status().is(ruta.equals("logout") ? 401 : 200)).andReturn();
+        Cookie nueva = siguiente.getResponse().getCookie("XSRF-TOKEN");
+        assertThat(nueva != null && !nueva.getValue().isEmpty()
+                && !nueva.getValue().equals(anterior.getValue())).isTrue();
+        if (!ruta.equals("logout")) {
+            mvc.perform(post("/api/notificaciones/lectura").cookie(cookieSesion(resultado), nueva)
+                    .header("X-XSRF-TOKEN", anterior.getValue())).andExpect(status().isForbidden());
+            mvc.perform(post("/api/notificaciones/lectura").cookie(cookieSesion(resultado), nueva)
+                    .header("X-XSRF-TOKEN", nueva.getValue())).andExpect(status().isNoContent());
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"registro", "login", "logout", "notificaciones"})
+    void csrf_conSesionValida_sinCabeceraOConTokenIncorrectoRechaza(String ruta) throws Exception {
+        crear(Rol.CLIENTE, false);
+        Cookie sesion = cookieSesion(login(CORREO, PASSWORD).andReturn());
+        Cookie csrf = mvc.perform(get("/api/auth/sesion").cookie(sesion))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        String destino = ruta.equals("notificaciones") ? "/api/notificaciones/lectura" : "/api/auth/" + ruta;
+        mvc.perform(post(destino).cookie(sesion, csrf)).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
+        mvc.perform(post(destino).cookie(sesion, csrf).header("X-XSRF-TOKEN", "incorrecto"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
+    }
+
     @Test void login_inexistenteIncorrectoInactivoYPasswordExcesiva_mismoDetalle() throws Exception {
         Usuario u = crear(Rol.CLIENTE, false);
         String inexistente = detalle(login("ausente@ejemplo.test", PASSWORD));
