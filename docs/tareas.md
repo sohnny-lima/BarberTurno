@@ -85,7 +85,7 @@
 | T-47 | Primer CI real: dependencia de orden entre `SpaForwardIT` y `SecurityConfigIT` (P-04) | M | T-33, T-04 | Hecha · revisión: Aprobada | 05/10/2026 | `6df34b2`, `59d647a` (diagnóstico en la CI), `d6f5c50` (corrección) |
 | T-49 | Diagnóstico del 403 intermitente de Firefox (CSRF; T-34 O-1, reproducido en T-48) | M | T-34 | En curso (diagnóstico) | 06/10/2026 | — |
 | T-50 | Comprobación del requisito de avisos para BARBERO y ADMIN (RF-16, CP-18) | S | T-25, T-27 | Hecha (análisis g018; decisión del responsable: requisito pendiente para BARBERO → T-51) | 06/10/2026 | — |
-| T-51 | Lectura de avisos del BARBERO desde el contador de la cabecera (RF-16, CP-18, C-13, DA-25) | M | T-25, T-27, T-50 | Pendiente | — | — |
+| T-51 | Lectura de avisos del BARBERO desde el contador de la cabecera (RF-16, CP-18, C-14, DA-25) | M | T-25, T-27, T-50 | Pendiente | — | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -393,7 +393,7 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** análisis (Gemini, solo lectura): contrastar RF-16, RN-15, CP-18, MJ-05, la arquitectura (§6, §7.2) y T-25/T-27 con el comportamiento actual y concluir, con citas, si la pantalla ausente es un **requisito pendiente** o una **funcionalidad nueva**. No se implementa nada en esta tarea.
 - **Prioridad:** S.
 
-### T-51 · Lectura de avisos del BARBERO desde la cabecera (RF-16, CP-18, C-13, DA-25)
+### T-51 · Lectura de avisos del BARBERO desde la cabecera (RF-16, CP-18, C-14, DA-25)
 - **Origen:** T-50 (análisis g018) y decisión del responsable del 06/10/2026: requisito pendiente admitido por el freeze.
 - **Alcance:** solo frontend, sobre `main` (independiente de T-48 y de T-49). El contador de la cabecera ofrece al BARBERO un botón accesible que abre el panel de avisos **existente** (`AvisosPanel`) para leer sus avisos y marcarlos como leídos (uno o todos), con la API y el servicio de avisos actuales; al marcar, el contador se actualiza. CLIENTE: sin cambios (Mis citas). ADMIN: sin cambios (sin acceso nuevo).
 - **Fuera de alcance:** cambios de backend, API, permisos, RN-15 o DDL; avisos para ADMIN; pantallas o rutas nuevas; rediseño (T-48).
