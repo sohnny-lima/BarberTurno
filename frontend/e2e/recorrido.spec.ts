@@ -397,9 +397,14 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await ingresar(page, 'ana@ejemplo.test');
   await page.goto('/mis-citas');
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
-  await expect(page.locator('app-avisos-panel')).toContainText(
-    `${atencion}: estado actualizado a completada`,
-  );
+  const avisosAna: Pagina<NotificacionDto> = await (
+    await page.request.get('/api/notificaciones?tamano=100')
+  ).json();
+  const exclusivoCliente = avisosAna.contenido.find(
+    (a) => a.tipo === 'COMPLETAR' && a.mensaje.startsWith(`Reserva ${atencion}:`),
+  )!;
+  expect(exclusivoCliente).toBeDefined();
+  await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page).toHaveURL(/\/ingresar/);
 
@@ -414,25 +419,14 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
       inicio: '2026-10-02T15:00:00-05:00',
     })
   ).json();
-  const carlos = await sesionApi('carlos@ejemplo.test');
-  try {
-    // Carlos es el actor: CONFIRMAR llega al cliente y no al barbero (RN-15).
-    await escribir(carlos, `/api/reservas/${creada.id}/transiciones`, {
-      estado: 'CONFIRMADA',
-      version: creada.version,
-    });
-  } finally {
-    await carlos.dispose();
-  }
+  // El autoservicio ya confirma por defecto (RN-21); no requiere otra transición.
+  expect(creada.estado).toBe('CONFIRMADA');
   const cliente: Pagina<NotificacionDto> = await (
     await page.request.get('/api/notificaciones?tamano=100')
   ).json();
-  const exclusivoCliente = cliente.contenido.find(
-    (a) => a.reservaId === creada.id && a.tipo === 'CONFIRMAR',
-  )!;
-  expect(exclusivoCliente).toBeDefined();
+  expect(cliente.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
   await page.goto('/mis-citas');
-  await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
+  await expect(page.locator('app-avisos-panel')).toContainText(`Reserva ${creada.codigo} creada`);
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page).toHaveURL(/\/ingresar/);
 
@@ -442,7 +436,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   ).json();
   expect(propios.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
   expect(propios.contenido.some((a) => a.mensaje === exclusivoCliente.mensaje)).toBe(false);
-  const idsCliente = new Set(cliente.contenido.map((a) => a.id));
+  const idsCliente = new Set([...avisosAna.contenido, ...cliente.contenido].map((a) => a.id));
   expect(propios.contenido.filter((a) => idsCliente.has(a.id))).toEqual([]);
   const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
   expect(noLeidas).toBeGreaterThan(0);
@@ -487,7 +481,9 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await testInfo.attach(`avisos-barbero-${testInfo.project.name}`, {
-    body: await page.screenshot(),
+    body: await page.screenshot({
+      path: `test-results/avisos-barbero-${testInfo.project.name}.png`,
+    }),
     contentType: 'image/png',
   });
   const lectura = page.waitForResponse((r) =>
