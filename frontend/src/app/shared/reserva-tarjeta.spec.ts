@@ -26,7 +26,7 @@ describe('Tarjeta de reserva', () => {
         expect(fixture.nativeElement.querySelector('a').getAttribute('href')).toBe(
           '/reservar?reprogramar=101',
         );
-      expect(fixture.nativeElement.textContent.includes('Faltan menos de dos horas')).toBe(
+      expect(fixture.nativeElement.textContent.includes('Faltan menos de 2 horas')).toBe(
         !reprogramar && !cancelar,
       );
     },
@@ -58,7 +58,7 @@ describe('Tarjeta de reserva', () => {
       });
       fixture.componentRef.setInput('ahora', 0);
       fixture.detectChanges();
-      expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de dos horas');
+      expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
     },
   );
   it('no muestra la explicación para una cita pasada y emite la reserva al cancelar', () => {
@@ -75,6 +75,6 @@ describe('Tarjeta de reserva', () => {
       permisos: { reprogramar: false, cancelar: false, transiciones: [] },
     });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de dos horas');
+    expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
   });
 });
