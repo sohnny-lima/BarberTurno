@@ -1,17 +1,13 @@
 <h1>Agenda y atención</h1>
 <form class="filtros" [formGroup]="formulario" (ngSubmit)="cargar()">
-  <mat-form-field>
-    <mat-label>Vista</mat-label>
-    <mat-select formControlName="vista" (selectionChange)="cargar()">
-      <mat-option value="dia">Día</mat-option>
-      <mat-option value="semana">Semana (lunes a domingo)</mat-option>
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field>
-    <mat-label>Fecha de Lima</mat-label>
-    <input matInput type="date" formControlName="fecha" (change)="cargar()" />
-    <mat-error>Seleccione una fecha válida.</mat-error>
-  </mat-form-field>
+  <mat-button-toggle-group
+    formControlName="vista"
+    (change)="cargar()"
+    aria-label="Vista de la agenda"
+  >
+    <mat-button-toggle value="dia">Día</mat-button-toggle>
+    <mat-button-toggle value="semana">Semana</mat-button-toggle>
+  </mat-button-toggle-group>
   @if (admin()) {
     <mat-form-field data-selector-barbero>
       <mat-label>Barbero</mat-label>
@@ -29,6 +25,28 @@
       </mat-select>
     </mat-form-field>
   }
+  <div class="navegar-fecha">
+    <button mat-stroked-button type="button" aria-label="Periodo anterior" (click)="moverFecha(-1)">
+      ‹
+    </button>
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>Fecha de Lima</mat-label>
+      <input matInput type="date" formControlName="fecha" (change)="cargar()" />
+      <mat-error>Seleccione una fecha válida.</mat-error>
+    </mat-form-field>
+    <button mat-stroked-button type="button" aria-label="Periodo siguiente" (click)="moverFecha(1)">
+      ›
+    </button>
+    <button
+      mat-stroked-button
+      class="hoy"
+      type="button"
+      (click)="irHoy()"
+      [disabled]="formulario.controls.fecha.value === hoy"
+    >
+      Hoy
+    </button>
+  </div>
   <button mat-stroked-button type="submit" [disabled]="formulario.invalid">
     Actualizar agenda
   </button>
@@ -41,9 +59,15 @@
   Periodo: {{ grupos()[0].instante | fechaLima: 'fecha' }} al
   {{ grupos()[grupos().length - 1].instante | fechaLima: 'fecha' }} · Horario de Lima
 </p>
-<div aria-live="polite" [attr.aria-busy]="cargando()">
+<div class="flex flex-wrap gap-3 text-texto-2" role="group" aria-label="Resumen de citas">
+  <span>{{ filas().length }} citas</span>
+  @for (grupo of conteos(); track grupo.estado) {
+    <span>{{ grupo.total }} {{ grupo.nombre }}</span>
+  }
+</div>
+<div class="linea-tiempo" aria-live="polite" [attr.aria-busy]="cargando()">
   @if (cargando()) {
-    <p>Cargando agenda…</p>
+    <p role="status">Cargando agenda…</p>
   }
   @if (mensaje()) {
     <p role="alert">{{ mensaje() }}</p>
@@ -51,22 +75,31 @@
   @if (!cargando() && !mensaje()) {
     @for (grupo of grupos(); track grupo.fecha) {
       <section [attr.aria-label]="'Agenda del ' + grupo.fecha">
-        <h2>{{ grupo.instante | fechaLima: 'fecha' }}</h2>
+        <h2>{{ fecha(grupo.instante) }}</h2>
         @if (!grupo.filas.length) {
-          <p>Sin citas para este día.</p>
+          <p role="status">Sin citas para este día.</p>
         }
-        @for (reserva of grupo.filas; track reserva.id) {
-          <article class="fila" [attr.aria-label]="reserva.codigo">
+        @for (reserva of grupo.filas; track reserva.id; let indice = $index) {
+          @if (posicionAhora() === indice) {
+            <div class="ahora" role="status">Ahora</div>
+          }
+          <article
+            class="fila"
+            [class.terminada]="['COMPLETADA', 'CANCELADA', 'NO_ASISTIO'].includes(reserva.estado)"
+            [attr.aria-label]="reserva.codigo"
+          >
             <div class="intervalo">
-              <strong
-                >{{ reserva.inicio | fechaLima: 'hora' }} –
-                {{ reserva.fin | fechaLima: 'hora' }}</strong
-              >
+              <strong>{{ reserva.inicio | fechaLima: 'hora' }}</strong
+              ><span>{{ reserva.fin | fechaLima: 'hora' }}</span>
               <span>{{ reserva.codigo }}</span>
             </div>
             <div class="cliente">
               <strong>{{ reserva.cliente.nombre }}</strong>
-              <span>Teléfono: {{ reserva.cliente.telefono || 'Sin teléfono' }}</span>
+              @if (reserva.cliente.telefono) {
+                <a [href]="'tel:' + reserva.cliente.telefono">{{ reserva.cliente.telefono }}</a>
+              } @else {
+                <span>Sin teléfono registrado</span>
+              }
               <span>{{ reserva.servicio.nombre }}</span>
               @if (todos()) {
                 <span>Barbero: {{ reserva.barbero.nombre }}</span>
@@ -76,9 +109,19 @@
             <div class="acciones">
               @for (accion of acciones; track accion[0]) {
                 @if (reserva.permisos.transiciones.includes(accion[0])) {
-                  <button mat-stroked-button (click)="transicionar(reserva, accion[0])">
-                    {{ accion[1] }}
-                  </button>
+                  @if (accion[0] === primeraTransicion(reserva) && accion[0] !== 'NO_ASISTIO') {
+                    <button mat-flat-button (click)="transicionar(reserva, accion[0])">
+                      {{ accion[1] }}
+                    </button>
+                  } @else {
+                    <button
+                      mat-stroked-button
+                      [class.riesgo]="accion[0] === 'NO_ASISTIO'"
+                      (click)="transicionar(reserva, accion[0])"
+                    >
+                      {{ accion[1] }}
+                    </button>
+                  }
                 }
               }
               @if (admin() && reserva.permisos.reprogramar) {
@@ -91,11 +134,16 @@
                 </button>
               }
               @if (admin() && reserva.permisos.cancelar) {
-                <button mat-stroked-button (click)="cancelar(reserva)">Cancelar</button>
+                <button mat-stroked-button class="riesgo" (click)="cancelar(reserva)">
+                  Cancelar
+                </button>
               }
               <button mat-button (click)="verCambios(reserva)">Ver cambios</button>
             </div>
           </article>
+        }
+        @if (posicionAhora() === grupo.filas.length) {
+          <div class="ahora" role="status">Ahora</div>
         }
       </section>
     }

@@ -14,6 +14,8 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { fechaPresentacion } from '../../shared/fecha-presentacion';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -30,7 +32,7 @@ import { AvisosService } from '../../core/notificaciones/avisos-service';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { fechaHoyLima, instanteLima } from '../../core/tiempo/instante-lima';
 import { semanaLima, sumarDias } from '../../core/tiempo/semana-lima';
-import { EstadoReservaChip } from '../../shared/estado-reserva-chip';
+import { ESTADOS_RESERVA, EstadoReservaChip } from '../../shared/estado-reserva-chip';
 import { mostrarErrores } from '../../shared/formulario';
 import { CancelarDialogo } from '../mis-citas/cancelar-dialogo';
 import { AuditoriaDialogo } from './auditoria-dialogo';
@@ -51,6 +53,7 @@ const fechaValida: ValidatorFn = (control) => {
   imports: [
     ReactiveFormsModule,
     MatButtonModule,
+    MatButtonToggleModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
@@ -99,6 +102,37 @@ export class Agenda {
     }
     return grupos;
   });
+  readonly fecha = fechaPresentacion;
+  readonly hoy = fechaHoyLima();
+  readonly conteos = computed(() =>
+    Object.entries(ESTADOS_RESERVA)
+      .map(([estado, nombre]) => ({
+        estado,
+        nombre,
+        total: this.filas().filter((r) => r.estado === estado).length,
+      }))
+      .filter((grupo) => grupo.total > 0),
+  );
+  readonly posicionAhora = computed(() => {
+    const periodo = this.periodo();
+    if (periodo.desde !== this.hoy || periodo.hasta !== this.hoy) return -1;
+    const posicion = this.filas().findIndex((r) => Date.parse(r.inicio) > Date.now());
+    return posicion === -1 ? this.filas().length : posicion;
+  });
+  primeraTransicion(reserva: ReservaDto) {
+    return this.acciones.find(([estado]) => reserva.permisos.transiciones.includes(estado))?.[0];
+  }
+  moverFecha(direccion: number) {
+    const { fecha, vista } = this.formulario.getRawValue();
+    this.formulario.controls.fecha.setValue(
+      sumarDias(fecha, direccion * (vista === 'semana' ? 7 : 1)),
+    );
+    this.cargar();
+  }
+  irHoy() {
+    this.formulario.controls.fecha.setValue(this.hoy);
+    this.cargar();
+  }
   constructor() {
     if (this.admin()) this.cargarBarberos();
     this.cargar();
