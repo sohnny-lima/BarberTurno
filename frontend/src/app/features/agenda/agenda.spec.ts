@@ -57,6 +57,27 @@ describe('Agenda operativa', () => {
     inicial.flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     return fixture;
   }
+  it('destaca la primera transición en el orden existente y cuenta solo las citas cargadas', () => {
+    const fixture = crear();
+    const agenda = fixture.componentInstance;
+    const reserva = {
+      ...RESERVA_PRUEBA,
+      permisos: {
+        reprogramar: false,
+        cancelar: false,
+        transiciones: ['NO_ASISTIO', 'EN_ATENCION'] as EstadoTransicion[],
+      },
+    };
+    agenda.filas.set([reserva, { ...RESERVA_PRUEBA, id: 102, estado: 'CANCELADA' }]);
+    expect(agenda.primeraTransicion(reserva)).toBe('EN_ATENCION');
+    expect(
+      agenda.primeraTransicion({ ...reserva, permisos: { ...reserva.permisos, transiciones: [] } }),
+    ).toBeUndefined();
+    expect(agenda.conteos().map((grupo) => [grupo.estado, grupo.total])).toEqual([
+      ['CONFIRMADA', 1],
+      ['CANCELADA', 1],
+    ]);
+  });
   it('el BARBERO no tiene selector ni consulta el catálogo, aunque haya un filtro manipulado', () => {
     rol.set('BARBERO');
     const fixture = crear();

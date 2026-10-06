@@ -6,6 +6,6 @@
     "types": ["node"],
     "moduleResolution": "bundler"
   },
-  "include": ["e2e/**/*.ts", "playwright.config.ts"],
+  "include": ["e2e/**/*.ts", "playwright.config.ts", "playwright.capturas.config.ts"],
   "references": []
 }

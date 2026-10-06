@@ -1,7 +1,11 @@
+import { registerLocaleData } from '@angular/common';
+import localeEsPe from '@angular/common/locales/es-PE';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RESERVA_PRUEBA } from './reserva-prueba';
 import { ReservaTarjeta } from './reserva-tarjeta';
+
+registerLocaleData(localeEsPe);
 
 describe('Tarjeta de reserva', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
@@ -26,7 +30,7 @@ describe('Tarjeta de reserva', () => {
         expect(fixture.nativeElement.querySelector('a').getAttribute('href')).toBe(
           '/reservar?reprogramar=101',
         );
-      expect(fixture.nativeElement.textContent.includes('Faltan menos de dos horas')).toBe(
+      expect(fixture.nativeElement.textContent.includes('Faltan menos de 2 horas')).toBe(
         !reprogramar && !cancelar,
       );
     },
@@ -46,6 +50,8 @@ describe('Tarjeta de reserva', () => {
       'Confirmada',
     ])
       expect(texto).toContain(valor);
+    expect(texto).toMatch(/S[/]\s25[.]00/);
+    expect(texto).not.toMatch(/S[/]\s{2,}/);
   });
   it.each(['COMPLETADA', 'CANCELADA', 'NO_ASISTIO', 'EN_ATENCION'])(
     'no explica el plazo para %s',
@@ -58,7 +64,7 @@ describe('Tarjeta de reserva', () => {
       });
       fixture.componentRef.setInput('ahora', 0);
       fixture.detectChanges();
-      expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de dos horas');
+      expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
     },
   );
   it('no muestra la explicación para una cita pasada y emite la reserva al cancelar', () => {
@@ -75,6 +81,6 @@ describe('Tarjeta de reserva', () => {
       permisos: { reprogramar: false, cancelar: false, transiciones: [] },
     });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de dos horas');
+    expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
   });
 });

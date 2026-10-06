@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Identidad de BarberTurno</title>
+
+</head>
+<body>
+
+
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&amp;family=Big+Shoulders+Display:wght@700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0D5C6C}a:hover{color:#15232B}
+.bt{font-family:'Atkinson Hyperlegible Next',system-ui,sans-serif;color:#15232B;font-variant-numeric:tabular-nums}
+.disp{font-family:'Big Shoulders Display',Impact,sans-serif}
+.btn{font:inherit;font-weight:600;font-size:16px;min-height:48px;padding:0 20px;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:#7A2333;color:#fff}
+.btn-s{background:#fff;color:#15232B;border:1.5px solid #8A979C}
+.btn-t{background:transparent;color:#0D5C6C;padding:0 12px;text-decoration:underline;text-underline-offset:3px}
+.btn-d{background:#fff;color:#9A2B1E;border:1.5px solid #D9A39A}
+.btn-x{background:#E4E8E7;color:#6B777B;cursor:not-allowed}
+.foco{outline:3px solid #0D5C6C;outline-offset:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px 4px 10px;font-size:14px;font-weight:700;line-height:20px}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.p-pend{color:#7A4E00;background:#FFF1CC}
+.p-conf{color:#0D5C6C;background:#DDF0F2}
+.p-aten{color:#5A2A86;background:#EEE5FA}
+.p-comp{color:#1F5E36;background:#E0F2E6}
+.p-noas{color:#9A2B1E;background:#FBE6E1}
+.p-canc{color:#4B5560;background:#ECEFF1}
+.slot{font:inherit;min-height:56px;border-radius:10px;border:1.5px solid #C3CCCD;background:#fff;color:#15232B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 8px;cursor:pointer}
+.slot b{font-size:19px;font-weight:700}
+.slot span{font-size:13px;color:#4A5A60}
+.slot-sel{background:#7A2333;border-color:#7A2333;color:#fff}
+.slot-sel span{color:#F6E8EA}
+.cap{font-size:14px;color:#4A5A60;margin:0}
+.sw{display:flex;flex-direction:column;gap:8px}
+.sw i{display:block;height:72px;border-radius:12px;border:1px solid #D5DCDC}
+</style>
+
+<div class="bt" style="width:1440px;height:1000px;box-sizing:border-box;background:#F1F3F1;padding:56px 64px;display:grid;grid-template-columns:400px minmax(0,1fr);gap:64px">
+  <div style="display:flex;flex-direction:column;gap:32px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true"><rect width="52" height="52" rx="12" fill="#15232B"></rect><path d="M14 40 L26 12 M22 40 L34 12 M30 40 L42 12" stroke="#E2B65C" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
+      <span class="disp" style="font-size:44px;font-weight:800;letter-spacing:.02em;line-height:1">BARBERTURNO</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="disp" style="font-size:72px;font-weight:800;line-height:.95">Reservar un turno</span>
+      <span style="font-size:24px;font-weight:700;line-height:1.25">Corte + barba con Carlos Huamán</span>
+      <p style="font-size:17px;line-height:1.55;margin:0;max-width:36ch">Elija su servicio y una hora disponible. Todas las horas corresponden a Lima y el pago es presencial en la barbería.</p>
+      <p class="cap">Ayuda y notas secundarias en 14 px, siempre con contraste AA.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <p class="cap">Big Shoulders Display 800: títulos de página, horas de la agenda y el tique.</p>
+      <p class="cap">Atkinson Hyperlegible Next 400/600/700: todo el texto de la interfaz, cifras tabulares.</p>
+    </div>
+    <div style="background:#15232B;color:#fff;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+      <span style="color:#C9D3D6;font-size:14px">Navegación lateral</span>
+      <span style="background:#E2B65C;color:#15232B;border-radius:10px;padding:12px 14px;font-weight:700">Reservar</span>
+      <span style="padding:0 14px;display:flex;justify-content:space-between;align-items:center">Mis citas <span style="background:#7A2333;color:#fff;border-radius:999px;font-size:13px;font-weight:700;padding:1px 8px">1</span></span>
+      <span style="padding:0 14px">Mi cuenta</span>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:40px">
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px">
+      <div class="sw"><i style="background:#15232B"></i><b>Tinta</b><p class="cap">#15232B · texto y riel</p></div>
+      <div class="sw"><i style="background:#7A2333"></i><b>Cordobán</b><p class="cap">#7A2333 · acción principal</p></div>
+      <div class="sw"><i style="background:#0D5C6C"></i><b>Petróleo</b><p class="cap">#0D5C6C · enlaces y foco</p></div>
+      <div class="sw"><i style="background:#E2B65C"></i><b>Latón</b><p class="cap">#E2B65C · solo sobre tinta</p></div>
+      <div class="sw"><i style="background:#F1F3F1"></i><b>Cal</b><p class="cap">#F1F3F1 · fondo</p></div>
+      <div class="sw"><i style="background:#FFFFFF"></i><b>Blanco</b><p class="cap">#FFFFFF · superficies</p></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <b style="font-size:18px">Estados de una reserva</b>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <span class="pill p-pend">Pendiente</span>
+        <span class="pill p-conf">Confirmada</span>
+        <span class="pill p-aten">En atención</span>
+        <span class="pill p-comp">Completada</span>
+        <span class="pill p-noas">No asistió</span>
+        <span class="pill p-canc">Cancelada</span>
+      </div>
+      <p class="cap">Cada estado lleva texto y punto; el color nunca es la única señal. Contraste de 6,4:1 a 8,2:1.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <b style="font-size:18px">Botones</b>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+        <button class="btn btn-p" type="button">Confirmar reserva</button>
+        <button class="btn btn-p foco" type="button">Con foco de teclado</button>
+        <button class="btn btn-s" type="button">Reprogramar</button>
+        <button class="btn btn-d" type="button">No asistió</button>
+        <button class="btn btn-t" type="button">Ver cambios</button>
+        <button class="btn btn-x" type="button" disabled="disabled">Enviando…</button>
+      </div>
+      <p class="cap">Altura mínima de 48 px. Una sola acción principal por tarjeta o paso.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <b style="font-size:18px">Horas disponibles</b>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+          <button class="slot" type="button"><b>09:30</b><span>Carlos, Miguel</span></button>
+          <button class="slot slot-sel" type="button" aria-pressed="true"><b>10:00</b><span>Carlos, Miguel</span></button>
+          <button class="slot foco" type="button"><b>10:30</b><span>Miguel</span></button>
+        </div>
+        <p class="cap">Libre, elegida y con foco. Ancho igual en toda la rejilla.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <b style="font-size:18px">Campos (Angular Material, apariencia outline)</b>
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:14px;font-weight:600">Profesional</span>
+          <select style="font:inherit;font-size:16px;min-height:52px;border:1.5px solid #8A979C;border-radius:10px;padding:0 14px;background:#fff;color:#15232B">
+            <option>Sin preferencia</option>
+            <option>Carlos Huamán</option>
+            <option>Miguel Quispe</option>
+          </select>
+        </label>
+        <p class="cap">Material conserva comportamiento y accesibilidad; los tokens de su tema adoptan esta paleta y tipografía.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+</body>
+</html>

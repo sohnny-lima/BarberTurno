@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reservar, paso 3, móvil</title>
+
+</head>
+<body>
+
+
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&amp;family=Big+Shoulders+Display:wght@700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0D5C6C}a:hover{color:#15232B}
+.bt{font-family:'Atkinson Hyperlegible Next',system-ui,sans-serif;color:#15232B;font-variant-numeric:tabular-nums}
+.disp{font-family:'Big Shoulders Display',Impact,sans-serif}
+.btn{font:inherit;font-weight:600;font-size:16px;min-height:48px;padding:0 20px;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:#7A2333;color:#fff}
+.btn-t{background:transparent;color:#0D5C6C;text-decoration:underline;text-underline-offset:3px}
+.ico{width:44px;height:44px;border-radius:10px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;position:relative}
+.dato{display:flex;flex-direction:column;gap:2px}
+.dato span{font-size:13px;color:#4A5A60}
+.dato b{font-size:16px}
+</style>
+
+<div class="bt" style="width:360px;height:1000px;box-sizing:border-box;background:#F1F3F1;display:flex;flex-direction:column">
+  <header style="height:56px;background:#15232B;display:flex;align-items:center;gap:4px;padding:0 6px;flex-shrink:0">
+    <button class="ico" type="button" aria-label="Abrir menú"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="#fff" stroke-width="2" stroke-linecap="round"></path></svg></button>
+    <span class="disp" style="color:#fff;font-size:22px;font-weight:800;letter-spacing:.02em;flex:1">BARBERTURNO</span>
+    <button class="ico" type="button" aria-label="Avisos: 1 sin leer"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 20a2 2 0 0 0 4 0" stroke="#fff" stroke-width="2" fill="none" stroke-linejoin="round"></path></svg><span style="position:absolute;top:6px;right:6px;background:#E2B65C;color:#15232B;font-size:11px;font-weight:700;border-radius:999px;padding:0 5px">1</span></button>
+  </header>
+  <main style="padding:20px 16px 28px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h1 class="disp" style="margin:0;font-size:40px;font-weight:800;line-height:1">Revise su turno</h1>
+      <div style="display:flex;gap:6px" aria-hidden="true">
+        <span style="flex:1;height:4px;border-radius:2px;background:#15232B"></span>
+        <span style="flex:1;height:4px;border-radius:2px;background:#15232B"></span>
+        <span style="flex:1;height:4px;border-radius:2px;background:#7A2333"></span>
+      </div>
+      <p style="margin:0;font-size:15px"><b>Paso 3 de 3:</b> revisar y confirmar</p>
+    </div>
+    <section aria-label="Resumen de la cita" style="position:relative;background:#fff;border-radius:18px;border:1px solid #D5DCDC;overflow:hidden">
+      <div style="background:#15232B;color:#fff;padding:18px 20px 16px;display:flex;flex-direction:column;gap:2px">
+        <span style="color:#E2B65C;font-weight:700;font-size:14px">Lunes 28 de septiembre</span>
+        <span class="disp" style="font-size:76px;font-weight:800;line-height:.9">10:00</span>
+        <span style="color:#C9D3D6;font-size:14px">Hasta las 10:50, hora de Lima</span>
+      </div>
+      <div style="position:relative;height:24px" aria-hidden="true">
+        <span style="position:absolute;left:-13px;top:0;width:24px;height:24px;border-radius:50%;background:#F1F3F1;border:1px solid #D5DCDC;box-sizing:border-box"></span>
+        <span style="position:absolute;right:-13px;top:0;width:24px;height:24px;border-radius:50%;background:#F1F3F1;border:1px solid #D5DCDC;box-sizing:border-box"></span>
+        <span style="position:absolute;left:20px;right:20px;top:11px;border-top:2px dashed #C3CCCD"></span>
+      </div>
+      <div style="padding:6px 20px 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px">
+        <div class="dato" style="grid-column:1 / span 2"><span>Servicio</span><b style="font-size:20px">Corte + barba</b></div>
+        <div class="dato"><span>Duración</span><b>50 minutos</b></div>
+        <div class="dato"><span>Precio</span><b>S/ 40.00</b></div>
+        <label style="grid-column:1 / span 2;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;color:#4A5A60">Profesional para esta hora</span>
+          <select style="font:inherit;font-size:16px;min-height:52px;border:1.5px solid #8A979C;border-radius:10px;padding:0 12px;background:#fff;color:#15232B">
+            <option>Carlos Huamán</option>
+            <option>Miguel Quispe</option>
+          </select>
+        </label>
+      </div>
+    </section>
+    <p style="margin:0;padding:14px;border-radius:12px;background:#fff;border:1px solid #D5DCDC;font-size:14px;line-height:1.5">El pago es presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.</p>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn btn-p" type="button" style="width:100%">Confirmar reserva</button>
+      <button class="btn btn-t" type="button" style="width:100%">Cambiar fecha u hora</button>
+    </div>
+  </main>
+</div>
+
+
+</body>
+</html>

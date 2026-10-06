@@ -3,8 +3,10 @@ import {
   afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   viewChild,
 } from '@angular/core';
@@ -13,7 +15,6 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -24,8 +25,10 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiempo/fecha-datepicker';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
+import { fechaPresentacion } from '../../shared/fecha-presentacion';
 import { SelectorCliente } from '../../shared/selector-cliente';
 import { ReservaStore } from './reserva.store';
+import { sumarDias } from '../../core/tiempo/semana-lima';
 
 @Component({
   selector: 'app-reservar',
@@ -34,7 +37,6 @@ import { ReservaStore } from './reserva.store';
     SelectorCliente,
     MatButtonModule,
     MatCardModule,
-    MatChipsModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
@@ -61,13 +63,64 @@ export class Reservar {
     { initialValue: false },
   );
 
+  readonly numeroPaso = computed(() => this.store.paso() + (this.store.asistida() ? 2 : 1));
+  readonly pasos = computed(() =>
+    Array.from({ length: this.store.asistida() ? 4 : 3 }, (_, i) => i + 1),
+  );
+  readonly dias = Array.from({ length: 7 }, (_, i) =>
+    sumarDias(fechaCivil(this.limites.min), i),
+  ).filter((dia) => dia <= fechaCivil(this.limites.max));
+  readonly gruposHoras = computed(() => {
+    const hora = new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    });
+    return [
+      {
+        nombre: 'Mañana',
+        franjas: this.store.franjas().filter((f) => Number(hora.format(new Date(f.inicio))) < 12),
+      },
+      {
+        nombre: 'Tarde',
+        franjas: this.store.franjas().filter((f) => Number(hora.format(new Date(f.inicio))) >= 12),
+      },
+    ];
+  });
+  readonly fechaLegible = fechaPresentacion;
+  elegirDia(fecha: string, evento: Event) {
+    this.store.elegirFecha(fecha);
+    (evento.currentTarget as HTMLElement).scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
+  iniciales(nombre: string) {
+    return nombre
+      .split(' ')
+      .map((parte) => parte[0])
+      .slice(0, 2)
+      .join('');
+  }
   constructor() {
     const snackbar = inject(MatSnackBar);
+    const elemento = inject<ElementRef<HTMLElement>>(ElementRef);
+    // La primera presentación conserva el foco; una selección restaurada cambia este índice.
+    let pasoEnfocado = 0;
+    let fotograma: number | undefined;
+    this.destroyRef.onDestroy(() => {
+      if (fotograma !== undefined) cancelAnimationFrame(fotograma);
+    });
     // Material comprueba el paso anterior: sincroniza después de actualizar completed.
     afterRenderEffect(() => {
       const stepper = this.stepper();
       const paso = Math.max(0, this.store.paso() + (this.store.asistida() ? 1 : 0));
-      if (stepper && stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+      if (!stepper) return;
+      if (stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+      if (pasoEnfocado === paso) return;
+      pasoEnfocado = paso;
+      if (fotograma !== undefined) cancelAnimationFrame(fotograma);
+      // Espera el marcado del nuevo paso, también al restaurar o elegir una hora desde el store.
+      fotograma = requestAnimationFrame(() => {
+        elemento.nativeElement.querySelector<HTMLElement>('[data-paso="' + paso + '"]')?.focus();
+      });
     });
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(this.destroyRef))

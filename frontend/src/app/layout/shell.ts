@@ -5,13 +5,16 @@ import {
   computed,
   DestroyRef,
   inject,
+  Injector,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
-import { MatListModule } from '@angular/material/list';
+
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatToolbarModule } from '@angular/material/toolbar';
+
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { finalize, map } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
@@ -33,14 +36,15 @@ const ADMIN = [
 
 @Component({
   selector: 'app-shell',
-  imports: [
-    MatButtonModule,
-    MatListModule,
-    MatSidenavModule,
-    MatToolbarModule,
-    RouterLink,
-    RouterLinkActive,
-    RouterOutlet,
+  imports: [MatButtonModule, MatSidenavModule, RouterLink, RouterLinkActive, RouterOutlet],
+  // Los defaults visuales se cargan con el shell lazy, incluidos sus diálogos.
+  providers: [
+    { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
+    MatDialog,
+    {
+      provide: MAT_DIALOG_DEFAULT_OPTIONS,
+      useFactory: () => ({ ...new MatDialogConfig(), injector: inject(Injector) }),
+    },
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -49,6 +53,8 @@ const ADMIN = [
 export class Shell {
   readonly sesion = inject(SesionService);
   readonly avisos = inject(AvisosService);
+  private readonly dialogos = inject(MatDialog);
+  private dialogoAvisosActivo = false;
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly saliendo = signal(false);
@@ -85,6 +91,29 @@ export class Shell {
         this.sesion.rol() ?? 'CLIENTE'
       ],
   );
+  async abrirAvisos() {
+    if (this.dialogoAvisosActivo) return;
+    this.dialogoAvisosActivo = true;
+    try {
+      const { AvisosDialogo } = await import('./avisos-dialogo');
+      this.dialogos
+        .open(AvisosDialogo, {
+          width: '640px',
+          maxWidth: 'calc(100vw - 32px)',
+          maxHeight: 'calc(100dvh - 32px)',
+          autoFocus: '[mat-dialog-close]',
+          restoreFocus: true,
+        })
+        .afterClosed()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => {
+          this.dialogoAvisosActivo = false;
+        });
+    } catch (error) {
+      this.dialogoAvisosActivo = false;
+      throw error;
+    }
+  }
   salir() {
     if (this.saliendo()) return;
     this.saliendo.set(true);

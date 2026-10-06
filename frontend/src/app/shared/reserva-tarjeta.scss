@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+.fila-cita {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 20px;
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+  padding: 20px;
+  margin-block: 12px;
+}
+.bloque-fecha {
+  display: grid;
+  align-content: start;
+  text-align: center;
+  color: var(--color-texto-2);
+  text-transform: capitalize;
+}
+.bloque-fecha strong {
+  font: 800 40px/1.2 var(--font-display);
+  color: var(--color-tinta);
+}
+.detalle-cita h2 {
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+}
+.detalle-cita p {
+  margin: 8px 0;
+}
+@media (max-width: 767.98px) {
+  .fila-cita {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+}

@@ -8,6 +8,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
+import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 import { provideRouter } from '@angular/router';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import { routes } from './app.routes';
@@ -33,6 +34,7 @@ export const appConfig: ApplicationConfig = {
           .pipe(catchError(() => of(null))),
       ),
     ),
+    { provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { panelClass: 'aviso-transitorio' } },
     { provide: LOCALE_ID, useValue: 'es-PE' },
   ],
 };

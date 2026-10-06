@@ -1,3 +1,5 @@
+import { registerLocaleData } from '@angular/common';
+import localeEsPe from '@angular/common/locales/es-PE';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -11,6 +13,8 @@ import { fechaHoyLima } from '../../core/tiempo/instante-lima';
 import { RESERVA_PRUEBA } from '../../shared/reserva-prueba';
 import { MisCitas } from './mis-citas';
 import { ResultadoCancelacion } from './cancelar-dialogo';
+
+registerLocaleData(localeEsPe);
 
 describe('Mis citas y filtros', () => {
   let http: HttpTestingController;
