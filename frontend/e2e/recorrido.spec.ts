@@ -67,7 +67,11 @@ async function comprobarSalida(page: Page) {
   }
   await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
   if (await abrir.isVisible()) {
-    await expect(page.locator('#menu-principal').getByRole('link').first()).toBeFocused();
+    await expect(page.locator('mat-sidenav')).not.toHaveClass(/mat-drawer-animating/);
+    // Escape debe partir de un control del cajón, donde Material escucha el teclado.
+    const salir = page.getByRole('button', { name: 'Salir', exact: true });
+    await salir.focus();
+    await expect(salir).toBeFocused();
     await page.keyboard.press('Escape');
     // El cajón devuelve el foco al terminar su animación; no anticipar el siguiente Enter.
     await expect(page.locator('mat-sidenav')).toBeHidden();
