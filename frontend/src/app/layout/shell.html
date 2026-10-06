@@ -17,6 +17,16 @@
       <span role="status" aria-live="polite" data-contador-avisos
         >Avisos sin leer: {{ avisos.noLeidas() }}</span
       >
+      @if (sesion.rol() === 'BARBERO') {
+        <button
+          mat-button
+          (click)="abrirAvisos()"
+          [attr.aria-label]="'Ver avisos: ' + avisos.noLeidas() + ' sin leer'"
+          aria-haspopup="dialog"
+        >
+          Ver avisos
+        </button>
+      }
       <button mat-button (click)="salir()" [disabled]="saliendo()">
         {{ saliendo() ? 'Saliendo…' : 'Salir' }}
       </button>

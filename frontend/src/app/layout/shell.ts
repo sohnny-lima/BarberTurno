@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -49,6 +50,7 @@ const ADMIN = [
 export class Shell {
   readonly sesion = inject(SesionService);
   readonly avisos = inject(AvisosService);
+  private readonly dialogos = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly saliendo = signal(false);
@@ -85,6 +87,16 @@ export class Shell {
         this.sesion.rol() ?? 'CLIENTE'
       ],
   );
+  async abrirAvisos() {
+    const { AvisosDialogo } = await import('./avisos-dialogo');
+    this.dialogos.open(AvisosDialogo, {
+      width: '640px',
+      maxWidth: 'calc(100vw - 32px)',
+      maxHeight: 'calc(100dvh - 32px)',
+      autoFocus: '[mat-dialog-close]',
+      restoreFocus: true,
+    });
+  }
   salir() {
     if (this.saliendo()) return;
     this.saliendo.set(true);
