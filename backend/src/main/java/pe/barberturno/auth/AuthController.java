@@ -13,9 +13,9 @@ import pe.barberturno.users.Usuario;
 
 /**
  * API de identidad en /api/auth; permite registro y login públicos y exige CSRF en toda escritura (§7.2).
- * Invalida explícitamente XSRF-TOKEN solo al iniciar, registrar o cerrar sesión (DA-26).
+ * Renueva explícitamente XSRF-TOKEN en la misma respuesta al iniciar, registrar o cerrar sesión (DA-26).
  * @author Sohnny Walter Lima Infanzón
- * @version 1.2
+ * @version 1.3
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -32,7 +32,7 @@ public class AuthController {
      * @param jwt servicio no nulo que emite sesiones firmadas
      * @param actual identidad revalidada; nula solo en consultas públicas
      * @param cookies política compartida de emisión y borrado de BT_SESION según el perfil
-     * @param csrf repositorio usado por el filtro SPA para invalidar XSRF-TOKEN al cambiar la sesión
+     * @param csrf repositorio usado por el filtro SPA para emitir XSRF-TOKEN nuevo al cambiar la sesión
      */
     public AuthController(AuthService auth, JwtService jwt, UsuarioActual actual,
             CookieSesion cookies, CsrfTokenRepository csrf) {
@@ -54,35 +54,31 @@ public class AuthController {
     /**
      * POST /api/auth/registro público: crea CLIENTE (201) y sustituye BT_SESION aun si fue revocada (DA-22). Exige CSRF; rechaza VALIDACION
      * (400), CORREO_DUPLICADO (409) o PROHIBIDO (403) ante CSRF inválido.
-     * Tras el éxito invalida XSRF-TOKEN; el siguiente GET de la SPA emite uno nuevo (DA-26).
+     * Tras el éxito emite XSRF-TOKEN nuevo junto con BT_SESION, sin exigir otra lectura (DA-26).
      * @param datos entrada no nula validada por MVC; el servicio aplica las reglas de negocio
      * @param peticion solicitud cuyo CSRF ya fue validado por la cadena de seguridad
-     * @param respuesta respuesta HTTP donde se borra la cookie CSRF con su política compartida
-     * @return identidad pública y cookie BT_SESION, con estado 201
+     * @param respuesta respuesta servlet que añade ambas cookies con sus políticas compartidas
+     * @return identidad pública y estado 201; las cookies se añaden a la respuesta servlet
      */
     @PostMapping("/registro")
     public ResponseEntity<UsuarioSesionDto> registrar(@Valid @RequestBody RegistroDto datos,
             HttpServletRequest peticion, HttpServletResponse respuesta) {
-        var resultado = respuesta(auth.registrar(datos), HttpStatus.CREATED);
-        csrf.saveToken(null, peticion, respuesta);
-        return resultado;
+        return respuesta(auth.registrar(datos), HttpStatus.CREATED, peticion, respuesta);
     }
 
     /**
      * POST /api/auth/login público: autentica y sustituye BT_SESION (200), aun si era inválida (DA-22). Exige CSRF; rechaza CREDENCIALES_INVALIDAS
      * o CUENTA_BLOQUEADA_TEMPORALMENTE (401), y PROHIBIDO (403) por CSRF.
-     * Tras el éxito invalida XSRF-TOKEN; el siguiente GET de la SPA emite uno nuevo (DA-26).
+     * Tras el éxito emite XSRF-TOKEN nuevo junto con BT_SESION, sin exigir otra lectura (DA-26).
      * @param datos entrada no nula validada por MVC; el servicio aplica las reglas de negocio
      * @param peticion solicitud cuyo CSRF ya fue validado por la cadena de seguridad
-     * @param respuesta respuesta HTTP donde se borra la cookie CSRF con su política compartida
-     * @return identidad pública y cookie BT_SESION, con estado 200
+     * @param respuesta respuesta servlet que añade ambas cookies con sus políticas compartidas
+     * @return identidad pública y estado 200; las cookies se añaden a la respuesta servlet
      */
     @PostMapping("/login")
     public ResponseEntity<UsuarioSesionDto> login(@Valid @RequestBody LoginDto datos,
             HttpServletRequest peticion, HttpServletResponse respuesta) {
-        var resultado = respuesta(auth.login(datos), HttpStatus.OK);
-        csrf.saveToken(null, peticion, respuesta);
-        return resultado;
+        return respuesta(auth.login(datos), HttpStatus.OK, peticion, respuesta);
     }
 
     /**
@@ -101,21 +97,24 @@ public class AuthController {
     /**
      * POST /api/auth/logout público e idempotente: borra BT_SESION (204), incluso caducada. Exige CSRF (403
      * PROHIBIDO si falta o es incorrecto); no revoca otras sesiones.
-     * Invalida también XSRF-TOKEN; la siguiente petición obtiene un token anónimo nuevo (DA-26).
+     * Emite XSRF-TOKEN anónimo nuevo en la misma respuesta para poder volver a entrar sin recarga (DA-26).
      * @param peticion solicitud cuyo CSRF ya fue validado, incluso sin sesión válida
-     * @param respuesta respuesta HTTP donde se borra la cookie CSRF con su política compartida
-     * @return respuesta 204 con BT_SESION y XSRF-TOKEN borradas
+     * @param respuesta respuesta servlet que borra BT_SESION y añade XSRF-TOKEN nuevo sin reemplazar cabeceras
+     * @return estado 204; las cookies se añaden a la respuesta servlet
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest peticion, HttpServletResponse respuesta) {
-        csrf.saveToken(null, peticion, respuesta);
-        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,
-                cookies.borrar().toString()).build();
+        respuesta.addHeader(HttpHeaders.SET_COOKIE, cookies.borrar().toString());
+        csrf.saveToken(csrf.generateToken(peticion), peticion, respuesta);
+        return ResponseEntity.noContent().build();
     }
 
-    private ResponseEntity<UsuarioSesionDto> respuesta(Usuario usuario, HttpStatus estado) {
-        return ResponseEntity.status(estado).header(HttpHeaders.SET_COOKIE,
-                cookies.emitir(jwt.emitir(usuario)).toString())
-                .body(auth.sesion(usuario));
+    private ResponseEntity<UsuarioSesionDto> respuesta(Usuario usuario, HttpStatus estado,
+            HttpServletRequest peticion, HttpServletResponse respuesta) {
+        var resultado = ResponseEntity.status(estado).body(auth.sesion(usuario));
+        // Ambas cookies se añaden al servlet; ResponseEntity no debe reemplazar Set-Cookie.
+        respuesta.addHeader(HttpHeaders.SET_COOKIE, cookies.emitir(jwt.emitir(usuario)).toString());
+        csrf.saveToken(csrf.generateToken(peticion), peticion, respuesta);
+        return resultado;
     }
 }

@@ -62,9 +62,8 @@ class AuthCookieSecureIT {
         assertThat(sesion.getMaxAge()).isEqualTo(28800);
         assertThat(sesion.getPath()).isEqualTo("/");
         assertThat(sesion.getAttribute("SameSite")).isEqualTo("Strict");
-        comprobarBorradoCsrf(r.getResponse().getCookie("XSRF-TOKEN"));
-        xsrf = mvc.perform(get("/api/auth/sesion").secure(true).cookie(sesion))
-                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        comprobarRenovacionCsrf(r.getResponse().getCookie("XSRF-TOKEN"), xsrf);
+        xsrf = r.getResponse().getCookie("XSRF-TOKEN");
         assertThat(xsrf).isNotNull();
         assertThat(xsrf.getSecure()).isTrue();
         assertThat(xsrf.isHttpOnly()).isFalse();
@@ -91,13 +90,13 @@ class AuthCookieSecureIT {
         assertThat(borrada.isHttpOnly()).isTrue();
         assertThat(borrada.getPath()).isEqualTo("/");
         assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
-        comprobarBorradoCsrf(r.getResponse().getCookie("XSRF-TOKEN"));
+        comprobarRenovacionCsrf(r.getResponse().getCookie("XSRF-TOKEN"), xsrf);
     }
 
-    private void comprobarBorradoCsrf(Cookie cookie) {
+    private void comprobarRenovacionCsrf(Cookie cookie, Cookie anterior) {
         assertThat(cookie).isNotNull();
-        assertThat(cookie.getValue()).isEmpty();
-        assertThat(cookie.getMaxAge()).isZero();
+        assertThat(!cookie.getValue().isEmpty() && !cookie.getValue().equals(anterior.getValue())).isTrue();
+        assertThat(cookie.getMaxAge()).isEqualTo(-1);
         assertThat(cookie.getSecure()).isTrue();
         assertThat(cookie.isHttpOnly()).isFalse();
         assertThat(cookie.getPath()).isEqualTo("/");

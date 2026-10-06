@@ -132,9 +132,9 @@ class AuthIT {
 
     @Test void csrf_trasLogin_getsAutenticadosNoRenuevanCookieNiRegistranReemplazo() throws Exception {
         crear(Rol.CLIENTE, false);
-        Cookie sesion = cookieSesion(login(CORREO, PASSWORD).andReturn());
-        Cookie csrf = mvc.perform(get("/api/auth/sesion").cookie(sesion))
-                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        var login = login(CORREO, PASSWORD).andReturn();
+        Cookie sesion = cookieSesion(login);
+        Cookie csrf = login.getResponse().getCookie("XSRF-TOKEN");
         var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(
                 org.springframework.security.web.csrf.CsrfAuthenticationStrategy.class);
         var nivelAnterior = logger.getLevel();
@@ -167,9 +167,9 @@ class AuthIT {
 
     @Test void csrf_trasLogin_escrituraConTokenInicialFuncionaDespuesDeVariosGets() throws Exception {
         crear(Rol.CLIENTE, false);
-        Cookie sesion = cookieSesion(login(CORREO, PASSWORD).andReturn());
-        Cookie vigente = mvc.perform(get("/api/auth/sesion").cookie(sesion))
-                .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        var login = login(CORREO, PASSWORD).andReturn();
+        Cookie sesion = cookieSesion(login);
+        Cookie vigente = login.getResponse().getCookie("XSRF-TOKEN");
         String tokenInicial = vigente.getValue();
         // Simula el navegador: aplica cada Set-Cookie, pero conserva la cabecera ya leída.
         for (String ruta : new String[]{"/api/notificaciones/conteo", "/api/auth/sesion",
@@ -185,7 +185,7 @@ class AuthIT {
     }
 
     @ParameterizedTest @ValueSource(strings = {"registro", "login", "logout"})
-    void csrf_cambioDeSesion_invalidaCookieYEmiteTokenNuevoEnSiguienteGet(String ruta) throws Exception {
+    void csrf_cambioDeSesion_emiteAmbasCookiesYTokenNuevoSinGetIntermedio(String ruta) throws Exception {
         if (!ruta.equals("registro")) crear(Rol.CLIENTE, false);
         Cookie anterior = xsrf();
         var solicitud = post("/api/auth/" + ruta).cookie(anterior)
@@ -197,22 +197,27 @@ class AuthIT {
                 jwt.emitir(usuarios.findByCorreo(CORREO).orElseThrow())));
         var resultado = mvc.perform(solicitud).andExpect(status().is(ruta.equals("registro") ? 201
                 : ruta.equals("login") ? 200 : 204)).andReturn();
-        Cookie borrada = resultado.getResponse().getCookie("XSRF-TOKEN");
-        assertThat(borrada != null && borrada.getMaxAge() == 0 && borrada.getValue().isEmpty()).isTrue();
-        assertThat(borrada.getPath()).isEqualTo("/");
-        assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
-        assertThat(borrada.isHttpOnly()).isFalse();
-        assertThat(borrada.getSecure()).isFalse();
-        var siguiente = mvc.perform(get("/api/auth/sesion").cookie(cookieSesion(resultado)))
-                .andExpect(status().is(ruta.equals("logout") ? 401 : 200)).andReturn();
-        Cookie nueva = siguiente.getResponse().getCookie("XSRF-TOKEN");
+        var cabeceras = resultado.getResponse().getHeaders("Set-Cookie");
+        assertThat(cabeceras.stream().filter(valor -> valor.startsWith("BT_SESION=")).count()).isEqualTo(1);
+        assertThat(cabeceras.stream().filter(valor -> valor.startsWith("XSRF-TOKEN=")).count()).isEqualTo(1);
+        Cookie nueva = resultado.getResponse().getCookie("XSRF-TOKEN");
         assertThat(nueva != null && !nueva.getValue().isEmpty()
                 && !nueva.getValue().equals(anterior.getValue())).isTrue();
+        assertThat(nueva.getPath()).isEqualTo("/");
+        assertThat(nueva.getAttribute("SameSite")).isEqualTo("Strict");
+        assertThat(nueva.isHttpOnly()).isFalse();
+        assertThat(nueva.getSecure()).isFalse();
         if (!ruta.equals("logout")) {
             mvc.perform(post("/api/notificaciones/lectura").cookie(cookieSesion(resultado), nueva)
                     .header("X-XSRF-TOKEN", anterior.getValue())).andExpect(status().isForbidden());
             mvc.perform(post("/api/notificaciones/lectura").cookie(cookieSesion(resultado), nueva)
                     .header("X-XSRF-TOKEN", nueva.getValue())).andExpect(status().isNoContent());
+        } else {
+            var cuerpo = json.writeValueAsString(Map.of("correo", CORREO, "password", PASSWORD));
+            mvc.perform(post("/api/auth/login").cookie(nueva).header("X-XSRF-TOKEN", anterior.getValue())
+                    .contentType(MediaType.APPLICATION_JSON).content(cuerpo)).andExpect(status().isForbidden());
+            mvc.perform(post("/api/auth/login").cookie(nueva).header("X-XSRF-TOKEN", nueva.getValue())
+                    .contentType(MediaType.APPLICATION_JSON).content(cuerpo)).andExpect(status().isOk());
         }
     }
 

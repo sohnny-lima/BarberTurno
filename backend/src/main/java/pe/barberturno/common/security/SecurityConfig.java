@@ -25,7 +25,7 @@ import pe.barberturno.common.error.ErrorCodigo;
 /**
  * Autenticación JWT por cookie, CSRF SPA estable durante la sesión (DA-26) y permisos de rutas implementadas.
  * @author Sohnny Walter Lima Infanzón
- * @version 3.1
+ * @version 3.2
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -37,7 +37,7 @@ public class SecurityConfig {
     }
 
     /**
-     * Comparte la política XSRF-TOKEN entre el filtro SPA y la invalidación explícita de login, registro y logout.
+     * Comparte la política XSRF-TOKEN entre el filtro SPA y la renovación explícita de login, registro y logout.
      * La cookie es legible por Angular, restringida al mismo sitio y segura según el perfil.
      * @param cookieSecure uso de HTTPS para la cookie, desactivado solo en desarrollo y pruebas locales
      * @return repositorio común con Path=/, SameSite=Strict y HttpOnly=false
@@ -53,7 +53,7 @@ public class SecurityConfig {
     /**
      * Configura JWT por cookie sin sesiones HTTP y permisos §7.2; impone DEFAULT_CSRF_MATCHER también con JWT
      * para proteger toda escritura. Permite el GET público exacto de disponibilidad RF-07 y POST /api/reservas a CLIENTE o ADMIN (RF-08/18).
-     * Conserva el token CSRF entre peticiones JWT; AuthController lo invalida al cambiar la sesión (DA-26).
+     * Conserva el token CSRF entre peticiones JWT; AuthController emite uno nuevo al cambiar la sesión (DA-26).
      * Permite reprogramación RF-09 y cancelación RF-10 solo a CLIENTE o ADMIN con CSRF. Autoriza los GET RF-11/13 por rol; el servicio impone propiedad y asignación en cada consulta.
      * Permite transiciones RF-12 solo a BARBERO o ADMIN; el servicio comprueba asignación y RN-12.
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
