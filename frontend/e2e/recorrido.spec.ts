@@ -63,7 +63,12 @@ async function comprobarSalida(page: Page) {
   const abrir = page.getByRole('button', { name: 'Abrir menú', exact: true });
   if (await abrir.isVisible()) await abrir.click();
   await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
-  if (await abrir.isVisible()) await page.keyboard.press('Escape');
+  if (await abrir.isVisible()) {
+    await page.keyboard.press('Escape');
+    // El cajón devuelve el foco al terminar su animación; no anticipar el siguiente Enter.
+    await expect(page.locator('mat-sidenav')).toBeHidden();
+    await expect(abrir).toBeFocused();
+  }
 }
 
 async function seleccionar(page: Page, etiqueta: string, opcion: string) {
@@ -466,6 +471,20 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   await revisar(page, testInfo, 'perfil');
 });
 
+async function salirConRespuesta(page: Page) {
+  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  if (await menu.isVisible()) await menu.click();
+  const respuesta = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/auth/logout' && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  expect(
+    (await respuesta).status(),
+    'Logout conserva la protección CSRF y debe responder 204',
+  ).toBe(204);
+  await expect(page).toHaveURL(/\/ingresar/);
+}
+
 test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso', async ({
   page,
 }, testInfo) => {
@@ -481,10 +500,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   )!;
   expect(exclusivoCliente).toBeDefined();
   await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
-  if (testInfo.project.use.viewport?.width === 360)
-    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
-  await page.getByRole('button', { name: 'Salir', exact: true }).click();
-  await expect(page).toHaveURL(/\/ingresar/);
+  await salirConRespuesta(page);
 
   await ingresar(page, 'cliente@ejemplo.test');
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
@@ -505,10 +521,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   expect(cliente.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
   await page.goto('/mis-citas');
   await expect(page.locator('app-avisos-panel')).toContainText(`Reserva ${creada.codigo} creada`);
-  if (testInfo.project.use.viewport?.width === 360)
-    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
-  await page.getByRole('button', { name: 'Salir', exact: true }).click();
-  await expect(page).toHaveURL(/\/ingresar/);
+  await salirConRespuesta(page);
 
   await ingresar(page, 'carlos@ejemplo.test');
   const propios: Pagina<NotificacionDto> = await (
@@ -524,6 +537,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await expect(contador).toHaveText(`Avisos sin leer: ${noLeidas}`);
   const abrir = page.getByRole('button', { name: `Ver avisos: ${noLeidas} sin leer`, exact: true });
   await abrir.focus();
+  await expect(abrir).toBeFocused();
   const listado = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/notificaciones');
   await abrir.press('Enter');
   const respuestaListado = await listado;
@@ -588,10 +602,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await page.keyboard.press('Enter');
   await expect(dialogo).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Ver avisos:/ })).toBeFocused();
-  if (testInfo.project.use.viewport?.width === 360)
-    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
-  await page.getByRole('button', { name: 'Salir', exact: true }).click();
-  await expect(page).toHaveURL(/\/ingresar/);
+  await salirConRespuesta(page);
   await ingresar(page, 'admin-e2e@ejemplo.test');
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
 });
