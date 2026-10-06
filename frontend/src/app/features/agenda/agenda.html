@@ -9,7 +9,7 @@
     <mat-button-toggle value="semana">Semana</mat-button-toggle>
   </mat-button-toggle-group>
   @if (admin()) {
-    <mat-form-field data-selector-barbero>
+    <mat-form-field data-selector-barbero subscriptSizing="dynamic">
       <mat-label>Barbero</mat-label>
       <mat-select
         [canSelectNullableOptions]="true"
@@ -37,6 +37,8 @@
     <button mat-stroked-button type="button" aria-label="Periodo siguiente" (click)="moverFecha(1)">
       ›
     </button>
+  </div>
+  <div class="acciones-fecha">
     <button
       mat-stroked-button
       class="hoy"
@@ -46,20 +48,22 @@
     >
       Hoy
     </button>
+    <button mat-stroked-button type="submit" [disabled]="formulario.invalid">
+      Actualizar agenda
+    </button>
   </div>
-  <button mat-stroked-button type="submit" [disabled]="formulario.invalid">
-    Actualizar agenda
-  </button>
 </form>
 @if (errorBarberos()) {
   <p role="alert">{{ errorBarberos() }}</p>
   <button mat-button (click)="cargarBarberos()">Reintentar carga de barberos</button>
 }
-<p>
-  Periodo: {{ grupos()[0].instante | fechaLima: 'fecha' }} al
-  {{ grupos()[grupos().length - 1].instante | fechaLima: 'fecha' }} · Horario de Lima
-</p>
-<div class="flex flex-wrap gap-3 text-texto-2" role="group" aria-label="Resumen de citas">
+@if (formulario.controls.vista.value === 'semana') {
+  <p>
+    Periodo: {{ grupos()[0].instante | fechaLima: 'fecha' }} al
+    {{ grupos()[grupos().length - 1].instante | fechaLima: 'fecha' }} · Horario de Lima
+  </p>
+}
+<div class="resumen-conteos" role="group" aria-label="Resumen de citas">
   <span>{{ filas().length }} citas</span>
   @for (grupo of conteos(); track grupo.estado) {
     <span>{{ grupo.total }} {{ grupo.nombre }}</span>

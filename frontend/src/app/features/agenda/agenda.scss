@@ -37,6 +37,18 @@ mat-button-toggle-group {
   padding: 0;
   font-size: 24px;
 }
+.acciones-fecha {
+  display: flex;
+  gap: 8px;
+}
+.resumen-conteos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--color-texto-2);
+  font-size: 14px;
+  margin-top: 16px;
+}
 .linea-tiempo {
   min-height: 260px;
   margin-top: 24px;
@@ -108,8 +120,14 @@ mat-button-toggle-group {
   .navegar-fecha mat-form-field {
     flex: 1;
   }
-  .hoy {
-    flex-basis: 100%;
+  .filtros {
+    gap: 12px;
+  }
+  .acciones-fecha {
+    width: 100%;
+  }
+  .acciones-fecha > button {
+    flex: 1;
   }
   .fila {
     grid-template-columns: 72px minmax(0, 1fr);

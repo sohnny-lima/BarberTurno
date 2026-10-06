@@ -131,8 +131,24 @@ footer {
 }
 .contador-personal {
   font-size: 13px;
-  width: 86px;
+  white-space: nowrap;
+  flex-shrink: 0;
   line-height: 1.2;
+}
+@media (max-width: 479px) {
+  .contador-personal {
+    background: var(--color-laton);
+    color: var(--color-tinta);
+    border-radius: 30px;
+    padding: 4px 8px;
+  }
+  .etiqueta-contador {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 @media (max-width: 767.98px) {
   main {

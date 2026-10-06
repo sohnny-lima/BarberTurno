@@ -66,7 +66,7 @@ async function seleccionar(page: Page, etiqueta: string, opcion: string) {
 
 async function fechaFranja(page: Page, fecha: string, hora: string) {
   // NativeDateAdapter usa los campos civiles locales del calendario, incluso en Madrid.
-  const entrada = page.getByLabel('Fecha de la cita (Lima)', { exact: true });
+  const entrada = page.getByLabel('Otra fecha (Lima)', { exact: true });
   const [ano, mes, dia] = fecha.split('-');
   await entrada.fill(`${mes}/${dia}/${ano}`);
   await entrada.press('Tab');
@@ -157,7 +157,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await avanzar.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-paso="1"]')).toBeFocused();
-  const entrada = page.getByLabel('Fecha de la cita (Lima)', { exact: true });
+  const entrada = page.getByLabel('Otra fecha (Lima)', { exact: true });
   await entrada.fill('10/01/2026');
   await entrada.press('Tab');
   await expect(
@@ -170,8 +170,11 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-paso="2"]')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Cambiar fecha u hora' })).toBeFocused();
-  await expect(page.locator('.resumen')).toContainText('11:00–11:30');
+  await expect(page.getByRole('button', { name: 'Confirmar reserva', exact: true })).toBeFocused();
+  await expect(page.locator('.resumen .tique-hora')).toHaveText('11:00');
+  await expect(page.locator('.resumen .tique-banda')).toContainText(
+    'Hasta las 11:30, hora de Lima',
+  );
   await revisar(page, testInfo, 'reservar-confirmacion');
   const respuesta = page.waitForResponse(
     (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',

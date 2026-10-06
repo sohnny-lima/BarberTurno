@@ -183,17 +183,8 @@
             </button>
           }
         </div>
-        <button
-          mat-stroked-button
-          class="otra-fecha"
-          type="button"
-          (click)="calendario.open()"
-          [disabled]="store.enviando()"
-        >
-          Otra fecha
-        </button>
         <mat-form-field appearance="outline">
-          <mat-label>Fecha de la cita (Lima)</mat-label>
+          <mat-label>Otra fecha (Lima)</mat-label>
           <input
             matInput
             [matDatepicker]="calendario"
@@ -279,16 +270,19 @@
               <div class="tique-cuerpo">
                 <h2>{{ servicio.nombre }}</h2>
                 @if (store.asistida()) {
-                  <p>Cliente: {{ store.cliente()?.nombre }} · {{ store.cliente()?.correo }}</p>
+                  <p>Cliente: {{ store.cliente()?.nombre }}</p>
+                  <p>{{ store.cliente()?.correo }}</p>
                 }
-                <p>
-                  {{ franja.inicio | fechaLima: 'fecha' }} ·
-                  {{ franja.inicio | fechaLima: 'hora' }}–{{ franja.fin | fechaLima: 'hora' }}
-                </p>
-                <p>
-                  {{ servicio.duracionMin }} minutos · S/ {{ servicio.precio.toFixed(2) }} · Pago
-                  presencial
-                </p>
+                <dl class="datos-turno">
+                  <div>
+                    <dt>Duración</dt>
+                    <dd>{{ servicio.duracionMin }} minutos</dd>
+                  </div>
+                  <div>
+                    <dt>Precio</dt>
+                    <dd>S/ {{ servicio.precio.toFixed(2) }}</dd>
+                  </div>
+                </dl>
                 @if (store.preferencia() === null) {
                   <mat-form-field appearance="outline">
                     <mat-label>Profesional para esta franja</mat-label>
@@ -305,14 +299,15 @@
                 } @else {
                   <p>Profesional: {{ store.profesional()?.nombre }}</p>
                 }
-                @if (store.sesion.rol() === 'ADMIN') {
-                  <p>Puede gestionar esta cita desde Agenda.</p>
-                } @else {
-                  <p>Puede cambiar o cancelar hasta 2 h antes.</p>
-                }
               </div>
             </div>
           }
+        }
+        <p class="ayuda">
+          Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.
+        </p>
+        @if (store.sesion.rol() === 'ADMIN') {
+          <p>Puede gestionar esta cita desde Agenda.</p>
         }
         @if (store.reserva() && store.sesion.rol() === 'ADMIN') {
           <mat-form-field appearance="outline">
@@ -333,10 +328,7 @@
         @if (!store.sesion.autenticado()) {
           <p>Para confirmar, ingrese o cree una cuenta. Conservaremos su selección.</p>
         }
-        <div class="acciones">
-          <button mat-button type="button" [disabled]="store.enviando()" (click)="store.irPaso(1)">
-            Cambiar fecha u hora
-          </button>
+        <div class="acciones confirmacion">
           @if (store.sesion.rol() !== 'BARBERO') {
             <button
               mat-flat-button
@@ -354,6 +346,9 @@
               }}
             </button>
           }
+          <button mat-button type="button" [disabled]="store.enviando()" (click)="store.irPaso(1)">
+            Cambiar fecha u hora
+          </button>
         </div>
       </mat-step>
     </mat-stepper>
