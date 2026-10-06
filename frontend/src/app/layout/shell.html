@@ -37,6 +37,16 @@
               >Avisos sin leer: {{ avisos.noLeidas() }}</span
             >
           }
+          @if (sesion.rol() === 'BARBERO') {
+            <button
+              mat-button
+              (click)="abrirAvisos()"
+              [attr.aria-label]="'Ver avisos: ' + avisos.noLeidas() + ' sin leer'"
+              aria-haspopup="dialog"
+            >
+              Ver avisos
+            </button>
+          }
           <button mat-button (click)="salir()" [disabled]="saliendo()">
             {{ saliendo() ? 'Saliendo…' : 'Salir' }}
           </button>
@@ -84,6 +94,28 @@
                 <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
               }
             </a>
+            <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
+              >Avisos sin leer: {{ avisos.noLeidas() }}</span
+            >
+          } @else if (sesion.rol() === 'BARBERO') {
+            <button
+              mat-button
+              (click)="abrirAvisos()"
+              [attr.aria-label]="'Ver avisos: ' + avisos.noLeidas() + ' sin leer'"
+              aria-haspopup="dialog"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zm5 3h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+              </svg>
+              @if (avisos.noLeidas() > 0) {
+                <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
+              }
+            </button>
             <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
               >Avisos sin leer: {{ avisos.noLeidas() }}</span
             >

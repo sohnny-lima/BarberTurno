@@ -53,6 +53,8 @@ const ADMIN = [
 export class Shell {
   readonly sesion = inject(SesionService);
   readonly avisos = inject(AvisosService);
+  private readonly dialogos = inject(MatDialog);
+  private dialogoAvisosActivo = false;
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly saliendo = signal(false);
@@ -89,6 +91,29 @@ export class Shell {
         this.sesion.rol() ?? 'CLIENTE'
       ],
   );
+  async abrirAvisos() {
+    if (this.dialogoAvisosActivo) return;
+    this.dialogoAvisosActivo = true;
+    try {
+      const { AvisosDialogo } = await import('./avisos-dialogo');
+      this.dialogos
+        .open(AvisosDialogo, {
+          width: '640px',
+          maxWidth: 'calc(100vw - 32px)',
+          maxHeight: 'calc(100dvh - 32px)',
+          autoFocus: '[mat-dialog-close]',
+          restoreFocus: true,
+        })
+        .afterClosed()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => {
+          this.dialogoAvisosActivo = false;
+        });
+    } catch (error) {
+      this.dialogoAvisosActivo = false;
+      throw error;
+    }
+  }
   salir() {
     if (this.saliendo()) return;
     this.saliendo.set(true);

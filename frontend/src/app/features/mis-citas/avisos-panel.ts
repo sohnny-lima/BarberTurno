@@ -36,6 +36,7 @@ export class AvisosPanel {
   private readonly destroyRef = inject(DestroyRef);
   private peticion?: Subscription;
   readonly revision = input(0);
+  readonly mostrarEncabezado = input(true);
   readonly filas = signal<NotificacionDto[]>([]);
   readonly cargando = signal(false);
   readonly guardando = signal(false);

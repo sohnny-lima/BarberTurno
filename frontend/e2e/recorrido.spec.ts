@@ -1,6 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { type Page, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
+import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
+import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
+import type { Pagina } from '../src/app/core/modelos/pagina';
+import type { ReservaDto } from '../src/app/core/modelos/reservas';
 
 let atencion: string;
 let cercana: string;
@@ -460,4 +464,134 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   await page.reload();
   await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Cliente E2E actualizado');
   await revisar(page, testInfo, 'perfil');
+});
+
+test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso', async ({
+  page,
+}, testInfo) => {
+  // La atención del caso 03 genera COMPLETAR solo para Ana (RN-15).
+  await ingresar(page, 'ana@ejemplo.test');
+  await page.goto('/mis-citas');
+  await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
+  const avisosAna: Pagina<NotificacionDto> = await (
+    await page.request.get('/api/notificaciones?tamano=100')
+  ).json();
+  const exclusivoCliente = avisosAna.contenido.find(
+    (a) => a.tipo === 'COMPLETAR' && a.mensaje.startsWith(`Reserva ${atencion}:`),
+  )!;
+  expect(exclusivoCliente).toBeDefined();
+  await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
+  if (testInfo.project.use.viewport?.width === 360)
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await expect(page).toHaveURL(/\/ingresar/);
+
+  await ingresar(page, 'cliente@ejemplo.test');
+  await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
+  const servicios: ServicioDto[] = await (await page.request.get('/api/servicios')).json();
+  const barberos: BarberoDto[] = await (await page.request.get('/api/barberos')).json();
+  const creada: ReservaDto = await (
+    await escribir(page.request, '/api/reservas', {
+      servicioId: servicios.find((s) => s.nombre === 'Corte clásico')!.id,
+      barberoId: barberos.find((b) => b.nombre === 'Carlos')!.id,
+      inicio: '2026-10-02T15:00:00-05:00',
+    })
+  ).json();
+  // El autoservicio ya confirma por defecto (RN-21); no requiere otra transición.
+  expect(creada.estado).toBe('CONFIRMADA');
+  const cliente: Pagina<NotificacionDto> = await (
+    await page.request.get('/api/notificaciones?tamano=100')
+  ).json();
+  expect(cliente.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
+  await page.goto('/mis-citas');
+  await expect(page.locator('app-avisos-panel')).toContainText(`Reserva ${creada.codigo} creada`);
+  if (testInfo.project.use.viewport?.width === 360)
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await expect(page).toHaveURL(/\/ingresar/);
+
+  await ingresar(page, 'carlos@ejemplo.test');
+  const propios: Pagina<NotificacionDto> = await (
+    await page.request.get('/api/notificaciones?tamano=100')
+  ).json();
+  expect(propios.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
+  expect(propios.contenido.some((a) => a.mensaje === exclusivoCliente.mensaje)).toBe(false);
+  const idsCliente = new Set([...avisosAna.contenido, ...cliente.contenido].map((a) => a.id));
+  expect(propios.contenido.filter((a) => idsCliente.has(a.id))).toEqual([]);
+  const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
+  expect(noLeidas).toBeGreaterThan(0);
+  const contador = page.locator('[data-contador-avisos]');
+  await expect(contador).toHaveText(`Avisos sin leer: ${noLeidas}`);
+  const abrir = page.getByRole('button', { name: `Ver avisos: ${noLeidas} sin leer`, exact: true });
+  await abrir.focus();
+  const listado = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/notificaciones');
+  await abrir.press('Enter');
+  const respuestaListado = await listado;
+  expect(respuestaListado.status()).toBe(200);
+  // La petición del panel no filtra identidades: el servidor selecciona los propios.
+  expect([...new URL(respuestaListado.url()).searchParams.keys()].sort()).toEqual([
+    'pagina',
+    'soloNoLeidas',
+    'tamano',
+  ]);
+  const visibles: Pagina<NotificacionDto> = await respuestaListado.json();
+  const dialogo = page.getByRole('dialog', { name: 'Avisos', exact: true });
+  await expect(dialogo).toBeVisible();
+  await expect(dialogo.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
+  await expect(dialogo.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(dialogo.locator('app-avisos-panel li')).toHaveCount(visibles.contenido.length);
+  for (const aviso of visibles.contenido) {
+    expect(propios.contenido.some((a) => a.id === aviso.id)).toBe(true);
+    await expect(dialogo).toContainText(aviso.mensaje);
+  }
+  await expect(dialogo).not.toContainText(exclusivoCliente.mensaje);
+  const resultados = await new AxeBuilder({ page }).analyze();
+  await testInfo.attach('axe-avisos-barbero', {
+    body: JSON.stringify(
+      resultados.violations.map(({ id, impact, nodes }) => ({
+        id,
+        impact,
+        elementos: nodes.map((n) => n.target),
+      })),
+      null,
+      2,
+    ),
+    contentType: 'application/json',
+  });
+  expect(resultados.violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await testInfo.attach(`avisos-barbero-${testInfo.project.name}`, {
+    body: await page.screenshot({
+      path: `test-results/avisos-barbero-${testInfo.project.name}.png`,
+    }),
+    contentType: 'image/png',
+  });
+  const lectura = page.waitForResponse((r) =>
+    r
+      .url()
+      .endsWith(
+        `/api/notificaciones/${
+          propios.contenido.find((a) => a.reservaId === creada.id && a.tipo === 'CREAR')!.id
+        }/lectura`,
+      ),
+  );
+  await dialogo
+    .getByRole('button', { name: `Marcar como leído el aviso de ${creada.codigo}`, exact: true })
+    .click();
+  expect((await lectura).status()).toBe(204);
+  await expect(contador).toHaveText(`Avisos sin leer: ${noLeidas - 1}`);
+  await expect(
+    dialogo.locator('li').filter({ hasText: `Reserva ${creada.codigo} creada` }),
+  ).toContainText('Leído');
+  await dialogo.getByRole('button', { name: 'Cerrar', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(dialogo).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Ver avisos:/ })).toBeFocused();
+  if (testInfo.project.use.viewport?.width === 360)
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await expect(page).toHaveURL(/\/ingresar/);
+  await ingresar(page, 'admin-e2e@ejemplo.test');
+  await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
 });

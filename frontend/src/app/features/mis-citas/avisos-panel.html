@@ -1,5 +1,11 @@
-<section class="tarjeta" aria-labelledby="titulo-avisos" [attr.aria-busy]="cargando()">
-  <h2 id="titulo-avisos">Avisos</h2>
+<section
+  class="tarjeta"
+  [attr.aria-labelledby]="mostrarEncabezado() ? 'titulo-avisos' : null"
+  [attr.aria-busy]="cargando()"
+>
+  @if (mostrarEncabezado()) {
+    <h2 id="titulo-avisos">Avisos</h2>
+  }
   <p class="ayuda">Del más reciente al más antiguo.</p>
   <div class="acciones">
     <button

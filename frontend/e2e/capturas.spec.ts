@@ -14,7 +14,13 @@ async function entrar(page: Page, correo: string) {
   }
 }
 
-async function capturar(page: Page, info: TestInfo, nombre: string, cargando = false) {
+async function capturar(
+  page: Page,
+  info: TestInfo,
+  nombre: string,
+  cargando = false,
+  guardarTodo = false,
+) {
   await expect(page.locator('main')).toBeVisible();
   if (!cargando) await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   // Material mueve el aviso al área live al terminar su anuncio inicial.
@@ -36,8 +42,8 @@ async function capturar(page: Page, info: TestInfo, nombre: string, cargando = f
   expect(
     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
   ).toEqual([]);
-  const carpeta = resolve('../docs/pruebas/t-48/capturas');
-  const guardar = info.project.use.browserName === 'chromium';
+  const carpeta = resolve('../docs/pruebas/t-52/capturas');
+  const guardar = guardarTodo || info.project.use.browserName === 'chromium';
   if (guardar) mkdirSync(carpeta, { recursive: true });
   await page.evaluate(() => {
     window.scrollTo(0, 0);
@@ -262,4 +268,45 @@ test('foco al restaurar la selección que el visitante conserva para ingresar', 
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
+});
+
+test('cabecera por rol y diálogo de avisos con cierre por teclado y foco devuelto', async ({
+  page,
+}, info) => {
+  for (const rol of [
+    { nombre: 'cliente', correo: 'cliente@ejemplo.test', ruta: '/mis-citas' },
+    { nombre: 'admin', correo: 'admin-e2e@ejemplo.test', ruta: '/agenda' },
+    { nombre: 'barbero', correo: 'carlos@ejemplo.test', ruta: '/agenda' },
+  ]) {
+    await entrar(page, rol.correo);
+    await page.goto(rol.ruta);
+    await expect(page.locator('[data-contador-avisos]')).toHaveCount(1);
+    const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
+    await expect(page.locator('[data-contador-avisos]')).toHaveText('Avisos sin leer: ' + noLeidas);
+    const abrir = page.getByRole('button', { name: /^Ver avisos:/ });
+    await expect(abrir).toHaveCount(rol.nombre === 'barbero' ? 1 : 0);
+    if (rol.nombre === 'cliente') {
+      await expect(page.locator('app-avisos-panel h2')).toHaveText('Avisos');
+      if (info.project.use.viewport?.width === 360) {
+        await expect(
+          page.getByRole('link', { name: 'Avisos: ' + noLeidas + ' sin leer', exact: true }),
+        ).toHaveAttribute('href', '/mis-citas');
+      }
+    }
+    await capturar(page, info, 'cabecera-' + rol.nombre, false, true);
+    if (rol.nombre !== 'barbero') continue;
+    await expect(abrir).toHaveAccessibleName('Ver avisos: ' + noLeidas + ' sin leer');
+    await abrir.focus();
+    await abrir.press('Enter');
+    const dialogo = page.getByRole('dialog', { name: 'Avisos', exact: true });
+    await expect(dialogo).toBeVisible();
+    await expect(dialogo.locator('[aria-busy="true"]')).toHaveCount(0);
+    await expect(dialogo.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
+    await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+    expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await capturar(page, info, 'avisos-barbero', false, true);
+    await page.keyboard.press('Escape');
+    await expect(dialogo).toHaveCount(0);
+    await expect(abrir).toBeFocused();
+  }
 });
