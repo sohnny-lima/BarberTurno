@@ -90,7 +90,7 @@ a {
   outline: 3px solid var(--color-verde);
   outline-offset: 2px;
 }
-input:focus-visible {
+input[matInput]:focus-visible {
   outline: 3px solid var(--color-verde);
   outline-offset: 2px;
 }
@@ -252,6 +252,13 @@ app-cambiar-password p[role='status'] {
   color: var(--color-no-asistio);
 }
 html {
+  @include mat.menu-overrides(
+    (
+      container-color: var(--color-superficie),
+      container-shape: var(--radius-tarjeta),
+      item-label-text-font: var(--font-cuerpo),
+    )
+  );
   @include mat.button-toggle-overrides(
     (
       shape: 999px,
