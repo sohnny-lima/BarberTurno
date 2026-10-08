@@ -124,6 +124,14 @@ input {
 
 @media (min-width: 1200px) {
   .opciones-profesionales {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) and (max-width: 1359.98px) {
+  .opciones-profesionales {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .profesional:first-child {
+    grid-column: 1 / -1;
   }
 }

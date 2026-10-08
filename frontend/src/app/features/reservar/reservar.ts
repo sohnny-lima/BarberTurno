@@ -33,6 +33,7 @@ import { ReservaFoto } from './reserva-foto';
 import { ReservaOpciones } from './reserva-opciones';
 import { ReservaResumen } from './reserva-resumen';
 import { ReservaEsqueleto } from './reserva-esqueleto';
+import { ReservaSeleccion } from './reserva-seleccion';
 import { ReservaStore } from './reserva.store';
 import { sumarDias } from '../../core/tiempo/semana-lima';
 
@@ -46,6 +47,7 @@ import { sumarDias } from '../../core/tiempo/semana-lima';
     ReservaOpciones,
     ReservaResumen,
     ReservaEsqueleto,
+    ReservaSeleccion,
     SelectorCliente,
     MatButtonModule,
     MatDatepickerModule,

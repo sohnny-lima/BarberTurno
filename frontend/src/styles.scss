@@ -213,10 +213,7 @@ mat-snack-bar-container {
   .acciones > :is(button, a) {
     flex: 1 1 9rem;
   }
-  // Excepción DA-24 / diseño §6 bis ampliada por encargo 055: cabecera y relleno móvil.
-  app-reservar .mat-horizontal-stepper-header-container {
-    display: none;
-  }
+  // Excepción DA-24 / diseño §6 bis ampliada por encargo 055: relleno móvil.
   app-reservar .mat-horizontal-content-container {
     padding-inline: 0;
   }

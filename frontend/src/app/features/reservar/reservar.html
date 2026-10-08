@@ -81,6 +81,9 @@
           [editable]="!store.enviando()"
         >
           <div class="paso">
+            @if (movil() && !store.mensaje()) {
+              <app-reserva-seleccion />
+            }
             <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 2 : 1">Elija el día</h2>
             <div class="dias" role="group" aria-label="Días disponibles">
               @for (dia of dias; track dia; let primero = $first) {
