@@ -451,6 +451,18 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
   await accionAgenda(page, solicitud, 'Confirmar');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
   await expect(solicitud).toContainText('Confirmada');
+  if (page.viewportSize()!.width >= 1200) {
+    const cabeceras = solicitud.locator('..').getByRole('columnheader');
+    const celdas = solicitud.getByRole('cell');
+    await expect(celdas).toHaveCount(6);
+    for (let indice = 0; indice < 6; indice++) {
+      const cabecera = await cabeceras.nth(indice).boundingBox();
+      const celda = await celdas.nth(indice).boundingBox();
+      expect(cabecera).not.toBeNull();
+      expect(celda).not.toBeNull();
+      expect(Math.abs(cabecera!.x - celda!.x)).toBeLessThan(1);
+    }
+  }
   await revisar(page, testInfo, 'agenda-semana');
 });
 

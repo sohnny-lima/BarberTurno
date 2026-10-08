@@ -12,7 +12,7 @@ import { AgendaAcciones } from './agenda-acciones';
   styleUrl: './agenda-cita.scss',
   host: {
     '[class.escritorio]': 'escritorio()',
-    '[class.semana]': 'semana()',
+    '[class.semana]': 'semana() && !escritorio()',
     '[attr.role]': 'escritorio() ? "row" : "article"',
     '[attr.aria-label]': 'reserva().codigo',
   },

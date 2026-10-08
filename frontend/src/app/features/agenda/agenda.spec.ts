@@ -327,6 +327,11 @@ describe('Agenda operativa', () => {
           (n as HTMLElement).textContent?.trim(),
         ),
       ).toEqual(['Hora', 'Cliente', 'Servicio', 'Barbero', 'Estado', 'Acciones']);
+    fixture.componentInstance.formulario.controls.vista.setValue('semana');
+    fixture.detectChanges();
+    const citaSemanal = fixture.nativeElement.querySelector('app-agenda-cita');
+    expect(citaSemanal.classList.contains('semana')).toBe(valor < 1200);
+    expect(citaSemanal.querySelectorAll('[role="cell"]').length).toBe(valor >= 1200 ? 6 : 0);
   });
   it.each([false, true])(
     'ADMIN distribuye reprogramar y otras acciones sin duplicarlas: escritorio=%s',
