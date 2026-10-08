@@ -25,9 +25,7 @@ import { paginadorEspanol } from '../../shared/paginador-es';
   imports: [MatButtonModule, MatPaginatorModule, FechaLimaPipe],
   providers: [{ provide: MatPaginatorIntl, useFactory: paginadorEspanol }],
   templateUrl: './avisos-panel.html',
-  styles: [
-    ':host { display: block; min-width: 0; } section { min-height: 240px; margin-top: 0; } li { padding: 16px 0; border-bottom: 1px solid var(--color-linea); } ul { list-style: none; padding: 0; } .nuevo { color: var(--color-petroleo); } .nuevo::before { content: "● "; }',
-  ],
+  styleUrl: './avisos-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AvisosPanel {
@@ -37,6 +35,7 @@ export class AvisosPanel {
   private peticion?: Subscription;
   readonly revision = input(0);
   readonly mostrarEncabezado = input(true);
+  readonly incrustado = input(false);
   readonly filas = signal<NotificacionDto[]>([]);
   readonly cargando = signal(false);
   readonly guardando = signal(false);

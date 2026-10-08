@@ -61,23 +61,37 @@ async function ingresar(page: Page, correo: string) {
 }
 
 async function comprobarSalida(page: Page) {
-  const abrir = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  const cajon = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  const cuenta = page.getByRole('button', { name: 'Abrir cuenta', exact: true });
+  const abrir = (await cajon.isVisible()) ? cajon : cuenta;
   if (await abrir.isVisible()) {
     await abrir.focus();
     await abrir.click();
   }
-  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  const salir = controlSalir(page);
+  await expect(salir).toBeVisible();
   if (await abrir.isVisible()) {
-    await expect(page.locator('mat-sidenav')).not.toHaveClass(/mat-drawer-animating/);
+    if (await cajon.isVisible()) {
+      await expect(page.locator('mat-sidenav')).not.toHaveClass(/mat-drawer-animating/);
+      await expect(page.getByRole('button', { name: 'Cerrar menú', exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByRole('menuitem', { name: 'Mi cuenta', exact: true })).toBeVisible();
+    }
     // Escape debe partir de un control del cajón, donde Material escucha el teclado.
-    const salir = page.getByRole('button', { name: 'Salir', exact: true });
     await salir.focus();
     await expect(salir).toBeFocused();
     await page.keyboard.press('Escape');
     // El cajón devuelve el foco al terminar su animación; no anticipar el siguiente Enter.
     await expect(page.locator('mat-sidenav')).toBeHidden();
+    await expect(page.getByRole('menu')).toHaveCount(0);
     await expect(abrir).toBeFocused();
   }
+}
+
+function controlSalir(page: Page) {
+  return page
+    .getByRole('button', { name: 'Salir', exact: true })
+    .or(page.getByRole('menuitem', { name: 'Salir', exact: true }));
 }
 
 async function seleccionar(page: Page, etiqueta: string, opcion: string) {
@@ -498,10 +512,14 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
 async function salirConRespuesta(page: Page) {
   const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
   if (await menu.isVisible()) await menu.click();
+  else {
+    const cuenta = page.getByRole('button', { name: 'Abrir cuenta', exact: true });
+    if (await cuenta.isVisible()) await cuenta.click();
+  }
   const respuesta = page.waitForResponse(
     (r) => new URL(r.url()).pathname === '/api/auth/logout' && r.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await controlSalir(page).click();
   expect(
     (await respuesta).status(),
     'Logout conserva la protección CSRF y debe responder 204',
@@ -524,6 +542,17 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   )!;
   expect(exclusivoCliente).toBeDefined();
   await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
+  const campanaCliente = page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ });
+  await campanaCliente.click();
+  const avisosCliente = page.getByRole('dialog', { name: 'Avisos', exact: true });
+  await expect(avisosCliente).toBeVisible();
+  await expect(avisosCliente.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+  await expect(avisosCliente).toContainText(exclusivoCliente.mensaje);
+  await expect(avisosCliente.locator('section.incrustado')).toHaveCount(1);
+  await avisosCliente.getByRole('button', { name: 'Cerrar', exact: true }).click();
+  await expect(avisosCliente).toHaveCount(0);
+  await expect(campanaCliente).toBeFocused();
+  await expect(page).toHaveURL(/\/mis-citas$/);
   await salirConRespuesta(page);
 
   await ingresar(page, 'cliente@ejemplo.test');
@@ -642,8 +671,7 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   expect(primeraRespuesta.status()).toBe(200);
   const primeraHuella = await huellaCsrf(primeraRespuesta);
   await salirConRespuesta(page);
-  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
-  if (await menu.isVisible()) {
+  if ((page.viewportSize()?.width ?? 1440) <= 767) {
     // La navegación debe cerrar el cajón y llevar el foco a la pantalla destino.
     await expect(page.locator('mat-sidenav')).toBeHidden();
     await expect(page.locator('main')).toBeFocused();

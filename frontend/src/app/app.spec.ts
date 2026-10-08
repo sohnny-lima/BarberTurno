@@ -12,7 +12,7 @@ describe('App', () => {
     });
     const harness = await RouterTestingHarness.create('/ingresar');
     expect(harness.routeNativeElement?.querySelector('.marca')?.textContent).toContain(
-      'BARBERTURNO',
+      'BarberTurno',
     );
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Iniciar sesión');
   });

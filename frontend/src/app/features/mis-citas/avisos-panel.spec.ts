@@ -102,4 +102,29 @@ describe('Panel de avisos', () => {
     expect(fixture.componentInstance.guardando()).toBe(false);
     expect(actualizar).not.toHaveBeenCalled();
   });
+  it('incrusta el panel sin tarjeta y oculta el paginador cuando cabe en una página', () => {
+    const fixture = crear();
+    fixture.componentRef.setInput('incrustado', true);
+    fixture.componentRef.setInput('mostrarEncabezado', false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('section').classList.contains('incrustado')).toBe(
+      true,
+    );
+    expect(fixture.nativeElement.querySelector('h2')).toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Actualizar');
+    fixture.componentInstance.total.set(11);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('mat-paginator')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-select')).toBeNull();
+  });
+  it('conserva la tarjeta y el selector de tamaño en el uso de Mis citas', () => {
+    const fixture = crear();
+    expect(fixture.nativeElement.querySelector('section').classList.contains('incrustado')).toBe(
+      false,
+    );
+    expect(fixture.nativeElement.querySelector('h2').textContent).toBe('Avisos');
+    expect(fixture.nativeElement.querySelector('mat-select')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Actualizar avisos');
+  });
 });

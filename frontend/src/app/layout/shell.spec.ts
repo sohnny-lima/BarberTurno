@@ -44,6 +44,7 @@ describe('Shell adaptable', () => {
     });
   }
   it('usa side en escritorio y over en móvil con botón de menú', () => {
+    entrar('ADMIN');
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     const menu = fixture.debugElement.query(By.directive(MatSidenav))
@@ -62,6 +63,7 @@ describe('Shell adaptable', () => {
   it.each([true, false])(
     'una navegación cierra el cajón y enfoca el contenido solo en móvil: móvil=%s',
     async (esMovil) => {
+      entrar('ADMIN');
       movil.next({ matches: esMovil });
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
@@ -73,6 +75,12 @@ describe('Shell adaptable', () => {
       }
       expect(menu.opened).toBe(true);
       expect(await TestBed.inject(Router).navigateByUrl('/?redireccion=ingresar')).toBe(true);
+      if (esMovil) {
+        // jsdom no ejecuta transiciones CSS; entregar el evento que emite el navegador.
+        fixture.nativeElement
+          .querySelector('mat-sidenav')
+          .dispatchEvent(new Event('transitionend'));
+      }
       await fixture.whenStable();
       fixture.detectChanges();
       expect(menu.opened).toBe(!esMovil);
@@ -141,65 +149,131 @@ describe('Shell adaptable', () => {
     ['ADMIN', true],
     ['BARBERO', true],
   ] as [Rol, boolean][])(
-    'ofrece Ver avisos únicamente al BARBERO: %s, móvil=%s',
+    'ofrece diálogo de avisos a CLIENTE y BARBERO: %s, móvil=%s',
     (rol, esMovil) => {
       entrar(rol);
       movil.next({ matches: esMovil });
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
       const botones = fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]');
-      expect(botones).toHaveLength(rol === 'BARBERO' ? 1 : 0);
+      expect(botones).toHaveLength(rol !== 'ADMIN' ? 1 : 0);
       const boton = botones[0];
-      if (rol === 'BARBERO') {
-        if (esMovil) expect(boton.querySelector('svg')).not.toBeNull();
-        else expect(boton.textContent).toContain('Ver avisos');
-        expect(boton.getAttribute('aria-label')).toBe('Ver avisos: 3 sin leer');
+      if (rol !== 'ADMIN') {
+        expect(boton.querySelector('svg')).not.toBeNull();
+        expect(boton.getAttribute('aria-label')).toBe(
+          `${rol === 'BARBERO' ? 'Ver avisos' : 'Avisos'}: 3 sin leer`,
+        );
       } else {
         expect(boton).toBeUndefined();
       }
     },
   );
-  it('evita diálogos duplicados ante dos pulsaciones durante la carga y permite reabrir al cerrar', async () => {
-    const cierre = new Subject<void>();
-    entrar('BARBERO');
-    const fixture = TestBed.createComponent(Shell);
-    const abrirDialogo = vi
-      .spyOn(fixture.debugElement.injector.get(MatDialog), 'open')
-      .mockReturnValue({ afterClosed: () => cierre } as unknown as MatDialogRef<AvisosDialogo>);
+  it.each(['CLIENTE', 'BARBERO'] as Rol[])(
+    'evita diálogos duplicados y permite reabrir para %s',
+    async (rol) => {
+      const cierre = new Subject<void>();
+      entrar(rol);
+      const fixture = TestBed.createComponent(Shell);
+      const abrirDialogo = vi
+        .spyOn(fixture.debugElement.injector.get(MatDialog), 'open')
+        .mockReturnValue({ afterClosed: () => cierre } as unknown as MatDialogRef<AvisosDialogo>);
 
-    fixture.detectChanges();
-    const boton = fixture.nativeElement.querySelector(
-      '[aria-haspopup="dialog"]',
-    ) as HTMLButtonElement;
-    const apertura = vi.spyOn(fixture.componentInstance, 'abrirAvisos');
-    boton.click();
-    boton.click();
-    // Ambas pulsaciones ocurren antes de que se resuelva la importación diferida.
-    expect(abrirDialogo).not.toHaveBeenCalled();
-    await Promise.all(apertura.mock.results.map((resultado) => resultado.value));
-    expect(abrirDialogo).toHaveBeenCalledExactlyOnceWith(
-      AvisosDialogo,
-      expect.objectContaining({ autoFocus: '[mat-dialog-close]', restoreFocus: true }),
-    );
-    await fixture.componentInstance.abrirAvisos();
-    expect(abrirDialogo).toHaveBeenCalledOnce();
-    cierre.next();
-    await fixture.componentInstance.abrirAvisos();
-    expect(abrirDialogo).toHaveBeenCalledTimes(2);
-    cierre.complete();
-  });
+      fixture.detectChanges();
+      const boton = fixture.nativeElement.querySelector(
+        '[aria-haspopup="dialog"]',
+      ) as HTMLButtonElement;
+      const apertura = vi.spyOn(fixture.componentInstance, 'abrirAvisos');
+      boton.click();
+      boton.click();
+      // Ambas pulsaciones ocurren antes de que se resuelva la importación diferida.
+      expect(abrirDialogo).not.toHaveBeenCalled();
+      await Promise.all(apertura.mock.results.map((resultado) => resultado.value));
+      expect(abrirDialogo).toHaveBeenCalledExactlyOnceWith(
+        AvisosDialogo,
+        expect.objectContaining({ autoFocus: '[mat-dialog-close]', restoreFocus: true }),
+      );
+      await fixture.componentInstance.abrirAvisos();
+      expect(abrirDialogo).toHaveBeenCalledOnce();
+      cierre.next();
+      await fixture.componentInstance.abrirAvisos();
+      expect(abrirDialogo).toHaveBeenCalledTimes(2);
+      cierre.complete();
+    },
+  );
   it('no ofrece Ver avisos sin sesión', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
-  it('con contraseña temporal solo ofrece cambiarla y salir', () => {
-    entrar('BARBERO', true);
+  it.each([true, false])(
+    'con contraseña temporal ofrece cambiarla y Salir siempre visible: móvil=%s',
+    (esMovil) => {
+      entrar('BARBERO', true);
+      movil.next({ matches: esMovil });
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.enlaces()).toEqual([
+        { ruta: '/cambiar-password', texto: 'Cambiar contraseña' },
+      ]);
+      expect(fixture.nativeElement.querySelector('header button').textContent).toContain('Salir');
+      expect(fixture.nativeElement.querySelector('.barra-inferior')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[aria-label="Abrir cuenta"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
+    },
+  );
+  it.each([
+    ['CLIENTE', ['Reservar', 'Mis citas', 'Mi cuenta']],
+    ['BARBERO', ['Agenda', 'Mi cuenta']],
+    ['ADMIN', []],
+  ] as [Rol, string[]][])('barra inferior y cuenta móvil de %s', async (rol, enlaces) => {
+    entrar(rol);
+    movil.next({ matches: true });
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
-    expect(fixture.componentInstance.enlaces()).toEqual([
-      { ruta: '/cambiar-password', texto: 'Cambiar contraseña' },
-    ]);
+    expect(
+      [...fixture.nativeElement.querySelectorAll('.barra-inferior a')].map((a) =>
+        (a as HTMLElement).textContent?.trim(),
+      ),
+    ).toEqual(enlaces);
+    (
+      fixture.nativeElement.querySelector('[aria-label="Abrir cuenta"]') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const menu = TestBed.inject(OverlayContainer).getContainerElement();
+    expect(menu.textContent).toContain('Mi cuenta');
+    expect(menu.textContent).toContain('Salir');
+    expect(menu.textContent).toContain('Usuario ficticio');
+  });
+  it('marca la ruta activa en la barra inferior y no abre cajón para CLIENTE', async () => {
+    TestBed.inject(Router).resetConfig([{ path: 'mis-citas', children: [] }]);
+    entrar('CLIENTE');
+    movil.next({ matches: true });
+    const fixture = TestBed.createComponent(Shell);
+    fixture.detectChanges();
+    await TestBed.inject(Router).navigateByUrl('/mis-citas');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(
+      fixture.nativeElement.querySelector('.barra-inferior [aria-current="page"]').textContent,
+    ).toContain('Mis citas');
+    expect(fixture.nativeElement.querySelector('[aria-label="Abrir menú"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.titulo-pagina').textContent).toBe('Mis citas');
+  });
+  it('el ADMIN puede cerrar explícitamente su cajón de ocho secciones', async () => {
+    entrar('ADMIN');
+    movil.next({ matches: true });
+    const fixture = TestBed.createComponent(Shell);
+    fixture.detectChanges();
+    const menu = fixture.debugElement.query(By.directive(MatSidenav))
+      .componentInstance as MatSidenav;
+    await menu.open();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('mat-sidenav nav a')).toHaveLength(8);
+    (fixture.nativeElement.querySelector('.cerrar-menu') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(menu.opened).toBe(false);
+    expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
 });
 
@@ -283,7 +357,11 @@ describe('Avisos del barbero desde la cabecera', () => {
     expect(contenedor.querySelector('app-avisos-panel')?.textContent).toContain(aviso.mensaje);
     const dialogo = contenedor.querySelector('[role="dialog"]')!;
     const titulo = document.getElementById(dialogo.getAttribute('aria-labelledby')!);
-    expect(titulo?.textContent).toBe('Avisos');
+    expect(titulo?.querySelector('span')?.textContent).toBe('Avisos');
+    expect(titulo?.querySelector('.insignia')?.textContent).toBe('3 sin leer');
+    expect(
+      contenedor.querySelector('app-avisos-panel section')?.classList.contains('incrustado'),
+    ).toBe(true);
     expect(contenedor.querySelectorAll('h2')).toHaveLength(1);
     expect(
       contenedor.querySelector('app-avisos-panel section')?.hasAttribute('aria-labelledby'),

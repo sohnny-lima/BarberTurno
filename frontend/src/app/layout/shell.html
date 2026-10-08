@@ -1,15 +1,18 @@
 <a class="saltar" href="#contenido">Saltar al contenido</a>
-<mat-sidenav-container>
+<mat-sidenav-container [class.con-barra-inferior]="tieneBarraInferior()">
   <mat-sidenav
     #menu
     id="menu-principal"
     role="complementary"
     aria-label="Navegación y cuenta"
     [mode]="movil() ? 'over' : 'side'"
-    [opened]="!movil()"
+    [opened]="!movil() && navegacionCompleta()"
   >
     <div class="riel">
-      <div class="marca"><span aria-hidden="true" class="simbolo">///</span> BARBERTURNO</div>
+      <div class="marca"><span aria-hidden="true" class="simbolo">✂</span> BarberTurno</div>
+      @if (movil()) {
+        <button mat-button class="cerrar-menu" (click)="menu.close()">Cerrar menú</button>
+      }
       <nav aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
           <a
@@ -19,34 +22,27 @@
             ariaCurrentWhenActive="page"
             (click)="movil() && menu.close()"
           >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                [attr.d]="icono(enlace.ruta)"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
             {{ enlace.texto }}
-            @if (
-              enlace.ruta === '/mis-citas' && sesion.rol() === 'CLIENTE' && avisos.noLeidas() > 0
-            ) {
-              <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
-            }
           </a>
         }
       </nav>
       @if (sesion.usuario(); as usuario) {
         <div class="usuario">
-          <strong>{{ usuario.nombre }}</strong>
-          <span>{{ nombreRol() }}</span>
-          @if (!movil()) {
-            <span role="status" aria-live="polite" data-contador-avisos
-              >Avisos sin leer: {{ avisos.noLeidas() }}</span
-            >
-          }
-          @if (!movil() && sesion.rol() === 'BARBERO') {
-            <button
-              mat-button
-              (click)="abrirAvisos()"
-              [attr.aria-label]="'Ver avisos: ' + avisos.noLeidas() + ' sin leer'"
-              aria-haspopup="dialog"
-            >
-              Ver avisos
-            </button>
-          }
+          <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
+          <div>
+            <strong>{{ usuario.nombre }}</strong
+            ><span>{{ nombreRol() }}</span>
+          </div>
           <button mat-button (click)="salir()" [disabled]="saliendo()">
             {{ saliendo() ? 'Saliendo…' : 'Salir' }}
           </button>
@@ -55,83 +51,101 @@
     </div>
   </mat-sidenav>
   <mat-sidenav-content>
-    @if (movil()) {
-      <header class="cabecera">
-        <button
-          mat-button
-          (click)="menu.toggle()"
-          aria-label="Abrir menú"
-          [attr.aria-expanded]="menu.opened"
-          aria-controls="menu-principal"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4 6h16M4 12h16M4 18h16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-        <span class="marca">BARBERTURNO</span>
-        @if (sesion.usuario()) {
-          @if (sesion.rol() === 'CLIENTE') {
-            <a
-              mat-button
-              routerLink="/mis-citas"
-              [attr.aria-label]="'Avisos: ' + avisos.noLeidas() + ' sin leer'"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zm5 3h4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                />
-              </svg>
-              @if (avisos.noLeidas() > 0) {
-                <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
-              }
-            </a>
-            <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
-              >Avisos sin leer: {{ avisos.noLeidas() }}</span
-            >
-          } @else if (sesion.rol() === 'BARBERO') {
-            <button
-              mat-button
-              (click)="abrirAvisos()"
-              [attr.aria-label]="'Ver avisos: ' + avisos.noLeidas() + ' sin leer'"
-              aria-haspopup="dialog"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zm5 3h4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                />
-              </svg>
-              @if (avisos.noLeidas() > 0) {
-                <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
-              }
-            </button>
-            <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
-              >Avisos sin leer: {{ avisos.noLeidas() }}</span
-            >
-          } @else if (avisos.noLeidas() > 0) {
-            <span class="contador-personal" role="status" aria-live="polite" data-contador-avisos
-              ><span class="etiqueta-contador">Avisos sin leer: </span>{{ avisos.noLeidas() }}</span
-            >
-          } @else {
-            <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
-              >Avisos sin leer: 0</span
-            >
-          }
+    @if (movil() || !navegacionCompleta() || sesion.rol() !== 'ADMIN') {
+      <header class="cabecera" [class.cabecera-pagina]="!movil() && navegacionCompleta()">
+        @if (movil() && navegacionCompleta() && sesion.rol() === 'ADMIN') {
+          <button
+            mat-button
+            (click)="menu.toggle()"
+            aria-label="Abrir menú"
+            [attr.aria-expanded]="menu.opened"
+            aria-controls="menu-principal"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 6h16M4 12h16M4 18h16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+          </button>
+        }
+        @if (!navegacionCompleta()) {
+          <span class="marca"><span aria-hidden="true" class="simbolo">✂</span> BarberTurno</span>
+        } @else if (movil()) {
+          <span class="titulo-pagina">{{ tituloPagina() }}</span>
+        }
+        @if (navegacionCompleta() && sesion.rol() !== 'ADMIN') {
+          <button
+            mat-button
+            class="campana"
+            (click)="abrirAvisos()"
+            [attr.aria-label]="
+              (sesion.rol() === 'BARBERO' ? 'Ver avisos: ' : 'Avisos: ') +
+              avisos.noLeidas() +
+              ' sin leer'
+            "
+            aria-haspopup="dialog"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5zm5 3h4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+            @if (avisos.noLeidas() > 0) {
+              <span class="distintivo" aria-hidden="true">{{ avisos.noLeidas() }}</span>
+            }
+          </button>
+        }
+        @if (sesion.debeCambiarPassword()) {
+          <button mat-stroked-button (click)="salir()" [disabled]="saliendo()">
+            {{ saliendo() ? 'Saliendo…' : 'Salir' }}
+          </button>
+        } @else if (movil() && navegacionCompleta()) {
+          <button mat-button class="cuenta" [matMenuTriggerFor]="cuenta" aria-label="Abrir cuenta">
+            <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
+          </button>
+          <mat-menu #cuenta="matMenu"
+            ><div class="identidad-menu">
+              <strong>{{ sesion.usuario()?.nombre }}</strong
+              ><span>{{ nombreRol() }}</span>
+            </div>
+            <a mat-menu-item routerLink="/perfil">Mi cuenta</a
+            ><button mat-menu-item class="riesgo" (click)="salir()" [disabled]="saliendo()">
+              {{ saliendo() ? 'Saliendo…' : 'Salir' }}
+            </button></mat-menu
+          >
         }
       </header>
     }
+    @if (sesion.usuario()) {
+      <span class="sr-only" role="status" aria-live="polite" data-contador-avisos
+        >Avisos sin leer: {{ avisos.noLeidas() }}</span
+      >
+    }
     <main #contenido id="contenido" tabindex="-1"><router-outlet /></main>
     <footer>BarberTurno · Una sede en Huamanga · Proyecto académico con datos ficticios</footer>
+    @if (tieneBarraInferior()) {
+      <nav class="barra-inferior" aria-label="Navegación principal">
+        @for (enlace of enlaces(); track enlace.ruta) {
+          <a [routerLink]="enlace.ruta" routerLinkActive="activo" ariaCurrentWhenActive="page"
+            ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                [attr.d]="icono(enlace.ruta)"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            >{{ enlace.texto }}</a
+          >
+        }
+      </nav>
+    }
   </mat-sidenav-content>
 </mat-sidenav-container>

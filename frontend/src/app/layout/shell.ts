@@ -14,6 +14,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 
@@ -38,7 +39,14 @@ const ADMIN = [
 
 @Component({
   selector: 'app-shell',
-  imports: [MatButtonModule, MatSidenavModule, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [
+    MatButtonModule,
+    MatMenuModule,
+    MatSidenavModule,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+  ],
   // Los defaults visuales se cargan con el shell lazy, incluidos sus diálogos.
   providers: [
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
@@ -62,6 +70,34 @@ export class Shell {
   private readonly menu = viewChild(MatSidenav);
   private readonly contenido = viewChild<ElementRef<HTMLElement>>('contenido');
   readonly saliendo = signal(false);
+  readonly ruta = toSignal(
+    this.router.events.pipe(
+      filter((evento) => evento instanceof NavigationEnd),
+      map(() => this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+  readonly navegacionCompleta = computed(
+    () => this.sesion.autenticado() && !this.sesion.debeCambiarPassword(),
+  );
+  readonly tieneBarraInferior = computed(
+    () => this.movil() && this.navegacionCompleta() && this.sesion.rol() !== 'ADMIN',
+  );
+  readonly tituloPagina = computed(() => {
+    const ruta = this.ruta().split('?')[0];
+    if (ruta === '/reservar')
+      return this.sesion.rol() === 'ADMIN' ? 'Reserva asistida' : 'Reservar un turno';
+    return this.enlaces().find((enlace) => enlace.ruta === ruta)?.texto ?? 'BarberTurno';
+  });
+  readonly iniciales = computed(() =>
+    (this.sesion.usuario()?.nombre ?? '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((nombre) => nombre[0])
+      .join('')
+      .toUpperCase(),
+  );
   readonly movil = toSignal(
     inject(BreakpointObserver)
       .observe('(max-width: 767.98px)')
@@ -103,7 +139,11 @@ export class Shell {
       )
       .subscribe(() => {
         const menu = this.menu();
-        if (!this.movil() || !menu?.opened) return;
+        if (!this.movil()) return;
+        if (!menu?.opened) {
+          this.contenido()?.nativeElement.focus();
+          return;
+        }
         void menu.close().then(() => {
           // Material puede restaurar el disparador; la navegación sitúa el foco en su destino.
           if (!this.destroyRef.destroyed && this.movil()) {
@@ -124,6 +164,7 @@ export class Shell {
           maxHeight: 'calc(100dvh - 32px)',
           autoFocus: '[mat-dialog-close]',
           restoreFocus: true,
+          ariaLabelledBy: 'titulo-dialogo-avisos',
         })
         .afterClosed()
         .pipe(takeUntilDestroyed(this.destroyRef))
@@ -134,6 +175,16 @@ export class Shell {
       this.dialogoAvisosActivo = false;
       throw error;
     }
+  }
+  icono(ruta: string) {
+    if (ruta === '/perfil' || ruta.endsWith('/usuarios') || ruta.endsWith('/barberos'))
+      return 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21v-2a8 8 0 0 1 16 0v2';
+    if (ruta === '/mis-citas' || ruta.endsWith('/reportes'))
+      return 'M6 3h12v18H6zM9 7h6M9 11h6M9 15h4';
+    if (ruta.endsWith('/servicios'))
+      return 'M9 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0M9 17a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 9l13 11M8 15L21 4';
+    if (ruta.endsWith('/horarios')) return 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M12 7v5l4 2';
+    return 'M4 5h16v16H4zM8 3v4M16 3v4M4 10h16M12 13v5M9 15h6';
   }
   salir() {
     if (this.saliendo()) return;
