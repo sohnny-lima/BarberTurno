@@ -1,4 +1,3 @@
-@use '@angular/material' as mat;
 :host {
   display: block;
 }
@@ -11,16 +10,6 @@
 .filtros > mat-form-field {
   min-width: 0;
   flex: 1 1 180px;
-}
-mat-button-toggle-group {
-  @include mat.button-toggle-overrides(
-    (
-      shape: var(--radius-control),
-      height: 48px,
-      selected-state-background-color: var(--color-tinta),
-      selected-state-text-color: white,
-    )
-  );
 }
 .navegar-fecha {
   display: flex;

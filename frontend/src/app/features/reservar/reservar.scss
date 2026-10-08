@@ -112,9 +112,9 @@ mat-form-field {
   font-size: 20px;
 }
 .dia.elegido {
-  background: var(--color-tinta);
+  background: var(--color-verde);
   color: white;
-  border-color: var(--color-tinta);
+  border-color: var(--color-verde);
   box-shadow: none;
 }
 .horas {
@@ -209,7 +209,7 @@ mat-form-field {
     background: var(--color-verde);
   }
   .tramos .completo {
-    background: var(--color-tinta);
+    background: var(--color-verde-hover);
   }
   .rejilla-horas {
     grid-template-columns: repeat(3, minmax(0, 1fr));

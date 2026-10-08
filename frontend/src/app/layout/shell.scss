@@ -227,6 +227,7 @@ footer {
     padding: 0 16px 20px;
   }
   .con-barra-inferior {
+    height: 100dvh;
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 }

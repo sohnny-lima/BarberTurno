@@ -305,8 +305,12 @@ html {
   .tique-hora {
     font-size: 44px;
   }
-  body:has(.con-barra-inferior) {
+  html:has(.con-barra-inferior),
+  .con-barra-inferior mat-sidenav-content {
     scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  body:has(.con-barra-inferior) .aviso-transitorio {
+    margin-bottom: calc(72px + env(safe-area-inset-bottom));
   }
   body:has(.con-barra-inferior app-reservar .barra-reserva) .aviso-transitorio {
     margin-bottom: calc(212px + env(safe-area-inset-bottom));
