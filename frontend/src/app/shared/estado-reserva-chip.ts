@@ -22,15 +22,6 @@ export const ESTADOS_RESERVA: Record<EstadoReserva, string> = {
         font-size: 13px;
         line-height: 1.5;
       }
-      .chip::before {
-        content: '';
-        display: inline-block;
-        width: 7px;
-        height: 7px;
-        background: currentColor;
-        border-radius: 50%;
-        margin-right: 6px;
-      }
       [data-estado='PENDIENTE'] {
         color: var(--color-pendiente);
         background: var(--color-pendiente-fondo);

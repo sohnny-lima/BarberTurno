@@ -65,7 +65,7 @@ mat-button-toggle-group {
   margin-bottom: 12px;
 }
 .fila.terminada {
-  background: var(--color-cal);
+  background: var(--color-fondo);
 }
 .intervalo,
 .cliente {
@@ -77,7 +77,7 @@ mat-button-toggle-group {
   font-variant-numeric: tabular-nums;
 }
 .intervalo strong {
-  font: 800 36px/1 var(--font-display);
+  font: 800 36px/1 var(--font-cuerpo);
   white-space: nowrap;
 }
 .intervalo span {
@@ -100,7 +100,7 @@ mat-button-toggle-group {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--color-cordoban);
+  color: var(--color-verde);
   font-weight: 700;
   margin-block: 16px;
 }

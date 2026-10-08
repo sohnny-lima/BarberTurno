@@ -1,20 +1,11 @@
 @use '@angular/material' as mat;
 @use './theme-colors' as colores;
 @font-face {
-  font-family: 'Big Shoulders Variable';
+  font-family: 'Figtree Variable';
   font-style: normal;
   font-display: swap;
-  font-weight: 100 900;
-  src: url('@fontsource-variable/big-shoulders/files/big-shoulders-latin-wght-normal.woff2')
-    format('woff2');
-}
-@font-face {
-  font-family: 'Atkinson Hyperlegible Next Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 200 800;
-  src: url('@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2')
-    format('woff2');
+  font-weight: 300 900;
+  src: url('@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2');
 }
 
 html {
@@ -27,8 +18,8 @@ html {
         tertiary: colores.$tertiary-palette,
       ),
       typography: (
-        plain-family: 'Atkinson Hyperlegible Next Variable',
-        brand-family: 'Big Shoulders Variable',
+        plain-family: 'Figtree Variable',
+        brand-family: 'Figtree Variable',
         medium-weight: 600,
       ),
       density: 0,
@@ -36,10 +27,12 @@ html {
   );
   @include mat.theme-overrides(
     (
-      primary: var(--color-cordoban),
+      primary: var(--color-verde),
       on-primary: white,
-      tertiary: var(--color-petroleo),
-      surface: var(--color-cal),
+      tertiary: var(--color-verde),
+      surface: var(--color-superficie),
+      surface-container: var(--color-superficie),
+      secondary-container: var(--color-verde-claro),
       on-surface: var(--color-tinta),
       on-surface-variant: var(--color-texto-2),
       outline: var(--color-borde-control),
@@ -53,13 +46,24 @@ html {
       filled-container-shape: var(--radius-control),
       outlined-container-shape: var(--radius-control),
       text-container-shape: var(--radius-control),
-      text-label-text-color: var(--color-petroleo),
+      text-label-text-color: var(--color-verde),
+      filled-disabled-container-color: var(--color-desactivado),
+      filled-disabled-label-text-color: var(--color-texto-2),
+      outlined-disabled-label-text-color: var(--color-texto-2),
+      text-disabled-label-text-color: var(--color-texto-2),
+      protected-disabled-container-color: var(--color-desactivado),
+      protected-disabled-label-text-color: var(--color-texto-2),
+      tonal-disabled-container-color: var(--color-desactivado),
+      tonal-disabled-label-text-color: var(--color-texto-2),
       outlined-outline-color: var(--color-borde-control),
     )
   );
   @include mat.form-field-overrides(
     (
       outlined-container-shape: var(--radius-control),
+      outlined-outline-color: var(--color-borde-control),
+      outlined-focus-outline-color: var(--color-verde),
+      outlined-label-text-color: var(--color-texto-2),
     )
   );
   @include mat.paginator-overrides(
@@ -70,7 +74,7 @@ html {
 }
 body {
   color-scheme: light;
-  background: var(--color-cal);
+  background: var(--color-fondo);
   color: var(--color-tinta);
   font: 16px/1.5 var(--font-cuerpo);
   margin: 0;
@@ -80,22 +84,23 @@ body {
   box-sizing: border-box;
 }
 a {
-  color: var(--color-petroleo);
+  color: var(--color-verde);
 }
 :focus-visible {
-  outline: 3px solid var(--color-petroleo);
+  outline: 3px solid var(--color-verde);
   outline-offset: 2px;
 }
-input.mat-mdc-input-element:focus-visible {
-  outline: 3px solid var(--color-petroleo);
+input:focus-visible {
+  outline: 3px solid var(--color-verde);
   outline-offset: 2px;
 }
 h1 {
-  font: 800 56px/1.05 var(--font-display);
+  font: 700 28px/36px var(--font-cuerpo);
   margin: 0 0 12px;
 }
 h2 {
-  font-size: 20px;
+  font-size: 18px;
+  line-height: 24px;
 }
 p {
   line-height: 1.55;
@@ -132,7 +137,7 @@ input {
   border-radius: var(--radius-control);
 }
 .mensaje[role='alert'] {
-  color: var(--color-no-asistio);
+  color: var(--color-error-texto);
   background: var(--color-no-asistio-fondo);
 }
 .ayuda {
@@ -157,12 +162,12 @@ mat-snack-bar-container {
     (
       container-color: var(--color-tinta),
       supporting-text-color: white,
-      button-color: var(--color-laton),
+      button-color: var(--color-verde-texto-claro),
     )
   );
   @include mat.button-overrides(
     (
-      text-label-text-color: var(--color-laton),
+      text-label-text-color: var(--color-verde-texto-claro),
     )
   );
 }
@@ -174,15 +179,15 @@ mat-snack-bar-container {
   margin-block: 20px;
 }
 .tique-banda {
-  background: var(--color-tinta);
+  background: var(--color-verde);
   color: white;
   padding: 18px 24px;
 }
 .tique-banda strong {
-  color: var(--color-laton);
+  color: var(--color-verde-texto-claro);
 }
 .tique-hora {
-  font: 800 52px/1 var(--font-display);
+  font: 800 48px/1 var(--font-cuerpo);
   margin: 8px 0;
 }
 .tique-cuerpo {
@@ -191,7 +196,8 @@ mat-snack-bar-container {
 }
 @media (max-width: 767.98px) {
   h1 {
-    font-size: 40px;
+    font-size: 24px;
+    line-height: 32px;
   }
   h2 {
     font-size: 18px;
@@ -224,5 +230,78 @@ mat-snack-bar-container {
     animation-duration: 0s !important;
     transition-duration: 0s !important;
     scroll-behavior: auto !important;
+  }
+}
+
+button:disabled,
+a[aria-disabled='true'] {
+  background-color: var(--color-desactivado);
+  color: var(--color-texto-2);
+  opacity: 1;
+}
+button[mat-flat-button]:not(:disabled):hover {
+  background-color: var(--color-verde-hover);
+}
+app-cambiar-password p[role='status'] {
+  color: var(--color-aviso-texto);
+  background: var(--color-aviso-fondo);
+  padding: 16px;
+  border-radius: var(--radius-tarjeta);
+}
+[mat-menu-item].riesgo {
+  color: var(--color-no-asistio);
+}
+html {
+  @include mat.button-toggle-overrides(
+    (
+      shape: 999px,
+      height: 44px,
+      background-color: var(--color-superficie),
+      text-color: var(--color-texto-2),
+      selected-state-background-color: var(--color-verde),
+      selected-state-text-color: white,
+      divider-color: var(--color-linea),
+      disabled-state-background-color: var(--color-desactivado),
+      disabled-state-text-color: var(--color-texto-2),
+      disabled-selected-state-background-color: var(--color-desactivado),
+      disabled-selected-state-text-color: var(--color-texto-2),
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-color: var(--color-superficie),
+      container-shape: var(--radius-dialogo),
+      container-elevation-shadow: 0 16px 48px rgba(23, 34, 30, 0.2),
+      subhead-font: var(--font-cuerpo),
+      subhead-size: 22px,
+      subhead-weight: 700,
+      subhead-line-height: 28px,
+      supporting-text-size: 16px,
+      supporting-text-line-height: 24px,
+    )
+  );
+}
+@media (max-width: 767.98px) {
+  html {
+    @include mat.dialog-overrides(
+      (
+        subhead-size: 20px,
+        content-padding: 16px 20px,
+        with-actions-content-padding: 0 20px 16px,
+        headline-padding: 8px 20px 12px,
+      )
+    );
+  }
+  .con-barra-inferior .barra-reserva {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .tique-hora {
+    font-size: 44px;
+  }
+  body:has(.con-barra-inferior) {
+    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  body:has(.con-barra-inferior app-reservar .barra-reserva) .aviso-transitorio {
+    margin-bottom: calc(212px + env(safe-area-inset-bottom));
   }
 }
