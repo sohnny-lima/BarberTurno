@@ -436,16 +436,16 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Prioridad:** M.
 
 ### T-55 · Dirección visual «verde» de la fase 1
-- **Origen:** aprobación del responsable (08/10/2026) de la propuesta revisada (), con Figtree y tres fotografías ilustrativas locales.
-- **Alcance:** rama  desde T-54 (, que se conserva como referencia); solo capa visual y navegación del frontend según . Sin backend, contratos, permisos, reglas ni pantallas de la fase 2. **No se integra en  ni se hace push.**
+- **Origen:** aprobación del responsable (08/10/2026) de la propuesta revisada (`docs/diseno/t-55.md`), con Figtree y tres fotografías ilustrativas locales.
+- **Alcance:** rama `tarea/T-55-direccion-verde` desde T-54 (`daa3e34`, que se conserva como referencia); solo capa visual y navegación del frontend según `docs/diseno/t-55.md`. Sin backend, contratos, permisos, reglas ni pantallas de la fase 2. **No se integra en `main` ni se hace push.**
 - **Subtareas (un implementador, Codex; encargos secuenciales):**
-  - **T-55.1** Tema y tipografía (Figtree, tokens, , retirada de las fuentes de T-48) y shell por rol (barra superior, barra inferior CLIENTE/BARBERO, cajón ADMIN con cierre visible, menú de cuenta con Salir, Salir con contraseña temporal, campana del CLIENTE con diálogo, menú lateral claro), diálogo de avisos.
+  - **T-55.1** Tema y tipografía (Figtree, tokens, `mat.theme`, retirada de las fuentes de T-48) y shell por rol (barra superior, barra inferior CLIENTE/BARBERO, cajón ADMIN con cierre visible, menú de cuenta con Salir, Salir con contraseña temporal, campana del CLIENTE con diálogo, menú lateral claro), diálogo de avisos.
   - **T-55.2** Reservar: pasos 1–3, reprogramación, reserva asistida, estados de carga, error y vacío, fotos.
   - **T-55.3** Mis citas: tique, tarjetas compactas, filtros, estado vacío, panel de avisos incrustado y paginador condicional.
   - **T-55.4** Agenda: día y semana, tabla desde 1200 px, «Más acciones», filtro del ADMIN, estados, diálogo de reprogramación.
   - **T-55.5** Verificación final completa y capturas comparadas con la propuesta.
-- **Criterios de aceptación:** pantallas y estados de  §5 a 360 y 1440 px; todas las funciones, permisos, validaciones y correcciones de T-54 (CSRF, avisos, foco) intactas; teclado y foco correctos; axe sin violaciones; sin desplazamiento horizontal; presupuesto sin elevar.
-- **Pruebas:** lint, formato, Vitest (Lima y Madrid), build de producción, E2E y capturas en Chromium y Firefox a 360 y 1440 px (selectores adaptados a «Más acciones», barra inferior y menú de cuenta sin quitar comprobaciones), casos 05, 08 y 09; suites con  de una en una.
+- **Criterios de aceptación:** pantallas y estados de `docs/diseno/t-55.md` §5 a 360 y 1440 px; todas las funciones, permisos, validaciones y correcciones de T-54 (CSRF, avisos, foco) intactas; teclado y foco correctos; axe sin violaciones; sin desplazamiento horizontal; presupuesto sin elevar.
+- **Pruebas:** lint, formato, Vitest (Lima y Madrid), build de producción, E2E y capturas en Chromium y Firefox a 360 y 1440 px (selectores adaptados a «Más acciones», barra inferior y menú de cuenta sin quitar comprobaciones), casos 05, 08 y 09; suites con `barberturno_test` de una en una.
 - **Prioridad:** M.
 
 ---
