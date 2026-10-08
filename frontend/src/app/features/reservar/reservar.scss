@@ -1,4 +1,3 @@
-@use '@angular/material' as mat;
 :host {
   display: block;
 }
@@ -40,18 +39,7 @@
   display: block;
   max-width: 850px;
 }
-mat-stepper {
-  min-width: 0;
-  @include mat.stepper-overrides(
-    (
-      container-color: transparent,
-      header-label-text-font: var(--font-cuerpo),
-      header-label-text-size: 14px,
-      header-selected-state-label-text-color: var(--color-verde),
-      header-height: 80px,
-    )
-  );
-}
+
 mat-form-field {
   width: 100%;
   margin-top: 16px;
@@ -195,14 +183,7 @@ h3 {
   .distribucion {
     display: block;
   }
-  mat-stepper {
-    @include mat.stepper-overrides(
-      (
-        header-label-text-size: 12px,
-        header-height: 72px,
-      )
-    );
-  }
+
   .rejilla-horas {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

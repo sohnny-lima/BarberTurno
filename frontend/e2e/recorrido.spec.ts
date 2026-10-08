@@ -205,6 +205,13 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await page.goto('/reservar');
   await expect(page.locator('mat-step-header')).toHaveCount(3);
   await expect(page.locator('mat-step-header').first()).toBeVisible();
+  if ((page.viewportSize()?.width ?? 1440) <= 767) {
+    expect(
+      await page
+        .locator('mat-step-header .mat-step-text-label')
+        .evaluateAll((etiquetas) => etiquetas.every((e) => e.scrollWidth <= e.clientWidth)),
+    ).toBe(true);
+  }
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   if ((page.viewportSize()?.width ?? 1440) <= 767) {
     await expect(page.locator('h1')).toHaveCSS('clip-path', 'inset(50%)');
