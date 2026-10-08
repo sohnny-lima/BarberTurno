@@ -1,0 +1,20 @@
+h2[mat-dialog-title] {
+  font: 700 22px/28px var(--font-cuerpo);
+}
+p {
+  color: var(--color-texto-2);
+  overflow-wrap: anywhere;
+}
+p[role='alert'] {
+  color: var(--color-error-texto);
+  background: var(--color-no-asistio-fondo);
+  padding: 12px;
+  border-radius: 12px;
+}
+mat-dialog-actions {
+  gap: 8px;
+  padding-block: 16px;
+}
+mat-dialog-actions button {
+  min-height: 44px;
+}

@@ -1,0 +1,173 @@
+:host {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  position: relative;
+  padding: 12px 12px 12px 0;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+:host::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 66px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+  z-index: -1;
+}
+:host {
+  isolation: isolate;
+}
+.intervalo {
+  grid-row: 1 / 6;
+  font-variant-numeric: tabular-nums;
+}
+.intervalo strong {
+  display: block;
+  font-size: 18px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+.intervalo span,
+.codigo,
+.cliente > span,
+.servicio,
+.barbero {
+  color: var(--color-texto-2);
+}
+.cliente {
+  display: contents;
+}
+.cliente strong {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 17px;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+.cliente a,
+.cliente > span {
+  grid-column: 2 / -1;
+  grid-row: 4;
+}
+.cliente a {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  margin-block: -10px;
+  font-weight: 600;
+}
+.servicio {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  overflow-wrap: anywhere;
+}
+.codigo {
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.barbero {
+  grid-column: 2 / -1;
+  grid-row: 3;
+}
+.barbero:empty {
+  display: none;
+}
+.estado {
+  grid-column: 3;
+  grid-row: 1;
+}
+.acciones-cita {
+  grid-column: 2 / -1;
+  grid-row: 5;
+}
+:host(.semana) {
+  padding: 12px;
+  margin: 0;
+  border-bottom: 1px solid var(--color-linea);
+  grid-template-columns: 50px minmax(0, 1fr) 44px;
+  gap: 6px 10px;
+}
+:host(.semana)::before {
+  display: none;
+}
+.semana-detalle {
+  grid-column: 2;
+  grid-row: 1 / 6;
+  min-width: 0;
+}
+.semana-cliente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 4px 8px;
+}
+.semana-cliente strong {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.semana-detalle p {
+  margin: 0;
+  color: var(--color-texto-2);
+  font-size: 13px;
+}
+.semana-detalle > span {
+  font-size: 13px;
+  color: var(--color-texto-2);
+}
+.semana-detalle a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: -10px;
+  font-weight: 600;
+}
+:host(.semana) .acciones-cita {
+  grid-column: 3;
+  grid-row: 1 / 6;
+  align-self: center;
+}
+:host(.escritorio) {
+  grid-template-columns: 64px minmax(0, 1fr) minmax(0, 0.8fr) 70px 104px minmax(0, 2fr);
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  margin: 0;
+  border-bottom: 1px solid var(--color-linea);
+  font-size: 16px;
+}
+:host(.escritorio)::before {
+  display: none;
+}
+:host(.escritorio) > div {
+  grid-column: auto;
+  grid-row: auto;
+  min-width: 0;
+}
+:host(.escritorio) .cliente {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 4px;
+}
+:host(.escritorio) .cliente strong {
+  font-size: 16px;
+}
+:host(.escritorio) .cliente > span,
+:host(.escritorio) .cliente a {
+  font-size: 14px;
+}
+:host(.escritorio) .servicio,
+:host(.escritorio) .barbero {
+  color: var(--color-tinta);
+}
+:host(.escritorio) .codigo {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+}
+:host(:last-child) {
+  border-bottom: 0;
+}

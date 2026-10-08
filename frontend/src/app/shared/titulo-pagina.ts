@@ -4,4 +4,8 @@ import { Injectable, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class TituloPagina {
   readonly texto = signal<string | null>(null);
+  readonly actualizarAgenda = signal<{
+    ejecutar: () => void;
+    desactivada: () => boolean;
+  } | null>(null);
 }

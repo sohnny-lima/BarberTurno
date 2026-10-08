@@ -1,9 +1,14 @@
-<h1>Agenda y atención</h1>
+<h1>Agenda</h1>
+<p class="subtitulo">
+  {{ todos() ? 'Citas de todos los barberos. ' : '' }}Todas las horas corresponden a Lima.
+</p>
 <form class="filtros" [formGroup]="formulario" (ngSubmit)="cargar()">
   <mat-button-toggle-group
+    class="segmento"
     formControlName="vista"
     (change)="cargar()"
     aria-label="Vista de la agenda"
+    [hideSingleSelectionIndicator]="true"
   >
     <mat-button-toggle value="dia">Día</mat-button-toggle>
     <mat-button-toggle value="semana">Semana</mat-button-toggle>
@@ -26,7 +31,12 @@
     </mat-form-field>
   }
   <div class="navegar-fecha">
-    <button mat-stroked-button type="button" aria-label="Periodo anterior" (click)="moverFecha(-1)">
+    <button
+      mat-stroked-button
+      type="button"
+      [attr.aria-label]="vista() === 'dia' ? 'Día anterior' : 'Semana anterior'"
+      (click)="moverFecha(-1)"
+    >
       ‹
     </button>
     <mat-form-field subscriptSizing="dynamic">
@@ -34,11 +44,14 @@
       <input matInput type="date" formControlName="fecha" (change)="cargar()" />
       <mat-error>Seleccione una fecha válida.</mat-error>
     </mat-form-field>
-    <button mat-stroked-button type="button" aria-label="Periodo siguiente" (click)="moverFecha(1)">
+    <button
+      mat-stroked-button
+      type="button"
+      [attr.aria-label]="vista() === 'dia' ? 'Día siguiente' : 'Semana siguiente'"
+      (click)="moverFecha(1)"
+    >
       ›
     </button>
-  </div>
-  <div class="acciones-fecha">
     <button
       mat-stroked-button
       class="hoy"
@@ -48,108 +61,109 @@
     >
       Hoy
     </button>
-    <button mat-stroked-button type="submit" [disabled]="formulario.invalid">
-      Actualizar agenda
-    </button>
   </div>
+  <button
+    mat-button
+    class="actualizar"
+    type="submit"
+    aria-label="Actualizar agenda"
+    [disabled]="formulario.invalid"
+  >
+    Actualizar
+  </button>
 </form>
 @if (errorBarberos()) {
-  <p role="alert">{{ errorBarberos() }}</p>
-  <button mat-button (click)="cargarBarberos()">Reintentar carga de barberos</button>
+  <div class="alerta" role="alert">
+    <p>{{ errorBarberos() }}</p>
+    <button mat-button (click)="cargarBarberos()">Reintentar carga de barberos</button>
+  </div>
 }
 @if (vista() === 'semana') {
-  <p>
-    Periodo: {{ grupos()[0].instante | fechaLima: 'fecha' }} al
-    {{ grupos()[grupos().length - 1].instante | fechaLima: 'fecha' }} · Horario de Lima
+  <p class="periodo">
+    Periodo: {{ fecha(grupos()[0].instante) }} al
+    {{ fecha(grupos()[grupos().length - 1].instante) }}
   </p>
 }
-<div class="resumen-conteos" role="group" aria-label="Resumen de citas">
-  <span>{{ filas().length }} citas</span>
-  @for (grupo of conteos(); track grupo.estado) {
-    <span>{{ grupo.total }} {{ grupo.nombre }}</span>
-  }
-</div>
+@if (!cargando() && !mensaje()) {
+  <p class="resumen-conteos" aria-label="Resumen de citas">{{ resumen() }}</p>
+}
 <div class="linea-tiempo" aria-live="polite" [attr.aria-busy]="cargando()">
   @if (cargando()) {
-    <p role="status">Cargando agenda…</p>
-  }
-  @if (mensaje()) {
-    <p role="alert">{{ mensaje() }}</p>
-  }
-  @if (!cargando() && !mensaje()) {
-    @for (grupo of grupos(); track grupo.fecha) {
-      <section [attr.aria-label]="'Agenda del ' + grupo.fecha">
-        <h2>{{ fecha(grupo.instante) }}</h2>
-        @if (!grupo.filas.length) {
-          <p role="status">Sin citas para este día.</p>
-        }
-        @for (reserva of grupo.filas; track reserva.id; let indice = $index) {
-          @if (posicionAhora() === indice) {
-            <div class="ahora" role="status">Ahora</div>
+    <app-reserva-esqueleto texto="Cargando agenda…" />
+  } @else if (mensaje()) {
+    <div class="alerta" role="alert">
+      <p>{{ mensaje() }}</p>
+      <button mat-button (click)="cargar()">Reintentar</button>
+    </div>
+  } @else {
+    @for (bloque of bloques(); track bloque.dias[0].fecha) {
+      @if (!bloque.filas.length && vista() === 'semana') {
+        <section
+          class="dias-vacios"
+          [attr.aria-label]="
+            'Agenda del ' +
+            bloque.dias[0].fecha +
+            ' al ' +
+            bloque.dias[bloque.dias.length - 1].fecha
+          "
+        >
+          <h2>{{ diasVacios(bloque.dias) }}</h2>
+          <span>· sin citas</span>
+        </section>
+      } @else {
+        <section [attr.aria-label]="'Agenda del ' + bloque.dias[0].fecha">
+          <h2 class="dia">
+            {{ fecha(bloque.dias[0].instante) }}
+            @if (vista() === 'semana') {
+              <span
+                >{{ bloque.filas.length }} {{ bloque.filas.length === 1 ? 'cita' : 'citas' }}</span
+              >
+            }
+          </h2>
+          @if (!bloque.filas.length) {
+            <p role="status">Sin citas para este día.</p>
           }
-          <article
-            class="fila"
-            [class.terminada]="['COMPLETADA', 'CANCELADA', 'NO_ASISTIO'].includes(reserva.estado)"
-            [attr.aria-label]="reserva.codigo"
+          <div
+            [class.tabla]="escritorio() && bloque.filas.length"
+            [class.semanal]="vista() === 'semana'"
+            [attr.role]="escritorio() && bloque.filas.length ? 'table' : null"
+            [attr.aria-label]="
+              escritorio() && bloque.filas.length ? 'Citas del ' + bloque.dias[0].fecha : null
+            "
           >
-            <div class="intervalo">
-              <strong>{{ reserva.inicio | fechaLima: 'hora' }}</strong
-              ><span>{{ reserva.fin | fechaLima: 'hora' }}</span>
-              <span>{{ reserva.codigo }}</span>
-            </div>
-            <div class="cliente">
-              <strong>{{ reserva.cliente.nombre }}</strong>
-              @if (reserva.cliente.telefono) {
-                <a [href]="'tel:' + reserva.cliente.telefono">{{ reserva.cliente.telefono }}</a>
-              } @else {
-                <span>Sin teléfono registrado</span>
-              }
-              <span>{{ reserva.servicio.nombre }}</span>
-              @if (todos()) {
-                <span>Barbero: {{ reserva.barbero.nombre }}</span>
-              }
-            </div>
-            <app-estado-reserva-chip [estado]="reserva.estado" />
-            <div class="acciones">
-              @for (accion of acciones; track accion[0]) {
-                @if (reserva.permisos.transiciones.includes(accion[0])) {
-                  @if (accion[0] === primeraTransicion(reserva) && accion[0] !== 'NO_ASISTIO') {
-                    <button mat-flat-button (click)="transicionar(reserva, accion[0])">
-                      {{ accion[1] }}
-                    </button>
-                  } @else {
-                    <button
-                      mat-stroked-button
-                      [class.riesgo]="accion[0] === 'NO_ASISTIO'"
-                      (click)="transicionar(reserva, accion[0])"
-                    >
-                      {{ accion[1] }}
-                    </button>
-                  }
+            @if (escritorio() && bloque.filas.length) {
+              <div class="columnas" role="row">
+                @for (
+                  columna of ['Hora', 'Cliente', 'Servicio', 'Barbero', 'Estado', 'Acciones'];
+                  track columna
+                ) {
+                  <span role="columnheader">{{ columna }}</span>
                 }
+              </div>
+            }
+            @for (reserva of bloque.filas; track reserva.id; let indice = $index) {
+              @if (posicionAhora() === indice) {
+                <div class="ahora" role="status">Ahora</div>
               }
-              @if (admin() && reserva.permisos.reprogramar) {
-                <button
-                  mat-stroked-button
-                  (click)="reprogramar(reserva)"
-                  [disabled]="!barberos().length"
-                >
-                  Reprogramar
-                </button>
-              }
-              @if (admin() && reserva.permisos.cancelar) {
-                <button mat-stroked-button class="riesgo" (click)="cancelar(reserva)">
-                  Cancelar
-                </button>
-              }
-              <button mat-button (click)="verCambios(reserva)">Ver cambios</button>
-            </div>
-          </article>
-        }
-        @if (posicionAhora() === grupo.filas.length) {
-          <div class="ahora" role="status">Ahora</div>
-        }
-      </section>
+              <app-agenda-cita
+                [reserva]="reserva"
+                [escritorio]="escritorio()"
+                [semana]="vista() === 'semana'"
+                [admin]="admin()"
+                [todos]="todos()"
+                [barberosDisponibles]="!!barberos().length"
+                (transicion)="transicionar(reserva, $event)"
+                (cancelar)="cancelar(reserva)"
+                (reprogramar)="reprogramar(reserva)"
+                (cambios)="verCambios(reserva)"
+              />
+            }
+            @if (posicionAhora() === bloque.filas.length) {
+              <div class="ahora" role="status">Ahora</div>
+            }
+          </div>
+        </section>
+      }
     }
   }
 </div>

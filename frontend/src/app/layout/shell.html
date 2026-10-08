@@ -76,6 +76,23 @@
         } @else if (movil()) {
           <span class="titulo-pagina">{{ tituloPagina() }}</span>
         }
+        @if (movil() && tituloVista.actualizarAgenda(); as actualizar) {
+          <button
+            mat-button
+            aria-label="Actualizar agenda"
+            (click)="actualizar.ejecutar()"
+            [disabled]="actualizar.desactivada()"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20 7v5h-5M20 12a8 8 0 1 0-2 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+          </button>
+        }
         @if (
           navegacionCompleta() &&
           sesion.rol() !== 'ADMIN' &&

@@ -25,6 +25,7 @@ export interface TransicionDatos {
   selector: 'app-transicion-dialogo',
   imports: [MatButtonModule, MatDialogModule, FechaLimaPipe],
   templateUrl: './transicion-dialogo.html',
+  styleUrl: './dialogo.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransicionDialogo {

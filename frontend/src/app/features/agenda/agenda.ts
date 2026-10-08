@@ -22,22 +22,31 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { EMPTY, expand, finalize, Observable, reduce, Subscription } from 'rxjs';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { EMPTY, expand, finalize, map, Observable, reduce, Subscription } from 'rxjs';
 import { BarberosApi } from '../../core/api/barberos-api';
 import { ReservasApi } from '../../core/api/reservas-api';
 import { SesionService } from '../../core/auth/sesion-service';
 import { BarberoDto } from '../../core/modelos/catalogo';
 import { EstadoTransicion, ReservaDto } from '../../core/modelos/reservas';
 import { AvisosService } from '../../core/notificaciones/avisos-service';
-import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { fechaHoyLima, instanteLima } from '../../core/tiempo/instante-lima';
 import { semanaLima, sumarDias } from '../../core/tiempo/semana-lima';
-import { ESTADOS_RESERVA, EstadoReservaChip } from '../../shared/estado-reserva-chip';
+import { ESTADOS_RESERVA } from '../../shared/estado-reserva-chip';
+import { TituloPagina } from '../../shared/titulo-pagina';
+import { ReservaEsqueleto } from '../reservar/reserva-esqueleto';
+import { AgendaCita } from './agenda-cita';
 import { mostrarErrores } from '../../shared/formulario';
 import { CancelarDialogo } from '../mis-citas/cancelar-dialogo';
 import { AuditoriaDialogo } from './auditoria-dialogo';
 import { ReprogramarDialogo } from './reprogramar-dialogo';
 import { ACCIONES_TRANSICION, ResultadoAgenda, TransicionDialogo } from './transicion-dialogo';
+
+interface GrupoAgenda {
+  fecha: string;
+  instante: string;
+  filas: ReservaDto[];
+}
 
 const fechaValida: ValidatorFn = (control) => {
   const valor = String(control.value ?? '');
@@ -57,8 +66,8 @@ const fechaValida: ValidatorFn = (control) => {
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    FechaLimaPipe,
-    EstadoReservaChip,
+    AgendaCita,
+    ReservaEsqueleto,
   ],
   templateUrl: './agenda.html',
   styleUrl: './agenda.scss',
@@ -72,6 +81,12 @@ export class Agenda {
   private readonly avisos = inject(AvisosService);
   private readonly destroyRef = inject(DestroyRef);
   readonly sesion = inject(SesionService);
+  readonly escritorio = toSignal(
+    inject(BreakpointObserver)
+      .observe('(min-width: 1200px)')
+      .pipe(map((estado) => estado.matches)),
+    { initialValue: false },
+  );
   private peticion?: Subscription;
   readonly admin = computed(() => this.sesion.rol() === 'ADMIN');
   readonly formulario = new FormGroup({
@@ -95,7 +110,7 @@ export class Agenda {
   readonly acciones = Object.entries(ACCIONES_TRANSICION) as [EstadoTransicion, string][];
   readonly grupos = computed(() => {
     const { desde, hasta } = this.periodo();
-    const grupos: { fecha: string; instante: string; filas: ReservaDto[] }[] = [];
+    const grupos: GrupoAgenda[] = [];
     for (let fecha = desde; fecha <= hasta; fecha = sumarDias(fecha, 1)) {
       grupos.push({
         fecha,
@@ -105,7 +120,17 @@ export class Agenda {
     }
     return grupos;
   });
-  readonly fecha = fechaPresentacion;
+  readonly bloques = computed(() => {
+    const bloques: { dias: GrupoAgenda[]; filas: ReservaDto[] }[] = [];
+    for (const grupo of this.grupos()) {
+      const anterior = bloques.at(-1);
+      if (this.vista() === 'semana' && !grupo.filas.length && anterior && !anterior.filas.length) {
+        anterior.dias.push(grupo);
+      } else bloques.push({ dias: [grupo], filas: grupo.filas });
+    }
+    return bloques;
+  });
+  readonly fecha = (instante: string) => fechaPresentacion(instante).toLowerCase();
   readonly hoy = fechaHoyLima();
   readonly conteos = computed(() =>
     Object.entries(ESTADOS_RESERVA)
@@ -116,6 +141,33 @@ export class Agenda {
       }))
       .filter((grupo) => grupo.total > 0),
   );
+  readonly resumen = computed(() => {
+    const nombres: Record<string, [string, string]> = {
+      EN_ATENCION: ['en atención', 'en atención'],
+      PENDIENTE: ['pendiente', 'pendientes'],
+      CONFIRMADA: ['confirmada', 'confirmadas'],
+      COMPLETADA: ['completada', 'completadas'],
+      CANCELADA: ['cancelada', 'canceladas'],
+      NO_ASISTIO: ['no asistió', 'no asistieron'],
+    };
+    const detalles = Object.keys(nombres).flatMap((estado) => {
+      const grupo = this.conteos().find((g) => g.estado === estado);
+      return grupo ? [`${grupo.total} ${nombres[estado][grupo.total === 1 ? 0 : 1]}`] : [];
+    });
+    const total = this.filas().length;
+    const detalle =
+      detalles.length > 1
+        ? detalles.slice(0, -1).join(', ') + ' y ' + detalles.at(-1)
+        : detalles[0];
+    return `${total} ${total === 1 ? 'cita' : 'citas'}${detalle ? ': ' + detalle : ''}.`;
+  });
+  diasVacios(dias: GrupoAgenda[]) {
+    const nombres = dias.map(
+      (dia) =>
+        `${fechaPresentacion(dia.instante, 'dia').toLowerCase().replace(/\.$/, '')} ${fechaPresentacion(dia.instante, 'numero')}`,
+    );
+    return nombres.length > 2 ? `${nombres[0]} al ${nombres.at(-1)}` : nombres.join(' y ');
+  }
   readonly posicionAhora = computed(() => {
     const periodo = this.periodo();
     if (periodo.desde !== this.hoy || periodo.hasta !== this.hoy) return -1;
@@ -137,6 +189,16 @@ export class Agenda {
     this.cargar();
   }
   constructor() {
+    const titulo = inject(TituloPagina);
+    titulo.texto.set('Agenda');
+    titulo.actualizarAgenda.set({
+      ejecutar: () => this.cargar(),
+      desactivada: () => this.formulario.invalid,
+    });
+    this.destroyRef.onDestroy(() => {
+      titulo.texto.set(null);
+      titulo.actualizarAgenda.set(null);
+    });
     if (this.admin()) this.cargarBarberos();
     this.cargar();
   }

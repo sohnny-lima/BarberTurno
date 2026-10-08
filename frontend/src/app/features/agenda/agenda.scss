@@ -1,95 +1,103 @@
+@use '@angular/material' as mat;
 :host {
   display: block;
+}
+.subtitulo,
+.periodo,
+.resumen-conteos {
+  color: var(--color-texto-2);
+}
+.subtitulo {
+  margin: 0 0 20px;
 }
 .filtros {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 .filtros > mat-form-field {
-  min-width: 0;
-  flex: 1 1 180px;
+  width: 180px;
+}
+.segmento {
+  padding: 4px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: 999px;
+  @include mat.button-toggle-overrides(
+    (
+      shape: 999px,
+      divider-color: transparent,
+    )
+  );
+}
+.segmento mat-button-toggle {
+  min-width: 96px;
+  border-radius: 999px;
 }
 .navegar-fecha {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
+  margin-left: auto;
 }
 .navegar-fecha mat-form-field {
   min-width: 0;
   width: 180px;
 }
 .navegar-fecha > button:not(.hoy) {
+  width: 44px;
   min-width: 44px;
   padding: 0;
   font-size: 24px;
 }
-.acciones-fecha {
-  display: flex;
-  gap: 8px;
+.filtros button {
+  min-height: 44px;
 }
-.resumen-conteos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  color: var(--color-texto-2);
+.resumen-conteos,
+.periodo {
   font-size: 14px;
-  margin-top: 16px;
+  margin: 16px 0;
 }
 .linea-tiempo {
   min-height: 260px;
-  margin-top: 24px;
+  margin-top: 20px;
 }
-.fila {
-  display: grid;
-  grid-template-columns: 80px minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: start;
-  background: white;
+.dia {
+  font-size: 18px;
+  line-height: 24px;
+  margin: 20px 0 12px;
+}
+.dia span {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-texto-2);
+  margin-left: 8px;
+}
+.tabla,
+.semanal {
+  background: var(--color-superficie);
   border: 1px solid var(--color-linea);
-  border-radius: var(--radius-tarjeta);
-  padding: 20px;
-  margin-bottom: 12px;
+  border-radius: 16px;
 }
-.fila.terminada {
-  background: var(--color-fondo);
-}
-.intervalo,
-.cliente {
+.columnas {
   display: grid;
-  gap: 6px;
-  overflow-wrap: anywhere;
-}
-.intervalo {
-  font-variant-numeric: tabular-nums;
-}
-.intervalo strong {
-  font: 800 36px/1 var(--font-cuerpo);
-  white-space: nowrap;
-}
-.intervalo span {
+  grid-template-columns: 64px minmax(0, 1fr) minmax(0, 0.8fr) 70px 104px minmax(0, 2fr);
+  gap: 12px;
+  padding: 12px 16px;
   font-size: 13px;
   color: var(--color-texto-2);
+  border-bottom: 1px solid var(--color-linea);
 }
-.cliente strong {
-  font-size: 18px;
-}
-.cliente a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  justify-self: start;
-}
-.acciones {
-  grid-column: 2 / -1;
+.columnas span:last-child {
+  text-align: right;
 }
 .ahora {
   display: flex;
   align-items: center;
   gap: 12px;
   color: var(--color-verde);
+  font-size: 13px;
   font-weight: 700;
   margin-block: 16px;
 }
@@ -99,37 +107,75 @@
   background: currentColor;
   flex: 1;
 }
+.tabla .ahora {
+  margin-inline: 16px;
+}
+.dias-vacios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed var(--color-borde-control);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 16px 0;
+}
+.dias-vacios h2 {
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0;
+}
+.dias-vacios span {
+  color: var(--color-texto-2);
+  font-size: 14px;
+}
+.alerta {
+  background: var(--color-no-asistio-fondo);
+  color: var(--color-error-texto);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.alerta p {
+  margin: 0 0 8px;
+}
 @media (max-width: 767.98px) {
+  h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .subtitulo {
+    font-size: 14px;
+    margin: 0 0 12px;
+  }
+  .segmento {
+    width: 100%;
+  }
+  .segmento mat-button-toggle {
+    flex: 1;
+    min-width: 0;
+  }
   .filtros > mat-form-field {
-    flex-basis: 100%;
+    width: 100%;
   }
   .navegar-fecha {
     width: 100%;
+    margin: 0;
   }
   .navegar-fecha mat-form-field {
     flex: 1;
   }
-  .filtros {
-    gap: 12px;
+  .hoy {
+    padding-inline: 12px;
+    min-width: 58px;
   }
-  .acciones-fecha {
-    width: 100%;
+  .actualizar {
+    display: none;
   }
-  .acciones-fecha > button {
-    flex: 1;
-  }
-  .fila {
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: 12px;
-    padding: 16px;
-  }
-  .intervalo strong {
-    font-size: 30px;
-  }
-  app-estado-reserva-chip {
-    grid-column: 2;
-  }
-  .acciones {
-    grid-column: 1 / -1;
+  .dia {
+    font-size: 16px;
   }
 }

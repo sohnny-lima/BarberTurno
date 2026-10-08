@@ -84,7 +84,7 @@ export class Shell {
   readonly tieneBarraInferior = computed(
     () => this.movil() && this.navegacionCompleta() && this.sesion.rol() !== 'ADMIN',
   );
-  private readonly tituloVista = inject(TituloPagina);
+  readonly tituloVista = inject(TituloPagina);
   readonly tituloPagina = computed(() => {
     if (this.tituloVista.texto()) return this.tituloVista.texto()!;
     const ruta = this.ruta().split('?')[0];

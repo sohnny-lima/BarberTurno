@@ -61,6 +61,29 @@ describe('Shell adaptable', () => {
       '(max-width: 767.98px)',
     );
   });
+  it('muestra la actualización de Agenda solo en la barra móvil y respeta su estado desactivado', () => {
+    entrar('BARBERO');
+    const ejecutar = vi.fn();
+    const desactivada = signal(false);
+    const titulo = TestBed.inject(TituloPagina);
+    titulo.actualizarAgenda.set({ ejecutar, desactivada });
+    const fixture = TestBed.createComponent(Shell);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Actualizar agenda"]')).toBeNull();
+    movil.next({ matches: true });
+    fixture.detectChanges();
+    const actualizar = fixture.nativeElement.querySelector(
+      '[aria-label="Actualizar agenda"]',
+    ) as HTMLButtonElement;
+    actualizar.click();
+    expect(ejecutar).toHaveBeenCalledOnce();
+    desactivada.set(true);
+    fixture.detectChanges();
+    expect(actualizar.disabled).toBe(true);
+    titulo.actualizarAgenda.set(null);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Actualizar agenda"]')).toBeNull();
+  });
   it.each([true, false])(
     'una navegación cierra el cajón y enfoca el contenido solo en móvil: móvil=%s',
     async (esMovil) => {

@@ -1,0 +1,44 @@
+@if (principal(); as accion) {
+  <button mat-flat-button class="principal" (click)="transicion.emit(accion[0])">
+    {{ accion[1] }}
+  </button>
+}
+@if (reprogramarVisible()) {
+  <button mat-stroked-button (click)="reprogramar.emit()" [disabled]="!barberosDisponibles()">
+    Reprogramar
+  </button>
+}
+<button
+  mat-stroked-button
+  class="mas"
+  [matMenuTriggerFor]="menu"
+  [attr.aria-label]="'Más acciones para ' + reserva().codigo"
+>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="5" cy="12" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="19" cy="12" r="1.8" />
+  </svg>
+</button>
+<mat-menu #menu="matMenu">
+  @for (accion of acciones; track accion[0]) {
+    @if (reserva().permisos.transiciones.includes(accion[0]) && accion[0] !== principal()?.[0]) {
+      <button
+        mat-menu-item
+        [class.riesgo]="accion[0] === 'NO_ASISTIO'"
+        (click)="transicion.emit(accion[0])"
+      >
+        {{ accion[1] }}
+      </button>
+    }
+  }
+  @if (admin() && reserva().permisos.reprogramar && !reprogramarVisible()) {
+    <button mat-menu-item (click)="reprogramar.emit()" [disabled]="!barberosDisponibles()">
+      Reprogramar
+    </button>
+  }
+  @if (admin() && reserva().permisos.cancelar) {
+    <button mat-menu-item class="riesgo" (click)="cancelar.emit()">Cancelar</button>
+  }
+  <button mat-menu-item (click)="cambios.emit()">Ver cambios</button>
+</mat-menu>
