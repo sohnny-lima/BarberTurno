@@ -1,31 +1,8 @@
 <section class="reservar" [attr.aria-busy]="store.cargando()">
   <h1 [class.oculto]="movil() && store.sesion.autenticado()">{{ titulo() }}</h1>
   <p class="subtitulo">{{ subtitulo() }} Todas las horas corresponden a Lima.</p>
-  @if (store.mensaje()) {
-    <div class="mensaje" role="alert">
-      <p>
-        <strong>{{
-          store.paso() === 1
-            ? 'No se pudieron consultar las horas libres.'
-            : 'No se pudo completar la solicitud.'
-        }}</strong>
-        {{ store.mensaje() }}
-      </p>
-      @if (store.servicio() && store.paso() === 1) {
-        <p>Revise su conexión y vuelva a intentarlo. Su servicio y profesional se conservan.</p>
-        <button
-          mat-stroked-button
-          type="button"
-          [disabled]="store.consultando() || store.enviando()"
-          (click)="reintentar()"
-        >
-          Reintentar
-        </button>
-      }
-      @if (store.limiteReservas()) {
-        <a routerLink="/mis-citas">Ver Mis citas</a>
-      }
-    </div>
+  @if (store.mensaje() && store.paso() !== 1) {
+    <ng-container [ngTemplateOutlet]="alerta" />
   }
   @if (store.cargando()) {
     <app-reserva-esqueleto texto="Cargando servicios y profesionales…" />
@@ -144,6 +121,9 @@
               aria-label="Horas disponibles"
             >
               <h2>{{ fechaLegible(store.fecha()) }}</h2>
+              @if (store.mensaje()) {
+                <ng-container [ngTemplateOutlet]="alerta" />
+              }
               @if (store.consultando()) {
                 <app-reserva-esqueleto texto="Consultando franjas…" [franjas]="true" />
               } @else {
@@ -337,3 +317,29 @@
     }
   </div>
 </section>
+<ng-template #alerta>
+  <div class="mensaje" role="alert">
+    <p>
+      <strong>{{
+        store.paso() === 1
+          ? 'No se pudieron consultar las horas libres.'
+          : 'No se pudo completar la solicitud.'
+      }}</strong>
+      {{ store.mensaje() }}
+    </p>
+    @if (store.servicio() && store.paso() === 1) {
+      <p>Revise su conexión y vuelva a intentarlo. Su servicio y profesional se conservan.</p>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="store.consultando() || store.enviando()"
+        (click)="reintentar()"
+      >
+        Reintentar
+      </button>
+    }
+    @if (store.limiteReservas()) {
+      <a routerLink="/mis-citas">Ver Mis citas</a>
+    }
+  </div>
+</ng-template>

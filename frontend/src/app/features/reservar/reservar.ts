@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import {
   afterRenderEffect,
@@ -38,6 +39,7 @@ import { sumarDias } from '../../core/tiempo/semana-lima';
 @Component({
   selector: 'app-reservar',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     ReservaAsistente,
     ReservaFoto,

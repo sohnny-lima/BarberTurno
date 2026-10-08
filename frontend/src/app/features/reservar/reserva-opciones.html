@@ -22,7 +22,20 @@
         [attr.data-servicio]="servicio.id"
         [class.elegido]="store.servicioId() === servicio.id"
       >
-        <span class="icono" aria-hidden="true">✂</span>
+        <span class="icono" aria-hidden="true"
+          ><svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          >
+            <circle cx="6" cy="7" r="3" />
+            <circle cx="6" cy="17" r="3" />
+            <path d="M8.5 8.5L20 18M8.5 15.5L20 6" /></svg
+        ></span>
         <span class="detalle"
           ><strong>{{ servicio.nombre }}</strong
           ><small>{{ servicio.duracionMin }} min</small></span
@@ -46,34 +59,48 @@
 }
 <fieldset class="profesionales">
   <legend>Elija un profesional</legend>
-  <label class="profesional" [class.elegido]="store.preferencia() === null">
-    <span class="iniciales" aria-hidden="true">♧</span>
-    <input
-      type="radio"
-      name="profesional"
-      data-profesional="sin-preferencia"
-      [checked]="store.preferencia() === null"
-      [disabled]="store.enviando()"
-      (change)="store.elegirPreferencia(null)"
-    />
-    <span><strong>Sin preferencia</strong><small>Ve las horas de todos</small></span>
-  </label>
-  @for (barbero of store.barberos(); track barbero.id) {
-    <label class="profesional" [class.elegido]="store.preferencia() === barbero.id">
+  <div class="opciones-profesionales">
+    <label class="profesional" [class.elegido]="store.preferencia() === null">
+      <span class="iniciales" aria-hidden="true"
+        ><svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M3 20a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6 6 0 0 0-3-5.2" /></svg
+      ></span>
       <input
         type="radio"
         name="profesional"
-        [attr.data-profesional]="barbero.id"
-        [checked]="store.preferencia() === barbero.id"
+        data-profesional="sin-preferencia"
+        [checked]="store.preferencia() === null"
         [disabled]="store.enviando()"
-        (change)="store.elegirPreferencia(barbero.id)"
+        (change)="store.elegirPreferencia(null)"
       />
-      <span class="iniciales" aria-hidden="true">{{ iniciales(barbero.nombre) }}</span>
-      <span
-        ><strong>{{ barbero.nombre }}</strong
-        ><small>{{ barbero.especialidad }}</small></span
-      >
+      <span><strong>Sin preferencia</strong><small>Ve las horas de todos</small></span>
     </label>
-  }
+    @for (barbero of store.barberos(); track barbero.id) {
+      <label class="profesional" [class.elegido]="store.preferencia() === barbero.id">
+        <input
+          type="radio"
+          name="profesional"
+          [attr.data-profesional]="barbero.id"
+          [checked]="store.preferencia() === barbero.id"
+          [disabled]="store.enviando()"
+          (change)="store.elegirPreferencia(barbero.id)"
+        />
+        <span class="iniciales" aria-hidden="true">{{ iniciales(barbero.nombre) }}</span>
+        <span
+          ><strong>{{ barbero.nombre }}</strong
+          ><small>{{ barbero.especialidad }}</small></span
+        >
+      </label>
+    }
+  </div>
 </fieldset>
 <p class="ayuda">Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.</p>

@@ -1,4 +1,4 @@
-app-reserva-asistente {
+app-reservar app-reserva-asistente {
   display: block;
   min-width: 0;
   .mat-horizontal-content-container {
@@ -6,6 +6,7 @@ app-reserva-asistente {
   }
   @media (max-width: 767.98px) {
     .mat-horizontal-stepper-header-container {
+      display: flex;
       margin-bottom: 20px;
     }
     .mat-horizontal-stepper-header {

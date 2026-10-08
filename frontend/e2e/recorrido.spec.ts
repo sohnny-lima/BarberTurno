@@ -204,6 +204,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   const inicio = Date.now();
   await page.goto('/reservar');
   await expect(page.locator('mat-step-header')).toHaveCount(3);
+  await expect(page.locator('mat-step-header').first()).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   if ((page.viewportSize()?.width ?? 1440) <= 767) {
     await expect(page.locator('h1')).toHaveCSS('clip-path', 'inset(50%)');
@@ -236,6 +237,12 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   const consultaFallida = await fallida;
   await expect(page.getByRole('alert')).toContainText('Su servicio y profesional se conservan');
   await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled();
+  // El interceptor común anuncia también el error por snackbar; se cierra para revisar la alerta.
+  await page
+    .locator('mat-snack-bar-container')
+    .getByRole('button', { name: 'Cerrar', exact: true })
+    .click();
+  await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'reservar-error');
   const reintento = page.waitForResponse(
     (r) => r.url().includes('/api/disponibilidad?') && r.status() === 200,
@@ -750,6 +757,7 @@ test('10 · administrador reserva para el cliente elegido y conserva su identida
   await ingresar(page, 'admin-e2e@ejemplo.test');
   await page.goto('/reservar');
   await expect(page.locator('mat-step-header')).toHaveCount(4);
+  await expect(page.locator('mat-step-header').first()).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reserva asistida');
   const elegirServicio = page.getByRole('button', { name: 'Elegir servicio', exact: true });
   await expect(elegirServicio).toBeDisabled();
