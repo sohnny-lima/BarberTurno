@@ -48,6 +48,7 @@ article {
 }
 .acciones :is(a, button) {
   flex: 1;
+  min-height: 44px;
 }
 .tique {
   display: grid;

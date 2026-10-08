@@ -78,11 +78,12 @@ async function comprobarAvisoCliente(page: Page, mensaje: string | RegExp) {
     await expect(page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ })).toHaveCount(0);
   }
   await expect(page.locator('app-avisos-panel')).toContainText(mensaje);
-  if (movil)
-    await page
-      .getByRole('dialog', { name: 'Avisos', exact: true })
-      .getByRole('button', { name: 'Cerrar', exact: true })
-      .click();
+  if (movil) {
+    const dialogo = page.getByRole('dialog', { name: 'Avisos', exact: true });
+    await dialogo.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await expect(dialogo).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ })).toBeFocused();
+  }
 }
 
 async function comprobarSalida(page: Page) {
@@ -883,6 +884,10 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
   const alerta = page.locator('.alerta');
   await expect(alerta).toContainText('No se pudieron cargar las citas.');
   await expect(page.locator('.vacio')).toHaveCount(0);
+  const cerrarAviso = page
+    .locator('mat-snack-bar-container')
+    .getByRole('button', { name: 'Cerrar', exact: true });
+  if (await cerrarAviso.isVisible()) await cerrarAviso.click();
   await revisar(page, testInfo, 'mis-citas-error');
   const consulta = page.waitForResponse((r) => r.url().includes('/api/reservas/mias?'));
   await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click();
@@ -900,7 +905,9 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
     await expect(page.getByLabel('Desde', { exact: true })).toBeHidden();
   }
   await revisar(page, testInfo, 'mis-citas-vacio');
-  await page.getByRole('radio', { name: 'Historial', exact: true }).check();
+  const historial = page.getByRole('radio', { name: 'Historial', exact: true });
+  await historial.click();
+  await expect(historial).toBeChecked();
   await expect(
     page.getByRole('heading', { name: 'No hay citas con estos filtros.', exact: true }),
   ).toBeVisible();

@@ -174,7 +174,7 @@ describe('Mis citas y filtros', () => {
     const fixture = crear();
     fixture.detectChanges();
     const boton = fixture.nativeElement.querySelector('.abrir-filtros') as HTMLButtonElement;
-    expect(boton.textContent).toContain('Filtros por fecha y estado');
+    expect(boton.getAttribute('aria-label')).toBe('Filtros por fecha y estado');
     expect(boton.getAttribute('aria-expanded')).toBe('false');
     expect(boton.getAttribute('aria-controls')).toBe('filtros-citas');
     fixture.componentInstance.formulario.controls.estado.setValue('CONFIRMADA');

@@ -4,26 +4,38 @@
     <p class="subtitulo">
       <span>Consulte y gestione sus turnos. </span>Todas las horas corresponden a Lima.
     </p>
-    <mat-button-toggle-group
-      class="periodo"
-      [value]="historial() ? 1 : 0"
-      (change)="cambiarTab($event.value)"
-      aria-label="Periodo de las citas"
-      hideSingleSelectionIndicator
-    >
-      <mat-button-toggle [value]="0">Próximas</mat-button-toggle>
-      <mat-button-toggle [value]="1">Historial</mat-button-toggle>
-    </mat-button-toggle-group>
-    <button
-      mat-stroked-button
-      class="abrir-filtros"
-      type="button"
-      [attr.aria-expanded]="filtrosAbiertos()"
-      aria-controls="filtros-citas"
-      (click)="filtrosAbiertos.set(!filtrosAbiertos())"
-    >
-      Filtros por fecha y estado
-    </button>
+    <div class="controles-periodo">
+      <mat-button-toggle-group
+        class="periodo"
+        [value]="historial() ? 1 : 0"
+        (change)="cambiarTab($event.value)"
+        aria-label="Periodo de las citas"
+        hideSingleSelectionIndicator
+      >
+        <mat-button-toggle [value]="0">Próximas</mat-button-toggle>
+        <mat-button-toggle [value]="1">Historial</mat-button-toggle>
+      </mat-button-toggle-group>
+      <button
+        mat-stroked-button
+        class="abrir-filtros"
+        type="button"
+        [attr.aria-expanded]="filtrosAbiertos()"
+        aria-controls="filtros-citas"
+        aria-label="Filtros por fecha y estado"
+        title="Filtros por fecha y estado"
+        (click)="filtrosAbiertos.set(!filtrosAbiertos())"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 6h16M7 12h10M10 18h4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
     <form
       [formGroup]="formulario"
       (ngSubmit)="filtrar()"

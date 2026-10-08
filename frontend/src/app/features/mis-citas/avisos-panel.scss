@@ -9,6 +9,7 @@ section {
 li {
   padding: 16px 0;
   border-bottom: 1px solid var(--color-linea);
+  color: var(--color-tinta);
 }
 ul {
   list-style: none;
@@ -36,6 +37,8 @@ ul {
 }
 .incrustado button {
   padding-inline: 0;
+  min-height: 44px;
+  justify-content: flex-start;
 }
 .incrustado li p {
   margin-block: 0 4px;
