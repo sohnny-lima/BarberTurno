@@ -392,6 +392,19 @@ describe('Agenda operativa', () => {
       expect.objectContaining({ data: expect.objectContaining({ estado: 'CONFIRMADA' }) }),
     );
   });
+  it('la línea Ahora conserva la estructura de fila y celda de la tabla accesible', () => {
+    ancho.next(1440);
+    const fixture = crear();
+    fixture.componentInstance.filas.set([
+      { ...RESERVA_PRUEBA, inicio: fechaHoyLima() + 'T23:50:00-05:00' },
+    ]);
+    fixture.detectChanges();
+    const ahora = fixture.nativeElement.querySelector('.ahora');
+    expect(ahora.textContent).toBe('Ahora');
+    expect(ahora.parentElement.getAttribute('role')).toBe('cell');
+    expect(ahora.parentElement.getAttribute('aria-colspan')).toBe('6');
+    expect(ahora.parentElement.parentElement.getAttribute('role')).toBe('row');
+  });
   it('carga con esqueletos, anuncio oculto y título único; libera la acción de la barra al destruir', () => {
     const fixture = crear();
     fixture.componentInstance.cargar();
