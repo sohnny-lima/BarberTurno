@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { createHash } from 'node:crypto';
-import { type Page, type Response, type TestInfo } from '@playwright/test';
+import { type Locator, type Page, type Response, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
 import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
@@ -41,7 +41,8 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     nombre.startsWith('reservar-') ||
     nombre.startsWith('asistida-') ||
     nombre.startsWith('mis-citas') ||
-    nombre === 'avisos-cliente'
+    nombre === 'avisos-cliente' ||
+    nombre.startsWith('agenda-')
   ) {
     await testInfo.attach(nombre, { body: await page.screenshot(), contentType: 'image/png' });
   }
@@ -51,6 +52,23 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     ),
     nombre,
   ).toBe(true);
+}
+
+function citaAgenda(page: Page, codigo: string) {
+  return page
+    .getByRole('article', { name: codigo, exact: true })
+    .or(page.getByRole('row', { name: codigo, exact: true }));
+}
+
+async function accionAgenda(page: Page, cita: Locator, nombre: string) {
+  await expect(page.locator('app-agenda .linea-tiempo')).toHaveAttribute('aria-busy', 'false');
+  await expect(cita).toBeVisible();
+  const principal = cita.getByRole('button', { name: nombre, exact: true });
+  if (await principal.isVisible()) await principal.click();
+  else {
+    await cita.getByRole('button', { name: /^Más acciones para / }).click();
+    await page.getByRole('menuitem', { name: nombre, exact: true }).click();
+  }
 }
 
 async function ingresar(page: Page, correo: string) {
@@ -396,11 +414,11 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
   await page.goto('/agenda');
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-28');
   await page.getByRole('button', { name: 'Actualizar agenda' }).click();
-  const fila = page.getByRole('article', { name: atencion, exact: true });
+  const fila = citaAgenda(page, atencion);
   await expect(fila).toContainText('09:10');
   await revisar(page, testInfo, 'agenda-dia');
   for (const accion of ['Iniciar atención', 'Completar']) {
-    await fila.getByRole('button', { name: accion, exact: true }).click();
+    await accionAgenda(page, fila, accion);
     const transicion = page.waitForResponse(
       (r) => r.url().endsWith('/transiciones') && r.request().method() === 'POST',
     );
@@ -423,13 +441,14 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
     }
     expect(respuestaTransicion.status()).toBe(200);
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(fila).toContainText(accion === 'Iniciar atención' ? 'En atención' : 'Completada');
   }
   await expect(fila).toContainText('Completada');
   await page.getByRole('radio', { name: 'Semana', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
-  const solicitud = page.getByRole('article', { name: pendiente, exact: true });
+  const solicitud = citaAgenda(page, pendiente);
   await expect(solicitud).toContainText('Pendiente');
-  await solicitud.getByRole('button', { name: 'Confirmar', exact: true }).click();
+  await accionAgenda(page, solicitud, 'Confirmar');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
   await expect(solicitud).toContainText('Confirmada');
   await revisar(page, testInfo, 'agenda-semana');
@@ -439,6 +458,46 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   page,
 }, testInfo) => {
   await ingresar(page, 'admin-e2e@ejemplo.test');
+  await page.goto('/agenda');
+  await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-28');
+  await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+  const cita = citaAgenda(page, cercana);
+  const mas = cita.getByRole('button', { name: `Más acciones para ${cercana}`, exact: true });
+  for (const tecla of ['Enter', 'Space']) {
+    await mas.focus();
+    await mas.press(tecla);
+    const items = page.getByRole('menuitem');
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(mas).toBeFocused();
+  }
+  await accionAgenda(page, cita, 'Reprogramar');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByLabel('Fecha de Lima', { exact: true })).toBeFocused();
+  await expect(
+    page.getByRole('dialog').getByLabel('Motivo obligatorio', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Reprogramar', exact: true }),
+  ).toBeDisabled();
+  await revisar(page, testInfo, 'agenda-reprogramar');
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Conservar cita', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await accionAgenda(page, cita, 'Ver cambios');
+  const auditoria = page.getByRole('dialog', { name: `Cambios de ${cercana}`, exact: true });
+  await expect(auditoria).toContainText('Actor:');
+  await expect(auditoria.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+  await revisar(page, testInfo, 'agenda-auditoria');
+  await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goto('/admin/servicios');
   await expect(
     page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }),
@@ -722,6 +781,8 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
     await expect(dialogo).toContainText(aviso.mensaje);
   }
   await expect(dialogo).not.toContainText(exclusivoCliente.mensaje);
+  // El foco inicial llega al terminar la apertura; axe debe leer los colores definitivos.
+  await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
   const resultados = await new AxeBuilder({ page }).analyze();
   await testInfo.attach('axe-avisos-barbero', {
     body: JSON.stringify(
@@ -845,9 +906,7 @@ test('10 · administrador reserva para el cliente elegido y conserva su identida
   await expect(page).toHaveURL(/\/agenda/);
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-10-03');
   await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
-  await expect(page.getByRole('article', { name: reserva.codigo, exact: true })).toContainText(
-    'Cliente E2E actualizado',
-  );
+  await expect(citaAgenda(page, reserva.codigo)).toContainText('Cliente E2E actualizado');
 });
 
 test('11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario', async ({
@@ -912,4 +971,88 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
     page.getByRole('heading', { name: 'No hay citas con estos filtros.', exact: true }),
   ).toBeVisible();
   await expect(page.locator('article.tique')).toHaveCount(0);
+});
+
+test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px', async ({
+  page,
+}, testInfo) => {
+  await ingresar(page, 'admin-e2e@ejemplo.test');
+  await page.goto('/agenda');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Agenda');
+  await seleccionar(page, 'Barbero', 'Carlos');
+  await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-28');
+  await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+  await expect(citaAgenda(page, cercana)).toBeVisible();
+  const original = page.viewportSize()!;
+  for (const width of [768, 1199, 1200]) {
+    await page.setViewportSize({ width, height: 900 });
+    const cita = page.locator(`app-agenda-cita[aria-label="${cercana}"]`);
+    await expect(cita).toHaveAttribute('role', width >= 1200 ? 'row' : 'article');
+    await expect(page.getByRole('table')).toHaveCount(width >= 1200 ? 1 : 0);
+    const horario = await cita.locator('.intervalo strong').boundingBox();
+    const cliente = await cita.locator('.cliente strong').boundingBox();
+    expect(horario).not.toBeNull();
+    expect(cliente).not.toBeNull();
+    expect(horario!.x + horario!.width).toBeLessThan(cliente!.x);
+    const telefono = cita.getByRole('link', { name: /^\d{3} \d{3} \d{3}$/ });
+    await expect(telefono).toBeVisible();
+    const numero = (await telefono.textContent())!.trim();
+    await expect(telefono).toHaveAttribute('href', 'tel:' + numero.replaceAll(' ', ''));
+    const areaTelefono = await telefono.boundingBox();
+    expect(areaTelefono).not.toBeNull();
+    expect(areaTelefono!.height).toBeGreaterThanOrEqual(44);
+    await revisar(page, testInfo, `agenda-${width}`);
+  }
+  await page.setViewportSize(original);
+  let soltar!: () => void;
+  const espera = new Promise<void>((resolver) => {
+    soltar = resolver;
+  });
+  let primera = true;
+  let urlFallida = '';
+  await page.route('**/api/reservas?*', async (ruta) => {
+    if (primera) {
+      primera = false;
+      urlFallida = ruta.request().url();
+      await espera;
+      await ruta.fulfill({
+        status: 503,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ detail: 'Agenda temporalmente no disponible.' }),
+      });
+    } else await ruta.continue();
+  });
+  const fallida = page.waitForResponse(
+    (r) => r.url().includes('/api/reservas?') && r.status() === 503,
+  );
+  await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+  await expect(page.locator('app-reserva-esqueleto')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Cargando agenda…' })).toHaveCount(1);
+  soltar();
+  await fallida;
+  const alerta = page
+    .getByRole('alert')
+    .filter({ hasText: 'No pudimos completar la solicitud. Intente nuevamente.' });
+  await expect(alerta).toBeVisible();
+  await page
+    .locator('mat-snack-bar-container')
+    .getByRole('button', { name: 'Cerrar', exact: true })
+    .click();
+  await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+  await revisar(page, testInfo, 'agenda-error');
+  const reintento = page.waitForResponse(
+    (r) => r.url().includes('/api/reservas?') && r.status() === 200,
+  );
+  await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click();
+  expect((await reintento).url()).toBe(urlFallida);
+  await expect(citaAgenda(page, cercana)).toBeVisible();
+  await expect(page.getByLabel('Barbero', { exact: true })).toContainText('Carlos');
+  await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
+  await expect(page.locator('.dias-vacios').first()).toBeVisible();
+  await expect(page.locator('.dias-vacios').first()).toHaveAttribute(
+    'aria-label',
+    /^Agenda del \d{4}-\d{2}-\d{2} al \d{4}-\d{2}-\d{2}$/,
+  );
+  await revisar(page, testInfo, 'agenda-semana-admin');
 });
