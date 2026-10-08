@@ -243,6 +243,22 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await expect(page.locator('app-avisos-panel')).toContainText(creada.codigo);
   await revisar(page, testInfo, 'mis-citas');
   await tarjeta.getByRole('link', { name: 'Reprogramar' }).click();
+  if ((page.viewportSize()?.width ?? 1440) <= 767) {
+    const avanzarReprogramacion = page.getByRole('button', { name: 'Elegir fecha y hora' });
+    await avanzarReprogramacion.scrollIntoViewIfNeeded();
+    const areaAccion = await avanzarReprogramacion.boundingBox();
+    const areaBarra = await page.locator('.barra-inferior').boundingBox();
+    await testInfo.attach('reprogramar-barra-inferior', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+    expect(areaAccion).not.toBeNull();
+    expect(areaBarra).not.toBeNull();
+    expect(
+      areaAccion!.y + areaAccion!.height,
+      JSON.stringify({ areaAccion, areaBarra }),
+    ).toBeLessThanOrEqual(areaBarra!.y);
+  }
   await page.getByRole('button', { name: 'Elegir fecha y hora' }).click();
   await fechaFranja(page, '2026-10-01', '12:00');
   await page.getByRole('button', { name: 'Confirmar reprogramación' }).click();

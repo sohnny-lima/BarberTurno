@@ -216,7 +216,7 @@ mat-form-field {
   }
   .barra-reserva {
     position: fixed;
-    bottom: 0;
+    bottom: var(--espacio-navegacion-inferior, 0px);
     left: 0;
     right: 0;
     margin: 0;

@@ -156,10 +156,16 @@ footer {
 .campana {
   position: relative;
 }
+.icono-campana {
+  display: inline-flex;
+  position: relative;
+  width: 22px;
+  height: 22px;
+}
 .distintivo {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -6px;
+  right: -8px;
   background: var(--color-verde);
   color: white;
   border: 2px solid white;
@@ -227,6 +233,7 @@ footer {
     padding: 0 16px 20px;
   }
   .con-barra-inferior {
+    --espacio-navegacion-inferior: calc(72px + env(safe-area-inset-bottom));
     height: 100dvh;
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }

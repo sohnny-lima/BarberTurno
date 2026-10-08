@@ -86,7 +86,11 @@ body {
 a {
   color: var(--color-verde);
 }
-:focus-visible {
+:focus-visible,
+button[mat-button]:focus-visible,
+button[mat-flat-button]:focus-visible,
+button[mat-stroked-button]:focus-visible,
+[mat-menu-item]:focus-visible {
   outline: 3px solid var(--color-verde);
   outline-offset: 2px;
 }
@@ -298,9 +302,6 @@ html {
         headline-padding: 8px 20px 12px,
       )
     );
-  }
-  .con-barra-inferior .barra-reserva {
-    bottom: calc(72px + env(safe-area-inset-bottom));
   }
   .tique-hora {
     font-size: 44px;
