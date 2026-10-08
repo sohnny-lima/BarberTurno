@@ -37,6 +37,9 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     contentType: 'application/json',
   });
   expect(relevantes, nombre).toEqual([]);
+  if (nombre.startsWith('reservar-') || nombre.startsWith('asistida-')) {
+    await testInfo.attach(nombre, { body: await page.screenshot(), contentType: 'image/png' });
+  }
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -214,9 +217,32 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await avanzar.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-paso="1"]')).toBeFocused();
+  await page.route(
+    '**/api/disponibilidad?**',
+    (ruta) =>
+      ruta.fulfill({
+        status: 503,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ detail: 'Revise su conexión.' }),
+      }),
+    { times: 1 },
+  );
+  const fallida = page.waitForResponse(
+    (r) => r.url().includes('/api/disponibilidad?') && r.status() === 503,
+  );
   const entrada = page.getByLabel('Otra fecha, hasta 30 días', { exact: true });
   await entrada.fill('10/01/2026');
   await entrada.press('Tab');
+  const consultaFallida = await fallida;
+  await expect(page.getByRole('alert')).toContainText('Su servicio y profesional se conservan');
+  await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled();
+  await revisar(page, testInfo, 'reservar-error');
+  const reintento = page.waitForResponse(
+    (r) => r.url().includes('/api/disponibilidad?') && r.status() === 200,
+  );
+  await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
+  expect((await reintento).url()).toBe(consultaFallida.url());
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(
     page.getByRole('heading', { name: 'jueves, 1 de octubre', exact: true }),
   ).toBeVisible();
@@ -716,4 +742,52 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   expect(await huellaCsrf(segundaRespuesta)).not.toBe(primeraHuella);
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await comprobarSalida(page);
+});
+
+test('10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos', async ({
+  page,
+}, testInfo) => {
+  await ingresar(page, 'admin-e2e@ejemplo.test');
+  await page.goto('/reservar');
+  await expect(page.locator('mat-step-header')).toHaveCount(4);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reserva asistida');
+  const elegirServicio = page.getByRole('button', { name: 'Elegir servicio', exact: true });
+  await expect(elegirServicio).toBeDisabled();
+  await page
+    .getByLabel('Buscar cliente por nombre o correo', { exact: true })
+    .fill('Cliente E2E actualizado');
+  const cliente = page.getByRole('radio', { name: /Cliente E2E actualizado/ });
+  await cliente.check();
+  await expect(cliente).toBeChecked();
+  await revisar(page, testInfo, 'asistida-cliente');
+  if ((page.viewportSize()?.width ?? 1440) > 767) {
+    await expect(
+      page.getByRole('complementary', { name: 'Reserva en curso', exact: true }),
+    ).toContainText('Cliente E2E actualizado');
+  }
+  await elegirServicio.click();
+  await expect(page.locator('[data-paso="1"]')).toBeFocused();
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
+  await seleccionar(page, 'Profesional', 'Carlos');
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
+  await fechaFranja(page, '2026-10-03', '11:00');
+  await expect(page.locator('.resumen')).toContainText('Cliente E2E actualizado');
+  await expect(
+    page.getByRole('complementary', { name: 'Reserva en curso', exact: true }),
+  ).toHaveCount(0);
+  await revisar(page, testInfo, 'asistida-confirmacion');
+  const respuesta = page.waitForResponse(
+    (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
+  const creada = await respuesta;
+  expect(creada.status()).toBe(201);
+  const reserva = await creada.json();
+  expect(reserva.cliente.nombre).toBe('Cliente E2E actualizado');
+  await expect(page).toHaveURL(/\/agenda/);
+  await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-10-03');
+  await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+  await expect(page.getByRole('article', { name: reserva.codigo, exact: true })).toContainText(
+    'Cliente E2E actualizado',
+  );
 });
