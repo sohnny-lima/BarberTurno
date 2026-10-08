@@ -1,25 +1,36 @@
-<mat-form-field appearance="outline" style="width: 100%">
-  <mat-label>Buscar cliente por nombre o correo</mat-label>
+<label for="busqueda-cliente">Buscar cliente por nombre o correo</label>
+<mat-form-field appearance="outline">
   <input
     matInput
+    id="busqueda-cliente"
+    type="search"
     [formControl]="control"
-    [matAutocomplete]="opciones"
     [readonly]="deshabilitado()"
   />
-  <mat-autocomplete
-    #opciones="matAutocomplete"
-    [displayWith]="nombre"
-    (optionSelected)="seleccionar($event.option.value)"
-  >
-    @for (usuario of resultados(); track usuario.id) {
-      <mat-option [value]="usuario"
-        >{{ usuario.nombre }} · {{ usuario.correo }} ·
-        {{ usuario.activo ? 'Activo' : 'Inactivo' }}</mat-option
-      >
-    }
-  </mat-autocomplete>
   <mat-hint>Escriba para buscar y seleccione una cuenta registrada.</mat-hint>
 </mat-form-field>
+@if (resultados().length) {
+  <fieldset aria-label="Clientes encontrados">
+    <legend class="oculto">Clientes encontrados</legend>
+    @for (usuario of resultados(); track usuario.id) {
+      <label class="cliente">
+        <span class="iniciales" aria-hidden="true">{{ iniciales(usuario.nombre) }}</span>
+        <span class="identidad"
+          ><strong>{{ usuario.nombre }}</strong
+          ><small>{{ usuario.correo }}</small
+          ><small>{{ usuario.activo ? 'Activo' : 'Inactivo' }}</small></span
+        >
+        <input
+          type="radio"
+          name="cliente"
+          [checked]="seleccionVista()?.id === usuario.id"
+          [disabled]="deshabilitado()"
+          (change)="seleccionar(usuario)"
+        />
+      </label>
+    }
+  </fieldset>
+}
 @if (cargando()) {
   <p role="status">Buscando clientes…</p>
 }

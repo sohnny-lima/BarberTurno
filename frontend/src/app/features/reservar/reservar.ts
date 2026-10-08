@@ -14,7 +14,6 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -27,6 +26,10 @@ import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiemp
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { fechaPresentacion } from '../../shared/fecha-presentacion';
 import { SelectorCliente } from '../../shared/selector-cliente';
+import { TituloPagina } from '../../shared/titulo-pagina';
+import { ReservaOpciones } from './reserva-opciones';
+import { ReservaResumen } from './reserva-resumen';
+import { ReservaEsqueleto } from './reserva-esqueleto';
 import { ReservaStore } from './reserva.store';
 import { sumarDias } from '../../core/tiempo/semana-lima';
 
@@ -34,9 +37,11 @@ import { sumarDias } from '../../core/tiempo/semana-lima';
   selector: 'app-reservar',
   imports: [
     ReactiveFormsModule,
+    ReservaOpciones,
+    ReservaResumen,
+    ReservaEsqueleto,
     SelectorCliente,
     MatButtonModule,
-    MatCardModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
@@ -63,10 +68,32 @@ export class Reservar {
     { initialValue: false },
   );
 
-  readonly numeroPaso = computed(() => this.store.paso() + (this.store.asistida() ? 2 : 1));
-  readonly pasos = computed(() =>
-    Array.from({ length: this.store.asistida() ? 4 : 3 }, (_, i) => i + 1),
+  readonly titulo = computed(() =>
+    this.store.reserva()
+      ? 'Reprogramar cita'
+      : this.store.asistida()
+        ? 'Reserva asistida'
+        : this.store.paso() === 2
+          ? 'Revise su turno'
+          : 'Reservar un turno',
   );
+  readonly subtitulo = computed(() =>
+    this.store.asistida()
+      ? 'Reserve en nombre de un cliente registrado.'
+      : this.store.paso() === 2
+        ? 'Compruebe los datos antes de confirmar.'
+        : this.store.paso() === 1
+          ? 'Elija el día y la hora.'
+          : 'Elija servicio, día y hora. Pago presencial en la barbería.',
+  );
+  readonly fechaCompleta = (fecha: string) =>
+    new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(fecha + 'T12:00:00-05:00'));
   readonly dias = Array.from({ length: 7 }, (_, i) =>
     sumarDias(fechaCivil(this.limites.min), i),
   ).filter((dia) => dia <= fechaCivil(this.limites.max));
@@ -92,14 +119,10 @@ export class Reservar {
     this.store.elegirFecha(fecha);
     (evento.currentTarget as HTMLElement).scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }
-  iniciales(nombre: string) {
-    return nombre
-      .split(' ')
-      .map((parte) => parte[0])
-      .slice(0, 2)
-      .join('');
-  }
   constructor() {
+    const tituloPagina = inject(TituloPagina);
+    effect(() => tituloPagina.texto.set(this.titulo()));
+    this.destroyRef.onDestroy(() => tituloPagina.texto.set(null));
     const snackbar = inject(MatSnackBar);
     const elemento = inject<ElementRef<HTMLElement>>(ElementRef);
     // La primera presentación conserva el foco; una selección restaurada cambia este índice.
@@ -158,6 +181,10 @@ export class Reservar {
     const fecha = this.fechaControl.value;
     if (fecha && this.fechaControl.valid && !Number.isNaN(fecha.getTime()))
       this.store.elegirFecha(fechaCivil(fecha));
+  }
+  reintentar() {
+    this.store.mensaje.set('');
+    this.store.cargarFranjas();
   }
   avanzar() {
     this.store.irPaso(1);

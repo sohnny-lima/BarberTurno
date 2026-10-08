@@ -1,0 +1,81 @@
+@if (!store.reserva()) {
+  <picture class="foto">
+    <source media="(min-width: 768px)" srcset="/fotos/interior-vacio.webp" />
+    <img src="/fotos/tijeras-mesa-recorte.webp" alt="" width="1280" height="640" />
+  </picture>
+}
+<h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 1 : 0">Elija el servicio</h2>
+@if (store.reserva(); as reserva) {
+  <div class="servicio-fijo">
+    <h3>{{ reserva.servicio.nombre }}</h3>
+
+    <p>
+      {{ reserva.duracionMin }} minutos · S/ {{ reserva.precioRef.toFixed(2) }} · Pago presencial
+    </p>
+    <p>Se conservan el servicio, el precio y la duración de su cita.</p>
+  </div>
+} @else {
+  <fieldset class="servicios">
+    <legend class="oculto">Servicios disponibles</legend>
+    @for (servicio of store.servicios(); track servicio.id) {
+      <label
+        class="servicio"
+        [attr.data-servicio]="servicio.id"
+        [class.elegido]="store.servicioId() === servicio.id"
+      >
+        <span class="icono" aria-hidden="true">✂</span>
+        <span class="detalle"
+          ><strong>{{ servicio.nombre }}</strong
+          ><small>{{ servicio.duracionMin }} min</small
+          ><small>{{ servicio.descripcion }}</small></span
+        >
+        <strong class="precio">S/ {{ servicio.precio.toFixed(2) }}</strong>
+        <input
+          type="radio"
+          name="servicio"
+          [attr.aria-label]="servicio.nombre"
+          [checked]="store.servicioId() === servicio.id"
+          [disabled]="store.enviando()"
+          (change)="store.elegirServicio(servicio.id)"
+        />
+      </label>
+    } @empty {
+      @if (!store.cargando()) {
+        <p role="status">No hay servicios activos disponibles.</p>
+      }
+    }
+  </fieldset>
+}
+<fieldset class="profesionales">
+  <legend>Elija un profesional</legend>
+  <label class="profesional" [class.elegido]="store.preferencia() === null">
+    <span class="iniciales" aria-hidden="true">♧</span>
+    <input
+      type="radio"
+      name="profesional"
+      data-profesional="sin-preferencia"
+      [checked]="store.preferencia() === null"
+      [disabled]="store.enviando()"
+      (change)="store.elegirPreferencia(null)"
+    />
+    <span><strong>Sin preferencia</strong><small>Vea las horas de todos</small></span>
+  </label>
+  @for (barbero of store.barberos(); track barbero.id) {
+    <label class="profesional" [class.elegido]="store.preferencia() === barbero.id">
+      <input
+        type="radio"
+        name="profesional"
+        [attr.data-profesional]="barbero.id"
+        [checked]="store.preferencia() === barbero.id"
+        [disabled]="store.enviando()"
+        (change)="store.elegirPreferencia(barbero.id)"
+      />
+      <span class="iniciales" aria-hidden="true">{{ iniciales(barbero.nombre) }}</span>
+      <span
+        ><strong>{{ barbero.nombre }}</strong
+        ><small>{{ barbero.especialidad }}</small></span
+      >
+    </label>
+  }
+</fieldset>
+<p class="ayuda">Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.</p>

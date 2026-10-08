@@ -115,7 +115,7 @@ async function huellaCsrf(respuesta: Response) {
 
 async function fechaFranja(page: Page, fecha: string, hora: string) {
   // NativeDateAdapter usa los campos civiles locales del calendario, incluso en Madrid.
-  const entrada = page.getByLabel('Otra fecha (Lima)', { exact: true });
+  const entrada = page.getByLabel('Otra fecha, hasta 30 días', { exact: true });
   const [ano, mes, dia] = fecha.split('-');
   await entrada.fill(`${mes}/${dia}/${ano}`);
   await entrada.press('Tab');
@@ -131,7 +131,7 @@ async function fechaFranja(page: Page, fecha: string, hora: string) {
 
 async function prepararReserva(page: Page, fecha: string, hora: string) {
   await page.goto('/reservar');
-  await page.getByRole('button', { name: /Corte clásico/ }).click();
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
   await seleccionar(page, 'Profesional', 'Carlos');
   await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
   await fechaFranja(page, fecha, hora);
@@ -201,14 +201,20 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   const inicio = Date.now();
   await page.goto('/reservar');
   await expect(page.locator('mat-step-header')).toHaveCount(3);
-  await page.getByRole('button', { name: /Corte clásico/ }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+  if ((page.viewportSize()?.width ?? 1440) <= 767) {
+    await expect(page.locator('h1')).toHaveCSS('clip-path', 'inset(50%)');
+    await expect(page.locator('.titulo-pagina')).toHaveText('Reservar un turno');
+    await expect(page.locator('.titulo-pagina')).not.toHaveAttribute('role', 'heading');
+  }
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
   await seleccionar(page, 'Profesional', 'Carlos');
   await revisar(page, testInfo, 'reservar-servicio');
   const avanzar = page.getByRole('button', { name: 'Elegir fecha y hora' });
   await avanzar.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-paso="1"]')).toBeFocused();
-  const entrada = page.getByLabel('Otra fecha (Lima)', { exact: true });
+  const entrada = page.getByLabel('Otra fecha, hasta 30 días', { exact: true });
   await entrada.fill('10/01/2026');
   await entrada.press('Tab');
   await expect(
@@ -261,6 +267,9 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   }
   await page.getByRole('button', { name: 'Elegir fecha y hora' }).click();
   await fechaFranja(page, '2026-10-01', '12:00');
+  await expect(page.locator('del')).toContainText('Horario anterior, se reemplaza:');
+  await expect(page.locator('del')).toContainText('11:00');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reprogramar cita');
   await page.getByRole('button', { name: 'Confirmar reprogramación' }).click();
   await expect(page).toHaveURL(/\/mis-citas/);
   tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: creada.codigo });

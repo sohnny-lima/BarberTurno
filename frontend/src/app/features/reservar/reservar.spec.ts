@@ -11,6 +11,7 @@ import { SesionService } from '../../core/auth/sesion-service';
 import { fechaCivil } from '../../core/tiempo/fecha-datepicker';
 import { fechaHoyLima } from '../../core/tiempo/instante-lima';
 import { Reservar } from './reservar';
+import { TituloPagina } from '../../shared/titulo-pagina';
 
 describe('Vista de reserva guiada', () => {
   let http: HttpTestingController;
@@ -282,4 +283,104 @@ describe('Vista de reserva guiada', () => {
       expect(stepper.selectedIndex).toBe(0);
     },
   );
+  it.each([false, true])(
+    'conserva un único h1 accesible y sincroniza la barra, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar();
+      await f.whenStable();
+      expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+      expect(f.nativeElement.querySelector('h1').classList.contains('oculto')).toBe(esMovil);
+      expect(TestBed.inject(TituloPagina).texto()).toBe('Reservar un turno');
+      seleccionar(f);
+      await f.whenStable();
+      expect(TestBed.inject(TituloPagina).texto()).toBe('Revise su turno');
+      expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+      expect(f.nativeElement.querySelector('app-reserva-resumen')).toBeNull();
+      f.destroy();
+      expect(TestBed.inject(TituloPagina).texto()).toBeNull();
+    },
+  );
+  it('el anónimo móvil conserva visible el h1 porque la barra muestra la marca', () => {
+    movil = true;
+    const f = preparar('');
+    expect(f.nativeElement.querySelector('h1').classList.contains('oculto')).toBe(false);
+  });
+  it('reintenta disponibilidad conservando servicio, profesional y fecha', async () => {
+    const f = preparar();
+    const store = f.componentInstance.store;
+    store.elegirServicio(1);
+    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    store.elegirPreferencia(3);
+    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    store.elegirFecha(fechaHoyLima(1));
+    http
+      .expectOne((r) => r.url === '/api/disponibilidad')
+      .flush({ detail: 'Sin conexión.' }, { status: 503, statusText: 'Service Unavailable' });
+    f.detectChanges();
+    await f.whenStable();
+    expect(f.nativeElement.querySelector('[role=alert]').textContent).toContain(
+      'Su servicio y profesional se conservan',
+    );
+    expect(f.nativeElement.textContent).not.toContain('No hay horas libres este día.');
+    const boton = [...f.nativeElement.querySelectorAll('button')].find(
+      (b: HTMLButtonElement) => b.textContent?.trim() === 'Reintentar',
+    ) as HTMLButtonElement;
+    boton.click();
+    const peticion = http.expectOne((r) => r.url === '/api/disponibilidad');
+    expect(peticion.request.params.get('servicioId')).toBe('1');
+    expect(peticion.request.params.get('barberoId')).toBe('3');
+    expect(peticion.request.params.get('fecha')).toBe(fechaHoyLima(1));
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('app-reserva-esqueleto')).not.toBeNull();
+    peticion.flush({ franjas: [] });
+    f.detectChanges();
+    expect(store.servicioId()).toBe(1);
+    expect(store.preferencia()).toBe(3);
+    expect(store.mensaje()).toBe('');
+    expect(f.nativeElement.textContent).toContain('No hay horas libres este día.');
+  });
+  it('marca el horario anterior con del y conserva las referencias al reprogramar', async () => {
+    const f = preparar();
+    seleccionar(f);
+    f.componentInstance.store.reserva.set({
+      id: 7,
+      codigo: 'BT-7',
+      cliente: { id: 1, nombre: 'Ficticio' },
+      servicio: { id: 1, nombre: 'Corte original' },
+      barbero: { id: 2, nombre: 'Ficticio A' },
+      inicio: '2026-10-09T09:00:00-05:00',
+      fin: '2026-10-09T09:40:00-05:00',
+      duracionMin: 40,
+      precioRef: 22,
+      estado: 'CONFIRMADA',
+      version: 4,
+      permisos: { reprogramar: true, cancelar: true, transiciones: [] },
+    });
+    f.detectChanges();
+    await f.whenStable();
+    const anterior = f.nativeElement.querySelector('del');
+    expect(anterior.textContent).toContain('Horario anterior, se reemplaza:');
+    expect(anterior.textContent).toContain('09:00 con Ficticio A');
+    expect(anterior.querySelector('.oculto')).not.toBeNull();
+    expect(f.nativeElement.querySelector('.resumen').textContent).toContain('40 minutos');
+    expect(f.nativeElement.querySelector('.resumen').textContent).toContain('S/ 22.00');
+    expect(f.nativeElement.querySelector('h1').textContent).toBe('Reprogramar cita');
+    expect(f.nativeElement.textContent).toContain(
+      'Se conservan el servicio, el precio y la duración',
+    );
+  });
+  it('los días incluyen el año y las fotos decorativas usan recursos locales', () => {
+    const f = preparar();
+    expect(f.nativeElement.querySelector('[data-dia]').getAttribute('aria-label')).toContain(
+      fechaHoyLima().slice(0, 4),
+    );
+    const foto = f.nativeElement.querySelector('picture img');
+    expect(foto.getAttribute('alt')).toBe('');
+    expect(foto.getAttribute('src')).toBe('/fotos/tijeras-mesa-recorte.webp');
+    expect(foto.hasAttribute('loading')).toBe(false);
+    expect(f.nativeElement.querySelector('picture source').getAttribute('srcset')).toBe(
+      '/fotos/interior-vacio.webp',
+    );
+  });
 });

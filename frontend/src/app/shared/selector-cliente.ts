@@ -9,7 +9,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { catchError, EMPTY, finalize, switchMap, timer } from 'rxjs';
@@ -19,8 +18,9 @@ import { mostrarErrores } from './formulario';
 /** Búsqueda de presentación; el servidor valida rol, estado y disponibilidad al reservar. */
 @Component({
   selector: 'app-selector-cliente',
-  imports: [ReactiveFormsModule, MatAutocompleteModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule],
   templateUrl: './selector-cliente.html',
+  styleUrl: './selector-cliente.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SelectorCliente {
@@ -33,6 +33,7 @@ export class SelectorCliente {
   readonly cargando = signal(false);
   readonly mensaje = signal('');
   readonly total = signal(0);
+  readonly seleccionVista = signal<UsuarioAdminDto | null>(null);
   readonly nombre = (usuario: UsuarioAdminDto | string | null) =>
     typeof usuario === 'string' ? usuario : (usuario?.nombre ?? '');
   constructor() {
@@ -43,6 +44,7 @@ export class SelectorCliente {
           this.total.set(0);
           this.mensaje.set('');
           if (typeof valor !== 'string') return EMPTY;
+          this.seleccionVista.set(null);
           this.elegido.emit(null);
           if (!valor.trim()) return EMPTY;
           return timer(250).pipe(
@@ -68,7 +70,17 @@ export class SelectorCliente {
         if (!pagina.totalElementos) this.mensaje.set('No se encontraron clientes.');
       });
   }
+  iniciales(nombre: string) {
+    return nombre
+      .split(' ')
+      .map((parte) => parte[0])
+      .slice(0, 2)
+      .join('');
+  }
   seleccionar(usuario: UsuarioAdminDto) {
-    if (!this.deshabilitado()) this.elegido.emit(usuario);
+    if (!this.deshabilitado()) {
+      this.seleccionVista.set(usuario);
+      this.elegido.emit(usuario);
+    }
   }
 }

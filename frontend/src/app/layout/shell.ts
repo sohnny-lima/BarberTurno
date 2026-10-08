@@ -22,6 +22,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, finalize, map } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 
+import { TituloPagina } from '../shared/titulo-pagina';
 import { AvisosService } from '../core/notificaciones/avisos-service';
 
 const CUENTA = { ruta: '/perfil', texto: 'Mi cuenta' };
@@ -83,7 +84,9 @@ export class Shell {
   readonly tieneBarraInferior = computed(
     () => this.movil() && this.navegacionCompleta() && this.sesion.rol() !== 'ADMIN',
   );
+  private readonly tituloVista = inject(TituloPagina);
   readonly tituloPagina = computed(() => {
+    if (this.tituloVista.texto()) return this.tituloVista.texto()!;
     const ruta = this.ruta().split('?')[0];
     if (ruta === '/reservar')
       return this.sesion.rol() === 'ADMIN' ? 'Reserva asistida' : 'Reservar un turno';

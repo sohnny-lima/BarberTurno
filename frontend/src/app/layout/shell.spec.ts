@@ -13,6 +13,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 import { Rol } from '../core/modelos/identidad';
 import { Shell } from './shell';
+import { TituloPagina } from '../shared/titulo-pagina';
 import { AvisosDialogo } from './avisos-dialogo';
 
 describe('Shell adaptable', () => {
@@ -274,6 +275,18 @@ describe('Shell adaptable', () => {
     await fixture.whenStable();
     expect(menu.opened).toBe(false);
     expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
+  });
+  it('la barra adopta el título de la vista sin añadir otro encabezado', () => {
+    entrar('CLIENTE');
+    movil.next({ matches: true });
+    const f = TestBed.createComponent(Shell);
+    TestBed.inject(TituloPagina).texto.set('Reprogramar cita');
+    f.detectChanges();
+    const titulo = f.nativeElement.querySelector('.titulo-pagina');
+    expect(titulo.textContent).toBe('Reprogramar cita');
+    expect(titulo.tagName).toBe('SPAN');
+    expect(titulo.hasAttribute('role')).toBe(false);
+    expect(f.nativeElement.querySelector('h1')).toBeNull();
   });
 });
 
