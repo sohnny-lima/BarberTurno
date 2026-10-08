@@ -19,6 +19,10 @@
 .filtros > mat-form-field {
   width: 180px;
 }
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}
 .segmento {
   padding: 4px;
   background: var(--color-superficie);

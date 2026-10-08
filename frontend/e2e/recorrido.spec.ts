@@ -855,8 +855,8 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   if ((page.viewportSize()?.width ?? 1440) <= 767) {
     // La navegación debe cerrar el cajón y llevar el foco a la pantalla destino.
     await expect(page.locator('mat-sidenav')).toBeHidden();
-    await expect(page.locator('main')).toBeFocused();
   }
+  await expect(page.locator('main')).toBeFocused();
   // Desde aquí no hay goto ni reload: el formulario es el que abrió la SPA al salir.
   await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
   await page.getByLabel('Contraseña', { exact: true }).evaluate((elemento, valor) => {
@@ -871,6 +871,19 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
   expect(segundaRespuesta.status()).toBe(200);
   expect(await huellaCsrf(segundaRespuesta)).not.toBe(primeraHuella);
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
+  await expect(page.locator('main')).toBeFocused();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const activo = document.activeElement;
+          return (
+            !!activo?.isConnected && activo !== document.body && activo !== document.documentElement
+          );
+        }),
+      { message: 'El reingreso sin recargar conserva un destino de foco válido.' },
+    )
+    .toBe(true);
   await comprobarSalida(page);
 });
 

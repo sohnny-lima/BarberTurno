@@ -15,6 +15,10 @@
 button {
   min-height: 44px;
 }
+[mat-menu-item]:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}
 @media (max-width: 1199.98px) {
   .principal {
     flex: 1;

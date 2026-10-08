@@ -142,8 +142,7 @@ export class Shell {
       )
       .subscribe(() => {
         const menu = this.menu();
-        if (!this.movil()) return;
-        if (!menu?.opened) {
+        if (!this.movil() || !menu?.opened) {
           this.contenido()?.nativeElement.focus();
           return;
         }

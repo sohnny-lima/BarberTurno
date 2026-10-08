@@ -2,6 +2,10 @@
 :host {
   display: block;
 }
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}
 .distribucion {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
