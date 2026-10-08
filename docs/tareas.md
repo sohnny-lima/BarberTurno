@@ -89,6 +89,7 @@
 | T-51 | Lectura de avisos del BARBERO desde el contador de la cabecera (RF-16, CP-18, C-14, DA-25) | M | T-25, T-27, T-50 | En curso (revisión del responsable pendiente) | 06/10/2026 | bd523f3, 5db0622, 56d9b6c, df495ad, 8960c13, 1903dd0, 7db5333, 8ba820d, bd92e13; sin merge |
 | T-52 | Comprobación conjunta de T-48 y T-51 en una rama de integración (cabecera compartida) | M | T-48, T-51 | Hecha | 06/10/2026 | inicio `f70e9a4e0379cd1bab48a9fe194a08c8bfb2037e`; merge T-48 `98f4f1552ebb5f4739730ebd3ae545bb07dc6761`; merge T-51 `75da41f376f7ba75bf47d307d8b48d8fd64a4beb`; `9e3c0c2a13e78381a717e73772e443e2501fc4c8`, `e5fcfbe0d7fc8d9a09de4a3fc4b797a9170e18f4`, `6da0bcf6edd9a158eab36e7341b16ef683de2681`, `6e93cc3bd7ff414ca4ab52f31a99577efe01e8b7`; único cierre docs por asunto (evidencia) |
 | T-54 | Integración final de T-52 (T-48 + T-51) y T-49 en una rama revisable | M | T-52, T-49 | Hecha | 06/10/2026 | inicio `99d6da4`; `d48971b`; merge T-52 `0f6881722f6148792160a2e230bd273b35469e7d`; merge T-49 `689abf5de21bc423753ae6d83b379165113bf4c2`; `a39bff3779f7c341d6789e1be38c45ed9944e0cc`; cierre 060 `5dd21ea69852e97bf6acedacd0b62cbc08a17312`; corrección 060b `8c8547de13c3a7741634d2950ff154030f80c0b1`; cierre test(e2e) por asunto (evidencia) |
+| T-55 | Dirección visual «verde» de la fase 1: tema, navegación por rol, Reservar, Mis citas y Agenda (MJ-20, DA-27) | S | T-54 | En curso | 08/10/2026 | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -432,6 +433,19 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** rama `tarea/T-54-integracion-t52-t49` desde `main` con `merge --no-ff` de T-52 y después de T-49; resolución de conflictos conservando las comprobaciones de interfaz y aislamiento de avisos y las regresiones CSRF. **No se integra en `main`.**
 - **Criterios de aceptación:** todas las pruebas de las tres ramas pasan juntas; caso de reingreso sin recargar en Chromium y Firefox a 1440 y 360 px; axe sin violaciones; presupuesto sin elevar.
 - **Pruebas:** `mvnw verify`, lint, formato, Vitest (Lima y Madrid), build, E2E y capturas, ejecutados de forma secuencial.
+- **Prioridad:** M.
+
+### T-55 · Dirección visual «verde» de la fase 1
+- **Origen:** aprobación del responsable (08/10/2026) de la propuesta revisada (), con Figtree y tres fotografías ilustrativas locales.
+- **Alcance:** rama  desde T-54 (, que se conserva como referencia); solo capa visual y navegación del frontend según . Sin backend, contratos, permisos, reglas ni pantallas de la fase 2. **No se integra en  ni se hace push.**
+- **Subtareas (un implementador, Codex; encargos secuenciales):**
+  - **T-55.1** Tema y tipografía (Figtree, tokens, , retirada de las fuentes de T-48) y shell por rol (barra superior, barra inferior CLIENTE/BARBERO, cajón ADMIN con cierre visible, menú de cuenta con Salir, Salir con contraseña temporal, campana del CLIENTE con diálogo, menú lateral claro), diálogo de avisos.
+  - **T-55.2** Reservar: pasos 1–3, reprogramación, reserva asistida, estados de carga, error y vacío, fotos.
+  - **T-55.3** Mis citas: tique, tarjetas compactas, filtros, estado vacío, panel de avisos incrustado y paginador condicional.
+  - **T-55.4** Agenda: día y semana, tabla desde 1200 px, «Más acciones», filtro del ADMIN, estados, diálogo de reprogramación.
+  - **T-55.5** Verificación final completa y capturas comparadas con la propuesta.
+- **Criterios de aceptación:** pantallas y estados de  §5 a 360 y 1440 px; todas las funciones, permisos, validaciones y correcciones de T-54 (CSRF, avisos, foco) intactas; teclado y foco correctos; axe sin violaciones; sin desplazamiento horizontal; presupuesto sin elevar.
+- **Pruebas:** lint, formato, Vitest (Lima y Madrid), build de producción, E2E y capturas en Chromium y Firefox a 360 y 1440 px (selectores adaptados a «Más acciones», barra inferior y menú de cuenta sin quitar comprobaciones), casos 05, 08 y 09; suites con  de una en una.
 - **Prioridad:** M.
 
 ---

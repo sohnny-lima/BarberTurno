@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diálogo de avisos del cliente, móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5;position:relative;overflow:hidden}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.muted{color:#5B6B65}
+.barra{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 16px;background:#fff;border-bottom:1px solid #E1E7E4}
+.barra h1{flex:1;font-size:20px;line-height:28px;font-weight:700}
+.icono{width:44px;height:44px;flex:0 0 44px;border-radius:12px;border:0;background:transparent;color:#17221E;display:inline-grid;place-items:center;cursor:pointer;position:relative}
+.insignia{position:absolute;top:3px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#145C43;color:#fff;font:700 11px/18px Figtree,sans-serif;box-shadow:0 0 0 2px #fff}
+.cuenta{width:44px;height:44px;flex:0 0 44px;border-radius:999px;border:0;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;cursor:pointer}
+.btn{min-height:48px;border-radius:12px;font:600 16px/1.2 Figtree,sans-serif;padding:0 20px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn-secundario{background:#fff;color:#145C43;border-color:#C9D6D0}
+.btn-texto{background:transparent;color:#145C43;min-height:44px;padding:0 8px;font-size:15px}
+.velo{position:absolute;inset:0;background:rgba(23,34,30,0.5)}
+.dialogo{position:absolute;left:12px;right:12px;top:72px;bottom:24px;background:#fff;border-radius:20px;display:flex;flex-direction:column;box-shadow:0 18px 48px rgba(14,40,31,0.28)}
+.aviso{display:flex;flex-direction:column;gap:2px;padding:14px 0;border-top:1px solid #EEF2F0}
+.estado{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font:600 13px/1 Figtree,sans-serif;white-space:nowrap}
+.e-confirmada{background:#E3F1EA;color:#0F4D37}
+</style>
+</helmet>
+<div class="bt" style="width: 360px; height: 780px; display: flex; flex-direction: column">
+  <header class="barra" aria-hidden="true">
+    <h1>Mis citas</h1>
+    <button class="icono" type="button" tabindex="-1" aria-label="Avisos: 3 sin leer">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+      <span class="insignia" aria-hidden="true">3</span>
+    </button>
+    <button class="cuenta" type="button" tabindex="-1">RQ</button>
+  </header>
+  <div aria-hidden="true" style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+    <div style="height: 52px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E1E7E4"></div>
+    <div style="height: 220px; border-radius: 16px; background: #145C43"></div>
+    <div style="height: 150px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E1E7E4"></div>
+  </div>
+
+  <div class="velo" aria-hidden="true"></div>
+  <section class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-avisos">
+    <div style="padding: 20px 20px 8px; display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <h2 id="titulo-avisos" style="font-size: 20px; font-weight: 700">Avisos</h2>
+        <span class="estado e-confirmada">3 sin leer</span>
+      </div>
+      <p class="muted" style="font-size: 14px">Del más reciente al más antiguo.</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-left: -8px">
+        <button class="btn btn-texto" type="button">Marcar todos como leídos</button>
+        <button class="btn btn-texto" type="button">Actualizar</button>
+      </div>
+    </div>
+    <div style="flex: 1; overflow: auto; padding: 0 20px">
+      <div class="aviso">
+        <p style="font-size: 13px; font-weight: 600"><span style="color: #145C43">Nuevo</span> <span class="muted">28/09/2026, 09:00</span></p>
+        <p style="font-size: 15px">Su reserva BT-105 del sábado 3 de octubre quedó registrada y espera confirmación.</p>
+        <button class="btn btn-texto" type="button" style="align-self: flex-start; margin-left: -8px" aria-label="Marcar como leído el aviso de BT-105">Marcar como leído</button>
+      </div>
+      <div class="aviso">
+        <p style="font-size: 13px; font-weight: 600"><span style="color: #145C43">Nuevo</span> <span class="muted">27/09/2026, 18:40</span></p>
+        <p style="font-size: 15px">Carlos confirmó su reserva BT-103 del lunes 28 de setiembre a las 10:00.</p>
+        <button class="btn btn-texto" type="button" style="align-self: flex-start; margin-left: -8px" aria-label="Marcar como leído el aviso de BT-103">Marcar como leído</button>
+      </div>
+      <div class="aviso">
+        <p style="font-size: 13px; font-weight: 600"><span style="color: #145C43">Nuevo</span> <span class="muted">26/09/2026, 12:15</span></p>
+        <p style="font-size: 15px">Su reserva BT-100 se reprogramó para el jueves 1 de octubre a las 10:00.</p>
+        <button class="btn btn-texto" type="button" style="align-self: flex-start; margin-left: -8px" aria-label="Marcar como leído el aviso de BT-100">Marcar como leído</button>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; padding: 12px 16px 16px; border-top: 1px solid #EEF2F0">
+      <button class="btn btn-secundario" type="button" autofocus="">Cerrar</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

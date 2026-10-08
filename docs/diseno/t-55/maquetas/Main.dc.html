@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reservar, paso 2, móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.icono{width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#17221E;display:inline-grid;place-items:center;cursor:pointer;position:relative}
+.insignia{position:absolute;top:3px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#145C43;color:#fff;font:700 11px/18px Figtree,sans-serif;box-shadow:0 0 0 2px #fff}
+.cuenta{width:44px;height:44px;flex:0 0 44px;border-radius:999px;border:0;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;cursor:pointer}
+.btn[disabled]{background:#E7ECEA;color:#5B6B65;border-color:#E7ECEA;cursor:not-allowed}
+.tarjeta{background:#fff;border:1px solid #E1E7E4;border-radius:16px}
+.btn{min-height:48px;border-radius:12px;font:600 16px/1 Figtree,sans-serif;padding:0 20px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none}
+.btn-primario{background:#145C43;color:#fff}
+.btn-texto{background:transparent;color:#145C43;min-height:44px;padding:0 8px}
+.paso{display:flex;flex-direction:column;align-items:center;gap:6px;font:600 12.5px/1.2 Figtree,sans-serif;color:#5B6B65;flex:1}
+.paso span{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;border:1.5px solid #C9D6D0;background:#fff;color:#5B6B65;font:700 14px Figtree,sans-serif}
+.paso.hecho span{background:#E3F1EA;border-color:#E3F1EA;color:#145C43}
+.paso.actual{color:#145C43}
+.paso.actual span{background:#145C43;border-color:#145C43;color:#fff}
+.dia{flex:0 0 58px;height:72px;border-radius:14px;border:1px solid #C9D6D0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-family:Figtree,sans-serif;color:#17221E}
+.dia small{font:500 13px Figtree,sans-serif;color:#5B6B65}
+.dia strong{font:700 20px/1 Figtree,sans-serif}
+.dia[aria-pressed="true"]{background:#145C43;border-color:#145C43;color:#fff}
+.dia[aria-pressed="true"] small{color:#D7EBE1}
+.franjas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.franja{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;border-radius:12px;border:1px solid #C9D6D0;background:#fff;font:600 16px Figtree,sans-serif;color:#17221E;cursor:pointer}
+.franja[aria-pressed="true"]{background:#145C43;border-color:#145C43;color:#fff}
+.franja small{font:500 12.5px Figtree,sans-serif;color:#5B6B65}
+.franja[aria-pressed="true"] small{color:#D7EBE1}
+.avatar{width:44px;height:44px;flex:0 0 44px;border-radius:999px;background:#E3F1EA;color:#145C43;font:700 15px Figtree,sans-serif;display:grid;place-items:center}
+.muted{color:#5B6B65}
+</style>
+</helmet>
+<div class="bt" style="width: 360px; height: 1370px; display: flex; flex-direction: column">
+  <header style="display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 4px; background: #FFFFFF; border-bottom: 1px solid #E1E7E4">
+    <button class="icono" type="button" aria-label="Volver a servicio y profesional">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </button>
+    <h1 style="font-size: 20px; font-weight: 700; line-height: 28px; flex: 1">Reservar un turno</h1>
+    <button class="icono" type="button" aria-label="Avisos: 3 sin leer">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+      <span class="insignia" aria-hidden="true">3</span>
+    </button>
+    <button class="cuenta" type="button" aria-label="Cuenta de Rosa Quispe: Mi cuenta y Salir" aria-haspopup="menu">RQ</button>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-direction: column; gap: 24px; padding: 20px 16px 24px">
+    <ol aria-label="Pasos de la reserva" style="display: flex; list-style: none; margin: 0; padding: 0; gap: 4px">
+      <li class="paso hecho"><span aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>
+      </span>Servicio</li>
+      <li class="paso actual" aria-current="step"><span>2</span>Fecha y hora</li>
+      <li class="paso"><span>3</span>Confirmar</li>
+    </ol>
+
+    <section class="tarjeta" aria-label="Su selección" style="display: flex; align-items: center; gap: 12px; padding: 12px 8px 12px 14px">
+      <div class="avatar" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="3"></circle><circle cx="6" cy="17" r="3"></circle><path d="M8.5 8.5L20 18M8.5 15.5L20 6"></path></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <p style="font-weight: 700">Corte clásico</p>
+        <p class="muted" style="font-size: 14px">30 min · S/ 25.00</p>
+        <p class="muted" style="font-size: 14px">Profesional: sin preferencia</p>
+      </div>
+      <button class="btn btn-texto" type="button" style="font-size: 15px">Cambiar</button>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: baseline; justify-content: space-between">
+        <h2 tabindex="-1" style="font-size: 18px; font-weight: 700">Elija el día</h2>
+        <p class="muted" style="font-size: 14px">setiembre 2026</p>
+      </div>
+      <div role="group" aria-label="Días disponibles" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-right: -16px; padding-right: 16px">
+        <button class="dia" type="button" aria-pressed="true" aria-label="lunes, 28 de setiembre de 2026 (hoy)"><small>hoy</small><strong>28</strong></button>
+        <button class="dia" type="button" aria-pressed="false" aria-label="martes, 29 de setiembre de 2026"><small>mar</small><strong>29</strong></button>
+        <button class="dia" type="button" aria-pressed="false" aria-label="miércoles, 30 de setiembre de 2026"><small>mié</small><strong>30</strong></button>
+        <button class="dia" type="button" aria-pressed="false" aria-label="jueves, 1 de octubre de 2026"><small>jue</small><strong>1</strong></button>
+        <button class="dia" type="button" aria-pressed="false" aria-label="viernes, 2 de octubre de 2026"><small>vie</small><strong>2</strong></button>
+        <button class="dia" type="button" aria-pressed="false" aria-label="sábado, 3 de octubre de 2026"><small>sáb</small><strong>3</strong></button>
+      </div>
+      <button class="btn btn-texto" type="button" style="align-self: flex-start; font-size: 15px; padding-left: 0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg>
+        Otra fecha, hasta 30 días
+      </button>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 style="font-size: 18px; font-weight: 700">lunes, 28 de setiembre</h2>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <h3 class="muted" style="font-size: 14px; font-weight: 600">Mañana</h3>
+        <div class="franjas" role="group" aria-label="Horas de la mañana">
+          <button class="franja" type="button" aria-pressed="false"><span>10:20</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>10:30</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>10:40</span><small>Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>10:50</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="true"><span>11:00</span><small>Carlos</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>11:10</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>11:20</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>11:30</span><small>Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>11:50</span><small>Carlos, Miguel</small></button>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <h3 class="muted" style="font-size: 14px; font-weight: 600">Tarde</h3>
+        <div class="franjas" role="group" aria-label="Horas de la tarde">
+          <button class="franja" type="button" aria-pressed="false"><span>12:00</span><small>Carlos</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>12:10</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>12:20</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>12:30</span><small>Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>14:00</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>14:10</span><small>Carlos</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>14:20</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>14:30</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>14:40</span><small>Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>14:50</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>15:00</span><small>Carlos</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>15:10</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>15:20</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>15:30</span><small>Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>15:40</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>16:00</span><small>Carlos</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>16:30</span><small>Carlos, Miguel</small></button>
+          <button class="franja" type="button" aria-pressed="false"><span>17:00</span><small>Carlos, Miguel</small></button>
+        </div>
+      </div>
+      <p class="muted" style="font-size: 14px">Todas las horas corresponden a Lima.</p>
+    </section>
+  </main>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px; background: #FFFFFF; border-top: 1px solid #E1E7E4">
+    <p style="font-size: 14px"><strong>lunes 28, 11:00 a 11:30</strong> <span class="muted">· Corte clásico</span></p>
+    <button class="btn btn-primario" type="button" style="width: 100%">Siguiente</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":1370}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

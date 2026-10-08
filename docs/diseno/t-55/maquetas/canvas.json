@@ -1,0 +1,246 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-08T03:30:00Z"
+  },
+  "title": "BarberTurno · dirección verde",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Reservar360Paso1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 360,
+      "h": 974,
+      "title": "Reservar · paso 1 · 360"
+    },
+    "Main.dc.html": {
+      "x": 440,
+      "y": 0,
+      "w": 360,
+      "h": 1370,
+      "title": "Reservar · paso 2 · 360"
+    },
+    "Reservar360Paso3.dc.html": {
+      "x": 880,
+      "y": 0,
+      "w": 360,
+      "h": 760,
+      "title": "Reservar · paso 3 · 360"
+    },
+    "Reprogramar360.dc.html": {
+      "x": 1320,
+      "y": 0,
+      "w": 360,
+      "h": 760,
+      "title": "Reprogramar · paso 3 · 360"
+    },
+    "Reservar360Error.dc.html": {
+      "x": 1760,
+      "y": 0,
+      "w": 360,
+      "h": 760,
+      "title": "Error al cargar horas · 360"
+    },
+    "MisCitas360.dc.html": {
+      "x": 0,
+      "y": 1790,
+      "w": 360,
+      "h": 917,
+      "title": "Mis citas · 360"
+    },
+    "MisCitas360Vacio.dc.html": {
+      "x": 440,
+      "y": 1790,
+      "w": 360,
+      "h": 760,
+      "title": "Mis citas vacía · 360"
+    },
+    "Avisos360.dc.html": {
+      "x": 880,
+      "y": 1790,
+      "w": 360,
+      "h": 780,
+      "title": "Avisos del cliente · 360"
+    },
+    "Cuenta360.dc.html": {
+      "x": 1320,
+      "y": 1790,
+      "w": 360,
+      "h": 780,
+      "title": "Menú de cuenta y Salir · 360"
+    },
+    "Restringido360.dc.html": {
+      "x": 1760,
+      "y": 1790,
+      "w": 360,
+      "h": 760,
+      "title": "Contraseña temporal · 360"
+    },
+    "Agenda360.dc.html": {
+      "x": 0,
+      "y": 3127,
+      "w": 360,
+      "h": 1039,
+      "title": "Agenda día · barbero · 360"
+    },
+    "AgendaSemana360.dc.html": {
+      "x": 440,
+      "y": 3127,
+      "w": 360,
+      "h": 893,
+      "title": "Agenda semana · barbero · 360"
+    },
+    "Agenda360Carga.dc.html": {
+      "x": 880,
+      "y": 3127,
+      "w": 360,
+      "h": 760,
+      "title": "Agenda cargando · 360"
+    },
+    "AgendaAdmin360.dc.html": {
+      "x": 1320,
+      "y": 3127,
+      "w": 360,
+      "h": 924,
+      "title": "Agenda · administrador · 360"
+    },
+    "MenuAdmin360.dc.html": {
+      "x": 1760,
+      "y": 3127,
+      "w": 360,
+      "h": 780,
+      "title": "Menú del administrador · 360"
+    },
+    "Asistida360.dc.html": {
+      "x": 2200,
+      "y": 3127,
+      "w": 360,
+      "h": 760,
+      "title": "Reserva asistida · cliente · 360"
+    },
+    "Reservar1440Paso1.dc.html": {
+      "x": 0,
+      "y": 4586,
+      "w": 1440,
+      "h": 820,
+      "title": "Reservar · paso 1 · 1440"
+    },
+    "Reservar1440.dc.html": {
+      "x": 1520,
+      "y": 4586,
+      "w": 1440,
+      "h": 892,
+      "title": "Reservar · paso 2 · 1440"
+    },
+    "Reservar1440Paso3.dc.html": {
+      "x": 3040,
+      "y": 4586,
+      "w": 1440,
+      "h": 820,
+      "title": "Reservar · paso 3 · 1440"
+    },
+    "Asistida1440.dc.html": {
+      "x": 4560,
+      "y": 4586,
+      "w": 1440,
+      "h": 820,
+      "title": "Reserva asistida · cliente · 1440"
+    },
+    "MisCitas1440.dc.html": {
+      "x": 0,
+      "y": 5898,
+      "w": 1440,
+      "h": 820,
+      "title": "Mis citas · 1440"
+    },
+    "Agenda1440.dc.html": {
+      "x": 1520,
+      "y": 5898,
+      "w": 1440,
+      "h": 820,
+      "title": "Agenda día · administrador · 1440"
+    },
+    "AgendaSemana1440.dc.html": {
+      "x": 3040,
+      "y": 5898,
+      "w": 1440,
+      "h": 1103,
+      "title": "Agenda semana · administrador · 1440"
+    },
+    "Reprogramar1440.dc.html": {
+      "x": 4560,
+      "y": 5898,
+      "w": 1440,
+      "h": 900,
+      "title": "Reprogramar desde Agenda · 1440"
+    }
+  },
+  "order": [
+    "Reservar360Paso1.dc.html",
+    "Main.dc.html",
+    "Reservar360Paso3.dc.html",
+    "Reprogramar360.dc.html",
+    "Reservar360Error.dc.html",
+    "MisCitas360.dc.html",
+    "MisCitas360Vacio.dc.html",
+    "Avisos360.dc.html",
+    "Cuenta360.dc.html",
+    "Restringido360.dc.html",
+    "Agenda360.dc.html",
+    "AgendaSemana360.dc.html",
+    "Agenda360Carga.dc.html",
+    "AgendaAdmin360.dc.html",
+    "MenuAdmin360.dc.html",
+    "Asistida360.dc.html",
+    "Reservar1440Paso1.dc.html",
+    "Reservar1440.dc.html",
+    "Reservar1440Paso3.dc.html",
+    "Asistida1440.dc.html",
+    "MisCitas1440.dc.html",
+    "Agenda1440.dc.html",
+    "AgendaSemana1440.dc.html",
+    "Reprogramar1440.dc.html"
+  ],
+  "notes": {
+    "fila1": {
+      "x": 0,
+      "y": -300,
+      "text": "Reservar · móvil",
+      "kind": "title1",
+      "maxW": 2120
+    },
+    "fila2": {
+      "x": 0,
+      "y": 1490,
+      "text": "Cliente: citas, avisos y cuenta · móvil",
+      "kind": "title1",
+      "maxW": 2120
+    },
+    "fila3": {
+      "x": 0,
+      "y": 2827,
+      "text": "Personal: agenda y administración · móvil",
+      "kind": "title1",
+      "maxW": 2560
+    },
+    "fila4": {
+      "x": 0,
+      "y": 4286,
+      "text": "Reservar · escritorio",
+      "kind": "title1",
+      "maxW": 6000
+    },
+    "fila5": {
+      "x": 0,
+      "y": 5598,
+      "text": "Citas y agenda · escritorio",
+      "kind": "title1",
+      "maxW": 6000
+    }
+  },
+  "designSystems": []
+}

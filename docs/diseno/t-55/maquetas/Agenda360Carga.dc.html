@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda cargando, móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5;position:relative}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.muted{color:#5B6B65}
+.oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.barra{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 16px;background:#fff;border-bottom:1px solid #E1E7E4}
+.barra h1{flex:1;font-size:20px;line-height:28px;font-weight:700}
+.icono{width:44px;height:44px;flex:0 0 44px;border-radius:12px;border:0;background:transparent;color:#17221E;display:inline-grid;place-items:center;cursor:pointer;position:relative}
+.icono.borde{border:1px solid #C9D6D0;background:#fff}
+.insignia{position:absolute;top:3px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#145C43;color:#fff;font:700 11px/18px Figtree,sans-serif;box-shadow:0 0 0 2px #fff}
+.cuenta{width:44px;height:44px;flex:0 0 44px;border-radius:999px;border:0;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;cursor:pointer}
+.tarjeta{background:#fff;border:1px solid #E1E7E4;border-radius:16px}
+.btn{min-height:44px;border-radius:12px;font:600 15px/1.2 Figtree,sans-serif;padding:0 14px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;white-space:nowrap}
+.segmento{display:flex;gap:4px;padding:4px;background:#fff;border:1px solid #E1E7E4;border-radius:999px}
+.segmento button{flex:1;min-height:44px;border:0;border-radius:999px;background:transparent;font:600 15px Figtree,sans-serif;color:#5B6B65;cursor:pointer;padding:0 16px}
+.segmento button[aria-pressed="true"]{background:#145C43;color:#fff}
+.esq{background:#E7ECEA;border-radius:8px}
+.cita{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px}
+.pestanas{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);background:#fff;border-top:1px solid #E1E7E4;padding:6px 8px 10px}
+.pestanas a{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;font:600 12.5px Figtree,sans-serif;color:#5B6B65;text-decoration:none}
+.pestanas a[aria-current="page"]{color:#145C43}
+.pestanas a[aria-current="page"] svg{background:#E3F1EA;border-radius:999px;padding:3px 14px;box-sizing:content-box}
+</style>
+</helmet>
+<div class="bt" style="width: 360px; height: 760px; display: flex; flex-direction: column">
+  <header class="barra">
+    <h1>Agenda</h1>
+    <button class="icono" type="button" aria-label="Actualizar agenda" disabled="" style="color: #9AA8A2">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 5v6h-6"></path></svg>
+    </button>
+    <button class="icono" type="button" aria-label="Ver avisos: 4 sin leer" aria-haspopup="dialog">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+      <span class="insignia" aria-hidden="true">4</span>
+    </button>
+    <button class="cuenta" type="button" aria-label="Cuenta de Carlos: Mi cuenta y Salir" aria-haspopup="menu">C</button>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 16px 16px 24px">
+    <div class="segmento" role="group" aria-label="Vista de la agenda">
+      <button type="button" aria-pressed="true">Día</button>
+      <button type="button" aria-pressed="false">Semana</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button class="icono borde" type="button" aria-label="Día anterior"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+      <button type="button" class="tarjeta" aria-label="Elegir fecha: martes 29 de setiembre de 2026" style="flex: 1; min-height: 44px; font: 600 16px Figtree, sans-serif; color: #17221E; cursor: pointer">mar 29 set</button>
+      <button class="icono borde" type="button" aria-label="Día siguiente"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="btn" type="button" style="background: #FFFFFF; color: #145C43; border-color: #C9D6D0">Hoy</button>
+    </div>
+
+    <section aria-busy="true" aria-label="Agenda del martes 29 de setiembre" style="display: flex; flex-direction: column; gap: 12px">
+      <p role="status" class="oculto">Cargando agenda…</p>
+      <div class="esq" style="width: 220px; height: 16px"></div>
+      <div class="cita" aria-hidden="true">
+        <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 12px"><div class="esq" style="height: 18px"></div><div class="esq" style="width: 38px; height: 14px"></div></div>
+        <div class="tarjeta" style="padding: 14px; display: flex; flex-direction: column; gap: 10px"><div class="esq" style="width: 60%; height: 18px"></div><div class="esq" style="width: 40%; height: 14px"></div><div class="esq" style="height: 44px; border-radius: 12px"></div></div>
+      </div>
+      <div class="cita" aria-hidden="true">
+        <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 12px"><div class="esq" style="height: 18px"></div><div class="esq" style="width: 38px; height: 14px"></div></div>
+        <div class="tarjeta" style="padding: 14px; display: flex; flex-direction: column; gap: 10px"><div class="esq" style="width: 52%; height: 18px"></div><div class="esq" style="width: 46%; height: 14px"></div><div class="esq" style="height: 44px; border-radius: 12px"></div></div>
+      </div>
+      <div class="cita" aria-hidden="true">
+        <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 12px"><div class="esq" style="height: 18px"></div><div class="esq" style="width: 38px; height: 14px"></div></div>
+        <div class="tarjeta" style="padding: 14px; display: flex; flex-direction: column; gap: 10px"><div class="esq" style="width: 64%; height: 18px"></div><div class="esq" style="width: 36%; height: 14px"></div><div class="esq" style="height: 44px; border-radius: 12px"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="pestanas" aria-label="Navegación principal">
+    <a href="#" aria-current="page"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"></path></svg>Agenda</a>
+    <a href="#"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Mi cuenta</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

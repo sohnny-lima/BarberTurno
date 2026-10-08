@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reserva asistida, elegir cliente, escritorio</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5;position:relative}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.muted{color:#5B6B65}
+.lateral{width:248px;flex:0 0 248px;background:#fff;border-right:1px solid #E1E7E4;display:flex;flex-direction:column;padding:20px 14px}
+.marca{display:flex;align-items:center;gap:10px;padding:4px 8px 24px;font:800 19px Figtree,sans-serif;color:#17221E}
+.marca span{width:36px;height:36px;border-radius:10px;background:#145C43;color:#fff;display:grid;place-items:center}
+.lateral nav a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:#3F4B46;text-decoration:none;font:600 15px Figtree,sans-serif}
+.lateral nav a[aria-current="page"]{background:#E3F1EA;color:#0F4D37}
+.usuario{margin-top:auto;border-top:1px solid #E1E7E4;padding:16px 8px 0;display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;flex:0 0 40px;border-radius:999px;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;display:grid;place-items:center}
+.tarjeta{background:#fff;border:1px solid #E1E7E4;border-radius:16px}
+.btn{min-height:48px;border-radius:12px;font:600 16px/1.2 Figtree,sans-serif;padding:0 20px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn-primario{background:#145C43;color:#fff}
+.btn-texto{background:transparent;color:#145C43;min-height:44px;padding:0 8px;font-size:15px}
+.pasos{display:flex;align-items:center;gap:12px;list-style:none;margin:0;padding:0}
+.pasos li{display:flex;align-items:center;gap:10px;font:600 15px Figtree,sans-serif;color:#5B6B65}
+.pasos li span{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;border:1.5px solid #C9D6D0;background:#fff;font:700 14px Figtree,sans-serif}
+.pasos li.actual{color:#145C43}
+.pasos li.actual span{background:#145C43;border-color:#145C43;color:#fff}
+.pasos .linea{width:40px;height:2px;background:#C9D6D0;border-radius:2px}
+.campo{display:flex;flex-direction:column;gap:6px;font:600 14px Figtree,sans-serif;color:#3F4B46}
+.campo .entrada{display:flex;align-items:center;gap:8px;min-height:48px;border:2px solid #145C43;border-radius:12px;background:#fff;padding:0 12px}
+.campo input{flex:1;border:0;outline:0;font:500 16px Figtree,sans-serif;color:#17221E;min-width:0;min-height:44px;background:transparent}
+.ayuda{font:500 13px Figtree,sans-serif;color:#5B6B65}
+.opcion{display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:68px;cursor:pointer}
+.opcion+.opcion{border-top:1px solid #EEF2F0}
+.opcion input{width:22px;height:22px;accent-color:#145C43;margin:0;flex:0 0 22px}
+.inicial{width:44px;height:44px;flex:0 0 44px;border-radius:999px;background:#E3F1EA;color:#145C43;font:700 15px Figtree,sans-serif;display:grid;place-items:center}
+.dato{display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid #EEF2F0}
+.dato small{font:500 13px Figtree,sans-serif;color:#5B6B65}
+.dato strong{font:600 16px Figtree,sans-serif}
+</style>
+</helmet>
+<div class="bt" style="width: 1440px; height: 820px; display: flex">
+  <aside class="lateral" aria-label="Navegación y cuenta">
+    <div class="marca"><span aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="3"></circle><circle cx="6" cy="17" r="3"></circle><path d="M8.5 8.5L20 18M8.5 15.5L20 6"></path></svg></span>BarberTurno</div>
+    <nav aria-label="Navegación principal" style="display: flex; flex-direction: column; gap: 4px">
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"></path></svg>Agenda</a>
+      <a href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M12 13v4M10 15h4"></path></svg>Reserva asistida</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="7" r="3"></circle><circle cx="6" cy="17" r="3"></circle><path d="M8.5 8.5L20 18M8.5 15.5L20 6"></path></svg>Servicios</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6 6 0 0 0-3-5.2"></path></svg>Barberos</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>Horarios</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg>Reportes</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path><path d="M18 4l2 2-2 2"></path></svg>Usuarios</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Mi cuenta</a>
+    </nav>
+    <div class="usuario">
+      <div class="avatar" aria-hidden="true">AD</div>
+      <div style="flex: 1; min-width: 0"><p style="font-weight: 700; font-size: 15px">Administración</p><p class="muted" style="font-size: 13px">Administrador</p></div>
+      <button class="btn btn-texto" type="button">Salir</button>
+    </div>
+  </aside>
+
+  <main style="flex: 1; min-width: 0; padding: 32px 48px 48px; display: flex; flex-direction: column; gap: 22px">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <h1 style="font-size: 28px; font-weight: 700; line-height: 36px">Reserva asistida</h1>
+      <p class="muted">Reserve en nombre de un cliente registrado. Todas las horas corresponden a Lima.</p>
+    </div>
+
+    <ol class="pasos" aria-label="Pasos de la reserva asistida">
+      <li class="actual" aria-current="step"><span>1</span>Cliente</li>
+      <li class="linea" aria-hidden="true"></li>
+      <li><span>2</span>Servicio y profesional</li>
+      <li class="linea" aria-hidden="true"></li>
+      <li><span>3</span>Fecha y hora</li>
+      <li class="linea" aria-hidden="true"></li>
+      <li><span>4</span>Confirmar</li>
+    </ol>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; align-items: start">
+      <section class="tarjeta" style="padding: 24px; display: flex; flex-direction: column; gap: 16px">
+        <h2 tabindex="-1" style="font-size: 18px; font-weight: 700">Elija el cliente</h2>
+        <label class="campo">Buscar cliente por nombre o correo
+          <span class="entrada">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B6B65" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+            <input type="search" value="quis" aria-describedby="ayuda-cliente">
+          </span>
+        </label>
+        <p id="ayuda-cliente" class="ayuda" style="margin-top: -8px">Escriba para buscar y seleccione una cuenta registrada.</p>
+        <div class="tarjeta" role="radiogroup" aria-label="Clientes encontrados">
+          <label class="opcion">
+            <span class="inicial" aria-hidden="true">RQ</span>
+            <span style="flex: 1; min-width: 0"><strong style="display: block">Rosa Quispe</strong><span class="muted" style="font-size: 14px">rosa.quispe@ejemplo.test</span></span>
+            <input type="radio" name="cliente" checked="">
+          </label>
+          <label class="opcion">
+            <span class="inicial" aria-hidden="true">JQ</span>
+            <span style="flex: 1; min-width: 0"><strong style="display: block">Julio Quispe</strong><span class="muted" style="font-size: 14px">julio.quispe@ejemplo.test</span></span>
+            <input type="radio" name="cliente">
+          </label>
+        </div>
+      </section>
+
+      <aside class="tarjeta" aria-label="Reserva en curso" style="padding: 20px; display: flex; flex-direction: column; gap: 4px">
+        <h2 style="font-size: 18px; font-weight: 700; padding-bottom: 8px">Reserva en curso</h2>
+        <div class="dato"><small>Cliente</small><strong>Rosa Quispe</strong><span class="muted" style="font-size: 14px">rosa.quispe@ejemplo.test</span></div>
+        <div class="dato"><small>Servicio y profesional</small><strong class="muted" style="font-weight: 500">Por elegir</strong></div>
+        <div class="dato"><small>Fecha y hora</small><strong class="muted" style="font-weight: 500">Por elegir</strong></div>
+        <button class="btn btn-primario" type="button" style="margin-top: 12px">Elegir servicio</button>
+        <p class="muted" style="font-size: 13px; text-align: center; padding-top: 6px">Puede gestionar la cita después desde Agenda.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

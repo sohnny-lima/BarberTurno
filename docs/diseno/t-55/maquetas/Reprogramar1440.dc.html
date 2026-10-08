@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reprogramar desde la Agenda, escritorio</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5;position:relative;overflow:hidden}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.muted{color:#5B6B65}
+.velo{position:absolute;inset:0;background:rgba(23,34,30,0.5)}
+.dialogo{position:absolute;top:96px;left:50%;transform:translateX(-50%);width:600px;background:#fff;border-radius:20px;box-shadow:0 24px 64px rgba(14,40,31,0.3);display:flex;flex-direction:column}
+.btn{min-height:48px;border-radius:12px;font:600 16px/1.2 Figtree,sans-serif;padding:0 20px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;white-space:nowrap}
+.btn-primario{background:#145C43;color:#fff}
+.btn-texto{background:transparent;color:#145C43;min-height:44px;padding:0 10px}
+.campo{display:flex;flex-direction:column;gap:6px;font:600 14px Figtree,sans-serif;color:#3F4B46}
+.campo input,.campo select,.campo textarea{min-height:48px;border:1px solid #C9D6D0;border-radius:12px;background:#fff;padding:0 14px;font:500 16px Figtree,sans-serif;color:#17221E;width:100%}
+.campo textarea{padding:12px 14px;min-height:96px;resize:none;line-height:1.4}
+.ayuda{font:500 13px Figtree,sans-serif;color:#5B6B65}
+</style>
+</helmet>
+<div class="bt" style="width: 1440px; height: 900px">
+  <div aria-hidden="true" style="position: absolute; inset: 0 auto 0 0; width: 248px; background: #FFFFFF; border-right: 1px solid #E1E7E4"></div>
+  <div aria-hidden="true" style="position: absolute; left: 296px; right: 48px; top: 32px; display: flex; flex-direction: column; gap: 18px">
+    <div style="width: 200px; height: 34px; border-radius: 8px; background: #E1E7E4"></div>
+    <div style="height: 52px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E1E7E4; width: 420px"></div>
+    <div style="height: 420px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E1E7E4"></div>
+  </div>
+  <div class="velo" aria-hidden="true"></div>
+
+  <section class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-reprogramar">
+    <div style="padding: 24px 28px 8px; display: flex; flex-direction: column; gap: 6px">
+      <h2 id="titulo-reprogramar" style="font-size: 22px; font-weight: 700">Reprogramar BT-101</h2>
+      <p class="muted">Luis Ccori, Barba. Ahora: lunes 28 de setiembre, 09:30 con Carlos.</p>
+    </div>
+    <form style="padding: 16px 28px 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+      <label class="campo">Fecha de Lima<input type="text" value="30/09/2026"></label>
+      <label class="campo">Barbero<select><option>Carlos</option><option>Miguel</option></select></label>
+      <label class="campo" style="grid-column: 1 / -1">Franja disponible (Lima)<select><option>10:40 a 11:00</option></select></label>
+      <label class="campo" style="grid-column: 1 / -1">Motivo obligatorio<textarea aria-describedby="ayuda-motivo">El cliente pidió pasar la cita al miércoles por la mañana.</textarea></label>
+      <p id="ayuda-motivo" class="ayuda" style="grid-column: 1 / -1; margin-top: -8px">Entre 5 y 300 caracteres; se registrará en la auditoría.</p>
+    </form>
+    <p class="muted" style="padding: 4px 28px 0; font-size: 14px">Se conservan el servicio, el precio y la duración. Si la nueva franja falla, la cita no cambia.</p>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 20px 28px 24px">
+      <button class="btn btn-texto" type="button">Volver</button>
+      <button class="btn btn-primario" type="button">Reprogramar</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

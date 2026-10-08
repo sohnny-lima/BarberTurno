@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reserva asistida, elegir cliente, móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5;position:relative}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.muted{color:#5B6B65}
+.barra{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 4px;background:#fff;border-bottom:1px solid #E1E7E4}
+.barra h1{flex:1;font-size:20px;line-height:28px;font-weight:700}
+.icono{width:44px;height:44px;flex:0 0 44px;border-radius:12px;border:0;background:transparent;color:#17221E;display:inline-grid;place-items:center;cursor:pointer;position:relative}
+.cuenta{width:44px;height:44px;flex:0 0 44px;border-radius:999px;border:0;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;cursor:pointer}
+.tarjeta{background:#fff;border:1px solid #E1E7E4;border-radius:16px}
+.btn{min-height:48px;border-radius:12px;font:600 16px/1.2 Figtree,sans-serif;padding:0 20px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;white-space:nowrap}
+.btn-primario{background:#145C43;color:#fff}
+.campo{display:flex;flex-direction:column;gap:6px;font:600 14px Figtree,sans-serif;color:#3F4B46}
+.campo .entrada{display:flex;align-items:center;gap:8px;min-height:48px;border:2px solid #145C43;border-radius:12px;background:#fff;padding:0 12px}
+.campo input{flex:1;border:0;outline:0;font:500 16px Figtree,sans-serif;color:#17221E;min-width:0;min-height:44px;background:transparent}
+.ayuda{font:500 13px Figtree,sans-serif;color:#5B6B65}
+.pasos-m{display:flex;list-style:none;margin:0;padding:0;gap:2px}
+.pasos-m li{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font:600 12px/1.2 Figtree,sans-serif;color:#5B6B65;text-align:center}
+.pasos-m li span{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;border:1.5px solid #C9D6D0;background:#fff;font:700 14px Figtree,sans-serif}
+.pasos-m li.actual{color:#145C43}
+.pasos-m li.actual span{background:#145C43;border-color:#145C43;color:#fff}
+.opcion{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:68px;cursor:pointer}
+.opcion+.opcion{border-top:1px solid #EEF2F0}
+.opcion input{width:22px;height:22px;accent-color:#145C43;margin:0;flex:0 0 22px}
+.inicial{width:44px;height:44px;flex:0 0 44px;border-radius:999px;background:#E3F1EA;color:#145C43;font:700 15px Figtree,sans-serif;display:grid;place-items:center}
+</style>
+</helmet>
+<div class="bt" style="width: 360px; height: 760px; display: flex; flex-direction: column">
+  <header class="barra">
+    <button class="icono" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-principal">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    </button>
+    <h1>Reserva asistida</h1>
+    <button class="cuenta" type="button" aria-label="Cuenta de Administración: Mi cuenta y Salir" aria-haspopup="menu">AD</button>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-direction: column; gap: 18px; padding: 20px 16px 24px">
+    <ol class="pasos-m" aria-label="Pasos de la reserva asistida">
+      <li class="actual" aria-current="step"><span>1</span>Cliente</li>
+      <li><span>2</span>Servicio</li>
+      <li><span>3</span>Fecha y hora</li>
+      <li><span>4</span>Confirmar</li>
+    </ol>
+
+    <h2 tabindex="-1" style="font-size: 18px; font-weight: 700">Elija el cliente</h2>
+    <label class="campo">Buscar cliente por nombre o correo
+      <span class="entrada">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B6B65" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+        <input type="search" value="quis" aria-describedby="ayuda-cliente">
+      </span>
+    </label>
+    <p id="ayuda-cliente" class="ayuda" style="margin-top: -10px">Escriba para buscar y seleccione una cuenta registrada.</p>
+
+    <div class="tarjeta" role="radiogroup" aria-label="Clientes encontrados">
+      <label class="opcion">
+        <span class="inicial" aria-hidden="true">RQ</span>
+        <span style="flex: 1; min-width: 0"><strong style="display: block">Rosa Quispe</strong><span class="muted" style="font-size: 14px">rosa.quispe@ejemplo.test</span></span>
+        <input type="radio" name="cliente" checked="">
+      </label>
+      <label class="opcion">
+        <span class="inicial" aria-hidden="true">JQ</span>
+        <span style="flex: 1; min-width: 0"><strong style="display: block">Julio Quispe</strong><span class="muted" style="font-size: 14px">julio.quispe@ejemplo.test</span></span>
+        <input type="radio" name="cliente">
+      </label>
+    </div>
+    <p role="status" style="font-size: 15px"><strong>Cliente:</strong> Rosa Quispe, rosa.quispe@ejemplo.test</p>
+  </main>
+
+  <div style="padding: 12px 16px 16px; background: #FFFFFF; border-top: 1px solid #E1E7E4">
+    <button class="btn btn-primario" type="button" style="width: 100%">Elegir servicio</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

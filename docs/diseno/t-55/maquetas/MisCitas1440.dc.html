@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mis citas, escritorio</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.lateral{width:248px;flex:0 0 248px;background:#fff;border-right:1px solid #E1E7E4;display:flex;flex-direction:column;padding:20px 14px}
+.marca{display:flex;align-items:center;gap:10px;padding:4px 8px 24px;font:800 19px Figtree,sans-serif;color:#17221E}
+.marca span{width:36px;height:36px;border-radius:10px;background:#145C43;color:#fff;display:grid;place-items:center}
+.lateral nav a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:#3F4B46;text-decoration:none;font:600 15px Figtree,sans-serif}
+.lateral nav a[aria-current="page"]{background:#E3F1EA;color:#0F4D37}
+.usuario{margin-top:auto;border-top:1px solid #E1E7E4;padding:16px 8px 0;display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;flex:0 0 40px;border-radius:999px;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;display:grid;place-items:center}
+.tarjeta{background:#fff;border:1px solid #E1E7E4;border-radius:16px}
+.btn{min-height:44px;border-radius:12px;font:600 15px/1 Figtree,sans-serif;padding:0 16px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn-primario{background:#145C43;color:#fff}
+.btn-secundario{background:#fff;color:#145C43;border-color:#C9D6D0}
+.btn-riesgo{background:#fff;color:#9A261D;border-color:#EBC7C3}
+.btn-texto{background:transparent;color:#145C43;padding:0 8px}
+.segmento{display:flex;gap:4px;padding:4px;background:#fff;border:1px solid #E1E7E4;border-radius:999px}
+.segmento button{min-width:120px;min-height:44px;border:0;border-radius:999px;background:transparent;font:600 15px Figtree,sans-serif;color:#5B6B65;cursor:pointer;padding:0 16px}
+.segmento button[aria-pressed="true"]{background:#145C43;color:#fff}
+.campo{display:flex;flex-direction:column;gap:6px;font:600 13px Figtree,sans-serif;color:#3F4B46}
+.campo input,.campo select{height:44px;border:1px solid #C9D6D0;border-radius:12px;background:#fff;padding:0 12px;font:500 15px Figtree,sans-serif;color:#17221E;width:100%;min-width:0}
+.estado{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font:600 13px/1 Figtree,sans-serif;white-space:nowrap}
+.e-confirmada{background:#E3F1EA;color:#0F4D37}
+.e-pendiente{background:#FCEFD4;color:#7A4A00}
+.tique{position:relative;border-radius:16px;background:#145C43;color:#fff;overflow:hidden;display:grid;grid-template-columns:260px minmax(0,1fr)}
+.tique .corte{position:relative;border-left:2px dashed #3E7D66;margin:16px 0}
+.tique .corte::before,.tique .corte::after{content:'';position:absolute;left:-11px;width:20px;height:20px;border-radius:999px;background:#F6F8F7}
+.tique .corte::before{top:-27px}.tique .corte::after{bottom:-27px}
+.fila{display:grid;grid-template-columns:64px minmax(0,1fr) auto auto;gap:16px;align-items:center;padding:16px 20px}
+.fecha-bloque{display:flex;flex-direction:column;align-items:center}
+.fecha-bloque small{font:600 13px Figtree,sans-serif;color:#5B6B65}
+.fecha-bloque strong{font:800 24px/1.1 Figtree,sans-serif}
+.aviso{display:flex;flex-direction:column;gap:4px;padding:14px 0;border-top:1px solid #EEF2F0}
+.muted{color:#5B6B65}
+</style>
+</helmet>
+<div class="bt" style="width: 1440px; height: 820px; display: flex">
+  <aside class="lateral" aria-label="Navegación y cuenta">
+    <div class="marca"><span aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="3"></circle><circle cx="6" cy="17" r="3"></circle><path d="M8.5 8.5L20 18M8.5 15.5L20 6"></path></svg>
+    </span>BarberTurno</div>
+    <nav aria-label="Navegación principal" style="display: flex; flex-direction: column; gap: 4px">
+      <a href="#">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M12 13v4M10 15h4"></path></svg>
+        Reservar
+      </a>
+      <a href="#" aria-current="page">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 9h6M9 13h6M9 17h3"></path></svg>
+        Mis citas
+      </a>
+      <a href="#">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+        Mi cuenta
+      </a>
+    </nav>
+    <div class="usuario">
+      <div class="avatar" aria-hidden="true">RQ</div>
+      <div style="flex: 1; min-width: 0">
+        <p style="font-weight: 700; font-size: 15px">Rosa Quispe</p>
+        <p class="muted" style="font-size: 13px">Cliente</p>
+      </div>
+      <button class="btn btn-texto" type="button">Salir</button>
+    </div>
+  </aside>
+
+  <main style="flex: 1; min-width: 0; padding: 32px 48px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-content: start">
+    <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="font-size: 28px; font-weight: 700; line-height: 36px">Mis citas</h1>
+        <p class="muted">Consulte y gestione sus turnos. Todas las horas corresponden a Lima.</p>
+      </div>
+
+      <div class="segmento" role="group" aria-label="Tipo de citas" style="align-self: flex-start">
+        <button type="button" aria-pressed="true">Próximas</button>
+        <button type="button" aria-pressed="false">Historial</button>
+      </div>
+      <form aria-label="Filtros" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 12px">
+        <label class="campo">Desde<input type="text" value="" placeholder="dd/mm/aaaa"></label>
+        <label class="campo">Hasta<input type="text" value="" placeholder="dd/mm/aaaa"></label>
+        <label class="campo">Estado<select><option>Todos los estados</option></select></label>
+        <button class="btn btn-secundario" type="submit">Filtrar</button>
+      </form>
+
+      <article class="tique" aria-label="Próxima cita, BT-103">
+        <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 2px">
+          <p style="font-weight: 600; color: #D7EBE1">lunes, 28 de setiembre</p>
+          <p style="font: 800 48px/1.05 Figtree, sans-serif; letter-spacing: -0.5px">10:00</p>
+          <p style="color: #D7EBE1">hasta las 10:20</p>
+        </div>
+        <div style="display: flex">
+          <div class="corte" aria-hidden="true"></div>
+          <div style="flex: 1; padding: 22px 24px; display: flex; flex-direction: column; gap: 4px">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+              <p style="font-size: 20px; font-weight: 700">Barba con Carlos</p>
+              <span class="estado" style="background: #FFFFFF; color: #0F4D37">Confirmada</span>
+            </div>
+            <p style="color: #D7EBE1">S/ 20.00, 20 min, BT-103</p>
+            <p style="font-size: 14px; color: #FFFFFF; margin-top: 10px">Faltan menos de 2 horas. Para cambiarla, comuníquese con la barbería.</p>
+          </div>
+        </div>
+      </article>
+
+      <section class="tarjeta" aria-label="Más citas próximas">
+        <article class="fila" aria-label="Cita BT-100">
+          <div class="fecha-bloque"><small>jue</small><strong>1</strong><small>oct</small></div>
+          <div style="min-width: 0">
+            <p style="font-weight: 700; font-size: 17px">Corte clásico</p>
+            <p class="muted">10:00 a 10:30 con Carlos</p>
+            <p class="muted" style="font-size: 14px">S/ 25.00, 30 min, BT-100</p>
+          </div>
+          <span class="estado e-confirmada">Confirmada</span>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-secundario" type="button">Reprogramar</button>
+            <button class="btn btn-riesgo" type="button">Cancelar</button>
+          </div>
+        </article>
+        <article class="fila" aria-label="Cita BT-105" style="border-top: 1px solid #EEF2F0">
+          <div class="fecha-bloque"><small>sáb</small><strong>3</strong><small>oct</small></div>
+          <div style="min-width: 0">
+            <p style="font-weight: 700; font-size: 17px">Barba</p>
+            <p class="muted">11:00 a 11:20 con Miguel</p>
+            <p class="muted" style="font-size: 14px">S/ 20.00, 20 min, BT-105</p>
+          </div>
+          <span class="estado e-pendiente">Pendiente</span>
+          <div style="display: flex; gap: 8px">
+            
+            <button class="btn btn-riesgo" type="button">Cancelar</button>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <aside class="tarjeta" aria-labelledby="titulo-avisos" style="padding: 20px; display: flex; flex-direction: column; gap: 6px; align-self: start">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+        <h2 id="titulo-avisos" style="font-size: 18px; font-weight: 700">Avisos</h2>
+        <span class="estado e-confirmada">3 sin leer</span>
+      </div>
+      <p class="muted" style="font-size: 14px">Del más reciente al más antiguo.</p>
+      <div style="display: flex; gap: 4px; margin: 6px 0 4px -8px">
+        <button class="btn btn-texto" type="button">Marcar todos como leídos</button>
+        <button class="btn btn-texto" type="button">Actualizar</button>
+      </div>
+      <div class="aviso">
+        <p style="font-size: 13px; font-weight: 600"><span style="color: #145C43">Nuevo</span> <span class="muted">28/09/2026, 09:00</span></p>
+        <p style="font-size: 15px">Su reserva BT-105 del sábado 3 de octubre quedó registrada y espera confirmación.</p>
+        <button class="btn btn-texto" type="button" style="align-self: flex-start; margin-left: -8px" aria-label="Marcar como leído el aviso de BT-105">Marcar como leído</button>
+      </div>
+      <div class="aviso">
+        <p style="font-size: 13px; font-weight: 600"><span style="color: #145C43">Nuevo</span> <span class="muted">27/09/2026, 18:40</span></p>
+        <p style="font-size: 15px">Carlos confirmó su reserva BT-103 del lunes 28 de setiembre a las 10:00.</p>
+        <button class="btn btn-texto" type="button" style="align-self: flex-start; margin-left: -8px" aria-label="Marcar como leído el aviso de BT-103">Marcar como leído</button>
+      </div>
+      <div class="aviso">
+        <p style="font-size: 13px; font-weight: 600"><span style="color: #145C43">Nuevo</span> <span class="muted">26/09/2026, 12:15</span></p>
+        <p style="font-size: 15px">Su reserva BT-100 se reprogramó para el jueves 1 de octubre a las 10:00.</p>
+        <button class="btn btn-texto" type="button" style="align-self: flex-start; margin-left: -8px" aria-label="Marcar como leído el aviso de BT-100">Marcar como leído</button>
+      </div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
