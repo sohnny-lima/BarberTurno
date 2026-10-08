@@ -37,7 +37,12 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     contentType: 'application/json',
   });
   expect(relevantes, nombre).toEqual([]);
-  if (nombre.startsWith('reservar-') || nombre.startsWith('asistida-')) {
+  if (
+    nombre.startsWith('reservar-') ||
+    nombre.startsWith('asistida-') ||
+    nombre.startsWith('mis-citas') ||
+    nombre === 'avisos-cliente'
+  ) {
     await testInfo.attach(nombre, { body: await page.screenshot(), contentType: 'image/png' });
   }
   expect(
@@ -61,6 +66,23 @@ async function ingresar(page: Page, correo: string) {
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   await comprobarSalida(page);
+}
+
+/** En móvil los avisos del cliente se consultan desde la campana; en escritorio, en su columna. */
+async function comprobarAvisoCliente(page: Page, mensaje: string | RegExp) {
+  const movil = (page.viewportSize()?.width ?? 1440) <= 767;
+  if (movil) {
+    await expect(page.locator('app-mis-citas app-avisos-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ }).click();
+  } else {
+    await expect(page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ })).toHaveCount(0);
+  }
+  await expect(page.locator('app-avisos-panel')).toContainText(mensaje);
+  if (movil)
+    await page
+      .getByRole('dialog', { name: 'Avisos', exact: true })
+      .getByRole('button', { name: 'Cerrar', exact: true })
+      .click();
 }
 
 async function comprobarSalida(page: Page) {
@@ -286,7 +308,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   });
   let tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: creada.codigo });
   await expect(tarjeta).toContainText('11:00');
-  await expect(page.locator('app-avisos-panel')).toContainText(creada.codigo);
+  await comprobarAvisoCliente(page, creada.codigo);
   await revisar(page, testInfo, 'mis-citas');
   await tarjeta.getByRole('link', { name: 'Reprogramar' }).click();
   if ((page.viewportSize()?.width ?? 1440) <= 767) {
@@ -351,7 +373,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   expect(respuestaCancelacion.status()).toBe(200);
   await expect(tarjeta).toContainText('Cancelada');
   await expect(tarjeta.getByRole('button', { name: 'Cancelar', exact: true })).toHaveCount(0);
-  await expect(page.locator('app-avisos-panel')).toContainText(/cancelad/i);
+  await comprobarAvisoCliente(page, /cancelad/i);
 });
 
 test('02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas', async ({
@@ -606,17 +628,37 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
     (a) => a.tipo === 'COMPLETAR' && a.mensaje.startsWith(`Reserva ${atencion}:`),
   )!;
   expect(exclusivoCliente).toBeDefined();
-  await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
+  if ((page.viewportSize()?.width ?? 1440) > 767) {
+    await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
+    await expect(page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ })).toHaveCount(0);
+    // La cabecera ofrece el diálogo en el resto de pantallas de escritorio.
+    await page.goto('/reservar');
+  } else {
+    await expect(page.locator('app-mis-citas app-avisos-panel')).toHaveCount(0);
+  }
   const campanaCliente = page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ });
   await campanaCliente.click();
   const avisosCliente = page.getByRole('dialog', { name: 'Avisos', exact: true });
   await expect(avisosCliente).toBeVisible();
   await expect(avisosCliente.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
   await expect(avisosCliente).toContainText(exclusivoCliente.mensaje);
+  await expect(avisosCliente.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
   await expect(avisosCliente.locator('section.incrustado')).toHaveCount(1);
+  const avisoCliente = avisosCliente.locator('li').filter({ hasText: exclusivoCliente.mensaje });
+  const lecturaCliente = page.waitForResponse(
+    (r) =>
+      r.url().endsWith(`/api/notificaciones/${exclusivoCliente.id}/lectura`) &&
+      r.request().method() === 'POST',
+  );
+  await avisoCliente.getByRole('button', { name: /^Marcar como leído/ }).click();
+  expect((await lecturaCliente).status()).toBe(204);
+  await expect(avisoCliente).toContainText('Leído');
+  await expect(avisoCliente.getByRole('button', { name: /^Marcar como leído/ })).toHaveCount(0);
+  await revisar(page, testInfo, 'avisos-cliente');
   await avisosCliente.getByRole('button', { name: 'Cerrar', exact: true }).click();
   await expect(avisosCliente).toHaveCount(0);
   await expect(campanaCliente).toBeFocused();
+  if ((page.viewportSize()?.width ?? 1440) > 767) await page.goto('/mis-citas');
   await expect(page).toHaveURL(/\/mis-citas$/);
   await salirConRespuesta(page);
 
@@ -640,7 +682,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   ).json();
   expect(cliente.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
   await page.goto('/mis-citas');
-  await expect(page.locator('app-avisos-panel')).toContainText(`Reserva ${creada.codigo} creada`);
+  await comprobarAvisoCliente(page, `Reserva ${creada.codigo} creada`);
   await salirConRespuesta(page);
 
   await ingresar(page, 'carlos@ejemplo.test');
@@ -805,4 +847,62 @@ test('10 · administrador reserva para el cliente elegido y conserva su identida
   await expect(page.getByRole('article', { name: reserva.codigo, exact: true })).toContainText(
     'Cliente E2E actualizado',
   );
+});
+
+test('11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario', async ({
+  page,
+}, testInfo) => {
+  await ingresar(page, 'cliente@ejemplo.test');
+  await page.goto('/mis-citas');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mis citas');
+  const movil = (page.viewportSize()?.width ?? 1440) <= 767;
+  const abrir = page.getByRole('button', { name: 'Filtros por fecha y estado', exact: true });
+  if (movil) {
+    await expect(page.locator('.titulo-pagina')).toHaveText('Mis citas');
+    await expect(abrir).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByLabel('Desde', { exact: true })).toBeHidden();
+    await abrir.click();
+    await expect(abrir).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(page.getByLabel('Desde', { exact: true })).toBeVisible();
+  await seleccionar(page, 'Estado', 'No asistió');
+  let urlConsulta = '';
+  await page.route('**/api/reservas/mias?**', async (ruta) => {
+    urlConsulta = ruta.request().url();
+    await ruta.fulfill({
+      status: 503,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        detail: 'No se pudo consultar. Intente nuevamente.',
+        codigo: 'RECURSO_OCUPADO',
+      }),
+    });
+    await page.unroute('**/api/reservas/mias?**');
+  });
+  await page.getByRole('button', { name: 'Filtrar', exact: true }).click();
+  const alerta = page.locator('.alerta');
+  await expect(alerta).toContainText('No se pudieron cargar las citas.');
+  await expect(page.locator('.vacio')).toHaveCount(0);
+  await revisar(page, testInfo, 'mis-citas-error');
+  const consulta = page.waitForResponse((r) => r.url().includes('/api/reservas/mias?'));
+  await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click();
+  expect((await consulta).url()).toBe(urlConsulta);
+  await expect(
+    page.getByRole('heading', { name: 'No tiene citas próximas', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Reservar un turno', exact: true })).toBeVisible();
+  await expect(page.locator('.vacio img')).toHaveAttribute('alt', '');
+  await expect(page.locator('.vacio img')).toHaveAttribute('loading', 'lazy');
+  await expect(page.locator('mat-paginator[aria-label="Páginas de citas"]')).toHaveCount(0);
+  if (movil) {
+    await abrir.click();
+    await expect(abrir).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByLabel('Desde', { exact: true })).toBeHidden();
+  }
+  await revisar(page, testInfo, 'mis-citas-vacio');
+  await page.getByRole('radio', { name: 'Historial', exact: true }).check();
+  await expect(
+    page.getByRole('heading', { name: 'No hay citas con estos filtros.', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('article.tique')).toHaveCount(0);
 });
