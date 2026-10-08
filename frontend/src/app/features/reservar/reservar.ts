@@ -27,6 +27,8 @@ import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { fechaPresentacion } from '../../shared/fecha-presentacion';
 import { SelectorCliente } from '../../shared/selector-cliente';
 import { TituloPagina } from '../../shared/titulo-pagina';
+import { ReservaAsistente } from './reserva-asistente';
+import { ReservaFoto } from './reserva-foto';
 import { ReservaOpciones } from './reserva-opciones';
 import { ReservaResumen } from './reserva-resumen';
 import { ReservaEsqueleto } from './reserva-esqueleto';
@@ -37,6 +39,8 @@ import { sumarDias } from '../../core/tiempo/semana-lima';
   selector: 'app-reservar',
   imports: [
     ReactiveFormsModule,
+    ReservaAsistente,
+    ReservaFoto,
     ReservaOpciones,
     ReservaResumen,
     ReservaEsqueleto,

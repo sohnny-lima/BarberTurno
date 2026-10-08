@@ -30,300 +30,308 @@
   @if (store.cargando()) {
     <app-reserva-esqueleto texto="Cargando servicios y profesionales…" />
   }
+  @if (movil() && store.paso() === 0 && !store.reserva() && !store.cargando()) {
+    <app-reserva-foto />
+  }
   <div class="distribucion" [hidden]="store.cargando()" [class.confirmar]="store.paso() === 2">
-    <mat-stepper
-      linear
-      orientation="horizontal"
-      [labelPosition]="movil() ? 'bottom' : 'end'"
-      (selectionChange)="store.irPaso($event.selectedIndex - (store.asistida() ? 1 : 0))"
-    >
-      <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
-      <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
-      @if (store.asistida()) {
-        <mat-step label="Cliente" [completed]="!!store.cliente()" [editable]="!store.enviando()">
+    <app-reserva-asistente>
+      <mat-stepper
+        linear
+        orientation="horizontal"
+        [labelPosition]="movil() ? 'bottom' : 'end'"
+        (selectionChange)="store.irPaso($event.selectedIndex - (store.asistida() ? 1 : 0))"
+      >
+        <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
+        <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
+        @if (store.asistida()) {
+          <mat-step label="Cliente" [completed]="!!store.cliente()" [editable]="!store.enviando()">
+            <div class="paso">
+              <h2 tabindex="-1" data-paso="0">Elija el cliente</h2>
+              <app-selector-cliente
+                [deshabilitado]="store.enviando()"
+                (elegido)="store.elegirCliente($event)"
+              />
+              @if (store.cliente(); as cliente) {
+                <p><strong>Cliente:</strong> {{ cliente.nombre }}, {{ cliente.correo }}</p>
+              }
+              <div class="acciones barra-reserva" [hidden]="!movil()">
+                <button
+                  mat-flat-button
+                  type="button"
+                  [disabled]="!store.cliente() || store.enviando()"
+                  (click)="store.irPaso(0)"
+                >
+                  Elegir servicio
+                </button>
+              </div>
+            </div>
+          </mat-step>
+        }
+        <mat-step
+          [label]="
+            movil() ? (store.reserva() ? 'Profesional' : 'Servicio') : 'Servicio y profesional'
+          "
+          [completed]="store.pasoUnoCompleto()"
+          [editable]="!store.enviando()"
+        >
           <div class="paso">
-            <h2 tabindex="-1" data-paso="0">Elija el cliente</h2>
-            <app-selector-cliente
-              [deshabilitado]="store.enviando()"
-              (elegido)="store.elegirCliente($event)"
-            />
-            @if (store.cliente(); as cliente) {
-              <p><strong>Cliente:</strong> {{ cliente.nombre }}, {{ cliente.correo }}</p>
+            <app-reserva-opciones [movil]="movil()" />
+            @if (store.asistida()) {
+              <button
+                mat-button
+                type="button"
+                [disabled]="store.enviando()"
+                (click)="store.irPaso(-1)"
+              >
+                Cambiar cliente
+              </button>
             }
             <div class="acciones barra-reserva" [hidden]="!movil()">
               <button
                 mat-flat-button
                 type="button"
-                [disabled]="!store.cliente() || store.enviando()"
-                (click)="store.irPaso(0)"
+                (click)="avanzar()"
+                [disabled]="!store.pasoUnoCompleto() || store.enviando()"
               >
-                Elegir servicio
+                Elegir fecha y hora
               </button>
             </div>
           </div>
         </mat-step>
-      }
-      <mat-step
-        [label]="
-          movil() ? (store.reserva() ? 'Profesional' : 'Servicio') : 'Servicio y profesional'
-        "
-        [completed]="store.pasoUnoCompleto()"
-        [editable]="!store.enviando()"
-      >
-        <div class="paso">
-          <app-reserva-opciones />
-          @if (store.asistida()) {
-            <button
-              mat-button
-              type="button"
-              [disabled]="store.enviando()"
-              (click)="store.irPaso(-1)"
+        <mat-step
+          label="Fecha y hora"
+          [completed]="store.pasoDosCompleto()"
+          [editable]="!store.enviando()"
+        >
+          <div class="paso">
+            <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 2 : 1">Elija el día</h2>
+            <div class="dias" role="group" aria-label="Días disponibles">
+              @for (dia of dias; track dia; let primero = $first) {
+                <button
+                  type="button"
+                  class="dia"
+                  [attr.data-dia]="dia"
+                  [class.elegido]="store.fecha() === dia"
+                  [attr.aria-pressed]="store.fecha() === dia"
+                  [attr.aria-label]="fechaCompleta(dia)"
+                  [disabled]="store.enviando()"
+                  (click)="elegirDia(dia, $event)"
+                >
+                  <small>{{ primero ? 'hoy' : fechaLegible(dia, 'dia') }}</small
+                  ><strong>{{ fechaLegible(dia, 'numero') }}</strong>
+                </button>
+              }
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Otra fecha, hasta 30 días</mat-label>
+              <input
+                matInput
+                [matDatepicker]="calendario"
+                [formControl]="fechaControl"
+                [min]="limites.min"
+                [max]="limites.max"
+                (dateChange)="cambiarFecha()"
+              />
+              <mat-datepicker-toggle matIconSuffix [for]="calendario" />
+              <mat-datepicker #calendario />
+              <mat-hint>Desde hoy hasta 30 días después, en Lima.</mat-hint>
+              <mat-error>Elija una fecha válida dentro de los próximos 30 días.</mat-error>
+            </mat-form-field>
+            <section
+              class="horas"
+              [attr.data-fecha-consultada]="store.fecha()"
+              [attr.aria-busy]="store.consultando()"
+              aria-label="Horas disponibles"
             >
-              Cambiar cliente
-            </button>
-          }
-          <div class="acciones barra-reserva" [hidden]="!movil()">
-            <button
-              mat-flat-button
-              type="button"
-              (click)="avanzar()"
-              [disabled]="!store.pasoUnoCompleto() || store.enviando()"
-            >
-              Elegir fecha y hora
-            </button>
-          </div>
-        </div>
-      </mat-step>
-      <mat-step
-        label="Fecha y hora"
-        [completed]="store.pasoDosCompleto()"
-        [editable]="!store.enviando()"
-      >
-        <div class="paso">
-          <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 2 : 1">Elija el día</h2>
-          <div class="dias" role="group" aria-label="Días disponibles">
-            @for (dia of dias; track dia; let primero = $first) {
-              <button
-                type="button"
-                class="dia"
-                [attr.data-dia]="dia"
-                [class.elegido]="store.fecha() === dia"
-                [attr.aria-pressed]="store.fecha() === dia"
-                [attr.aria-label]="fechaCompleta(dia)"
-                [disabled]="store.enviando()"
-                (click)="elegirDia(dia, $event)"
-              >
-                <small>{{ primero ? 'hoy' : fechaLegible(dia, 'dia') }}</small
-                ><strong>{{ fechaLegible(dia, 'numero') }}</strong>
-              </button>
-            }
-          </div>
-          <mat-form-field appearance="outline">
-            <mat-label>Otra fecha, hasta 30 días</mat-label>
-            <input
-              matInput
-              [matDatepicker]="calendario"
-              [formControl]="fechaControl"
-              [min]="limites.min"
-              [max]="limites.max"
-              (dateChange)="cambiarFecha()"
-            />
-            <mat-datepicker-toggle matIconSuffix [for]="calendario" />
-            <mat-datepicker #calendario />
-            <mat-hint>Desde hoy hasta 30 días después, en Lima.</mat-hint>
-            <mat-error>Elija una fecha válida dentro de los próximos 30 días.</mat-error>
-          </mat-form-field>
-          <section
-            class="horas"
-            [attr.data-fecha-consultada]="store.fecha()"
-            [attr.aria-busy]="store.consultando()"
-            aria-label="Horas disponibles"
-          >
-            <h2>{{ fechaLegible(store.fecha()) }}</h2>
-            @if (store.consultando()) {
-              <app-reserva-esqueleto texto="Consultando franjas…" [franjas]="true" />
-            } @else {
-              @for (grupo of gruposHoras(); track grupo.nombre) {
-                @if (grupo.franjas.length) {
-                  <h3>{{ grupo.nombre }}</h3>
-                  <div class="rejilla-horas" role="group" [attr.aria-label]="grupo.nombre">
-                    @for (franja of grupo.franjas; track franja.inicio) {
-                      <button
-                        type="button"
-                        class="franja"
-                        [attr.data-franja]="franja.inicio"
-                        [class.elegido]="store.franja()?.inicio === franja.inicio"
-                        [attr.aria-pressed]="store.franja()?.inicio === franja.inicio"
-                        [disabled]="store.enviando()"
-                        (click)="store.elegirFranja(franja)"
-                        [attr.aria-label]="
-                          (franja.inicio | fechaLima: 'hora') +
-                          '–' +
-                          (franja.fin | fechaLima: 'hora')
-                        "
-                      >
-                        <strong>{{ franja.inicio | fechaLima: 'hora' }}</strong>
-                        @if (store.preferencia() === null) {
-                          <small>
-                            @for (id of franja.barberoIds; track id; let ultimo = $last) {
-                              {{ nombreBarbero(id).split(' ')[0] }}{{ ultimo ? '' : ', ' }}
-                            }
-                          </small>
-                        }
-                      </button>
-                    }
-                  </div>
+              <h2>{{ fechaLegible(store.fecha()) }}</h2>
+              @if (store.consultando()) {
+                <app-reserva-esqueleto texto="Consultando franjas…" [franjas]="true" />
+              } @else {
+                @for (grupo of gruposHoras(); track grupo.nombre) {
+                  @if (grupo.franjas.length) {
+                    <h3>{{ grupo.nombre }}</h3>
+                    <div class="rejilla-horas" role="group" [attr.aria-label]="grupo.nombre">
+                      @for (franja of grupo.franjas; track franja.inicio) {
+                        <button
+                          type="button"
+                          class="franja"
+                          [attr.data-franja]="franja.inicio"
+                          [class.elegido]="store.franja()?.inicio === franja.inicio"
+                          [attr.aria-pressed]="store.franja()?.inicio === franja.inicio"
+                          [disabled]="store.enviando()"
+                          (click)="store.elegirFranja(franja)"
+                          [attr.aria-label]="
+                            (franja.inicio | fechaLima: 'hora') +
+                            '–' +
+                            (franja.fin | fechaLima: 'hora')
+                          "
+                        >
+                          <strong>{{ franja.inicio | fechaLima: 'hora' }}</strong>
+                          @if (store.preferencia() === null) {
+                            <small>
+                              @for (id of franja.barberoIds; track id; let ultimo = $last) {
+                                {{ nombreBarbero(id).split(' ')[0] }}{{ ultimo ? '' : ', ' }}
+                              }
+                            </small>
+                          }
+                        </button>
+                      }
+                    </div>
+                  }
+                }
+                @if (!store.franjas().length && !store.mensaje()) {
+                  <p role="status">No hay horas libres este día. Pruebe otro día o profesional.</p>
                 }
               }
-              @if (!store.franjas().length && !store.mensaje()) {
-                <p role="status">No hay horas libres este día. Pruebe otro día o profesional.</p>
-              }
-            }
-          </section>
-          <p class="ayuda">Todas las horas corresponden a Lima.</p>
-          <div class="acciones barra-reserva" [hidden]="!movil()">
-            <span class="resumen-corto">{{
-              store.franja() ? store.servicio()?.nombre : 'Elija una hora para continuar.'
-            }}</span>
-            <button
-              mat-flat-button
-              type="button"
-              (click)="store.irPaso(2)"
-              [disabled]="!store.pasoDosCompleto() || store.enviando()"
-            >
-              Siguiente
-            </button>
-            <button
-              mat-button
-              type="button"
-              (click)="store.irPaso(0)"
-              [disabled]="store.enviando()"
-            >
-              Cambiar servicio o profesional
-            </button>
-          </div>
-        </div>
-      </mat-step>
-      <mat-step label="Confirmar" [editable]="!store.enviando()">
-        <div class="paso">
-          @if (store.reserva(); as reserva) {
-            <section class="cita-actual" aria-label="Cita actual">
-              <p>Cita actual, {{ reserva.codigo }}</p>
-              <del
-                ><span class="oculto">Horario anterior, se reemplaza: </span
-                >{{ fechaLegible(reserva.inicio) }}, {{ reserva.inicio | fechaLima: 'hora' }} con
-                {{ reserva.barbero.nombre }}</del
-              >
             </section>
-          }
-          <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 3 : 2">
-            {{ store.reserva() ? 'Nuevo horario' : 'Confirme los datos' }}
-          </h2>
-          @if (store.servicio(); as servicio) {
-            @if (store.franja(); as franja) {
-              <div class="tique resumen" role="group" aria-label="Resumen de la cita">
-                <div class="tique-banda">
-                  <strong>{{ fechaLegible(store.fecha()) }}</strong>
-                  <div class="tique-hora">{{ franja.inicio | fechaLima: 'hora' }}</div>
-                  <span>Hasta las {{ franja.fin | fechaLima: 'hora' }}, hora de Lima</span>
-                </div>
-                <div class="tique-cuerpo">
-                  <h2>{{ servicio.nombre }}</h2>
-                  @if (store.asistida()) {
-                    <p>Cliente: {{ store.cliente()?.nombre }}</p>
-                    <p>{{ store.cliente()?.correo }}</p>
-                  }
-                  <dl class="datos-turno">
-                    <div>
-                      <dt>Duración</dt>
-                      <dd>{{ servicio.duracionMin }} minutos</dd>
-                    </div>
-                    <div>
-                      <dt>Precio</dt>
-                      <dd>S/ {{ servicio.precio.toFixed(2) }}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-              @if (store.preferencia() === null) {
-                <mat-form-field appearance="outline">
-                  <mat-label>Profesional para esta franja</mat-label>
-                  <mat-select
-                    [value]="store.barberoId()"
-                    [disabled]="store.enviando()"
-                    (selectionChange)="store.elegirBarbero($event.value)"
-                  >
-                    @for (id of franja.barberoIds; track id) {
-                      <mat-option [value]="id">{{ nombreBarbero(id) }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              } @else {
-                <p>Profesional: {{ store.profesional()?.nombre }}</p>
-              }
-            }
-          }
-          @if (store.reserva()) {
-            <p class="ayuda">
-              Se conservan el servicio, el precio y la duración de su cita. Si la nueva hora deja de
-              estar libre, su cita actual no cambia.
-            </p>
-          }
-          <p class="ayuda">
-            Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.
-          </p>
-          @if (store.sesion.rol() === 'ADMIN') {
-            <p>Puede gestionar esta cita desde Agenda.</p>
-          }
-          @if (store.reserva() && store.sesion.rol() === 'ADMIN') {
-            <mat-form-field appearance="outline"
-              ><mat-label>Motivo de la reprogramación</mat-label
-              ><textarea
-                matInput
-                maxlength="300"
-                [value]="store.motivo()"
-                [disabled]="store.enviando()"
-                (input)="store.motivo.set($any($event.target).value)"
-              ></textarea
-              ><mat-hint>Obligatorio para el administrador.</mat-hint></mat-form-field
-            >
-          }
-          @if (store.sesion.rol() === 'BARBERO') {
-            <p>El perfil de barbero puede explorar las franjas, pero no confirmar reservas.</p>
-          }
-          @if (!store.sesion.autenticado()) {
-            <p>Para confirmar, ingrese o cree una cuenta. Conservaremos su selección.</p>
-          }
-          <div class="acciones confirmacion" [class.barra-reserva]="movil() && store.paso() === 2">
-            @if (store.sesion.rol() !== 'BARBERO') {
+            <p class="ayuda">Todas las horas corresponden a Lima.</p>
+            <div class="acciones barra-reserva" [hidden]="!movil()">
+              <span class="resumen-corto">{{
+                store.franja() ? store.servicio()?.nombre : 'Elija una hora para continuar.'
+              }}</span>
               <button
                 mat-flat-button
                 type="button"
-                data-confirmar
-                [disabled]="!store.puedeConfirmar()"
-                (click)="store.confirmar()"
+                (click)="store.irPaso(2)"
+                [disabled]="!store.pasoDosCompleto() || store.enviando()"
               >
-                {{
-                  store.enviando()
-                    ? 'Enviando…'
-                    : store.reserva()
-                      ? 'Confirmar reprogramación'
-                      : 'Confirmar reserva'
-                }}
+                Siguiente
               </button>
-            }
-            <button
-              mat-button
-              type="button"
-              [disabled]="store.enviando()"
-              (click)="store.irPaso(1)"
-            >
-              Cambiar fecha u hora
-            </button>
+              <button
+                mat-button
+                type="button"
+                (click)="store.irPaso(0)"
+                [disabled]="store.enviando()"
+              >
+                Cambiar servicio o profesional
+              </button>
+            </div>
           </div>
-        </div>
-      </mat-step>
-    </mat-stepper>
+        </mat-step>
+        <mat-step label="Confirmar" [editable]="!store.enviando()">
+          <div class="paso">
+            @if (store.reserva(); as reserva) {
+              <section class="cita-actual" aria-label="Cita actual">
+                <p>Cita actual, {{ reserva.codigo }}</p>
+                <del
+                  ><span class="oculto">Horario anterior, se reemplaza: </span
+                  >{{ fechaLegible(reserva.inicio) }}, {{ reserva.inicio | fechaLima: 'hora' }} con
+                  {{ reserva.barbero.nombre }}</del
+                >
+              </section>
+            }
+            <h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 3 : 2">
+              {{ store.reserva() ? 'Nuevo horario' : 'Confirme los datos' }}
+            </h2>
+            @if (store.servicio(); as servicio) {
+              @if (store.franja(); as franja) {
+                <div class="tique resumen" role="group" aria-label="Resumen de la cita">
+                  <div class="tique-banda">
+                    <strong>{{ fechaLegible(store.fecha()) }}</strong>
+                    <div class="tique-hora">{{ franja.inicio | fechaLima: 'hora' }}</div>
+                    <span>Hasta las {{ franja.fin | fechaLima: 'hora' }}, hora de Lima</span>
+                  </div>
+                  <div class="tique-cuerpo">
+                    <h2>{{ servicio.nombre }}</h2>
+                    @if (store.asistida()) {
+                      <p>Cliente: {{ store.cliente()?.nombre }}</p>
+                      <p>{{ store.cliente()?.correo }}</p>
+                    }
+                    <dl class="datos-turno">
+                      <div>
+                        <dt>Duración</dt>
+                        <dd>{{ servicio.duracionMin }} minutos</dd>
+                      </div>
+                      <div>
+                        <dt>Precio</dt>
+                        <dd>S/ {{ servicio.precio.toFixed(2) }}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+                @if (store.preferencia() === null) {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Profesional para esta franja</mat-label>
+                    <mat-select
+                      [value]="store.barberoId()"
+                      [disabled]="store.enviando()"
+                      (selectionChange)="store.elegirBarbero($event.value)"
+                    >
+                      @for (id of franja.barberoIds; track id) {
+                        <mat-option [value]="id">{{ nombreBarbero(id) }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                } @else {
+                  <p>Profesional: {{ store.profesional()?.nombre }}</p>
+                }
+              }
+            }
+            @if (store.reserva()) {
+              <p class="ayuda">
+                Se conservan el servicio, el precio y la duración de su cita. Si la nueva hora deja
+                de estar libre, su cita actual no cambia.
+              </p>
+            }
+            <p class="ayuda">
+              Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.
+            </p>
+            @if (store.sesion.rol() === 'ADMIN') {
+              <p>Puede gestionar esta cita desde Agenda.</p>
+            }
+            @if (store.reserva() && store.sesion.rol() === 'ADMIN') {
+              <mat-form-field appearance="outline"
+                ><mat-label>Motivo de la reprogramación</mat-label
+                ><textarea
+                  matInput
+                  maxlength="300"
+                  [value]="store.motivo()"
+                  [disabled]="store.enviando()"
+                  (input)="store.motivo.set($any($event.target).value)"
+                ></textarea
+                ><mat-hint>Obligatorio para el administrador.</mat-hint></mat-form-field
+              >
+            }
+            @if (store.sesion.rol() === 'BARBERO') {
+              <p>El perfil de barbero puede explorar las franjas, pero no confirmar reservas.</p>
+            }
+            @if (!store.sesion.autenticado()) {
+              <p>Para confirmar, ingrese o cree una cuenta. Conservaremos su selección.</p>
+            }
+            <div
+              class="acciones confirmacion"
+              [class.barra-reserva]="movil() && store.paso() === 2"
+            >
+              @if (store.sesion.rol() !== 'BARBERO') {
+                <button
+                  mat-flat-button
+                  type="button"
+                  data-confirmar
+                  [disabled]="!store.puedeConfirmar()"
+                  (click)="store.confirmar()"
+                >
+                  {{
+                    store.enviando()
+                      ? 'Enviando…'
+                      : store.reserva()
+                        ? 'Confirmar reprogramación'
+                        : 'Confirmar reserva'
+                  }}
+                </button>
+              }
+              <button
+                mat-button
+                type="button"
+                [disabled]="store.enviando()"
+                (click)="store.irPaso(1)"
+              >
+                Cambiar fecha u hora
+              </button>
+            </div>
+          </div>
+        </mat-step>
+      </mat-stepper>
+    </app-reserva-asistente>
     @if (!movil() && store.paso() !== 2) {
       <app-reserva-resumen (avanzar)="avanzar()" />
     }

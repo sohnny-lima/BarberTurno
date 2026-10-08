@@ -1,16 +1,8 @@
 :host {
   display: block;
 }
-.foto {
-  display: block;
+app-reserva-foto {
   margin: -24px -24px 24px;
-}
-.foto img {
-  display: block;
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-  border-radius: 16px 16px 0 0;
 }
 fieldset {
   border: 0;
@@ -104,13 +96,6 @@ input {
   }
 }
 @media (max-width: 767.98px) {
-  .foto {
-    margin: 0 0 24px;
-  }
-  .foto img {
-    height: 148px;
-    border-radius: 16px;
-  }
   .servicios,
   .profesionales {
     gap: 0;
@@ -134,5 +119,11 @@ input {
   }
   .servicio {
     gap: 8px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .profesionales {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

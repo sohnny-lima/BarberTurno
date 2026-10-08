@@ -1,10 +1,9 @@
-@if (!store.reserva()) {
-  <picture class="foto">
-    <source media="(min-width: 768px)" srcset="/fotos/interior-vacio.webp" />
-    <img src="/fotos/tijeras-mesa-recorte.webp" alt="" width="1280" height="640" />
-  </picture>
+@if (!store.reserva() && !movil()) {
+  <app-reserva-foto />
 }
-<h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 1 : 0">Elija el servicio</h2>
+<h2 tabindex="-1" [attr.data-paso]="store.asistida() ? 1 : 0">
+  {{ store.reserva() ? 'Servicio de su cita' : 'Elija el servicio' }}
+</h2>
 @if (store.reserva(); as reserva) {
   <div class="servicio-fijo">
     <h3>{{ reserva.servicio.nombre }}</h3>
@@ -26,8 +25,7 @@
         <span class="icono" aria-hidden="true">✂</span>
         <span class="detalle"
           ><strong>{{ servicio.nombre }}</strong
-          ><small>{{ servicio.duracionMin }} min</small
-          ><small>{{ servicio.descripcion }}</small></span
+          ><small>{{ servicio.duracionMin }} min</small></span
         >
         <strong class="precio">S/ {{ servicio.precio.toFixed(2) }}</strong>
         <input
@@ -58,7 +56,7 @@
       [disabled]="store.enviando()"
       (change)="store.elegirPreferencia(null)"
     />
-    <span><strong>Sin preferencia</strong><small>Vea las horas de todos</small></span>
+    <span><strong>Sin preferencia</strong><small>Ve las horas de todos</small></span>
   </label>
   @for (barbero of store.barberos(); track barbero.id) {
     <label class="profesional" [class.elegido]="store.preferencia() === barbero.id">
