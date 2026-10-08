@@ -125,6 +125,21 @@ describe('Panel de avisos', () => {
     );
     expect(fixture.nativeElement.querySelector('h2').textContent).toBe('Avisos');
     expect(fixture.nativeElement.querySelector('mat-select')).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Actualizar avisos');
+    expect(fixture.nativeElement.textContent).toContain('Actualizar');
+    expect(fixture.nativeElement.querySelector('.insignia').textContent).toBe('2 sin leer');
+  });
+  it('el panel de escritorio incrustado conserva título, insignia y lectura alineada', () => {
+    const fixture = crear();
+    fixture.componentRef.setInput('incrustado', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('h2').textContent).toBe('Avisos');
+    expect(fixture.nativeElement.querySelector('.insignia').textContent).toBe('2 sin leer');
+    expect(fixture.nativeElement.querySelector('section').getAttribute('aria-labelledby')).toBe(
+      'titulo-avisos',
+    );
+    const lectura = fixture.nativeElement.querySelector('li button');
+    expect(lectura.getAttribute('aria-label')).toBe('Marcar como leído el aviso de BT-101');
+    expect(lectura.textContent).toContain('Marcar como leído');
+    expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
   });
 });

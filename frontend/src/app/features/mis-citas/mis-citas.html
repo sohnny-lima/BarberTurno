@@ -1,100 +1,113 @@
-<h1>Mis citas</h1>
-<p>Consulte sus turnos y los avisos de sus reservas. Horarios de Lima.</p>
-<div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-  <div class="min-w-0">
-    <mat-tab-group
-      dynamicHeight
-      (selectedIndexChange)="cambiarTab($event)"
+<div class="distribucion">
+  <div class="citas">
+    <h1>Mis citas</h1>
+    <p class="subtitulo">
+      <span>Consulte y gestione sus turnos. </span>Todas las horas corresponden a Lima.
+    </p>
+    <mat-button-toggle-group
+      class="periodo"
+      [value]="historial() ? 1 : 0"
+      (change)="cambiarTab($event.value)"
       aria-label="Periodo de las citas"
+      hideSingleSelectionIndicator
     >
-      <mat-tab label="Próximas">
-        <ng-template matTabContent
-          ><ng-container [ngTemplateOutlet]="contenidoCitas"
-        /></ng-template>
-      </mat-tab>
-      <mat-tab label="Historial">
-        <ng-template matTabContent
-          ><ng-container [ngTemplateOutlet]="contenidoCitas"
-        /></ng-template>
-      </mat-tab>
-    </mat-tab-group>
-  </div>
-  <app-avisos-panel [revision]="revisionAvisos()" />
-</div>
-<ng-template #contenidoCitas>
-  <button
-    mat-stroked-button
-    class="abrir-filtros"
-    type="button"
-    [attr.aria-expanded]="filtrosAbiertos()"
-    aria-controls="filtros-citas"
-    (click)="filtrosAbiertos.set(!filtrosAbiertos())"
-  >
-    Filtros
-  </button>
-  <form
-    [formGroup]="formulario"
-    (ngSubmit)="filtrar()"
-    class="filtros"
-    id="filtros-citas"
-    [class.abiertos]="filtrosAbiertos()"
-  >
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>Desde</mat-label><input matInput type="date" formControlName="desde" />
-    </mat-form-field>
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>Hasta</mat-label><input matInput type="date" formControlName="hasta" />
-    </mat-form-field>
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>Estado</mat-label>
-      <mat-select formControlName="estado">
-        <mat-option value="">Todos los estados</mat-option>
-        @for (estado of estados; track estado[0]) {
-          <mat-option [value]="estado[0]">{{ estado[1] }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    <button mat-stroked-button type="submit">Filtrar</button>
-    @if (formulario.hasError('rangoFechas')) {
-      <p class="error-campo" role="alert">La fecha Desde no puede ser posterior a Hasta.</p>
-    }
-  </form>
-  <section class="lista-citas" aria-label="Reservas" [attr.aria-busy]="cargando()">
-    @if (cargando()) {
-      <p role="status">Cargando citas…</p>
-    } @else if (mensaje()) {
-      <p class="mensaje" role="alert">
-        <strong>No se pudieron cargar las citas.</strong> {{ mensaje() }}
-      </p>
-      <button mat-button (click)="cargar()">Reintentar</button>
-    } @else {
-      @for (reserva of filas(); track reserva.id; let primera = $first) {
-        <app-reserva-tarjeta
-          [reserva]="reserva"
-          [tique]="!historial() && primera"
-          (cancelar)="cancelar($event)"
-        />
-      } @empty {
-        <p role="status">
-          {{
-            historial()
-              ? 'No hay citas con estos filtros.'
-              : 'No tiene citas próximas con estos filtros.'
-          }}
-        </p>
-        <a mat-stroked-button routerLink="/reservar">Reservar un turno</a>
+      <mat-button-toggle [value]="0">Próximas</mat-button-toggle>
+      <mat-button-toggle [value]="1">Historial</mat-button-toggle>
+    </mat-button-toggle-group>
+    <button
+      mat-stroked-button
+      class="abrir-filtros"
+      type="button"
+      [attr.aria-expanded]="filtrosAbiertos()"
+      aria-controls="filtros-citas"
+      (click)="filtrosAbiertos.set(!filtrosAbiertos())"
+    >
+      Filtros por fecha y estado
+    </button>
+    <form
+      [formGroup]="formulario"
+      (ngSubmit)="filtrar()"
+      class="filtros"
+      id="filtros-citas"
+      [class.abiertos]="filtrosAbiertos()"
+    >
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Desde</mat-label><input matInput type="date" formControlName="desde" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Hasta</mat-label><input matInput type="date" formControlName="hasta" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Estado</mat-label>
+        <mat-select formControlName="estado">
+          <mat-option value="">Todos los estados</mat-option>
+          @for (estado of estados; track estado[0]) {
+            <mat-option [value]="estado[0]">{{ estado[1] }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button mat-stroked-button type="submit">Filtrar</button>
+      @if (formulario.hasError('rangoFechas')) {
+        <p class="error-campo" role="alert">La fecha Desde no puede ser posterior a Hasta.</p>
       }
-    }
-    @if (!mensaje()) {
-      <mat-paginator
-        [length]="total()"
-        [pageIndex]="pagina()"
-        [pageSize]="tamano()"
-        [pageSizeOptions]="[10, 20, 50]"
-        (page)="paginar($event)"
-        showFirstLastButtons
-        aria-label="Páginas de citas"
-      />
-    }
-  </section>
-</ng-template>
+    </form>
+    <section class="lista-citas" aria-label="Reservas" [attr.aria-busy]="cargando()">
+      @if (cargando()) {
+        <app-reserva-esqueleto texto="Cargando citas…" />
+      } @else if (mensaje()) {
+        <div class="alerta" role="alert">
+          <p><strong>No se pudieron cargar las citas.</strong> {{ mensaje() }}</p>
+          <button mat-button (click)="cargar()">Reintentar</button>
+        </div>
+      } @else if (filas().length) {
+        @if (!historial()) {
+          <app-reserva-tarjeta
+            [reserva]="filas()[0]"
+            [tique]="true"
+            (cancelar)="cancelar($event)"
+          />
+        }
+        <div class="compactas">
+          @for (reserva of filas(); track reserva.id; let primera = $first) {
+            @if (historial() || !primera) {
+              <app-reserva-tarjeta [reserva]="reserva" (cancelar)="cancelar($event)" />
+            }
+          }
+        </div>
+      } @else {
+        <div class="vacio">
+          <img src="/fotos/sillon-luz.webp" alt="" loading="lazy" />
+          <div>
+            <h2>
+              {{ historial() ? 'No hay citas con estos filtros.' : 'No tiene citas próximas' }}
+            </h2>
+            <p role="status">
+              {{
+                historial()
+                  ? 'Pruebe con otras fechas o estados para consultar sus citas pasadas.'
+                  : 'Reserve un turno y aparecerá aquí con su día y hora de Lima. Sus citas pasadas están en Historial.'
+              }}
+            </p>
+            <a mat-flat-button routerLink="/reservar">Reservar un turno</a>
+          </div>
+        </div>
+      }
+      @if (!mensaje() && total() > tamano()) {
+        <mat-paginator
+          [length]="total()"
+          [pageIndex]="pagina()"
+          [pageSize]="tamano()"
+          [hidePageSize]="true"
+          (page)="paginar($event)"
+          showFirstLastButtons
+          aria-label="Páginas de citas"
+        />
+      }
+    </section>
+  </div>
+  @if (!movil()) {
+    <aside class="avisos" aria-label="Avisos de sus reservas">
+      <app-avisos-panel [revision]="revisionAvisos()" [incrustado]="true" />
+    </aside>
+  }
+</div>

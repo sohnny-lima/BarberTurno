@@ -8,7 +8,7 @@ import { MatSidenav } from '@angular/material/sidenav';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { By } from '@angular/platform-browser';
-import { provideRouter, Router } from '@angular/router';
+import { NavigationEnd, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 import { Rol } from '../core/modelos/identidad';
@@ -288,6 +288,27 @@ describe('Shell adaptable', () => {
     expect(titulo.hasAttribute('role')).toBe(false);
     expect(f.nativeElement.querySelector('h1')).toBeNull();
   });
+  it.each([true, false])(
+    'en Mis citas conserva la campana solo en móvil y vuelve al salir: móvil=%s',
+    (esMovil) => {
+      entrar('CLIENTE');
+      movil.next({ matches: esMovil });
+      const eventos = new Subject<NavigationEnd>();
+      const router = TestBed.inject(Router);
+      vi.spyOn(router, 'events', 'get').mockReturnValue(eventos);
+      const fixture = TestBed.createComponent(Shell);
+      vi.spyOn(router, 'url', 'get').mockReturnValue('/mis-citas?estado=CONFIRMADA');
+      eventos.next(new NavigationEnd(1, '/mis-citas', '/mis-citas?estado=CONFIRMADA'));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]')).toHaveLength(
+        esMovil ? 1 : 0,
+      );
+      vi.spyOn(router, 'url', 'get').mockReturnValue('/reservar');
+      eventos.next(new NavigationEnd(2, '/reservar', '/reservar'));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]')).toHaveLength(1);
+    },
+  );
 });
 
 describe('Avisos del barbero desde la cabecera', () => {

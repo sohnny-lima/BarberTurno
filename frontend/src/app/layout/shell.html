@@ -76,7 +76,11 @@
         } @else if (movil()) {
           <span class="titulo-pagina">{{ tituloPagina() }}</span>
         }
-        @if (navegacionCompleta() && sesion.rol() !== 'ADMIN') {
+        @if (
+          navegacionCompleta() &&
+          sesion.rol() !== 'ADMIN' &&
+          (movil() || ruta().split('?')[0] !== '/mis-citas')
+        ) {
           <button
             mat-button
             class="campana"

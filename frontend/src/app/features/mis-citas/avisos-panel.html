@@ -5,16 +5,17 @@
   [attr.aria-busy]="cargando()"
 >
   @if (mostrarEncabezado()) {
-    <h2 id="titulo-avisos">Avisos</h2>
+    <div class="encabezado">
+      <h2 id="titulo-avisos">Avisos</h2>
+      <span class="insignia">{{ avisos.noLeidas() }} sin leer</span>
+    </div>
   }
   <p class="ayuda">Del más reciente al más antiguo.</p>
   <div class="acciones">
     <button mat-button (click)="marcar()" [disabled]="guardando() || avisos.noLeidas() === 0">
       Marcar todos como leídos
     </button>
-    <button mat-button (click)="cargar()" [disabled]="cargando() || guardando()">
-      {{ incrustado() ? 'Actualizar' : 'Actualizar avisos' }}
-    </button>
+    <button mat-button (click)="cargar()" [disabled]="cargando() || guardando()">Actualizar</button>
   </div>
   @if (mensaje()) {
     <p class="mensaje" role="alert">{{ mensaje() }}</p>
@@ -26,7 +27,7 @@
       @for (aviso of filas(); track aviso.id) {
         <li>
           <p>
-            <strong [class.nuevo]="!aviso.leida">{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong> ·
+            <strong [class.nuevo]="!aviso.leida">{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong>
             {{ aviso.creadoEn | fechaLima }}
           </p>
           <p>{{ aviso.mensaje }}</p>

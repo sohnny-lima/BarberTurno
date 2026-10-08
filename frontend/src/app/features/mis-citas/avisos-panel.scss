@@ -43,3 +43,37 @@ ul {
 .incrustado li:last-child {
   border-bottom: 0;
 }
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.encabezado h2 {
+  margin: 0;
+}
+.insignia {
+  border-radius: 999px;
+  background: var(--color-confirmada-fondo);
+  color: var(--color-confirmada);
+  padding: 4px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+li > p:first-child {
+  color: var(--color-texto-2);
+  font-size: 13px;
+}
+.incrustado li > button {
+  margin-left: 0;
+}
+.incrustado .acciones {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.incrustado .acciones button {
+  white-space: normal;
+  text-align: left;
+  line-height: 20px;
+}

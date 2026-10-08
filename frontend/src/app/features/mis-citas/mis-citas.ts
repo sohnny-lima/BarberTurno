@@ -1,7 +1,7 @@
 import { RouterLink } from '@angular/router';
-import { NgTemplateOutlet } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, ValidatorFn } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -10,8 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTabsModule } from '@angular/material/tabs';
-import { finalize, Subscription } from 'rxjs';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { finalize, map, Subscription } from 'rxjs';
 import { ReservasApi } from '../../core/api/reservas-api';
 import { EstadoReserva, ReservaDto } from '../../core/modelos/reservas';
 import { AvisosService } from '../../core/notificaciones/avisos-service';
@@ -20,6 +20,8 @@ import { ESTADOS_RESERVA } from '../../shared/estado-reserva-chip';
 import { mostrarErrores } from '../../shared/formulario';
 import { paginadorEspanol } from '../../shared/paginador-es';
 import { ReservaTarjeta } from '../../shared/reserva-tarjeta';
+import { TituloPagina } from '../../shared/titulo-pagina';
+import { ReservaEsqueleto } from '../reservar/reserva-esqueleto';
 import { AvisosPanel } from './avisos-panel';
 import { CancelarDialogo, ResultadoCancelacion } from './cancelar-dialogo';
 
@@ -31,7 +33,6 @@ export const rangoFechas: ValidatorFn = (grupo) => {
 @Component({
   selector: 'app-mis-citas',
   imports: [
-    NgTemplateOutlet,
     RouterLink,
     ReactiveFormsModule,
     MatButtonModule,
@@ -39,7 +40,8 @@ export const rangoFechas: ValidatorFn = (grupo) => {
     MatInputModule,
     MatPaginatorModule,
     MatSelectModule,
-    MatTabsModule,
+    MatButtonToggleModule,
+    ReservaEsqueleto,
     ReservaTarjeta,
     AvisosPanel,
   ],
@@ -55,6 +57,12 @@ export class MisCitas {
   private readonly avisos = inject(AvisosService);
   private readonly destroyRef = inject(DestroyRef);
   private peticion?: Subscription;
+  readonly movil = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 767.98px)')
+      .pipe(map((estado) => estado.matches)),
+    { initialValue: false },
+  );
   readonly formulario = new FormGroup(
     {
       desde: new FormControl('', { nonNullable: true }),
@@ -74,6 +82,9 @@ export class MisCitas {
   readonly total = signal(0);
   readonly revisionAvisos = signal(0);
   constructor() {
+    const titulo = inject(TituloPagina);
+    titulo.texto.set('Mis citas');
+    this.destroyRef.onDestroy(() => titulo.texto.set(null));
     this.cargar();
   }
   cambiarTab(indice: number) {

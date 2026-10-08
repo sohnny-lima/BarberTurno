@@ -83,4 +83,38 @@ describe('Tarjeta de reserva', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
   });
+  it('presenta fecha compacta en minúsculas y horario con profesional', () => {
+    const fixture = TestBed.createComponent(ReservaTarjeta);
+    fixture.componentRef.setInput('reserva', {
+      ...RESERVA_PRUEBA,
+      inicio: '2026-10-01T15:00:00Z',
+      fin: '2026-10-01T15:30:00Z',
+    });
+    fixture.detectChanges();
+    const fecha = fixture.nativeElement.querySelector('.bloque-fecha');
+    expect(fecha.textContent).toMatch(/jue\s*1\s*oct/);
+    expect(fixture.nativeElement.querySelector('.horario').textContent).toContain(
+      '10:00 a 10:30 con Profesional ficticio',
+    );
+    expect(fixture.nativeElement.querySelector('article').getAttribute('aria-label')).toBe(
+      'Cita BT-101',
+    );
+  });
+  it('el tique conserva estado, referencias y fin con una hora destacada', () => {
+    const fixture = TestBed.createComponent(ReservaTarjeta);
+    fixture.componentRef.setInput('reserva', RESERVA_PRUEBA);
+    fixture.componentRef.setInput('tique', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.tique-hora').textContent).toBe('10:00');
+    expect(fixture.nativeElement.querySelector('.tique-banda').textContent).toContain(
+      'hasta las 10:30',
+    );
+    expect(fixture.nativeElement.querySelector('h2').textContent).toMatch(
+      /Corte clásico\s+con Profesional ficticio/,
+    );
+    expect(fixture.nativeElement.textContent).toContain('Confirmada');
+    expect(fixture.nativeElement.querySelector('.referencias').textContent).toMatch(
+      /25\.00,\s*30 min,\s*BT-101/,
+    );
+  });
 });

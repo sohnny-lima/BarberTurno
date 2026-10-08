@@ -17,7 +17,8 @@ import { EstadoReservaChip } from './estado-reserva-chip';
 export class ReservaTarjeta {
   readonly reserva = input.required<ReservaDto>();
   readonly tique = input(false);
-  readonly fecha = fechaPresentacion;
+  readonly fecha = (instante: string, formato: 'larga' | 'dia' | 'numero' | 'mes' = 'larga') =>
+    fechaPresentacion(instante, formato).toLocaleLowerCase('es-PE').replace(/\.$/, '');
   readonly ahora = input(Date.now());
   readonly cancelar = output<ReservaDto>();
   // Solo decide si mostrar una explicación. Las acciones obedecen siempre al DTO.
