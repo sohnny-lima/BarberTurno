@@ -123,6 +123,12 @@ export class Reservar {
     ];
   });
   readonly fechaLegible = fechaPresentacion;
+  readonly diaSeleccionado = (inicio: string) =>
+    new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      weekday: 'long',
+      day: 'numeric',
+    }).format(new Date(inicio));
   elegirDia(fecha: string, evento: Event) {
     this.store.elegirFecha(fecha);
     (evento.currentTarget as HTMLElement).scrollIntoView?.({ block: 'nearest', inline: 'nearest' });

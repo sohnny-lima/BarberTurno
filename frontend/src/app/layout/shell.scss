@@ -102,6 +102,9 @@ main {
   max-width: 1400px;
   margin: auto;
 }
+main#contenido[tabindex='-1']:focus-visible {
+  outline: none;
+}
 footer {
   padding: 0 48px 24px;
   font-size: 13px;

@@ -81,6 +81,64 @@ describe('Vista de reserva guiada', () => {
     s.elegirFranja(s.franjas()[0]);
     f.detectChanges();
   }
+  function comprobarPasos(f: ReturnType<typeof preparar>, actual: number) {
+    const pasos = [...f.nativeElement.querySelectorAll('mat-step-header')] as HTMLElement[];
+    pasos.forEach((paso, index) => {
+      const icono = paso.querySelector('.mat-step-icon')!;
+      expect(icono.querySelector('[aria-hidden=true]')?.textContent?.trim()).toBe(
+        index < actual ? '✓' : String(index + 1),
+      );
+      expect(icono.querySelector('.oculto')?.textContent?.trim()).toBe(
+        'Paso ' +
+          (index + 1) +
+          ', ' +
+          (index < actual ? 'completado' : index === actual ? 'actual' : 'pendiente'),
+      );
+      expect(paso.getAttribute('aria-selected')).toBe(String(index === actual));
+      expect(paso.querySelector('.mat-step-text-label')?.textContent?.trim()).not.toBe('');
+    });
+  }
+  it.each([false, true])(
+    'marca pasos completados y conserva número y estado del actual y pendientes, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar();
+      await f.whenStable();
+      comprobarPasos(f, 0);
+      seleccionar(f);
+      await f.whenStable();
+      f.detectChanges();
+      comprobarPasos(f, 2);
+      f.componentInstance.store.irPaso(1);
+      await f.whenStable();
+      f.detectChanges();
+      comprobarPasos(f, 1);
+    },
+  );
+  it('resume día, inicio y fin de la franja en Lima en móvil y guía sin selección', async () => {
+    movil = true;
+    const f = preparar();
+    const store = f.componentInstance.store;
+    store.elegirServicio(1);
+    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    store.irPaso(1);
+    await f.whenStable();
+    f.detectChanges();
+    const barra = f.nativeElement.querySelector('.resumen-corto') as HTMLElement;
+    expect(barra.textContent?.trim()).toBe('Elija una hora para continuar.');
+    store.franjas.set([
+      { inicio: '2026-09-28T16:00:00Z', fin: '2026-09-28T16:45:00Z', barberoIds: [2] },
+    ]);
+    store.elegirFranja(store.franjas()[0]);
+    store.irPaso(1);
+    await f.whenStable();
+    f.detectChanges();
+    expect(barra.textContent?.replace(/\s+/g, ' ').trim()).toBe('lunes 28, 11:00 a 11:45 · Corte');
+    expect(store.servicio()?.duracionMin).toBe(30);
+    store.franja.set(null);
+    f.detectChanges();
+    expect(barra.textContent?.trim()).toBe('Elija una hora para continuar.');
+  });
   it('muestra tarjetas, precios, pago presencial y stepper lineal', () => {
     const f = preparar('');
     expect(f.nativeElement.textContent).toContain('S/ 25.00');
@@ -276,6 +334,7 @@ describe('Vista de reserva guiada', () => {
       await f.whenStable();
       f.detectChanges();
       expect(stepper.selectedIndex).toBe(3);
+      comprobarPasos(f, 3);
       expect(f.nativeElement.textContent).toContain('Asistido ficticio');
       f.componentInstance.store.irPaso(-1);
       await f.whenStable();
@@ -340,36 +399,41 @@ describe('Vista de reserva guiada', () => {
     expect(store.mensaje()).toBe('');
     expect(f.nativeElement.textContent).toContain('No hay horas libres este día.');
   });
-  it('marca el horario anterior con del y conserva las referencias al reprogramar', async () => {
-    const f = preparar();
-    seleccionar(f);
-    f.componentInstance.store.reserva.set({
-      id: 7,
-      codigo: 'BT-7',
-      cliente: { id: 1, nombre: 'Ficticio' },
-      servicio: { id: 1, nombre: 'Corte original' },
-      barbero: { id: 2, nombre: 'Ficticio A' },
-      inicio: '2026-10-09T09:00:00-05:00',
-      fin: '2026-10-09T09:40:00-05:00',
-      duracionMin: 40,
-      precioRef: 22,
-      estado: 'CONFIRMADA',
-      version: 4,
-      permisos: { reprogramar: true, cancelar: true, transiciones: [] },
-    });
-    f.detectChanges();
-    await f.whenStable();
-    const anterior = f.nativeElement.querySelector('del');
-    expect(anterior.textContent).toContain('Horario anterior, se reemplaza:');
-    expect(anterior.textContent).toContain('09:00 con Ficticio A');
-    expect(anterior.querySelector('.oculto')).not.toBeNull();
-    expect(f.nativeElement.querySelector('.resumen').textContent).toContain('40 minutos');
-    expect(f.nativeElement.querySelector('.resumen').textContent).toContain('S/ 22.00');
-    expect(f.nativeElement.querySelector('h1').textContent).toBe('Reprogramar cita');
-    expect(f.nativeElement.textContent).toContain(
-      'Se conservan el servicio, el precio y la duración',
-    );
-  });
+  it.each([false, true])(
+    'marca el horario anterior y los pasos completados al reprogramar, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar();
+      seleccionar(f);
+      f.componentInstance.store.reserva.set({
+        id: 7,
+        codigo: 'BT-7',
+        cliente: { id: 1, nombre: 'Ficticio' },
+        servicio: { id: 1, nombre: 'Corte original' },
+        barbero: { id: 2, nombre: 'Ficticio A' },
+        inicio: '2026-10-09T09:00:00-05:00',
+        fin: '2026-10-09T09:40:00-05:00',
+        duracionMin: 40,
+        precioRef: 22,
+        estado: 'CONFIRMADA',
+        version: 4,
+        permisos: { reprogramar: true, cancelar: true, transiciones: [] },
+      });
+      f.detectChanges();
+      await f.whenStable();
+      comprobarPasos(f, 2);
+      const anterior = f.nativeElement.querySelector('del');
+      expect(anterior.textContent).toContain('Horario anterior, se reemplaza:');
+      expect(anterior.textContent).toContain('09:00 con Ficticio A');
+      expect(anterior.querySelector('.oculto')).not.toBeNull();
+      expect(f.nativeElement.querySelector('.resumen').textContent).toContain('40 minutos');
+      expect(f.nativeElement.querySelector('.resumen').textContent).toContain('S/ 22.00');
+      expect(f.nativeElement.querySelector('h1').textContent).toBe('Reprogramar cita');
+      expect(f.nativeElement.textContent).toContain(
+        'Se conservan el servicio, el precio y la duración',
+      );
+    },
+  );
   it('los días incluyen el año y las fotos decorativas usan recursos locales', () => {
     const f = preparar();
     expect(f.nativeElement.querySelector('[data-dia]').getAttribute('aria-label')).toContain(

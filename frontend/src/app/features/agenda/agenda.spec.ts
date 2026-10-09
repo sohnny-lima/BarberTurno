@@ -67,6 +67,21 @@ describe('Agenda operativa', () => {
     inicial.flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     return fixture;
   }
+  it.each([360, 1440])('une servicio y código sin espacio antes de la coma, ancho=%s', (valor) => {
+    ancho.next(valor);
+    rol.set('BARBERO');
+    const f = crear();
+    f.componentInstance.periodo.set({ desde: '2026-10-05', hasta: '2026-10-05' });
+    f.componentInstance.filas.set([
+      { ...RESERVA_PRUEBA, servicio: { id: 1, nombre: 'Barba' }, codigo: 'BT-101' },
+    ]);
+    f.detectChanges();
+    const servicio = f.nativeElement.querySelector('app-agenda-cita .servicio');
+    expect(servicio.textContent.trim()).toBe(valor === 360 ? 'Barba, BT-101' : 'BarbaBT-101');
+    expect(servicio.querySelector('.codigo').textContent).toBe(
+      valor === 360 ? ', BT-101' : 'BT-101',
+    );
+  });
   it('destaca la primera transición en el orden existente y cuenta solo las citas cargadas', () => {
     const fixture = crear();
     const agenda = fixture.componentInstance;

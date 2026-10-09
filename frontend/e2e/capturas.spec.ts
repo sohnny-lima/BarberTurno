@@ -22,6 +22,29 @@ function movil(page: Page) {
 }
 async function capturar(page: Page, info: TestInfo, nombre: string, cargando = false) {
   await expect(page.locator('main')).toBeVisible();
+  const main = page.locator('main#contenido');
+  await expect(main).toHaveAttribute('tabindex', '-1');
+  await expect(main).toHaveCSS('outline-style', 'none');
+  const pasos = page.locator('mat-step-header');
+  for (let index = 0; index < (await pasos.count()); index++) {
+    const paso = pasos.nth(index);
+    const icono = paso.locator('.mat-step-icon');
+    const estado = await icono.locator('.oculto').textContent();
+    const completado = estado?.includes('completado');
+    await expect(paso).toHaveAccessibleName(
+      new RegExp('Paso ' + (index + 1) + ',.*(completado|actual|pendiente)'),
+    );
+    await expect(icono.locator('[aria-hidden="true"]')).toHaveText(
+      completado ? '✓' : String(index + 1),
+    );
+    if (completado) {
+      await expect(icono).toHaveCSS('background-color', 'rgb(227, 241, 234)');
+      await expect(icono).toHaveCSS('color', 'rgb(20, 92, 67)');
+    }
+  }
+  for (const servicio of await page.locator('app-agenda-cita .servicio').all()) {
+    expect(await servicio.textContent()).not.toMatch(/\s+,/);
+  }
   if (!cargando) await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   await expect(page.locator('mat-snack-bar-container [aria-hidden="true"]')).toHaveCount(0);
   const viewport = page.viewportSize()!;
@@ -166,6 +189,8 @@ test('propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación', asy
   );
   await capturar(page, info, movil(page) ? 'Reservar360Paso1' : 'Reservar1440Paso1');
   await avanzar(page);
+  if (movil(page))
+    await expect(page.locator('.resumen-corto')).toHaveText('Elija una hora para continuar.');
   // Firefox también tabula el grupo desplazable; se verifica ese foco y el del primer día.
   if (movil(page) && info.project.use.browserName === 'firefox') {
     const dias = page.getByRole('group', { name: 'Días disponibles', exact: true });
@@ -181,6 +206,18 @@ test('propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación', asy
   await page.getByRole('button', { name: 'Cambiar fecha u hora', exact: true }).click();
   await expect(page.locator('[data-paso="1"]')).toBeFocused();
   await expect(hora).toHaveAttribute('aria-pressed', 'true');
+  if (movil(page)) {
+    const fecha = await page.locator('[data-dia][aria-pressed="true"]').getAttribute('data-dia');
+    const dia = new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      weekday: 'long',
+      day: 'numeric',
+    }).format(new Date(fecha + 'T12:00:00-05:00'));
+    const intervalo = (await hora.getAttribute('aria-label'))!.replace('–', ' a ');
+    await expect(page.locator('.resumen-corto')).toHaveText(
+      dia + ', ' + intervalo + ' · Corte clásico',
+    );
+  }
   await capturar(page, info, movil(page) ? 'Main' : 'Reservar1440');
   const siguiente = page.getByRole('button', { name: 'Siguiente', exact: true });
   await siguiente.focus();

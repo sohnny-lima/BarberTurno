@@ -44,6 +44,33 @@ describe('Shell adaptable', () => {
       debeCambiarPassword: temporal,
     });
   }
+  it('conserva el foco programático sin contorno solo en main y el foco visible de controles y salto', () => {
+    const reglaGlobal = document.createElement('style');
+    // jsdom no reevalúa :focus-visible al cambiar entre controles; aislar la cascada del contorno.
+    reglaGlobal.textContent =
+      'main, .saltar, button { outline: 3px solid #145c43; outline-offset: 2px; }';
+    document.head.prepend(reglaGlobal);
+    try {
+      entrar('CLIENTE');
+      const f = TestBed.createComponent(Shell);
+      f.detectChanges();
+      const main = f.nativeElement.querySelector('main#contenido') as HTMLElement;
+      expect(main.getAttribute('tabindex')).toBe('-1');
+      main.focus();
+      expect(document.activeElement).toBe(main);
+      expect(getComputedStyle(main).outline).toBe('none');
+      const boton = document.createElement('button');
+      boton.textContent = 'Control de prueba';
+      main.append(boton);
+      for (const control of [f.nativeElement.querySelector('.saltar') as HTMLElement, boton]) {
+        control.focus();
+        expect(document.activeElement).toBe(control);
+        expect(getComputedStyle(control).outline).toContain('3px');
+      }
+    } finally {
+      reglaGlobal.remove();
+    }
+  });
   it('usa side en escritorio y over en móvil con botón de menú', () => {
     entrar('ADMIN');
     const fixture = TestBed.createComponent(Shell);

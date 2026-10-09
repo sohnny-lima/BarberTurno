@@ -18,8 +18,28 @@
         [labelPosition]="movil() ? 'bottom' : 'end'"
         (selectionChange)="store.irPaso($event.selectedIndex - (store.asistida() ? 1 : 0))"
       >
-        <ng-template matStepperIcon="edit" let-index="index">{{ index + 1 }}</ng-template>
-        <ng-template matStepperIcon="done" let-index="index">{{ index + 1 }}</ng-template>
+        <ng-template matStepperIcon="number" let-index="index">
+          <span aria-hidden="true">{{ index + 1 }}</span>
+          <span class="oculto"
+            >Paso {{ index + 1 }},
+            {{ index === store.paso() + (store.asistida() ? 1 : 0) ? 'actual' : 'pendiente' }}</span
+          >
+        </ng-template>
+        <ng-template #completado let-index="index">
+          @if (index < store.paso() + (store.asistida() ? 1 : 0)) {
+            <span aria-hidden="true">✓</span>
+            <span class="oculto">Paso {{ index + 1 }}, completado</span>
+          } @else {
+            <span class="indicador-pendiente" aria-hidden="true">{{ index + 1 }}</span>
+            <span class="oculto">Paso {{ index + 1 }}, pendiente</span>
+          }
+        </ng-template>
+        <ng-template matStepperIcon="edit" let-index="index">
+          <ng-container [ngTemplateOutlet]="completado" [ngTemplateOutletContext]="{ index }" />
+        </ng-template>
+        <ng-template matStepperIcon="done" let-index="index">
+          <ng-container [ngTemplateOutlet]="completado" [ngTemplateOutletContext]="{ index }" />
+        </ng-template>
         @if (store.asistida()) {
           <mat-step label="Cliente" [completed]="!!store.cliente()" [editable]="!store.enviando()">
             <div class="paso">
@@ -169,9 +189,14 @@
             </section>
             <p class="ayuda">Todas las horas corresponden a Lima.</p>
             <div class="acciones barra-reserva" [hidden]="!movil()">
-              <span class="resumen-corto">{{
-                store.franja() ? store.servicio()?.nombre : 'Elija una hora para continuar.'
-              }}</span>
+              <span class="resumen-corto">
+                @if (store.franja(); as franja) {
+                  {{ diaSeleccionado(franja.inicio) }}, {{ franja.inicio | fechaLima: 'hora' }} a
+                  {{ franja.fin | fechaLima: 'hora' }} · {{ store.servicio()?.nombre }}
+                } @else {
+                  Elija una hora para continuar.
+                }
+              </span>
               <button
                 mat-flat-button
                 type="button"

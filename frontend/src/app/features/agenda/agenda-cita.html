@@ -31,12 +31,9 @@
   </div>
   <div class="servicio" [attr.role]="escritorio() ? 'cell' : null">
     <span
-      >{{ reserva().servicio.nombre }}
-      @if (!escritorio() && todos()) {
-        con {{ reserva().barbero.nombre }}
-      }
-    </span>
-    <span class="codigo">{{ escritorio() ? '' : ', ' }}{{ reserva().codigo }}</span>
+      >{{ reserva().servicio.nombre
+      }}{{ !escritorio() && todos() ? ' con ' + reserva().barbero.nombre : '' }}</span
+    ><span class="codigo">{{ escritorio() ? '' : ', ' }}{{ reserva().codigo }}</span>
   </div>
   <div class="barbero" [attr.role]="escritorio() ? 'cell' : null">
     @if (escritorio()) {
