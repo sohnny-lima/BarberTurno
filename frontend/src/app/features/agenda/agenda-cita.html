@@ -1,0 +1,59 @@
+<div class="intervalo" [attr.role]="escritorio() ? 'cell' : null">
+  <strong>{{ reserva().inicio | fechaLima: 'hora' }}</strong>
+  <span>{{ reserva().fin | fechaLima: 'hora' }}</span>
+</div>
+@if (semana() && !escritorio()) {
+  <div class="semana-detalle">
+    <div class="semana-cliente">
+      <strong>{{ reserva().cliente.nombre }}</strong
+      ><app-estado-reserva-chip [estado]="reserva().estado" />
+    </div>
+    <p>
+      {{ reserva().servicio.nombre }}
+      @if (todos()) {
+        con {{ reserva().barbero.nombre }}
+      }
+    </p>
+    @if (reserva().cliente.telefono; as numero) {
+      <a [href]="'tel:' + numero">{{ telefono(numero) }}</a>
+    } @else {
+      <span>Sin teléfono registrado</span>
+    }
+  </div>
+} @else {
+  <div class="cliente" [attr.role]="escritorio() ? 'cell' : null">
+    <strong>{{ reserva().cliente.nombre }}</strong>
+    @if (reserva().cliente.telefono; as numero) {
+      <a [href]="'tel:' + numero">{{ telefono(numero) }}</a>
+    } @else {
+      <span>Sin teléfono registrado</span>
+    }
+  </div>
+  <div class="servicio" [attr.role]="escritorio() ? 'cell' : null">
+    <span
+      >{{ reserva().servicio.nombre
+      }}{{ !escritorio() && todos() ? ' con ' + reserva().barbero.nombre : '' }}</span
+    ><span class="codigo">{{ escritorio() ? '' : ', ' }}{{ reserva().codigo }}</span>
+  </div>
+  <div class="barbero" [attr.role]="escritorio() ? 'cell' : null">
+    @if (escritorio()) {
+      <span>{{ reserva().barbero.nombre }}</span>
+    }
+  </div>
+  <div class="estado" [attr.role]="escritorio() ? 'cell' : null">
+    <app-estado-reserva-chip [estado]="reserva().estado" />
+  </div>
+}
+<div class="acciones-cita" [attr.role]="escritorio() ? 'cell' : null">
+  <app-agenda-acciones
+    [reserva]="reserva()"
+    [admin]="admin()"
+    [escritorio]="escritorio()"
+    [semana]="semana()"
+    [barberosDisponibles]="barberosDisponibles()"
+    (transicion)="transicion.emit($event)"
+    (cancelar)="cancelar.emit()"
+    (reprogramar)="reprogramar.emit()"
+    (cambios)="cambios.emit()"
+  />
+</div>

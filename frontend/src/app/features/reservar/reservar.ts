@@ -1,10 +1,13 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   viewChild,
 } from '@angular/core';
@@ -12,8 +15,6 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -24,17 +25,31 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { fechaCivil, fechaDatepicker, limitesDatepicker } from '../../core/tiempo/fecha-datepicker';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
+import { fechaPresentacion } from '../../shared/fecha-presentacion';
 import { SelectorCliente } from '../../shared/selector-cliente';
+import { TituloPagina } from '../../shared/titulo-pagina';
+import { ReservaAsistente } from './reserva-asistente';
+import { ReservaFoto } from './reserva-foto';
+import { ReservaOpciones } from './reserva-opciones';
+import { ReservaResumen } from './reserva-resumen';
+import { ReservaEsqueleto } from './reserva-esqueleto';
+import { ReservaSeleccion } from './reserva-seleccion';
 import { ReservaStore } from './reserva.store';
+import { sumarDias } from '../../core/tiempo/semana-lima';
 
 @Component({
   selector: 'app-reservar',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
+    ReservaAsistente,
+    ReservaFoto,
+    ReservaOpciones,
+    ReservaResumen,
+    ReservaEsqueleto,
+    ReservaSeleccion,
     SelectorCliente,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
@@ -61,13 +76,88 @@ export class Reservar {
     { initialValue: false },
   );
 
+  readonly titulo = computed(() =>
+    this.store.reserva()
+      ? 'Reprogramar cita'
+      : this.store.asistida()
+        ? 'Reserva asistida'
+        : this.store.paso() === 2
+          ? 'Revise su turno'
+          : 'Reservar un turno',
+  );
+  readonly subtitulo = computed(() =>
+    this.store.asistida()
+      ? 'Reserve en nombre de un cliente registrado.'
+      : this.store.paso() === 2
+        ? 'Compruebe los datos antes de confirmar.'
+        : this.store.paso() === 1
+          ? 'Elija el día y la hora.'
+          : 'Elija servicio, día y hora. Pago presencial en la barbería.',
+  );
+  readonly fechaCompleta = (fecha: string) =>
+    new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(fecha + 'T12:00:00-05:00'));
+  readonly dias = Array.from({ length: 7 }, (_, i) =>
+    sumarDias(fechaCivil(this.limites.min), i),
+  ).filter((dia) => dia <= fechaCivil(this.limites.max));
+  readonly gruposHoras = computed(() => {
+    const hora = new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    });
+    return [
+      {
+        nombre: 'Mañana',
+        franjas: this.store.franjas().filter((f) => Number(hora.format(new Date(f.inicio))) < 12),
+      },
+      {
+        nombre: 'Tarde',
+        franjas: this.store.franjas().filter((f) => Number(hora.format(new Date(f.inicio))) >= 12),
+      },
+    ];
+  });
+  readonly fechaLegible = fechaPresentacion;
+  readonly diaSeleccionado = (inicio: string) =>
+    new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      weekday: 'long',
+      day: 'numeric',
+    }).format(new Date(inicio));
+  elegirDia(fecha: string, evento: Event) {
+    this.store.elegirFecha(fecha);
+    (evento.currentTarget as HTMLElement).scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
   constructor() {
+    const tituloPagina = inject(TituloPagina);
+    effect(() => tituloPagina.texto.set(this.titulo()));
+    this.destroyRef.onDestroy(() => tituloPagina.texto.set(null));
     const snackbar = inject(MatSnackBar);
+    const elemento = inject<ElementRef<HTMLElement>>(ElementRef);
+    // La primera presentación conserva el foco; una selección restaurada cambia este índice.
+    let pasoEnfocado = 0;
+    let fotograma: number | undefined;
+    this.destroyRef.onDestroy(() => {
+      if (fotograma !== undefined) cancelAnimationFrame(fotograma);
+    });
     // Material comprueba el paso anterior: sincroniza después de actualizar completed.
     afterRenderEffect(() => {
       const stepper = this.stepper();
       const paso = Math.max(0, this.store.paso() + (this.store.asistida() ? 1 : 0));
-      if (stepper && stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+      if (!stepper) return;
+      if (stepper.selectedIndex !== paso) stepper.selectedIndex = paso;
+      if (pasoEnfocado === paso) return;
+      pasoEnfocado = paso;
+      if (fotograma !== undefined) cancelAnimationFrame(fotograma);
+      // Espera el marcado del nuevo paso, también al restaurar o elegir una hora desde el store.
+      fotograma = requestAnimationFrame(() => {
+        elemento.nativeElement.querySelector<HTMLElement>('[data-paso="' + paso + '"]')?.focus();
+      });
     });
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(this.destroyRef))
@@ -105,6 +195,10 @@ export class Reservar {
     const fecha = this.fechaControl.value;
     if (fecha && this.fechaControl.valid && !Number.isNaN(fecha.getTime()))
       this.store.elegirFecha(fechaCivil(fecha));
+  }
+  reintentar() {
+    this.store.mensaje.set('');
+    this.store.cargarFranjas();
   }
   avanzar() {
     this.store.irPaso(1);

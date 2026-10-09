@@ -11,7 +11,7 @@ describe('App', () => {
       providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
     });
     const harness = await RouterTestingHarness.create('/ingresar');
-    expect(harness.routeNativeElement?.querySelector('mat-toolbar')?.textContent).toContain(
+    expect(harness.routeNativeElement?.querySelector('.marca')?.textContent).toContain(
       'BarberTurno',
     );
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Iniciar sesión');

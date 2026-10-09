@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Menú del administrador abierto, móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5;position:relative;overflow:hidden}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.muted{color:#5B6B65}
+.velo{position:absolute;inset:0;background:rgba(23,34,30,0.5);border:0;padding:0;cursor:pointer}
+.cajon{position:absolute;top:0;bottom:0;left:0;width:296px;background:#fff;display:flex;flex-direction:column;padding:16px 12px;box-shadow:8px 0 32px rgba(14,40,31,0.2)}
+.marca{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font:800 19px Figtree,sans-serif}
+.marca span{width:36px;height:36px;border-radius:10px;background:#145C43;color:#fff;display:grid;place-items:center}
+.cajon nav a{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border-radius:12px;color:#3F4B46;text-decoration:none;font:600 16px Figtree,sans-serif}
+.cajon nav a[aria-current="page"]{background:#E3F1EA;color:#0F4D37}
+.usuario{margin-top:auto;border-top:1px solid #E1E7E4;padding:14px 8px 0;display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;flex:0 0 40px;border-radius:999px;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;display:grid;place-items:center}
+.cerrar{width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#17221E;display:grid;place-items:center;cursor:pointer}
+.btn{min-height:44px;border-radius:12px;font:600 15px/1.2 Figtree,sans-serif;padding:0 14px;border:1px solid #C9D6D0;background:#fff;color:#145C43;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;white-space:nowrap}
+</style>
+</helmet>
+<div class="bt" style="width: 360px; height: 780px">
+  <div aria-hidden="true" style="padding: 8px 16px; height: 61px; background: #FFFFFF; border-bottom: 1px solid #E1E7E4"></div>
+  <div aria-hidden="true" style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+    <div style="height: 52px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E1E7E4"></div>
+    <div style="height: 74px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E1E7E4"></div>
+    <div style="height: 180px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E1E7E4"></div>
+  </div>
+  <div class="velo" aria-hidden="true"></div>
+
+  <aside id="menu-principal" class="cajon" aria-label="Navegación y cuenta">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px">
+    <div class="marca" style="padding-bottom: 0"><span aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="3"></circle><circle cx="6" cy="17" r="3"></circle><path d="M8.5 8.5L20 18M8.5 15.5L20 6"></path></svg></span>BarberTurno</div>
+    <button class="cerrar" type="button" aria-label="Cerrar menú"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+    <nav aria-label="Navegación principal" style="display: flex; flex-direction: column; gap: 2px">
+      <a href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"></path></svg>Agenda</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M12 13v4M10 15h4"></path></svg>Reserva asistida</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="7" r="3"></circle><circle cx="6" cy="17" r="3"></circle><path d="M8.5 8.5L20 18M8.5 15.5L20 6"></path></svg>Servicios</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6 6 0 0 0-3-5.2"></path></svg>Barberos</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>Horarios</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg>Reportes</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path><path d="M18 4l2 2-2 2"></path></svg>Usuarios</a>
+      <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Mi cuenta</a>
+    </nav>
+    <div class="usuario">
+      <div class="avatar" aria-hidden="true">AD</div>
+      <div style="flex: 1; min-width: 0"><p style="font-weight: 700; font-size: 15px">Administración</p><p class="muted" style="font-size: 13px">Administrador</p></div>
+      <button class="btn" type="button">Salir</button>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

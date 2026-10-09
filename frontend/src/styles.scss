@@ -1,26 +1,82 @@
 @use '@angular/material' as mat;
 @use './theme-colors' as colores;
+@font-face {
+  font-family: 'Figtree Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url('@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2');
+}
 
 html {
   height: 100%;
-
+  scroll-padding-top: 72px;
   @include mat.theme(
     (
       color: (
         primary: colores.$primary-palette,
         tertiary: colores.$tertiary-palette,
       ),
-      typography: Arial,
+      typography: (
+        plain-family: 'Figtree Variable',
+        brand-family: 'Figtree Variable',
+        medium-weight: 600,
+      ),
       density: 0,
     )
   );
+  @include mat.theme-overrides(
+    (
+      primary: var(--color-verde),
+      on-primary: white,
+      tertiary: var(--color-verde),
+      surface: var(--color-superficie),
+      surface-container: var(--color-superficie),
+      secondary-container: var(--color-verde-claro),
+      on-surface: var(--color-tinta),
+      on-surface-variant: var(--color-texto-2),
+      outline: var(--color-borde-control),
+    )
+  );
+  @include mat.button-overrides(
+    (
+      filled-container-height: 48px,
+      outlined-container-height: 44px,
+      text-container-height: 44px,
+      filled-container-shape: var(--radius-control),
+      outlined-container-shape: var(--radius-control),
+      text-container-shape: var(--radius-control),
+      text-label-text-color: var(--color-verde),
+      filled-disabled-container-color: var(--color-desactivado),
+      filled-disabled-label-text-color: var(--color-texto-2),
+      outlined-disabled-label-text-color: var(--color-texto-2),
+      text-disabled-label-text-color: var(--color-texto-2),
+      protected-disabled-container-color: var(--color-desactivado),
+      protected-disabled-label-text-color: var(--color-texto-2),
+      tonal-disabled-container-color: var(--color-desactivado),
+      tonal-disabled-label-text-color: var(--color-texto-2),
+      outlined-outline-color: var(--color-borde-control),
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: var(--radius-control),
+      outlined-outline-color: var(--color-borde-control),
+      outlined-focus-outline-color: var(--color-verde),
+      outlined-label-text-color: var(--color-texto-2),
+    )
+  );
+  @include mat.paginator-overrides(
+    (
+      container-background-color: transparent,
+    )
+  );
 }
-
 body {
   color-scheme: light;
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
+  background: var(--color-fondo);
+  color: var(--color-tinta);
+  font: 16px/1.5 var(--font-cuerpo);
   margin: 0;
   min-height: 100%;
 }
@@ -28,33 +84,44 @@ body {
   box-sizing: border-box;
 }
 a {
-  color: #086573;
+  color: var(--color-verde);
 }
-:focus-visible {
-  outline: 3px solid #087f8c;
-  outline-offset: 3px;
+:focus-visible,
+button[mat-button]:focus-visible,
+button[mat-flat-button]:focus-visible,
+button[mat-stroked-button]:focus-visible,
+[mat-menu-item]:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
 }
-// Material elimina el outline del input; conservar una señal explícita al usar teclado.
-input.mat-mdc-input-element:focus-visible {
-  outline: 3px solid #087f8c;
-  outline-offset: 3px;
-}
-.pagina-identidad {
-  max-width: 660px;
-  margin: 0 auto;
+input[matInput]:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
 }
 h1 {
-  font-size: 30px;
+  font: 700 28px/36px var(--font-cuerpo);
   margin: 0 0 12px;
+}
+h2 {
+  font-size: 18px;
+  line-height: 24px;
 }
 p {
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
+button,
+input {
+  font: inherit;
+}
+.pagina-identidad {
+  max-width: 660px;
+  margin: 0 auto;
+}
 .tarjeta {
   background: white;
-  border: 1px solid #d8e3e6;
-  border-radius: 10px;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
   padding: 24px;
   margin: 20px 0;
 }
@@ -66,26 +133,184 @@ p {
 .acciones {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 .mensaje {
-  background: #edf5f6;
+  background: var(--color-confirmada-fondo);
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
+}
+.mensaje[role='alert'] {
+  color: var(--color-error-texto);
+  background: var(--color-no-asistio-fondo);
 }
 .ayuda {
   font-size: 14px;
-  color: #435d67;
+  color: var(--color-texto-2);
 }
 .error-campo {
   color: var(--mat-sys-error);
   margin: 0;
 }
+.riesgo {
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--color-no-asistio),
+      outlined-label-text-color: var(--color-no-asistio),
+      outlined-outline-color: var(--color-riesgo-borde),
+    )
+  );
+}
+mat-snack-bar-container {
+  @include mat.snack-bar-overrides(
+    (
+      container-color: var(--color-tinta),
+      supporting-text-color: white,
+      button-color: var(--color-verde-texto-claro),
+    )
+  );
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--color-verde-texto-claro),
+    )
+  );
+}
+.tique {
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+  overflow: hidden;
+  margin-block: 20px;
+}
+.tique-banda {
+  background: var(--color-verde);
+  color: white;
+  padding: 18px 24px;
+}
+.tique-banda strong {
+  color: var(--color-verde-texto-claro);
+}
+.tique-hora {
+  font: 800 48px/1 var(--font-cuerpo);
+  margin: 8px 0;
+}
+.tique-cuerpo {
+  padding: 24px;
+  border-top: 2px dashed var(--color-linea);
+}
 @media (max-width: 767.98px) {
-  .tarjeta {
+  h1 {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+  .tarjeta,
+  .tique-cuerpo {
     padding: 16px;
   }
-  h1 {
-    font-size: 26px;
+  .acciones > :is(button, a) {
+    flex: 1 1 9rem;
+  }
+  // Excepción DA-24 / diseño §6 bis ampliada por encargo 055: relleno móvil.
+  app-reservar .mat-horizontal-content-container {
+    padding-inline: 0;
+  }
+  body:has(app-reservar .barra-reserva) .aviso-transitorio {
+    margin-bottom: calc(140px + env(safe-area-inset-bottom));
+  }
+  html:has(app-reservar .barra-reserva) {
+    scroll-padding-bottom: 150px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+button:disabled,
+a[aria-disabled='true'] {
+  background-color: var(--color-desactivado);
+  color: var(--color-texto-2);
+  opacity: 1;
+}
+button[mat-flat-button]:not(:disabled):hover {
+  background-color: var(--color-verde-hover);
+}
+app-cambiar-password p[role='status'] {
+  color: var(--color-aviso-texto);
+  background: var(--color-aviso-fondo);
+  padding: 16px;
+  border-radius: var(--radius-tarjeta);
+}
+[mat-menu-item].riesgo {
+  color: var(--color-no-asistio);
+}
+html {
+  @include mat.menu-overrides(
+    (
+      container-color: var(--color-superficie),
+      container-shape: var(--radius-tarjeta),
+      item-label-text-font: var(--font-cuerpo),
+    )
+  );
+  @include mat.button-toggle-overrides(
+    (
+      shape: 999px,
+      height: 44px,
+      background-color: var(--color-superficie),
+      text-color: var(--color-texto-2),
+      selected-state-background-color: var(--color-verde),
+      selected-state-text-color: white,
+      divider-color: var(--color-linea),
+      disabled-state-background-color: var(--color-desactivado),
+      disabled-state-text-color: var(--color-texto-2),
+      disabled-selected-state-background-color: var(--color-desactivado),
+      disabled-selected-state-text-color: var(--color-texto-2),
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-color: var(--color-superficie),
+      container-shape: var(--radius-dialogo),
+      container-elevation-shadow: 0 16px 48px rgba(23, 34, 30, 0.2),
+      subhead-font: var(--font-cuerpo),
+      subhead-size: 22px,
+      subhead-weight: 700,
+      subhead-line-height: 28px,
+      supporting-text-size: 16px,
+      supporting-text-line-height: 24px,
+    )
+  );
+}
+@media (max-width: 767.98px) {
+  html {
+    @include mat.dialog-overrides(
+      (
+        subhead-size: 20px,
+        content-padding: 16px 20px,
+        with-actions-content-padding: 0 20px 16px,
+        headline-padding: 8px 20px 12px,
+      )
+    );
+  }
+  .tique-hora {
+    font-size: 44px;
+  }
+  html:has(.con-barra-inferior),
+  .con-barra-inferior mat-sidenav-content {
+    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  body:has(.con-barra-inferior) .aviso-transitorio {
+    margin-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  body:has(.con-barra-inferior app-reservar .barra-reserva) .aviso-transitorio {
+    margin-bottom: calc(212px + env(safe-area-inset-bottom));
   }
 }

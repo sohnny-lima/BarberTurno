@@ -11,6 +11,7 @@ import { SesionService } from '../../core/auth/sesion-service';
 import { fechaCivil } from '../../core/tiempo/fecha-datepicker';
 import { fechaHoyLima } from '../../core/tiempo/instante-lima';
 import { Reservar } from './reservar';
+import { TituloPagina } from '../../shared/titulo-pagina';
 
 describe('Vista de reserva guiada', () => {
   let http: HttpTestingController;
@@ -80,6 +81,64 @@ describe('Vista de reserva guiada', () => {
     s.elegirFranja(s.franjas()[0]);
     f.detectChanges();
   }
+  function comprobarPasos(f: ReturnType<typeof preparar>, actual: number) {
+    const pasos = [...f.nativeElement.querySelectorAll('mat-step-header')] as HTMLElement[];
+    pasos.forEach((paso, index) => {
+      const icono = paso.querySelector('.mat-step-icon')!;
+      expect(icono.querySelector('[aria-hidden=true]')?.textContent?.trim()).toBe(
+        index < actual ? '✓' : String(index + 1),
+      );
+      expect(icono.querySelector('.oculto')?.textContent?.trim()).toBe(
+        'Paso ' +
+          (index + 1) +
+          ', ' +
+          (index < actual ? 'completado' : index === actual ? 'actual' : 'pendiente'),
+      );
+      expect(paso.getAttribute('aria-selected')).toBe(String(index === actual));
+      expect(paso.querySelector('.mat-step-text-label')?.textContent?.trim()).not.toBe('');
+    });
+  }
+  it.each([false, true])(
+    'marca pasos completados y conserva número y estado del actual y pendientes, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar();
+      await f.whenStable();
+      comprobarPasos(f, 0);
+      seleccionar(f);
+      await f.whenStable();
+      f.detectChanges();
+      comprobarPasos(f, 2);
+      f.componentInstance.store.irPaso(1);
+      await f.whenStable();
+      f.detectChanges();
+      comprobarPasos(f, 1);
+    },
+  );
+  it('resume día, inicio y fin de la franja en Lima en móvil y guía sin selección', async () => {
+    movil = true;
+    const f = preparar();
+    const store = f.componentInstance.store;
+    store.elegirServicio(1);
+    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    store.irPaso(1);
+    await f.whenStable();
+    f.detectChanges();
+    const barra = f.nativeElement.querySelector('.resumen-corto') as HTMLElement;
+    expect(barra.textContent?.trim()).toBe('Elija una hora para continuar.');
+    store.franjas.set([
+      { inicio: '2026-09-28T16:00:00Z', fin: '2026-09-28T16:45:00Z', barberoIds: [2] },
+    ]);
+    store.elegirFranja(store.franjas()[0]);
+    store.irPaso(1);
+    await f.whenStable();
+    f.detectChanges();
+    expect(barra.textContent?.replace(/\s+/g, ' ').trim()).toBe('lunes 28, 11:00 a 11:45 · Corte');
+    expect(store.servicio()?.duracionMin).toBe(30);
+    store.franja.set(null);
+    f.detectChanges();
+    expect(barra.textContent?.trim()).toBe('Elija una hora para continuar.');
+  });
   it('muestra tarjetas, precios, pago presencial y stepper lineal', () => {
     const f = preparar('');
     expect(f.nativeElement.textContent).toContain('S/ 25.00');
@@ -89,11 +148,76 @@ describe('Vista de reserva guiada', () => {
     );
     expect(f.componentInstance.store.sesion.autenticado()).toBe(false);
   });
+  it.each([
+    [false, 'CLIENTE'],
+    [true, 'CLIENTE'],
+    [false, 'ADMIN'],
+    [true, 'ADMIN'],
+  ])('conserva el foco en la primera presentación, móvil=%s rol=%s', async (esMovil, rol) => {
+    movil = esMovil as boolean;
+    const focoInicial = document.activeElement;
+    const f = preparar(rol as string);
+    await f.whenStable();
+    await new Promise<void>((resolver) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolver())),
+    );
+    expect(document.activeElement).toBe(focoInicial);
+  });
+  it.each([false, true])('enfoca la selección restaurada, móvil=%s', async (esMovil) => {
+    movil = esMovil;
+    const fecha = fechaHoyLima();
+    sessionStorage.setItem(
+      'barberturno.reserva',
+      JSON.stringify({
+        servicioId: 1,
+        preferencia: null,
+        fecha,
+        inicio: fecha + 'T10:00:00-05:00',
+        barberoId: 2,
+      }),
+    );
+    const f = preparar();
+    http
+      .expectOne((r) => r.url === '/api/disponibilidad')
+      .flush({
+        franjas: [
+          { inicio: fecha + 'T10:00:00-05:00', fin: fecha + 'T10:30:00-05:00', barberoIds: [2] },
+        ],
+      });
+    f.detectChanges();
+    await f.whenStable();
+    expect(f.componentInstance.store.paso()).toBe(2);
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(f.nativeElement.querySelector('[data-paso="2"]')),
+    );
+  });
   it('muestra Sin preferencia como selección inicial del profesional', async () => {
     const f = preparar('');
     await f.whenStable();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('mat-select').textContent).toContain('Sin preferencia');
+    expect(f.nativeElement.querySelector('[data-profesional=sin-preferencia]').checked).toBe(true);
+  });
+  it('agrupa horas por Lima incluso cuando los instantes tienen otro desfase', () => {
+    const f = preparar('');
+    f.componentInstance.store.franjas.set([
+      { inicio: '2026-10-05T16:59:00Z', fin: '2026-10-05T17:29:00Z', barberoIds: [2] },
+      { inicio: '2026-10-05T17:00:00Z', fin: '2026-10-05T17:30:00Z', barberoIds: [2] },
+    ]);
+    const grupos = f.componentInstance.gruposHoras();
+    expect(grupos.map((g) => [g.nombre, g.franjas.map((franja) => franja.inicio)])).toEqual([
+      ['Mañana', ['2026-10-05T16:59:00Z']],
+      ['Tarde', ['2026-10-05T17:00:00Z']],
+    ]);
+  });
+  it('presenta siete días dentro de los límites civiles sin desplazar hoy', () => {
+    const f = preparar('');
+    const dias = f.componentInstance.dias;
+    expect(dias).toHaveLength(7);
+    expect(dias[0]).toBe(fechaHoyLima());
+    expect(dias[6]).toBe(fechaHoyLima(6));
+    expect(dias.every((dia) => dia <= fechaCivil(f.componentInstance.limites.max))).toBe(true);
+    expect(f.componentInstance.fechaLegible('2026-09-28')).toContain('lunes');
+    expect(f.componentInstance.fechaLegible('2026-09-28')).toContain('28 de setiembre');
   });
   it.each([false, true])(
     'muestra el paso 3 y permite volver al paso 2, móvil=%s',
@@ -106,18 +230,24 @@ describe('Vista de reserva guiada', () => {
       const stepper = f.debugElement.query(By.directive(MatStepper)).componentInstance;
       expect(stepper.selectedIndex).toBe(2);
       const pasos = f.nativeElement.querySelectorAll('mat-step-header');
-      expect(pasos[2].getAttribute(esMovil ? 'aria-expanded' : 'aria-selected')).toBe('true');
+      expect(pasos[2].getAttribute('aria-selected')).toBe('true');
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(f.nativeElement.querySelector('[data-paso="2"]')),
+      );
       f.componentInstance.store.irPaso(1);
       f.detectChanges();
       await f.whenStable();
       expect(stepper.selectedIndex).toBe(1);
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(f.nativeElement.querySelector('[data-paso="1"]')),
+      );
     },
   );
-  it('adapta el asistente verticalmente por debajo de 768 px', () => {
+  it('conserva el asistente horizontal por debajo de 768 px', () => {
     movil = true;
     const f = preparar();
     expect(f.debugElement.query(By.directive(MatStepper)).componentInstance.orientation).toBe(
-      'vertical',
+      'horizontal',
     );
   });
   it('usa límites civiles de Lima y rechaza entradas de calendario fuera de rango', () => {
@@ -204,6 +334,7 @@ describe('Vista de reserva guiada', () => {
       await f.whenStable();
       f.detectChanges();
       expect(stepper.selectedIndex).toBe(3);
+      comprobarPasos(f, 3);
       expect(f.nativeElement.textContent).toContain('Asistido ficticio');
       f.componentInstance.store.irPaso(-1);
       await f.whenStable();
@@ -211,4 +342,109 @@ describe('Vista de reserva guiada', () => {
       expect(stepper.selectedIndex).toBe(0);
     },
   );
+  it.each([false, true])(
+    'conserva un único h1 accesible y sincroniza la barra, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar();
+      await f.whenStable();
+      expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+      expect(f.nativeElement.querySelector('h1').classList.contains('oculto')).toBe(esMovil);
+      expect(TestBed.inject(TituloPagina).texto()).toBe('Reservar un turno');
+      seleccionar(f);
+      await f.whenStable();
+      expect(TestBed.inject(TituloPagina).texto()).toBe('Revise su turno');
+      expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+      expect(f.nativeElement.querySelector('app-reserva-resumen')).toBeNull();
+      f.destroy();
+      expect(TestBed.inject(TituloPagina).texto()).toBeNull();
+    },
+  );
+  it('el anónimo móvil conserva visible el h1 porque la barra muestra la marca', () => {
+    movil = true;
+    const f = preparar('');
+    expect(f.nativeElement.querySelector('h1').classList.contains('oculto')).toBe(false);
+  });
+  it('reintenta disponibilidad conservando servicio, profesional y fecha', async () => {
+    const f = preparar();
+    const store = f.componentInstance.store;
+    store.elegirServicio(1);
+    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    store.elegirPreferencia(3);
+    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    store.elegirFecha(fechaHoyLima(1));
+    http
+      .expectOne((r) => r.url === '/api/disponibilidad')
+      .flush({ detail: 'Sin conexión.' }, { status: 503, statusText: 'Service Unavailable' });
+    f.detectChanges();
+    await f.whenStable();
+    expect(f.nativeElement.querySelector('[role=alert]').textContent).toContain(
+      'Su servicio y profesional se conservan',
+    );
+    expect(f.nativeElement.textContent).not.toContain('No hay horas libres este día.');
+    const boton = [...f.nativeElement.querySelectorAll('button')].find(
+      (b: HTMLButtonElement) => b.textContent?.trim() === 'Reintentar',
+    ) as HTMLButtonElement;
+    boton.click();
+    const peticion = http.expectOne((r) => r.url === '/api/disponibilidad');
+    expect(peticion.request.params.get('servicioId')).toBe('1');
+    expect(peticion.request.params.get('barberoId')).toBe('3');
+    expect(peticion.request.params.get('fecha')).toBe(fechaHoyLima(1));
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('app-reserva-esqueleto')).not.toBeNull();
+    peticion.flush({ franjas: [] });
+    f.detectChanges();
+    expect(store.servicioId()).toBe(1);
+    expect(store.preferencia()).toBe(3);
+    expect(store.mensaje()).toBe('');
+    expect(f.nativeElement.textContent).toContain('No hay horas libres este día.');
+  });
+  it.each([false, true])(
+    'marca el horario anterior y los pasos completados al reprogramar, móvil=%s',
+    async (esMovil) => {
+      movil = esMovil;
+      const f = preparar();
+      seleccionar(f);
+      f.componentInstance.store.reserva.set({
+        id: 7,
+        codigo: 'BT-7',
+        cliente: { id: 1, nombre: 'Ficticio' },
+        servicio: { id: 1, nombre: 'Corte original' },
+        barbero: { id: 2, nombre: 'Ficticio A' },
+        inicio: '2026-10-09T09:00:00-05:00',
+        fin: '2026-10-09T09:40:00-05:00',
+        duracionMin: 40,
+        precioRef: 22,
+        estado: 'CONFIRMADA',
+        version: 4,
+        permisos: { reprogramar: true, cancelar: true, transiciones: [] },
+      });
+      f.detectChanges();
+      await f.whenStable();
+      comprobarPasos(f, 2);
+      const anterior = f.nativeElement.querySelector('del');
+      expect(anterior.textContent).toContain('Horario anterior, se reemplaza:');
+      expect(anterior.textContent).toContain('09:00 con Ficticio A');
+      expect(anterior.querySelector('.oculto')).not.toBeNull();
+      expect(f.nativeElement.querySelector('.resumen').textContent).toContain('40 minutos');
+      expect(f.nativeElement.querySelector('.resumen').textContent).toContain('S/ 22.00');
+      expect(f.nativeElement.querySelector('h1').textContent).toBe('Reprogramar cita');
+      expect(f.nativeElement.textContent).toContain(
+        'Se conservan el servicio, el precio y la duración',
+      );
+    },
+  );
+  it('los días incluyen el año y las fotos decorativas usan recursos locales', () => {
+    const f = preparar();
+    expect(f.nativeElement.querySelector('[data-dia]').getAttribute('aria-label')).toContain(
+      fechaHoyLima().slice(0, 4),
+    );
+    const foto = f.nativeElement.querySelector('picture img');
+    expect(foto.getAttribute('alt')).toBe('');
+    expect(foto.getAttribute('src')).toBe('/fotos/tijeras-mesa-recorte.webp');
+    expect(foto.hasAttribute('loading')).toBe(false);
+    expect(f.nativeElement.querySelector('picture source').getAttribute('srcset')).toBe(
+      '/fotos/interior-vacio.webp',
+    );
+  });
 });

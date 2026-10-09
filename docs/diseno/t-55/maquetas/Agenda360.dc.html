@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda del barbero, móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#145C43}a:hover{color:#0F4D37}
+.bt{font-family:'Figtree',system-ui,sans-serif;color:#17221E;background:#F6F8F7;font-size:16px;line-height:1.5}
+.bt *{box-sizing:border-box}
+.bt :focus-visible{outline:3px solid #145C43;outline-offset:2px}
+.bt h1,.bt h2,.bt h3,.bt p{margin:0}
+.icono{width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#17221E;display:inline-grid;place-items:center;cursor:pointer;position:relative}
+.insignia{position:absolute;top:3px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#145C43;color:#fff;font:700 11px/18px Figtree,sans-serif;box-shadow:0 0 0 2px #fff}
+.cuenta{width:44px;height:44px;flex:0 0 44px;border-radius:999px;border:0;background:#E3F1EA;color:#145C43;font:700 14px Figtree,sans-serif;cursor:pointer}
+.btn[disabled]{background:#E7ECEA;color:#5B6B65;border-color:#E7ECEA;cursor:not-allowed}
+.tarjeta{background:#fff;border:1px solid #E1E7E4;border-radius:16px}
+.btn{min-height:44px;border-radius:12px;font:600 15px/1 Figtree,sans-serif;padding:0 16px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none}
+.btn-primario{background:#145C43;color:#fff}
+.btn-secundario{background:#fff;color:#145C43;border-color:#C9D6D0}
+.segmento{display:flex;gap:4px;padding:4px;background:#fff;border:1px solid #E1E7E4;border-radius:999px}
+.segmento button{flex:1;min-height:44px;border:0;border-radius:999px;background:transparent;font:600 15px Figtree,sans-serif;color:#5B6B65;cursor:pointer}
+.segmento button[aria-pressed="true"]{background:#145C43;color:#fff}
+.estado{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font:600 13px/1 Figtree,sans-serif;white-space:nowrap}
+.e-confirmada{background:#E3F1EA;color:#0F4D37}
+.e-pendiente{background:#FCEFD4;color:#7A4A00}
+.e-completada{background:#ECEFEE;color:#3F4B46}
+.cita{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px}
+.hora{display:flex;flex-direction:column;padding-top:12px}
+.hora strong{font:700 17px/1.2 Figtree,sans-serif}
+.hora span{font:500 14px/1.3 Figtree,sans-serif;color:#5B6B65}
+.ahora{display:flex;align-items:center;gap:10px;color:#145C43;font:700 13px Figtree,sans-serif}
+.ahora::after{content:'';flex:1;height:2px;background:#145C43;border-radius:2px}
+.pestanas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#fff;border-top:1px solid #E1E7E4;padding:6px 8px 10px}
+.pestanas a{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;font:600 12.5px Figtree,sans-serif;color:#5B6B65;text-decoration:none}
+.pestanas a[aria-current="page"]{color:#145C43}
+.pestanas a[aria-current="page"] svg{background:#E3F1EA;border-radius:999px;padding:3px 14px;box-sizing:content-box}
+.muted{color:#5B6B65}
+</style>
+</helmet>
+<div class="bt" style="width: 360px; height: 1039px; display: flex; flex-direction: column">
+  <header style="display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 16px; background: #FFFFFF; border-bottom: 1px solid #E1E7E4">
+    <h1 style="font-size: 20px; font-weight: 700; line-height: 28px; flex: 1">Agenda</h1>
+    <button class="icono" type="button" aria-label="Actualizar agenda">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 5v6h-6"></path></svg>
+    </button>
+    <button class="icono" type="button" aria-label="Ver avisos: 4 sin leer" aria-haspopup="dialog">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+      <span class="insignia" aria-hidden="true">4</span>
+    </button>
+    <button class="cuenta" type="button" aria-label="Cuenta de Carlos: Mi cuenta y Salir" aria-haspopup="menu">C</button>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 16px 16px 24px">
+    <div class="segmento" role="group" aria-label="Vista de la agenda">
+      <button type="button" aria-pressed="true">Día</button>
+      <button type="button" aria-pressed="false">Semana</button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button class="icono" type="button" aria-label="Día anterior" style="background: #FFFFFF; border: 1px solid #E1E7E4">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+      </button>
+      <button type="button" class="tarjeta" aria-label="Elegir fecha: lunes 28 de setiembre de 2026" style="flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 16px Figtree, sans-serif; color: #17221E; cursor: pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#145C43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg>
+        lun 28 set
+      </button>
+      <button class="icono" type="button" aria-label="Día siguiente" style="background: #FFFFFF; border: 1px solid #E1E7E4">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </button>
+      <button class="btn btn-secundario" type="button" disabled="" style="padding: 0 14px">Hoy</button>
+    </div>
+
+    <p class="muted" style="font-size: 14px">4 citas: 1 pendiente y 3 confirmadas. Hora de Lima.</p>
+
+    <section aria-label="Agenda del lunes 28 de setiembre" style="display: flex; flex-direction: column; gap: 12px">
+      <div class="ahora" role="status">Ahora, 09:00</div>
+
+      <article class="cita" aria-label="BT-101, 09:30, Luis Ccori">
+        <div class="hora"><strong>09:30</strong><span>09:50</span></div>
+        <div class="tarjeta" style="padding: 12px 12px 12px 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start">
+            <div style="min-width: 0">
+              <p style="font-weight: 700; font-size: 17px">Luis Ccori</p>
+              <p class="muted" style="font-size: 14px">Barba, BT-101</p>
+            </div>
+            <span class="estado e-confirmada">Confirmada</span>
+          </div>
+          <a href="tel:987412036" style="font-size: 15px; font-weight: 600; min-height: 44px; margin: -10px 0; display: inline-flex; align-items: center; align-self: flex-start">987 412 036</a>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-primario" type="button" style="flex: 1">Iniciar atención</button>
+            <button class="icono" type="button" aria-label="Más acciones para BT-101" aria-haspopup="menu" style="border: 1px solid #C9D6D0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <article class="cita" aria-label="BT-103, 10:00, Rosa Quispe">
+        <div class="hora"><strong>10:00</strong><span>10:20</span></div>
+        <div class="tarjeta" style="padding: 12px 12px 12px 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start">
+            <div style="min-width: 0">
+              <p style="font-weight: 700; font-size: 17px">Rosa Quispe</p>
+              <p class="muted" style="font-size: 14px">Barba, BT-103</p>
+            </div>
+            <span class="estado e-confirmada">Confirmada</span>
+          </div>
+          <a href="tel:966205418" style="font-size: 15px; font-weight: 600; min-height: 44px; margin: -10px 0; display: inline-flex; align-items: center; align-self: flex-start">966 205 418</a>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-primario" type="button" style="flex: 1">Iniciar atención</button>
+            <button class="icono" type="button" aria-label="Más acciones para BT-103" aria-haspopup="menu" style="border: 1px solid #C9D6D0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <article class="cita" aria-label="BT-104, 11:00, Ana Huamán">
+        <div class="hora"><strong>11:00</strong><span>11:30</span></div>
+        <div class="tarjeta" style="padding: 12px 12px 12px 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start">
+            <div style="min-width: 0">
+              <p style="font-weight: 700; font-size: 17px">Ana Huamán</p>
+              <p class="muted" style="font-size: 14px">Corte clásico, BT-104</p>
+            </div>
+            <span class="estado e-pendiente">Pendiente</span>
+          </div>
+          <p class="muted" style="font-size: 14px">Sin teléfono registrado</p>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-primario" type="button" style="flex: 1">Confirmar</button>
+            <button class="icono" type="button" aria-label="Más acciones para BT-104" aria-haspopup="menu" style="border: 1px solid #C9D6D0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <article class="cita" aria-label="BT-106, 16:00, Diego Paucar">
+        <div class="hora"><strong>16:00</strong><span>16:30</span></div>
+        <div class="tarjeta" style="padding: 12px 12px 12px 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start">
+            <div style="min-width: 0">
+              <p style="font-weight: 700; font-size: 17px">Diego Paucar</p>
+              <p class="muted" style="font-size: 14px">Corte clásico, BT-106</p>
+            </div>
+            <span class="estado e-confirmada">Confirmada</span>
+          </div>
+          <a href="tel:954338120" style="font-size: 15px; font-weight: 600; min-height: 44px; margin: -10px 0; display: inline-flex; align-items: center; align-self: flex-start">954 338 120</a>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-primario" type="button" style="flex: 1">Iniciar atención</button>
+            <button class="icono" type="button" aria-label="Más acciones para BT-106" aria-haspopup="menu" style="border: 1px solid #C9D6D0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+            </button>
+          </div>
+        </div>
+      </article>
+
+    </section>
+  </main>
+
+  <nav class="pestanas" aria-label="Navegación principal">
+    <a href="#" aria-current="page">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"></path></svg>
+      Agenda
+    </a>
+    <a href="#">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+      Mi cuenta
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":1039}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

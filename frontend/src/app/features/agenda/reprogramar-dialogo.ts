@@ -34,7 +34,7 @@ export interface ReprogramarDatos {
     FechaLimaPipe,
   ],
   templateUrl: './reprogramar-dialogo.html',
-  styles: ['mat-form-field { width: 100%; }'],
+  styleUrl: './reprogramar-dialogo.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReprogramarDialogo {

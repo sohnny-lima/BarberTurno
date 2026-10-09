@@ -1,0 +1,137 @@
+:host {
+  display: block;
+}
+app-reserva-foto {
+  margin: -24px -24px 24px;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 16px 0 24px;
+  min-width: 0;
+}
+.servicios,
+.opciones-profesionales {
+  display: grid;
+  gap: 12px;
+}
+legend {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.servicio,
+.profesional {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-borde-control);
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  min-width: 0;
+}
+.elegido {
+  border-color: var(--color-verde);
+  background: var(--color-verde-claro);
+}
+.detalle,
+.profesional span:not(.iniciales) {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+small {
+  color: var(--color-texto-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  margin: 0;
+  accent-color: var(--color-verde);
+}
+.profesional input {
+  order: 2;
+  margin-left: auto;
+}
+.icono,
+.iniciales {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  background: var(--color-verde-claro);
+  color: var(--color-verde);
+  border-radius: 50%;
+  font-weight: 700;
+}
+.icono {
+  border-radius: 12px;
+  font-size: 24px;
+}
+.precio {
+  white-space: nowrap;
+}
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (min-width: 768px) {
+  .servicios {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .opciones-profesionales {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .servicio {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 767.98px) {
+  .servicios,
+  .opciones-profesionales {
+    gap: 0;
+    border: 1px solid var(--color-linea);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .servicio,
+  .profesional {
+    border: 0;
+    border-radius: 0;
+    padding: 12px 14px;
+  }
+  .servicio + .servicio,
+  .profesional + .profesional {
+    border-top: 1px solid var(--color-linea);
+  }
+  .icono {
+    width: 36px;
+    flex-basis: 36px;
+  }
+  .servicio {
+    gap: 8px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .opciones-profesionales {
+    grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) and (max-width: 1359.98px) {
+  .opciones-profesionales {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .profesional:first-child {
+    grid-column: 1 / -1;
+  }
+}

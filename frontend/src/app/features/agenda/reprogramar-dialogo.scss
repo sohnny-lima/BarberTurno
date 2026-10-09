@@ -1,0 +1,20 @@
+@use './dialogo';
+mat-form-field {
+  width: 100%;
+  margin-block: 8px;
+}
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}
+@media (min-width: 600px) {
+  mat-dialog-content {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+  }
+  p,
+  mat-form-field:nth-of-type(n + 3) {
+    grid-column: 1 / -1;
+  }
+}

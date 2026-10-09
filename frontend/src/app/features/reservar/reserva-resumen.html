@@ -1,0 +1,70 @@
+<aside [attr.aria-label]="store.asistida() ? 'Reserva en curso' : 'Su cita'">
+  <h2>{{ store.asistida() ? 'Reserva en curso' : 'Su cita' }}</h2>
+  @if (store.asistida()) {
+    <div>
+      <small>Cliente</small><strong>{{ store.cliente()?.nombre || 'Por elegir' }}</strong
+      ><span>{{ store.cliente()?.correo }}</span>
+    </div>
+  }
+  <div>
+    <small>Servicio</small><strong>{{ store.servicio()?.nombre || 'Por elegir' }}</strong>
+    @if (store.servicio(); as servicio) {
+      <span>{{ servicio.duracionMin }} minutos</span>
+    }
+  </div>
+  <div>
+    <small>Profesional</small><strong>{{ nombreProfesional() }}</strong>
+  </div>
+  <div>
+    <small>Fecha y hora</small>
+    @if (store.franja(); as franja) {
+      <strong>{{ fechaLegible(store.fecha()) }}</strong
+      ><span>{{ franja.inicio | fechaLima: 'hora' }} a {{ franja.fin | fechaLima: 'hora' }}</span>
+    } @else {
+      <span>Por elegir</span>
+    }
+  </div>
+  @if (store.servicio(); as servicio) {
+    <div>
+      <small>Precio</small><strong>S/ {{ servicio.precio.toFixed(2) }}, pago en la barbería</strong>
+    </div>
+  }
+  @if (store.paso() === -1) {
+    <button
+      mat-flat-button
+      type="button"
+      [disabled]="!store.cliente() || store.enviando()"
+      (click)="store.irPaso(0)"
+    >
+      Elegir servicio
+    </button>
+  } @else if (store.paso() === 0) {
+    <button
+      mat-flat-button
+      type="button"
+      [disabled]="!store.pasoUnoCompleto() || store.enviando()"
+      (click)="avanzar.emit()"
+    >
+      Elegir fecha y hora
+    </button>
+  } @else {
+    <button
+      mat-flat-button
+      type="button"
+      [disabled]="!store.pasoDosCompleto() || store.enviando()"
+      (click)="store.irPaso(2)"
+    >
+      Siguiente
+    </button>
+    <button mat-button type="button" [disabled]="store.enviando()" (click)="store.irPaso(0)">
+      Cambiar servicio o profesional
+    </button>
+  }
+  <p class="ayuda">
+    {{
+      store.asistida()
+        ? 'Puede gestionar la cita después desde Agenda.'
+        : 'Puede cambiar o cancelar hasta 2 horas antes.'
+    }}
+  </p>
+</aside>

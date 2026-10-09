@@ -1,24 +1,183 @@
+@use '@angular/material' as mat;
 :host {
   display: block;
-  max-width: 1000px;
-  margin: 0 auto;
 }
-.filtros {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  margin: 24px 0;
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
 }
-.filtros mat-form-field {
-  flex: 1 1 180px;
+.distribucion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 32px;
+}
+.citas {
   min-width: 0;
 }
+.controles-periodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.subtitulo {
+  color: var(--color-texto-2);
+  margin: 0 0 20px;
+}
+.periodo {
+  padding: 4px;
+  border: 1px solid var(--color-linea);
+  border-radius: 999px;
+  background: white;
+  @include mat.button-toggle-overrides(
+    (
+      shape: 999px,
+      height: 44px,
+      selected-state-background-color: var(--color-verde),
+      selected-state-text-color: white,
+      divider-color: transparent,
+    )
+  );
+}
+.periodo mat-button-toggle {
+  min-width: 120px;
+  border-radius: 999px;
+}
+.filtros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+.filtros mat-form-field {
+  min-width: 0;
+}
+.filtros button {
+  min-height: 44px;
+}
 .error-campo {
-  flex-basis: 100%;
+  grid-column: 1 / -1;
+}
+.lista-citas {
+  min-height: 240px;
+}
+.abrir-filtros {
+  display: none;
+}
+.avisos {
+  align-self: start;
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+  padding: 20px;
+}
+.compactas:not(:empty) {
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+}
+.compactas app-reserva-tarjeta + app-reserva-tarjeta {
+  border-top: 1px solid var(--color-linea);
+}
+.vacio {
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+  margin-top: 20px;
+}
+.vacio img {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+.vacio > div {
+  padding: 20px;
+}
+.vacio h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.vacio p {
+  color: var(--color-texto-2);
+  margin: 0 0 16px;
+}
+.vacio a {
+  width: 100%;
+}
+.alerta {
+  background: var(--color-no-asistio-fondo);
+  color: var(--color-error-texto);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.alerta p {
+  margin: 0 0 8px;
+}
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .distribucion {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 767.98px) {
-  .filtros mat-form-field {
-    flex-basis: 100%;
+  h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .distribucion {
+    display: block;
+  }
+  .citas {
+    display: flex;
+    flex-direction: column;
+  }
+  .periodo {
+    flex: 1;
+    min-width: 0;
+  }
+  .periodo mat-button-toggle {
+    flex: 1;
+    min-width: 0;
+  }
+  .subtitulo {
+    order: 1;
+    font-size: 14px;
+    margin: 16px 0 0;
+  }
+  .subtitulo span {
+    display: none;
+  }
+  .lista-citas {
+    order: 2;
+  }
+  .abrir-filtros {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 999px;
+  }
+  .filtros {
+    display: none;
+  }
+  .filtros.abiertos {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 0;
+  }
+  .compactas:not(:empty) {
+    border: 0;
+    background: transparent;
+  }
+  .compactas app-reserva-tarjeta + app-reserva-tarjeta {
+    border-top: 0;
   }
 }

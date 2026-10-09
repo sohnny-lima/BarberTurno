@@ -43,21 +43,14 @@ export default async function preparar() {
     await puertoLibre(8080);
     await puertoLibre(18034);
     const conexiones = sql(
-      "SELECT count(*) FROM pg_stat_activity WHERE datname IN ('barberturno_test', 'barberturno_e2e') AND pid <> pg_backend_pid()",
-      'postgres',
+      "SELECT count(*) FROM pg_stat_activity WHERE datname = 'barberturno_test' AND pid <> pg_backend_pid()",
+      'barberturno_test',
     );
     if (conexiones.status !== 0 || conexiones.stdout.trim() !== '0')
       throw new Error(
         'Hay conexiones de otra suite PostgreSQL o no se pudo comprobar su ausencia.',
       );
-    const existente = sql(
-      "SELECT count(*) FROM pg_database WHERE datname = 'barberturno_e2e'",
-      'postgres',
-    );
-    const creada =
-      existente.stdout.trim() === '1' ||
-      sql('CREATE DATABASE barberturno_e2e', 'postgres').status === 0;
-    process.env['BT_E2E_DB'] = creada ? 'barberturno_e2e' : 'barberturno_test';
+    process.env['BT_E2E_DB'] = 'barberturno_test';
     process.env['BT_DB_URL'] = `jdbc:postgresql://localhost:5433/${process.env['BT_E2E_DB']}`;
     // Cada ejecución usa una clave ficticia distinta y efímera para todas las cuentas demo.
     process.env['BT_DEMO_PASSWORD'] = `Demo1${randomBytes(18).toString('hex')}`;

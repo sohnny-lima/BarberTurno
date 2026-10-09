@@ -24,10 +24,7 @@
       <input matInput formControlName="password" type="password" autocomplete="new-password" />
       <mat-error>{{ errorCampo(formulario.controls.password) }}</mat-error>
     </mat-form-field>
-    <p class="ayuda">
-      La contraseña debe tener de 10 a 72 caracteres, mayúscula, minúscula y un número; como máximo
-      72 bytes UTF-8.
-    </p>
+    <p class="ayuda">De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</p>
     <mat-form-field appearance="outline">
       <mat-label>Confirmar contraseña</mat-label>
       <input

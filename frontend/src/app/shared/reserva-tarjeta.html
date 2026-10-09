@@ -1,22 +1,56 @@
-<article class="tarjeta">
-  <app-estado-reserva-chip [estado]="reserva().estado" />
-  <h2>{{ reserva().codigo }} · {{ reserva().servicio.nombre }}</h2>
-  <p>Profesional: {{ reserva().barbero.nombre }}</p>
-  <p>{{ reserva().inicio | fechaLima }} a {{ reserva().fin | fechaLima }} · Hora de Lima</p>
-  <p>{{ reserva().precioRef | currency: 'PEN' : 'S/ ' }} · Pago presencial</p>
-  <div class="acciones">
-    @if (reserva().permisos.reprogramar) {
-      <a mat-stroked-button routerLink="/reservar" [queryParams]="{ reprogramar: reserva().id }"
-        >Reprogramar</a
-      >
+<article
+  [class.tique]="tique()"
+  [class.fila-cita]="!tique()"
+  [attr.aria-label]="'Cita ' + reserva().codigo"
+>
+  @if (tique()) {
+    <div class="tique-banda">
+      <strong>{{ fecha(reserva().inicio) }}</strong>
+      <div class="tique-hora">{{ reserva().inicio | fechaLima: 'hora' }}</div>
+      <span>hasta las {{ reserva().fin | fechaLima: 'hora' }}</span>
+    </div>
+  } @else {
+    <div class="bloque-fecha">
+      <span>{{ fecha(reserva().inicio, 'dia') }}</span>
+      <strong>{{ fecha(reserva().inicio, 'numero') }}</strong>
+      <span>{{ fecha(reserva().inicio, 'mes') }}</span>
+    </div>
+  }
+  <div [class.tique-cuerpo]="tique()" class="detalle-cita">
+    <h2>
+      {{ reserva().servicio.nombre }}
+      @if (tique()) {
+        con {{ reserva().barbero.nombre }}
+      }
+    </h2>
+    @if (!tique()) {
+      <p class="horario">
+        {{ reserva().inicio | fechaLima: 'hora' }} a {{ reserva().fin | fechaLima: 'hora' }} con
+        {{ reserva().barbero.nombre }}
+      </p>
     }
-    @if (reserva().permisos.cancelar) {
-      <button mat-button type="button" (click)="cancelar.emit(reserva())">Cancelar</button>
+    <p class="referencias">
+      {{ reserva().precioRef | currency: 'PEN' : 'S/' : '1.2-2' : 'es-PE' }},
+      {{ reserva().duracionMin }} min,
+      {{ reserva().codigo }}
+    </p>
+    @if (mostrarAyuda()) {
+      <p class="ayuda">Faltan menos de 2 horas. Para cambiarla, comuníquese con la barbería.</p>
     }
   </div>
-  @if (mostrarAyuda()) {
-    <p class="ayuda">
-      Faltan menos de dos horas. Contacta al administrador para solicitar un cambio
-    </p>
+  <app-estado-reserva-chip [estado]="reserva().estado" />
+  @if (reserva().permisos.reprogramar || reserva().permisos.cancelar) {
+    <div class="acciones">
+      @if (reserva().permisos.reprogramar) {
+        <a mat-stroked-button routerLink="/reservar" [queryParams]="{ reprogramar: reserva().id }"
+          >Reprogramar</a
+        >
+      }
+      @if (reserva().permisos.cancelar) {
+        <button mat-stroked-button class="riesgo" type="button" (click)="cancelar.emit(reserva())">
+          Cancelar
+        </button>
+      }
+    </div>
   }
 </article>

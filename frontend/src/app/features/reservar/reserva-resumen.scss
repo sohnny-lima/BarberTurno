@@ -1,0 +1,31 @@
+:host {
+  display: block;
+  padding-top: 80px;
+}
+aside {
+  background: white;
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+  padding: 20px;
+}
+h2 {
+  margin: 0 0 16px;
+}
+div {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-linea);
+}
+small,
+span {
+  color: var(--color-texto-2);
+  font-size: 14px;
+}
+button {
+  width: 100%;
+  margin-top: 12px;
+}
+p {
+  margin-bottom: 0;
+}

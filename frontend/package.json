@@ -10,7 +10,8 @@
     "lint": "ng lint && tsc -p tsconfig.e2e.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1"
+    "e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1",
+    "e2e:capturas": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1 --config=playwright.capturas.config.ts"
   },
   "private": true,
   "packageManager": "npm@11.19.0",
@@ -23,6 +24,7 @@
     "@angular/material": "^22.2.1",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+    "@fontsource-variable/figtree": "5.3.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -33,11 +35,14 @@
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.19.1",
     "angular-eslint": "22.5.0",
     "eslint": "^10.9.1",
     "jsdom": "^30.0.0",
+    "postcss": "^8.5.29",
     "prettier": "^3.8.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "8.69.0",
     "vitest": "^5.0.0"

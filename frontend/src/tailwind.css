@@ -1,0 +1,38 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@source "./app";
+@theme static {
+  --color-fondo: #f6f8f7;
+  --color-superficie: #ffffff;
+  --color-tinta: #17221e;
+  --color-texto-2: #5b6b65;
+  --color-verde: #145c43;
+  --color-verde-hover: #0f4d37;
+  --color-verde-claro: #e3f1ea;
+  --color-verde-texto-claro: #d7ebe1;
+  --color-linea: #e1e7e4;
+  --color-borde-control: #c9d6d0;
+  --color-desactivado: #e7ecea;
+  --color-pendiente: #7a4a00;
+  --color-pendiente-fondo: #fcefd4;
+  --color-confirmada: #0f4d37;
+  --color-confirmada-fondo: #e3f1ea;
+  --color-en-atencion: #1c4f7c;
+  --color-en-atencion-fondo: #e1edf8;
+  --color-completada: #3f4b46;
+  --color-completada-fondo: #ecefee;
+  --color-no-asistio: #9a261d;
+  --color-no-asistio-fondo: #fbe6e4;
+  --color-cancelada: #9a261d;
+  --color-cancelada-fondo: #fbe6e4;
+  --color-riesgo-borde: #ebc7c3;
+  --color-error-texto: #7a1f17;
+  --color-aviso-fondo: #fcefd4;
+  --color-aviso-texto: #5c3a00;
+  --font-cuerpo: 'Figtree Variable', system-ui, sans-serif;
+  --radius-tarjeta: 16px;
+  --radius-control: 12px;
+  --radius-dia: 14px;
+  --radius-dialogo: 20px;
+}

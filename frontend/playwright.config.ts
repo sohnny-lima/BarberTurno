@@ -6,13 +6,14 @@ process.env['PLAYWRIGHT_BROWSERS_PATH'] ??= resolve('tmp/navegadores');
 
 export default defineConfig({
   testDir: './e2e',
+  testMatch: '**/recorrido.spec.ts',
   globalSetup: './e2e/preparacion.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },
-  reporter: [['list'], ['html', { outputFolder: '../docs/pruebas/e2e', open: 'never' }]],
+  reporter: [['list'], ['html', { outputFolder: '../docs/pruebas/t-55/e2e', open: 'never' }]],
   use: {
     baseURL: 'http://localhost:18034',
     timezoneId: 'Europe/Madrid',

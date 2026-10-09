@@ -89,4 +89,30 @@ describe('Autocompletado de clientes', () => {
     f.componentInstance.seleccionar(clientePrueba);
     expect(emitir).not.toHaveBeenCalled();
   });
+  it('presenta resultados como radios con iniciales y conserva la identidad y la búsqueda al elegir', () => {
+    const f = TestBed.createComponent(SelectorCliente);
+    const s = f.componentInstance;
+    const elegido = vi.fn();
+    s.elegido.subscribe(elegido);
+    s.control.setValue('cliente');
+    vi.advanceTimersByTime(250);
+    http
+      .expectOne((r) => r.url === '/api/usuarios')
+      .flush({ contenido: [clientePrueba], totalElementos: 1 });
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('label[for=busqueda-cliente]').textContent).toContain(
+      'Buscar cliente por nombre o correo',
+    );
+    expect(f.nativeElement.querySelector('.iniciales').textContent).toBe('Cf');
+    const radio = f.nativeElement.querySelector('input[type=radio]') as HTMLInputElement;
+    radio.click();
+    f.detectChanges();
+    expect(elegido).toHaveBeenLastCalledWith(clientePrueba);
+    expect(radio.checked).toBe(true);
+    expect(s.control.value).toBe('cliente');
+    expect(s.resultados()).toEqual([clientePrueba]);
+    s.control.setValue('otra');
+    expect(s.seleccionVista()).toBeNull();
+    expect(elegido).toHaveBeenLastCalledWith(null);
+  });
 });

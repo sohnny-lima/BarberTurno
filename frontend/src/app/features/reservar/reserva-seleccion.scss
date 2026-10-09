@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  margin-bottom: 24px;
+}
+section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+}
+.icono {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--color-verde-claro);
+  color: var(--color-verde);
+  font-size: 24px;
+}
+div {
+  display: grid;
+  min-width: 0;
+}
+span:not(.icono) {
+  font-size: 14px;
+  color: var(--color-texto-2);
+}
+button {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 44px;
+  padding-inline: 0;
+}

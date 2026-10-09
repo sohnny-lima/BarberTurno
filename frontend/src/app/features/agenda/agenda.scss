@@ -1,46 +1,185 @@
+@use '@angular/material' as mat;
 :host {
   display: block;
+}
+.subtitulo,
+.periodo,
+.resumen-conteos {
+  color: var(--color-texto-2);
+}
+.subtitulo {
+  margin: 0 0 20px;
 }
 .filtros {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
-.filtros mat-form-field {
-  flex: 1 1 180px;
+.filtros > mat-form-field {
+  width: 180px;
 }
-.fila {
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}
+.segmento {
+  padding: 4px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: 999px;
+  @include mat.button-toggle-overrides(
+    (
+      shape: 999px,
+      divider-color: transparent,
+    )
+  );
+}
+.segmento mat-button-toggle {
+  min-width: 96px;
+  border-radius: 999px;
+}
+.navegar-fecha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.navegar-fecha mat-form-field {
+  min-width: 0;
+  width: 180px;
+}
+.navegar-fecha > button:not(.hoy) {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  font-size: 24px;
+}
+.filtros button {
+  min-height: 44px;
+}
+.resumen-conteos,
+.periodo {
+  font-size: 14px;
+  margin: 16px 0;
+}
+.linea-tiempo {
+  min-height: 260px;
+  margin-top: 20px;
+}
+.dia {
+  font-size: 18px;
+  line-height: 24px;
+  margin: 20px 0 12px;
+}
+.dia span {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-texto-2);
+  margin-left: 8px;
+}
+.tabla,
+.semanal {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: 16px;
+}
+.columnas {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) minmax(0, 0.8fr) 70px 104px minmax(0, 2fr);
+  gap: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--color-texto-2);
+  border-bottom: 1px solid var(--color-linea);
+}
+.columnas span:last-child {
+  text-align: right;
+}
+.ahora {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-verde);
+  font-size: 13px;
+  font-weight: 700;
+  margin-block: 16px;
+}
+.ahora::after {
+  content: '';
+  height: 2px;
+  background: currentColor;
+  flex: 1;
+}
+.tabla .ahora {
+  margin-inline: 16px;
+}
+.dias-vacios {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  border: 1px solid #b5c7cf;
+  gap: 8px;
+  border: 1px dashed var(--color-borde-control);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 16px 0;
+}
+.dias-vacios h2 {
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0;
+}
+.dias-vacios span {
+  color: var(--color-texto-2);
+  font-size: 14px;
+}
+.alerta {
+  background: var(--color-no-asistio-fondo);
+  color: var(--color-error-texto);
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 12px;
+  margin-top: 20px;
 }
-.intervalo,
-.cliente {
-  display: grid;
-  gap: 6px;
-  overflow-wrap: anywhere;
+.alerta p {
+  margin: 0 0 8px;
 }
-.cliente {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-.acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
-}
-@media (max-width: 599px) {
-  .filtros mat-form-field {
-    flex-basis: 100%;
+@media (max-width: 767.98px) {
+  h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
-  .intervalo {
-    flex-basis: 100%;
+  .subtitulo {
+    font-size: 14px;
+    margin: 0 0 12px;
+  }
+  .segmento {
+    width: 100%;
+  }
+  .segmento mat-button-toggle {
+    flex: 1;
+    min-width: 0;
+  }
+  .filtros > mat-form-field {
+    width: 100%;
+  }
+  .navegar-fecha {
+    width: 100%;
+    margin: 0;
+  }
+  .navegar-fecha mat-form-field {
+    flex: 1;
+  }
+  .hoy {
+    padding-inline: 12px;
+    min-width: 58px;
+  }
+  .actualizar {
+    display: none;
+  }
+  .dia {
+    font-size: 16px;
   }
 }

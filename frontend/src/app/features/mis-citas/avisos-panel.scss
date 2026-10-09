@@ -1,0 +1,82 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+section {
+  min-height: 240px;
+  margin-top: 0;
+}
+li {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-linea);
+  color: var(--color-tinta);
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+.nuevo {
+  color: var(--color-verde);
+}
+.incrustado {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+.incrustado .ayuda {
+  margin-top: 0;
+}
+.incrustado .acciones {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.incrustado .acciones button {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.incrustado button {
+  padding-inline: 0;
+  min-height: 44px;
+  justify-content: flex-start;
+}
+.incrustado li p {
+  margin-block: 0 4px;
+}
+.incrustado li:last-child {
+  border-bottom: 0;
+}
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.encabezado h2 {
+  margin: 0;
+}
+.insignia {
+  border-radius: 999px;
+  background: var(--color-confirmada-fondo);
+  color: var(--color-confirmada);
+  padding: 4px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+li > p:first-child {
+  color: var(--color-texto-2);
+  font-size: 13px;
+}
+.incrustado li > button {
+  margin-left: 0;
+}
+.incrustado .acciones {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.incrustado .acciones button {
+  white-space: normal;
+  text-align: left;
+  line-height: 20px;
+}

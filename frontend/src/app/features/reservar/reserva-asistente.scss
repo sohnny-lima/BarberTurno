@@ -1,0 +1,67 @@
+@use '@angular/material' as mat;
+app-reservar app-reserva-asistente {
+  display: block;
+  min-width: 0;
+  @include mat.stepper-overrides(
+    (
+      container-color: transparent,
+      header-label-text-font: var(--font-cuerpo),
+      header-label-text-size: 14px,
+      header-selected-state-label-text-color: var(--color-verde),
+      header-height: 80px,
+      header-icon-background-color: white,
+      header-icon-foreground-color: var(--color-texto-2),
+      header-done-state-icon-background-color: var(--color-verde-claro),
+      header-done-state-icon-foreground-color: var(--color-verde),
+      header-edit-state-icon-background-color: var(--color-verde-claro),
+      header-edit-state-icon-foreground-color: var(--color-verde),
+    )
+  );
+  .mat-step-icon:has(.indicador-pendiente) {
+    background-color: white;
+    color: var(--color-texto-2);
+  }
+  .mat-horizontal-content-container {
+    padding: 0;
+  }
+  @media (max-width: 767.98px) {
+    @include mat.stepper-overrides(
+      (
+        header-label-text-size: 12px,
+        header-selected-state-label-text-size: 12px,
+        header-height: 64px,
+      )
+    );
+    .mat-horizontal-stepper-header-container {
+      margin-bottom: 20px;
+    }
+    .mat-stepper-label-position-bottom .mat-horizontal-stepper-header {
+      padding: 8px 0;
+      flex: 1;
+      min-width: 0;
+    }
+    .mat-stepper-label-position-bottom .mat-horizontal-stepper-header.mat-step-header::before,
+    .mat-stepper-label-position-bottom .mat-horizontal-stepper-header.mat-step-header::after,
+    .mat-stepper-horizontal-line {
+      display: none;
+    }
+    .mat-stepper-label-position-bottom .mat-horizontal-stepper-header .mat-step-label {
+      padding: 6px 0 0;
+      min-width: 0;
+      white-space: normal;
+    }
+    .mat-step-text-label {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .mat-step-icon {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--color-borde-control);
+    }
+    .mat-step-icon-selected {
+      border-color: var(--color-verde);
+    }
+  }
+}

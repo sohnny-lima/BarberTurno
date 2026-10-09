@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reservar, paso 2, escritorio</title>
+
+</head>
+<body>
+
+
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&amp;family=Big+Shoulders+Display:wght@700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0D5C6C}a:hover{color:#15232B}
+.bt{font-family:'Atkinson Hyperlegible Next',system-ui,sans-serif;color:#15232B;font-variant-numeric:tabular-nums}
+.disp{font-family:'Big Shoulders Display',Impact,sans-serif}
+.btn{font:inherit;font-weight:600;font-size:16px;min-height:48px;padding:0 20px;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-s{background:#fff;color:#15232B;border:1.5px solid #8A979C}
+.btn-t{background:transparent;color:#0D5C6C;padding:0 8px;text-decoration:underline;text-underline-offset:3px;min-height:44px}
+.slot{font:inherit;min-height:60px;border-radius:10px;border:1.5px solid #C3CCCD;background:#fff;color:#15232B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 8px;cursor:pointer}
+.slot b{font-size:19px;font-weight:700}
+.slot span{font-size:13px;color:#4A5A60}
+.slot-sel{background:#7A2333;border-color:#7A2333;color:#fff}
+.slot-sel span{color:#F6E8EA}
+.dia{font:inherit;min-height:64px;border-radius:10px;border:1.5px solid #C3CCCD;background:#fff;color:#15232B;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:0}
+.dia span{font-size:13px;color:#4A5A60}
+.dia b{font-size:20px}
+.dia-sel{background:#15232B;border-color:#15232B;color:#fff}
+.dia-sel span{color:#C9D3D6}
+.nav{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:10px;color:#E8EDEE;text-decoration:none;font-weight:600}
+.fila{display:flex;flex-direction:column;gap:2px;padding:14px 0;border-top:1px solid #E1E6E6}
+.fila span{font-size:14px;color:#4A5A60}
+.fila b{font-size:17px}
+</style>
+
+<div class="bt" style="width:1440px;height:1000px;box-sizing:border-box;background:#F1F3F1;display:flex">
+  <nav aria-label="Navegación principal" style="width:248px;flex-shrink:0;background:#15232B;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 6px 28px">
+      <svg width="34" height="34" viewBox="0 0 52 52" aria-hidden="true"><rect width="52" height="52" rx="12" fill="#22343D"></rect><path d="M14 40 L26 12 M22 40 L34 12 M30 40 L42 12" stroke="#E2B65C" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
+      <span class="disp" style="color:#fff;font-size:26px;font-weight:800;letter-spacing:.02em">BARBERTURNO</span>
+    </div>
+    <a class="nav" href="#" aria-current="page" style="background:#E2B65C;color:#15232B">Reservar</a>
+    <a class="nav" href="#">Mis citas <span style="background:#7A2333;color:#fff;border-radius:999px;font-size:13px;padding:1px 8px" aria-label="1 aviso sin leer">1</span></a>
+    <a class="nav" href="#">Mi cuenta</a>
+    <div style="margin-top:auto;border-top:1px solid #2C3F48;padding:18px 8px 0;display:flex;flex-direction:column;gap:4px">
+      <b style="color:#fff">Ana Torres</b>
+      <span style="color:#C9D3D6;font-size:14px">Cliente</span>
+      <button class="btn btn-t" type="button" style="color:#E2B65C;justify-content:flex-start;padding:0">Salir</button>
+    </div>
+  </nav>
+  <main style="flex:1;min-width:0;padding:40px 56px;display:flex;flex-direction:column;gap:28px">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <h1 class="disp" style="margin:0;font-size:56px;font-weight:800;line-height:1">Reservar un turno</h1>
+      <p style="margin:0;color:#4A5A60;font-size:16px">Todas las horas corresponden a Lima.</p>
+    </div>
+    <ol aria-label="Pasos de la reserva" style="list-style:none;margin:0;padding:0;display:flex;gap:12px;align-items:center">
+      <li style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:#15232B;color:#fff;display:grid;place-items:center" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span>Servicio y profesional</span></li>
+      <li aria-hidden="true" style="flex:0 0 56px;height:2px;background:#15232B"></li>
+      <li aria-current="step" style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:#7A2333;color:#fff;display:grid;place-items:center;font-weight:700">2</span><b>Fecha y hora</b></li>
+      <li aria-hidden="true" style="flex:0 0 56px;height:2px;background:#C3CCCD"></li>
+      <li style="display:flex;align-items:center;gap:10px;color:#4A5A60"><span style="width:32px;height:32px;border-radius:50%;border:1.5px solid #8A979C;display:grid;place-items:center;font-weight:700;box-sizing:border-box">3</span><span>Revisar y confirmar</span></li>
+    </ol>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:40px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:28px">
+        <section aria-labelledby="t-dia" style="display:flex;flex-direction:column;gap:12px">
+          <h2 id="t-dia" style="margin:0;font-size:20px">Elija el día</h2>
+          <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 128px;gap:8px">
+            <button class="dia dia-sel" type="button" aria-pressed="true"><span>Hoy</span><b>28</b></button>
+            <button class="dia" type="button"><span>mar</span><b>29</b></button>
+            <button class="dia" type="button"><span>mié</span><b>30</b></button>
+            <button class="dia" type="button"><span>jue</span><b>1</b></button>
+            <button class="dia" type="button"><span>vie</span><b>2</b></button>
+            <button class="dia" type="button"><span>sáb</span><b>3</b></button>
+            <button class="dia" type="button"><span>dom</span><b>4</b></button>
+            <button class="btn btn-s" type="button" style="min-height:64px;padding:0 12px"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" stroke="#15232B" stroke-width="2" fill="none"></rect><path d="M3 10h18M8 3v4M16 3v4" stroke="#15232B" stroke-width="2"></path></svg>Otra fecha</button>
+          </div>
+        </section>
+        <section aria-labelledby="t-horas" style="display:flex;flex-direction:column;gap:16px;background:#fff;border:1px solid #D5DCDC;border-radius:16px;padding:24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <h2 id="t-horas" style="margin:0;font-size:20px">Lunes 28 de septiembre</h2>
+            <span style="color:#4A5A60;font-size:14px">10 horas libres para Corte + barba</span>
+          </div>
+          <h3 style="margin:4px 0 0;font-size:15px;color:#4A5A60;font-weight:600">Mañana</h3>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">
+            <button class="slot" type="button"><b>09:30</b><span>Carlos, Miguel</span></button>
+            <button class="slot slot-sel" type="button" aria-pressed="true"><b>10:00</b><span>Carlos, Miguel</span></button>
+            <button class="slot" type="button"><b>10:30</b><span>Carlos, Miguel</span></button>
+            <button class="slot" type="button"><b>11:00</b><span>Carlos, Miguel</span></button>
+          </div>
+          <h3 style="margin:4px 0 0;font-size:15px;color:#4A5A60;font-weight:600">Tarde</h3>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">
+            <button class="slot" type="button"><b>12:00</b><span>Miguel</span></button>
+            <button class="slot" type="button"><b>14:00</b><span>Miguel</span></button>
+            <button class="slot" type="button"><b>14:30</b><span>Miguel</span></button>
+            <button class="slot" type="button"><b>15:00</b><span>Miguel</span></button>
+            <button class="slot" type="button"><b>16:00</b><span>Miguel</span></button>
+            <button class="slot" type="button"><b>17:00</b><span>Miguel</span></button>
+          </div>
+        </section>
+        <div><button class="btn btn-t" type="button" style="padding:0">Cambiar servicio o profesional</button></div>
+      </div>
+      <aside aria-labelledby="t-resumen" style="background:#fff;border:1px solid #D5DCDC;border-radius:16px;padding:24px;display:flex;flex-direction:column">
+        <h2 id="t-resumen" style="margin:0 0 8px;font-size:20px">Su cita</h2>
+        <div class="fila"><span>Servicio</span><b>Corte + barba</b><span>50 minutos, S/ 40.00</span></div>
+        <div class="fila"><span>Profesional</span><b>Sin preferencia</b></div>
+        <div class="fila"><span>Fecha</span><b>Lunes 28 de septiembre</b></div>
+        <div class="fila"><span>Hora</span><b>10:00 a 10:50</b></div>
+        <p style="margin:8px 0 0;padding:14px;border-radius:10px;background:#F1F3F1;font-size:14px;line-height:1.5">Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+
+
+</body>
+</html>

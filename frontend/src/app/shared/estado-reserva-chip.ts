@@ -19,31 +19,32 @@ export const ESTADOS_RESERVA: Record<EstadoReserva, string> = {
         border-radius: 20px;
         padding: 6px 12px;
         font-weight: 700;
-        border: 1px solid currentColor;
+        font-size: 13px;
+        line-height: 1.5;
       }
       [data-estado='PENDIENTE'] {
-        color: #624000;
-        background: #fff3ce;
+        color: var(--color-pendiente);
+        background: var(--color-pendiente-fondo);
       }
       [data-estado='CONFIRMADA'] {
-        color: #124e65;
-        background: #e1f2fa;
+        color: var(--color-confirmada);
+        background: var(--color-confirmada-fondo);
       }
       [data-estado='EN_ATENCION'] {
-        color: #4f2875;
-        background: #f1e7ff;
+        color: var(--color-en-atencion);
+        background: var(--color-en-atencion-fondo);
       }
       [data-estado='COMPLETADA'] {
-        color: #20532a;
-        background: #e7f5e8;
+        color: var(--color-completada);
+        background: var(--color-completada-fondo);
       }
       [data-estado='NO_ASISTIO'] {
-        color: #812b22;
-        background: #ffece8;
+        color: var(--color-no-asistio);
+        background: var(--color-no-asistio-fondo);
       }
       [data-estado='CANCELADA'] {
-        color: #414950;
-        background: #eef0f2;
+        color: var(--color-cancelada);
+        background: var(--color-cancelada-fondo);
       }
     `,
   ],

@@ -1,0 +1,33 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.mas {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  flex: 0 0 44px;
+}
+button {
+  min-height: 44px;
+}
+[mat-menu-item]:focus-visible,
+button.cdk-keyboard-focused {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}
+[mat-menu-item] {
+  margin-inline: 6px;
+  width: calc(100% - 12px);
+}
+@media (max-width: 1199.98px) {
+  .principal {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+}

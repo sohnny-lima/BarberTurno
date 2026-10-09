@@ -265,14 +265,13 @@ npm run e2e
 ```
 
 La descarga se hace una vez. `npm run e2e` fija JDK 21 únicamente en su proceso,
-empaqueta el jar con `-Pcon-frontend` y ejecuta los seis escenarios y CP-01 en Chromium y
+empaqueta el jar con `-Pcon-frontend` y ejecuta los doce escenarios en Chromium y
 Firefox, a 1440 × 900 y 360 × 800, con zona `Europe/Madrid`. La fixture usa
 `dev,demo`, el reloj fijo del 28/09/2026 a las 09:00 Lima y el puerto 18034;
 genera credenciales ficticias efímeras en el entorno y detiene el jar al terminar.
 No necesita arrancar Angular ni el backend por separado.
 
-Intenta crear `barberturno_e2e` con el rol de aplicación. Si no puede, utiliza
-`barberturno_test`, **vaciando sus ocho tablas de negocio antes y después de cada
+Utiliza exclusivamente `barberturno_test`, **vaciando sus ocho tablas de negocio antes y después de cada
 proyecto**; conserva Flyway. No ejecute `verify`, otra suite PostgreSQL ni la
 aplicación a la vez. La suite comprueba conexiones y puertos antes de empezar y
 usa `frontend/tmp/e2e.lock` para impedir dos ejecuciones E2E simultáneas.
@@ -280,7 +279,14 @@ Tras una interrupción externa, compruebe que no queda su jar antes de retirar
 ese archivo de bloqueo; el cierre normal lo retira automáticamente.
 
 El informe HTML con los resultados de axe se guarda en
-[docs/pruebas/e2e/index.html](docs/pruebas/e2e/index.html), sin videos ni trazas.
+[docs/pruebas/t-55/e2e/index.html](docs/pruebas/t-55/e2e/index.html), sin videos ni trazas.
+El arnés compila con las dependencias ya instaladas y empaqueta sin ejecutar `npm ci`.
+Para las capturas de la propuesta T-55, ejecute `npm run e2e:capturas` por separado:
+36 casos verifican axe, desplazamiento horizontal, teclado y foco en Chromium y
+Firefox a 1440 y 360 px. Los PNG de ambos navegadores y sus auditorías se guardan en
+`docs/pruebas/t-55/capturas/{chromium,firefox}/`, incluidos estados de carga,
+vacío, error y contraseña temporal simulados. Consulte el
+[índice de capturas](docs/pruebas/t-55/capturas/indice.md).
 `npm run lint` también comprueba los tipos de `e2e/`; `format:check` incluye la
 suite. El empaquetado E2E omite la ejecución de pruebas Maven y no sustituye a
 `mvnw.cmd verify`. La CI conserva su verificación habitual; los E2E se ejecutan

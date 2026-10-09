@@ -1,17 +1,21 @@
-<section class="tarjeta" aria-labelledby="titulo-avisos" [attr.aria-busy]="cargando()">
-  <h2 id="titulo-avisos">Avisos</h2>
+<section
+  class="tarjeta"
+  [class.incrustado]="incrustado()"
+  [attr.aria-labelledby]="mostrarEncabezado() ? 'titulo-avisos' : null"
+  [attr.aria-busy]="cargando()"
+>
+  @if (mostrarEncabezado()) {
+    <div class="encabezado">
+      <h2 id="titulo-avisos">Avisos</h2>
+      <span class="insignia">{{ avisos.noLeidas() }} sin leer</span>
+    </div>
+  }
   <p class="ayuda">Del más reciente al más antiguo.</p>
   <div class="acciones">
-    <button
-      mat-stroked-button
-      (click)="marcar()"
-      [disabled]="guardando() || avisos.noLeidas() === 0"
-    >
+    <button mat-button (click)="marcar()" [disabled]="guardando() || avisos.noLeidas() === 0">
       Marcar todos como leídos
     </button>
-    <button mat-button (click)="cargar()" [disabled]="cargando() || guardando()">
-      Actualizar avisos
-    </button>
+    <button mat-button (click)="cargar()" [disabled]="cargando() || guardando()">Actualizar</button>
   </div>
   @if (mensaje()) {
     <p class="mensaje" role="alert">{{ mensaje() }}</p>
@@ -23,7 +27,7 @@
       @for (aviso of filas(); track aviso.id) {
         <li>
           <p>
-            <strong>{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong> ·
+            <strong [class.nuevo]="!aviso.leida">{{ aviso.leida ? 'Leído' : 'Nuevo' }}</strong>
             {{ aviso.creadoEn | fechaLima }}
           </p>
           <p>{{ aviso.mensaje }}</p>
@@ -39,17 +43,20 @@
           }
         </li>
       } @empty {
-        <li>No tiene avisos.</li>
+        <li role="status">No tiene avisos.</li>
       }
     </ul>
   }
-  <mat-paginator
-    [length]="total()"
-    [pageIndex]="pagina()"
-    [pageSize]="tamano()"
-    [pageSizeOptions]="[10, 20, 50]"
-    (page)="paginar($event)"
-    showFirstLastButtons
-    aria-label="Páginas de avisos"
-  />
+  @if (!incrustado() || total() > tamano()) {
+    <mat-paginator
+      [length]="total()"
+      [pageIndex]="pagina()"
+      [pageSize]="tamano()"
+      [pageSizeOptions]="incrustado() ? [] : [10, 20, 50]"
+      [hidePageSize]="incrustado()"
+      (page)="paginar($event)"
+      showFirstLastButtons
+      aria-label="Páginas de avisos"
+    />
+  }
 </section>

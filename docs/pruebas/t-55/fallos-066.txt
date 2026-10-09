@@ -1,0 +1,87 @@
+Vitest America/Lima, primera pasada: 6 failed | 384 passed (390), 3 failed | 37 passed (40), 19.05s.
+Shell: AssertionError expected 'none' to contain '3px', shell.spec.ts:64.
+Agenda 360: expected 'Barba , BT-101' to be 'Barba, BT-101', agenda.spec.ts:80.
+Agenda 1440: expected 'Barba BT-101' to be 'BarbaBT-101', agenda.spec.ts:80.
+Reservar móvil=false y móvil=true: expected '✓' to be '3', reservar.spec.ts:88/115.
+Resumen: expected 'Elija una hora para continuar.' to be 'lunes 28, 11:00 a 11:45 · Corte', reservar.spec.ts:137.
+
+Vitest Lima, segunda pasada: 1 failed | 389 passed (390), 1 failed | 39 passed (40), 17.27s.
+Shell: AssertionError expected 'none' to contain '3px', shell.spec.ts:65.
+Material declara outline none; jsdom no reproduce su cascada por especificidad. La prueba usa un botón nativo dentro de main para aislar el alcance del selector, y las capturas verifican foco real en ambos navegadores.
+
+Vitest Lima, tercera pasada: 1 failed | 389 passed (390), 1 failed | 39 passed (40), 17.32s.
+Shell: AssertionError expected '' to contain '3px', shell.spec.ts:66.
+jsdom no reevalúa :focus-visible entre controles. Se inyecta una regla basal de contorno sin pseudoclase para probar la excepción y su alcance; las pseudoclases reales se verifican en E2E.
+
+Capturas, primera pasada: 34 passed (5.8m), 2 failed.
+  1) [chromium-1440] › e2e\capturas.spec.ts:291:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+
+    Error: expect(locator).toHaveAccessibleName(expected) failed
+
+    Locator: locator('mat-step-header').first()
+    Expected pattern: /Paso 1,.*(completado|actual|pendiente)/
+    Received string:  ""
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toHaveAccessibleName" locator('mat-step-header').first() with timeout 15000ms
+      - waiting for locator('mat-step-header').first()
+        33 × locator resolved to <mat-step-header role="tab" tabindex="0" aria-setsize="3" aria-posinset="1" aria-selected="true" id="cdk-stepper-0-label-0" aria-controls="cdk-stepper-0-content-0" class="mat-step-header mat-horizontal-stepper-header mat-primary">…</mat-step-header>
+           - unexpected value ""
+
+
+      32 |     const estado = await icono.locator('.oculto').textContent();
+      33 |     const completado = estado?.includes('completado');
+    > 34 |     await expect(paso).toHaveAccessibleName(
+         |                        ^
+      35 |       new RegExp('Paso ' + (index + 1) + ',.*(completado|actual|pendiente)'),
+      36 |     );
+      37 |     await expect(icono.locator('[aria-hidden="true"]')).toHaveText(
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:34:24)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:304:3
+
+    Error Context: test-results\capturas-propuesta-avisos--2cf67--de-cuenta-solo-con-teclado-chromium-1440\error-context.md
+
+  2) [firefox-1440] › e2e\capturas.spec.ts:291:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+
+    Error: expect(locator).toHaveAccessibleName(expected) failed
+
+    Locator: locator('mat-step-header').first()
+    Expected pattern: /Paso 1,.*(completado|actual|pendiente)/
+    Received string:  ""
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toHaveAccessibleName" locator('mat-step-header').first() with timeout 15000ms
+      - waiting for locator('mat-step-header').first()
+        33 × locator resolved to <mat-step-header role="tab" tabindex="0" aria-setsize="3" aria-posinset="1" aria-selected="true" id="cdk-stepper-0-label-0" aria-controls="cdk-stepper-0-content-0" class="mat-step-header mat-horizontal-stepper-header mat-primary">…</mat-step-header>
+           - unexpected value ""
+
+
+      32 |     const estado = await icono.locator('.oculto').textContent();
+      33 |     const completado = estado?.includes('completado');
+    > 34 |     await expect(paso).toHaveAccessibleName(
+         |                        ^
+      35 |       new RegExp('Paso ' + (index + 1) + ',.*(completado|actual|pendiente)'),
+      36 |     );
+      37 |     await expect(icono.locator('[aria-hidden="true"]')).toHaveText(
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:34:24)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:304:3
+
+    Error Context: test-results\capturas-propuesta-avisos--2cf67--de-cuenta-solo-con-teclado-firefox-1440\error-context.md
+
+  2 failed
+    [chromium-1440] › e2e\capturas.spec.ts:291:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+    [firefox-1440] › e2e\capturas.spec.ts:291:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+  34 passed (5.8m)
+
+
+Incidencias auxiliares, corregidas sin cambios de producto:
+- Primer comando: exec_command failed: setup refresh had errors. Escalación autorizada por auto-review, sin tocar ACL ni propietarios.
+- Lecturas exploratorias: No se encuentra la ruta reserva-asistente.html / reserva-asistente.spec.ts / reserva-store.ts. Se usaron reservar.html, reservar.spec.ts y reserva.store.ts.
+- rg: El nombre de archivo, el nombre de directorio o la sintaxis de la etiqueta del volumen no son correctos (glob literal de Windows). Se corrigió el alcance a frontend/e2e y --glob.
+- python --version: no se encontró Python. Se usó Node 24.21.0 local, sin instalar dependencias.
+- Primera escritura de unitarias: Error ENOENT, open frontend/frontend/src/app/features/agenda/agenda.spec.ts. No llegó a editar ningún archivo; se corrigieron rutas relativas.
+- Control auxiliar del informe: Error: Adjunto axe no vacío. Se estaba aplicando la condición de array vacío a todos los JSON, incluidos los de huellas CSRF. Se restringió por el nombre axe: 100 adjuntos axe vacíos, sin modificar el informe.
+- Avisos heredados de arnés: NO_COLOR ignorado con FORCE_COLOR y APIs obsoletas al empaquetar Java. Angular build sin avisos.
+- Consulta auxiliar de versión npm: DEP0190 por shell:true con argumentos fijos de --version. Sin interpolación de datos ni ejecución inesperada; se evitó ese modo en los demás auxiliares.

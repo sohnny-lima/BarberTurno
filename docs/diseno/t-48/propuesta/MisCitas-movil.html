@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mis citas, móvil</title>
+
+</head>
+<body>
+
+
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&amp;family=Big+Shoulders+Display:wght@700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0D5C6C}a:hover{color:#15232B}
+.bt{font-family:'Atkinson Hyperlegible Next',system-ui,sans-serif;color:#15232B;font-variant-numeric:tabular-nums}
+.disp{font-family:'Big Shoulders Display',Impact,sans-serif}
+.btn{font:inherit;font-weight:600;font-size:16px;min-height:48px;padding:0 16px;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-sizing:border-box}
+.btn-s{background:#fff;color:#15232B;border:1.5px solid #8A979C}
+.btn-d{background:#fff;color:#9A2B1E;border:1.5px solid #D9A39A}
+.btn-t{background:transparent;color:#0D5C6C;text-decoration:underline;text-underline-offset:3px}
+.ico{width:44px;height:44px;border-radius:10px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;position:relative}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px 3px 8px;font-size:13px;font-weight:700;line-height:20px;white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.p-pend{color:#7A4E00;background:#FFF1CC}
+.p-conf{color:#0D5C6C;background:#DDF0F2}
+.cita{background:#fff;border:1px solid #D5DCDC;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.fecha{width:56px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;border-right:1px solid #E1E6E6;padding-right:12px}
+.fecha span{font-size:12px;color:#4A5A60}
+.fecha b{font-size:26px;line-height:1.05}
+</style>
+
+<div class="bt" style="width:360px;height:1250px;box-sizing:border-box;background:#F1F3F1;display:flex;flex-direction:column">
+  <header style="height:56px;background:#15232B;display:flex;align-items:center;gap:4px;padding:0 6px;flex-shrink:0">
+    <button class="ico" type="button" aria-label="Abrir menú"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="#fff" stroke-width="2" stroke-linecap="round"></path></svg></button>
+    <span class="disp" style="color:#fff;font-size:22px;font-weight:800;letter-spacing:.02em;flex:1">BARBERTURNO</span>
+    <button class="ico" type="button" aria-label="Avisos: 1 sin leer"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 20a2 2 0 0 0 4 0" stroke="#fff" stroke-width="2" fill="none" stroke-linejoin="round"></path></svg><span style="position:absolute;top:6px;right:6px;background:#E2B65C;color:#15232B;font-size:11px;font-weight:700;border-radius:999px;padding:0 5px">1</span></button>
+  </header>
+  <main style="padding:20px 16px 28px;display:flex;flex-direction:column;gap:16px">
+    <h1 class="disp" style="margin:0;font-size:40px;font-weight:800;line-height:1">Mis citas</h1>
+    <div role="tablist" aria-label="Periodo de las citas" style="display:grid;grid-template-columns:1fr 1fr;background:#E4E8E7;border-radius:12px;padding:4px">
+      <button role="tab" aria-selected="true" type="button" style="font:inherit;font-weight:700;min-height:44px;border:0;border-radius:9px;background:#fff;color:#15232B">Próximas</button>
+      <button role="tab" aria-selected="false" type="button" style="font:inherit;min-height:44px;border:0;border-radius:9px;background:transparent;color:#4A5A60">Historial</button>
+    </div>
+    <button class="btn btn-s" type="button" aria-expanded="false" style="justify-content:space-between;width:100%">Filtrar citas <span style="font-size:14px;color:#4A5A60;font-weight:400">Todos los estados</span></button>
+    <article aria-label="Cita de hoy, BT-103" style="background:#fff;border:1px solid #D5DCDC;border-radius:16px;overflow:hidden">
+      <div style="background:#15232B;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-end">
+        <div style="display:flex;flex-direction:column"><span style="color:#E2B65C;font-weight:700;font-size:14px">Hoy</span><span class="disp" style="font-size:52px;font-weight:800;line-height:.95">10:00</span></div>
+        <span style="color:#C9D3D6;font-size:14px;padding-bottom:6px">hasta 10:30</span>
+      </div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;border-top:2px dashed #C3CCCD">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:18px">Corte clásico</b><span class="pill p-conf">Confirmada</span></div>
+        <span>Con Carlos Huamán. S/ 25.00.</span>
+        <span style="font-size:13px;color:#4A5A60">Código BT-103</span>
+        <p style="margin:0;padding:10px 12px;border-radius:10px;background:#FFF1CC;color:#5C3B00;font-size:14px;line-height:1.45">Faltan menos de 2 horas. Para cambiarla, comuníquese con la barbería.</p>
+      </div>
+    </article>
+    <article class="cita" aria-label="BT-101">
+      <div style="display:flex;gap:12px">
+        <div class="fecha"><span>mar</span><b>29</b><span>sep</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><b style="font-size:17px">Corte + barba</b><span style="font-size:15px">10:00 a 10:50 con Carlos Huamán</span><span><span class="pill p-conf">Confirmada</span></span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><a href="#" class="btn btn-s" style="text-decoration:none">Reprogramar</a><button class="btn btn-d" type="button">Cancelar</button></div>
+    </article>
+    <article class="cita" aria-label="BT-102">
+      <div style="display:flex;gap:12px">
+        <div class="fecha"><span>sáb</span><b>3</b><span>oct</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><b style="font-size:17px">Perfilado de barba</b><span style="font-size:15px">16:30 a 16:50 con Miguel Quispe</span><span><span class="pill p-pend">Pendiente</span></span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><a href="#" class="btn btn-s" style="text-decoration:none">Reprogramar</a><button class="btn btn-d" type="button">Cancelar</button></div>
+    </article>
+    <section aria-labelledby="m-avisos" style="background:#fff;border:1px solid #D5DCDC;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><h2 id="m-avisos" style="margin:0;font-size:18px">Avisos</h2><span style="font-size:14px;color:#4A5A60">1 sin leer</span></div>
+      <div style="display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:#7A2333;margin-top:6px" aria-label="Sin leer"></span><div style="display:flex;flex-direction:column;gap:2px"><b style="font-size:15px">Reserva BT-101 confirmada para el 29/09 a las 10:00.</b><span style="font-size:13px;color:#4A5A60">27/09/2026, 10:00</span></div></div>
+      <button class="btn btn-t" type="button" style="align-self:flex-start;padding:0">Ver todos los avisos</button>
+    </section>
+  </main>
+</div>
+
+
+</body>
+</html>

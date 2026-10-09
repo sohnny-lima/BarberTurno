@@ -1,0 +1,25 @@
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.esqueletos {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+}
+.esqueletos span {
+  height: 64px;
+  border-radius: 12px;
+  background: var(--color-desactivado);
+}
+.franjas {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (min-width: 768px) {
+  .franjas {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
