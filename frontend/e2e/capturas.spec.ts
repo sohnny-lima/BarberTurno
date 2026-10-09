@@ -25,7 +25,8 @@ async function capturar(page: Page, info: TestInfo, nombre: string, cargando = f
   const main = page.locator('main#contenido');
   await expect(main).toHaveAttribute('tabindex', '-1');
   await expect(main).toHaveCSS('outline-style', 'none');
-  const pasos = page.locator('mat-step-header');
+  // Los diálogos ocultan el fondo con aria-hidden; comprobar los pasos expuestos al lector.
+  const pasos = page.getByRole('tab').filter({ has: page.locator('.mat-step-icon') });
   for (let index = 0; index < (await pasos.count()); index++) {
     const paso = pasos.nth(index);
     const icono = paso.locator('.mat-step-icon');
