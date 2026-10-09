@@ -30,6 +30,12 @@ describe('Formulario de registro', () => {
       aceptaPrivacidad: true,
     });
   }
+  it('muestra la ayuda de contraseña conforme a RN-25', () => {
+    const ayuda = fixture.nativeElement.querySelector('.ayuda') as HTMLElement;
+    expect(ayuda.textContent?.trim()).toBe(
+      'De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.',
+    );
+  });
   it('exige consentimiento antes de enviar', () => {
     rellenar();
     pagina.formulario.controls.aceptaPrivacidad.setValue(false);
