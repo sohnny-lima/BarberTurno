@@ -90,6 +90,7 @@
 | T-52 | Comprobación conjunta de T-48 y T-51 en una rama de integración (cabecera compartida) | M | T-48, T-51 | Hecha | 06/10/2026 | inicio `f70e9a4e0379cd1bab48a9fe194a08c8bfb2037e`; merge T-48 `98f4f1552ebb5f4739730ebd3ae545bb07dc6761`; merge T-51 `75da41f376f7ba75bf47d307d8b48d8fd64a4beb`; `9e3c0c2a13e78381a717e73772e443e2501fc4c8`, `e5fcfbe0d7fc8d9a09de4a3fc4b797a9170e18f4`, `6da0bcf6edd9a158eab36e7341b16ef683de2681`, `6e93cc3bd7ff414ca4ab52f31a99577efe01e8b7`; único cierre docs por asunto (evidencia) |
 | T-54 | Integración final de T-52 (T-48 + T-51) y T-49 en una rama revisable | M | T-52, T-49 | Hecha | 06/10/2026 | inicio `99d6da4`; `d48971b`; merge T-52 `0f6881722f6148792160a2e230bd273b35469e7d`; merge T-49 `689abf5de21bc423753ae6d83b379165113bf4c2`; `a39bff3779f7c341d6789e1be38c45ed9944e0cc`; cierre 060 `5dd21ea69852e97bf6acedacd0b62cbc08a17312`; corrección 060b `8c8547de13c3a7741634d2950ff154030f80c0b1`; cierre test(e2e) por asunto (evidencia) |
 | T-55 | Dirección visual «verde» de la fase 1: tema, navegación por rol, Reservar, Mis citas y Agenda (MJ-20, DA-27) | S | T-54 | En curso | 08/10/2026 | `81c1b1d`, `838febb`, `a3b0e51`, `ddd668f`, `783f2ac` (T-55.1); 0ecc7fc, 6d648a7, 5c30b85, 31ce563, 5707f78 (T-55.2); 2362163, ed86302, c97c656 (T-55.3); 5c8bb0a, da545cd, e23d766, 6453f36 (T-55.4); 759cca2, d96962a, 00e53ea, dd4ccb4 (T-55.5; cierre por asunto en nota); aa8bc52, 88f88bc, fd628ba (Repaso 066; cierre por asunto en nota) |
+| T-56 | Ayuda de contraseña conforme a RN-25 en registro y cambio de contraseña | S | T-55 | En curso | 08/10/2026 | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -447,6 +448,12 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Criterios de aceptación:** pantallas y estados de `docs/diseno/t-55.md` §5 a 360 y 1440 px; todas las funciones, permisos, validaciones y correcciones de T-54 (CSRF, avisos, foco) intactas; teclado y foco correctos; axe sin violaciones; sin desplazamiento horizontal; presupuesto sin elevar.
 - **Pruebas:** lint, formato, Vitest (Lima y Madrid), build de producción, E2E y capturas en Chromium y Firefox a 360 y 1440 px (selectores adaptados a «Más acciones», barra inferior y menú de cuenta sin quitar comprobaciones), casos 05, 08 y 09; suites con `barberturno_test` de una en una.
 - **Prioridad:** M.
+
+### T-56 · Ayuda de contraseña conforme a RN-25
+- **Origen:** observación de T-55 (encargo 065) confirmada por el coordinador y el responsable (08/10/2026): las ayudas de `features/auth/registro.html` y `features/auth/cambiar-password.html` piden «de 10 a 72 caracteres, mayúscula, minúscula y un número», pero RN-25 y el servidor (`PoliticaPassword`) exigen de 8 a 72 caracteres, como máximo 72 bytes en UTF-8, con al menos una letra y un dígito. El texto viene de T-12; la validación no cambia (el cliente solo exige el campo y el servidor aplica RN-25).
+- **Alcance:** solo los dos textos de ayuda, con la redacción ya usada en el alta de barberos («De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito»), y sus pruebas. Sin cambios de reglas, validadores, mensajes del servidor ni backend. Rama `tarea/T-56-ayuda-password` desde T-55 (`c5d3c0c`). **No se integra en `main`.**
+- **Criterios de aceptación:** ambas ayudas dicen lo mismo que RN-25; prueba unitaria que lo comprueba; lint, formato, Vitest (Lima y Madrid) y build sin avisos.
+- **Prioridad:** M (defecto de texto que contradice una regla).
 
 ---
 
