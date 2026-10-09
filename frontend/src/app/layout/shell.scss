@@ -153,9 +153,15 @@ footer {
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-linea);
 }
-[mat-menu-item]:focus-visible {
+[mat-menu-item]:focus-visible,
+[mat-menu-item].cdk-keyboard-focused,
+button.cdk-keyboard-focused {
   outline: 3px solid var(--color-verde);
   outline-offset: 2px;
+}
+[mat-menu-item] {
+  margin-inline: 6px;
+  width: calc(100% - 12px);
 }
 .campana {
   position: relative;

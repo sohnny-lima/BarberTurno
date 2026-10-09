@@ -247,6 +247,10 @@ h3 {
     width: 100%;
     flex: auto;
   }
+  .barra-reserva:has(.resumen-corto) {
+    gap: 4px;
+    padding-block: 8px max(8px, env(safe-area-inset-bottom));
+  }
   .resumen-corto {
     display: block;
     font-size: 14px;

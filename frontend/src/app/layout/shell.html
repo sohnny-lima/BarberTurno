@@ -129,10 +129,16 @@
             {{ saliendo() ? 'Saliendo…' : 'Salir' }}
           </button>
         } @else if (movil() && navegacionCompleta()) {
-          <button mat-button class="cuenta" [matMenuTriggerFor]="cuenta" aria-label="Abrir cuenta">
+          <button
+            mat-button
+            class="cuenta"
+            [matMenuTriggerFor]="cuenta"
+            appRegionMenu="Cuenta"
+            aria-label="Abrir cuenta"
+          >
             <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
           </button>
-          <mat-menu #cuenta="matMenu"
+          <mat-menu #cuenta="matMenu" aria-label="Cuenta"
             ><div class="identidad-menu">
               <strong>{{ sesion.usuario()?.nombre }}</strong
               ><span>{{ nombreRol() }}</span>

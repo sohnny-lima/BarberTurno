@@ -23,6 +23,7 @@ import { filter, finalize, map } from 'rxjs';
 import { SesionService } from '../core/auth/sesion-service';
 
 import { TituloPagina } from '../shared/titulo-pagina';
+import { RegionMenu } from '../shared/region-menu';
 import { AvisosService } from '../core/notificaciones/avisos-service';
 
 const CUENTA = { ruta: '/perfil', texto: 'Mi cuenta' };
@@ -43,6 +44,7 @@ const ADMIN = [
   imports: [
     MatButtonModule,
     MatMenuModule,
+    RegionMenu,
     MatSidenavModule,
     RouterLink,
     RouterLinkActive,
