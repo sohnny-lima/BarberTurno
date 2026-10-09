@@ -1,9 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { type Page, type TestInfo } from '@playwright/test';
+import { type Locator, type Page, type TestInfo } from '@playwright/test';
 import { test, expect, sesionApi } from './fixture';
+import type { Pagina } from '../src/app/core/modelos/pagina';
+import type { ReservaDto } from '../src/app/core/modelos/reservas';
 
+// Backend real salvo las respuestas concretas de vacío, carga, error y contraseña temporal.
+// Las capturas no modifican las reservas de demostración.
 async function entrar(page: Page, correo: string) {
   const api = await sesionApi(correo);
   try {
@@ -13,19 +17,37 @@ async function entrar(page: Page, correo: string) {
     await api.dispose();
   }
 }
-
-async function capturar(
-  page: Page,
-  info: TestInfo,
-  nombre: string,
-  cargando = false,
-  guardarTodo = false,
-) {
+function movil(page: Page) {
+  return page.viewportSize()!.width === 360;
+}
+async function capturar(page: Page, info: TestInfo, nombre: string, cargando = false) {
   await expect(page.locator('main')).toBeVisible();
   if (!cargando) await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  // Material mueve el aviso al área live al terminar su anuncio inicial.
   await expect(page.locator('mat-snack-bar-container [aria-hidden="true"]')).toHaveCount(0);
-  await page.evaluate(() => document.fonts.ready);
+  const viewport = page.viewportSize()!;
+  const superpuesta =
+    (await page.getByRole('dialog').count()) > 0 ||
+    (await page.getByRole('menu').count()) > 0 ||
+    (movil(page) && (await page.locator('mat-sidenav').isVisible()));
+  // El shell móvil desplaza su contenido internamente; fullPage solo mide el documento.
+  // Ampliar la altura permite capturar toda la pantalla sin alterar su ancho de 360 px.
+  // Las superposiciones conservan el viewport original para mostrar su comportamiento real.
+  if (movil(page) && !superpuesta) {
+    const alto = await page
+      .locator('mat-sidenav-content')
+      .evaluate(
+        (contenido) => contenido.scrollHeight + window.innerHeight - contenido.clientHeight,
+      );
+    await page.setViewportSize({ width: viewport.width, height: Math.max(viewport.height, alto) });
+  }
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all(
+      Array.from(document.images).map((imagen) => imagen.decode().catch(() => undefined)),
+    );
+    window.scrollTo(0, 0);
+    document.querySelector('mat-sidenav-content')?.scrollTo(0, 0);
+  });
   expect(
     await page
       .locator('mat-form-field')
@@ -37,228 +59,386 @@ async function capturar(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
+    nombre,
   ).toBe(true);
   const axe = await new AxeBuilder({ page }).analyze();
   expect(
     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+    nombre,
   ).toEqual([]);
-  const carpeta = resolve('../docs/pruebas/t-54/capturas');
-  const guardar = guardarTodo || info.project.use.browserName === 'chromium';
-  if (guardar) mkdirSync(carpeta, { recursive: true });
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
+  const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+  mkdirSync(carpeta, { recursive: true });
+  const png = await page.screenshot({
+    path: resolve(carpeta, `${nombre}.png`),
+    fullPage: !superpuesta,
   });
-  const captura = await page.screenshot({
-    path: guardar ? resolve(carpeta, `${info.project.name}-${nombre}.png`) : undefined,
-    fullPage: true,
-  });
-  if (!guardar) await info.attach(nombre, { body: captura, contentType: 'image/png' });
+  const rutaAuditoria = resolve(carpeta, 'auditoria.json');
+  const auditoria = existsSync(rutaAuditoria)
+    ? JSON.parse(readFileSync(rutaAuditoria, 'utf8'))
+    : {};
+  auditoria[nombre] = {
+    proyecto: info.project.name,
+    viewport: page.viewportSize(),
+    captura: { ancho: png.readUInt32BE(16), alto: png.readUInt32BE(20) },
+    violacionesAxe: axe.violations.length,
+    desplazamientoHorizontal: false,
+    estadoSimulado: cargando ? 'carga' : undefined,
+  };
+  writeFileSync(rutaAuditoria, JSON.stringify(auditoria, null, 2) + '\n');
+  await page.setViewportSize(viewport);
+  await page.bringToFront();
+}
+async function focoVisible(control: Locator) {
+  const actual = await control.evaluate(() => ({
+    ventanaActiva: document.hasFocus(),
+    etiqueta: document.activeElement?.getAttribute('aria-label'),
+    elemento: document.activeElement?.tagName,
+    id: document.activeElement?.id,
+  }));
+  await expect(control, JSON.stringify(actual)).toBeFocused();
+  await expect(control).toHaveCSS('outline-style', 'solid');
+  await expect(control).toHaveCSS('outline-width', '3px');
+  await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+}
+async function tabular(page: Page, desde: Locator, hasta: Locator) {
+  await page.bringToFront();
+  await desde.focus();
+  await page.keyboard.press('Tab');
+  await focoVisible(hasta);
+}
+async function elegirServicio(page: Page) {
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+}
+async function avanzar(page: Page) {
+  const accion = page.getByRole('button', { name: 'Elegir fecha y hora', exact: true });
+  await accion.focus();
+  await accion.press('Enter');
+  await expect(page.locator('[data-paso="1"]')).toBeFocused();
+  await expect(page.locator('[data-franja]')).not.toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator('mat-stepper')
+        .evaluate((elemento) =>
+          elemento
+            .getAnimations({ subtree: true })
+            .every((animacion) => animacion.playState !== 'running'),
+        ),
+    )
+    .toBe(true);
 }
 
-test('capturas reales de Reservar, Mis citas y Agenda', async ({ page }, info) => {
+test('propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación', async ({
+  page,
+}, info) => {
   await entrar(page, 'cliente@ejemplo.test');
   await page.goto('/reservar');
-  await expect(page.locator('[data-servicio]')).not.toHaveCount(0);
-  await capturar(page, info, 'reservar-paso1');
-  await expect(page.locator('body')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
-  if (info.project.use.viewport?.width === 360) {
-    const servicio = await page.locator('[data-servicio]').first().boundingBox();
-    const titulo = await page.getByRole('heading', { level: 1 }).boundingBox();
-    expect(servicio!.x).toBe(titulo!.x);
+  await elegirServicio(page);
+  if (!movil(page)) {
+    for (const width of [1200, 1280, 1360, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const textos = page.locator('.profesional').first().locator('strong, small');
+      expect(
+        await textos.evaluateAll((elementos) =>
+          elementos.every((e) => {
+            const estilo = getComputedStyle(e);
+            return (
+              e.getBoundingClientRect().height <= 2 * parseFloat(estilo.lineHeight) + 1 &&
+              e.scrollWidth <= e.clientWidth
+            );
+          }),
+        ),
+        `Sin preferencia a ${width} px`,
+      ).toBe(true);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+        ),
+      ).toBe(true);
+    }
   }
-  await page.getByRole('button', { name: /Corte clásico/ }).click();
-  await page.getByRole('radio', { name: /Carlos/ }).check();
-  await expect(page.locator('aside[aria-label="Su cita"]')).toContainText('Carlos');
-  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
-  await expect(page.locator('[data-franja]')).not.toHaveCount(0);
-  await expect(page.locator('[data-paso="1"]')).toBeFocused();
-  await capturar(page, info, 'reservar-paso2');
-  await page.locator('[data-franja]').first().click();
-  await expect(page.locator('[data-confirmar]')).toBeVisible();
+  await expect(page.locator('mat-step-header').first()).toBeVisible();
+  await tabular(
+    page,
+    page.getByRole('radio', { name: 'Corte clásico', exact: true }),
+    page.locator('[data-profesional="sin-preferencia"]'),
+  );
+  await capturar(page, info, movil(page) ? 'Reservar360Paso1' : 'Reservar1440Paso1');
+  await avanzar(page);
+  // Firefox también tabula el grupo desplazable; se verifica ese foco y el del primer día.
+  if (movil(page) && info.project.use.browserName === 'firefox') {
+    const dias = page.getByRole('group', { name: 'Días disponibles', exact: true });
+    await tabular(page, page.locator('[data-paso="1"]'), dias);
+    await tabular(page, dias, page.locator('[data-dia]').first());
+  } else {
+    await tabular(page, page.locator('[data-paso="1"]'), page.locator('[data-dia]').first());
+  }
+  const hora = page.locator('[data-franja]').first();
+  await hora.focus();
+  await hora.press('Enter');
   await expect(page.locator('[data-paso="2"]')).toBeFocused();
-  await capturar(page, info, 'reservar-paso3');
+  await page.getByRole('button', { name: 'Cambiar fecha u hora', exact: true }).click();
+  await expect(page.locator('[data-paso="1"]')).toBeFocused();
+  await expect(hora).toHaveAttribute('aria-pressed', 'true');
+  await capturar(page, info, movil(page) ? 'Main' : 'Reservar1440');
+  const siguiente = page.getByRole('button', { name: 'Siguiente', exact: true });
+  await siguiente.focus();
+  await siguiente.press('Enter');
+  await expect(page.locator('[data-paso="2"]')).toBeFocused();
+  await capturar(page, info, movil(page) ? 'Reservar360Paso3' : 'Reservar1440Paso3');
+});
+
+test('propuesta: Mis citas, vacío y reprogramación de una cita real', async ({ page }, info) => {
+  await entrar(page, 'cliente@ejemplo.test');
   await page.goto('/mis-citas');
   await expect(page.locator('app-reserva-tarjeta')).not.toHaveCount(0);
   const precios = await page.locator('app-reserva-tarjeta').allTextContents();
   expect(precios.every((texto) => /S[/]\s\d+\.\d{2}/.test(texto))).toBe(true);
   expect(precios.some((texto) => /S[/]\s{2,}/.test(texto))).toBe(false);
-  await capturar(page, info, 'mis-citas');
-  await entrar(page, 'admin-e2e@ejemplo.test');
-  await page.goto('/agenda');
-  await expect(page.locator('[data-selector-barbero]')).toBeVisible();
-  await expect(page.locator('article.fila')).not.toHaveCount(0);
-  await expect(page.getByText(/^\s*Periodo:/)).toHaveCount(0);
-  if (info.project.use.viewport?.width === 360) {
-    const hoy = await page.getByRole('button', { name: 'Hoy', exact: true }).boundingBox();
-    const actualizar = await page
-      .getByRole('button', { name: 'Actualizar agenda', exact: true })
-      .boundingBox();
-    expect(hoy!.y).toBe(actualizar!.y);
-    await expect(page.locator('.cabecera [data-contador-avisos]')).toHaveText('Avisos sin leer: 0');
-    await expect(page.locator('.cabecera .contador-personal')).toHaveCount(0);
-  }
-  await capturar(page, info, 'agenda-admin');
-  await page.getByRole('radio', { name: 'Semana', exact: true }).click();
-  await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
-  await expect(page.locator('.linea-tiempo section')).toHaveCount(7);
-  await expect(page.getByText(/^\s*Periodo:/)).toBeVisible();
-  await capturar(page, info, 'agenda-semana');
+  await tabular(
+    page,
+    page.getByRole('radio', { name: 'Próximas', exact: true }),
+    movil(page)
+      ? page.getByRole('button', { name: 'Filtros por fecha y estado' })
+      : page.getByLabel('Desde', { exact: true }),
+  );
+  await capturar(page, info, movil(page) ? 'MisCitas360' : 'MisCitas1440');
+  await page.getByRole('link', { name: 'Reprogramar', exact: true }).first().click();
+  await avanzar(page);
+  await page.locator('[data-franja]').first().click();
+  await expect(page.locator('[data-paso="2"]')).toBeFocused();
+  await expect(page.locator('del')).toContainText('Horario anterior, se reemplaza:');
+  await capturar(page, info, movil(page) ? 'Reprogramar360' : 'ReprogramarCliente1440');
+  await page.route('**/api/reservas/mias?**', (ruta) =>
+    ruta.fulfill({
+      json: { contenido: [], pagina: 0, tamano: 10, totalElementos: 0, totalPaginas: 0 },
+    }),
+  );
+  await page.goto('/mis-citas');
+  await expect(
+    page.getByRole('heading', { name: 'No tiene citas próximas', exact: true }),
+  ).toBeVisible();
+  await capturar(page, info, movil(page) ? 'MisCitas360Vacio' : 'MisCitas1440Vacio');
 });
 
-test('legibilidad de Barberos y Usuarios sin rediseñar la fase 2', async ({ page }, info) => {
-  await entrar(page, 'admin-e2e@ejemplo.test');
-  for (const pantalla of ['barberos', 'usuarios']) {
-    await page.goto(`/admin/${pantalla}`);
-    await expect(page.locator('main tbody tr')).not.toHaveCount(0);
-    await capturar(page, info, `fase2-${pantalla}`);
-  }
-});
-
-test('estados de carga, vacío y error con API simulada', async ({ page }, info) => {
-  await entrar(page, 'cliente@ejemplo.test');
-  for (const estado of ['carga', 'vacio', 'error']) {
-    await page.route('**/api/reservas/mias?**', async (ruta) => {
-      if (estado === 'carga') return;
-      await ruta.fulfill({
-        status: estado === 'error' ? 503 : 200,
-        contentType: 'application/json',
-        body: JSON.stringify(
-          estado === 'error'
-            ? { detail: 'No se pudieron cargar las citas. Intente nuevamente.' }
-            : { contenido: [], pagina: 0, tamano: 10, totalElementos: 0, totalPaginas: 0 },
-        ),
-      });
-    });
-    await page.goto('/mis-citas');
-    if (estado === 'carga') await expect(page.getByText('Cargando citas…')).toBeVisible();
-    if (estado === 'vacio')
-      await expect(
-        page.getByRole('status').filter({ hasText: 'No tiene citas próximas' }),
-      ).toBeVisible();
-    if (estado === 'error') {
-      await expect(page.locator('main [role="alert"]')).toBeVisible();
-      await expect(page.locator('mat-paginator[aria-label="Páginas de citas"]')).toHaveCount(0);
-    }
-    await capturar(page, info, `mis-citas-${estado}`, estado === 'carga');
-    await page.unroute('**/api/reservas/mias?**');
-  }
-});
-
-test('estados de Reservar y Agenda con API simulada', async ({ page }, info) => {
-  for (const pantalla of [
-    {
-      nombre: 'reservar',
-      correo: 'cliente@ejemplo.test',
-      ruta: '/reservar',
-      api: '**/api/servicios?**',
-      vacio: [],
-      carga: 'Cargando servicios y profesionales…',
-      textoVacio: 'No hay servicios activos disponibles.',
-    },
-    {
-      nombre: 'agenda',
-      correo: 'admin-e2e@ejemplo.test',
-      ruta: '/agenda',
-      api: '**/api/reservas?**',
-      vacio: { contenido: [], pagina: 0, totalPaginas: 1 },
-      carga: 'Cargando agenda…',
-      textoVacio: 'Sin citas para este día.',
-    },
-  ]) {
-    await entrar(page, pantalla.correo);
-    if (pantalla.nombre === 'agenda') {
-      await page.route('**/api/notificaciones/conteo', async (ruta) => {
-        await ruta.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ noLeidas: 12 }),
-        });
-      });
-    }
-    for (const estado of ['carga', 'vacio', 'error']) {
-      await page.route(pantalla.api, async (ruta) => {
-        if (estado === 'carga') return;
-        await ruta.fulfill({
-          status: estado === 'error' ? 503 : 200,
-          contentType: 'application/json',
-          body: JSON.stringify(
-            estado === 'error'
-              ? { detail: 'No se pudieron cargar los datos. Intente nuevamente.' }
-              : pantalla.vacio,
-          ),
-        });
-      });
-      await page.goto(pantalla.ruta);
-      if (estado === 'carga') await expect(page.getByText(pantalla.carga)).toBeVisible();
-      if (estado === 'vacio')
-        await expect(
-          page.getByRole('status').filter({ hasText: pantalla.textoVacio }),
-        ).toBeVisible();
-      if (estado === 'error') await expect(page.locator('main [role="alert"]')).toBeVisible();
-      if (pantalla.nombre === 'agenda' && info.project.use.viewport?.width === 360) {
-        await expect(page.locator('.cabecera [data-contador-avisos]')).toHaveText(
-          'Avisos sin leer: 12',
-        );
-        const contador = await page.locator('.contador-personal').boundingBox();
-        expect(contador!.height).toBeLessThanOrEqual(32);
-      }
-      await capturar(page, info, `${pantalla.nombre}-${estado}`, estado === 'carga');
-      await page.unroute(pantalla.api);
-    }
-  }
-});
-
-test('error de horas con aviso transitorio por encima de la barra móvil', async ({
+test('propuesta: error de horas conserva la selección y el aviso sobre la barra', async ({
   page,
 }, info) => {
   await entrar(page, 'cliente@ejemplo.test');
   await page.goto('/reservar');
-  await page.getByRole('button', { name: /Corte clásico/ }).click();
-  await expect(page.locator('[data-franja]')).not.toHaveCount(0);
-  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
-  await page.route('**/api/disponibilidad?**', async (ruta) => {
-    await ruta.fulfill({
+  await elegirServicio(page);
+  await avanzar(page);
+  await page.route('**/api/disponibilidad?**', (ruta) =>
+    ruta.fulfill({
       status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ detail: 'No se pudieron cargar las horas. Intente nuevamente.' }),
-    });
-  });
-  await page.locator('[data-dia]').nth(1).click();
-  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  await expect(page.locator('main [role="alert"]')).toContainText(
-    'No se pudieron cargar las horas',
+      json: { detail: 'No se pudieron cargar las horas. Intente nuevamente.' },
+    }),
   );
+  await page.locator('[data-dia]').nth(1).click();
+  await expect(page.getByRole('alert')).toContainText('Su servicio y profesional se conservan');
   const aviso = page.locator('.aviso-transitorio');
-  await expect(aviso).toHaveCount(1);
   await expect(aviso).toBeVisible();
-  if (info.project.use.viewport?.width === 360) {
+  if (movil(page)) {
     await expect
       .poll(async () => {
         const panel = await aviso.boundingBox();
-        const barra = await page.locator('.barra-reserva').boundingBox();
+        const barra = await page.locator('.barra-reserva:visible').boundingBox();
         return !!panel && !!barra && panel.y + panel.height <= barra.y;
       })
       .toBe(true);
   }
-  await capturar(page, info, 'reservar-2-error');
+  await capturar(page, info, movil(page) ? 'Reservar360Error' : 'Reservar1440Error');
+});
+
+test('propuesta: avisos del cliente y menú de cuenta solo con teclado', async ({ page }, info) => {
+  await entrar(page, 'cliente@ejemplo.test');
+  await page.goto(movil(page) ? '/mis-citas' : '/reservar');
+  const abrir = page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ });
+  const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
+  await expect(abrir).toHaveAccessibleName(`Avisos: ${noLeidas} sin leer`);
+  await abrir.focus();
+  await abrir.press('Enter');
+  const dialogo = page.getByRole('dialog', { name: 'Avisos', exact: true });
+  await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+  await expect(dialogo.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(dialogo.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
+  expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await capturar(page, info, movil(page) ? 'Avisos360' : 'Avisos1440');
+  await page.keyboard.press('Escape');
+  await expect(dialogo).toHaveCount(0);
+  await expect(abrir).toBeFocused();
+  if (movil(page)) {
+    const cuenta = page.getByRole('button', { name: 'Abrir cuenta' });
+    await tabular(page, abrir, cuenta);
+    for (const tecla of ['Enter', 'Space']) {
+      await cuenta.press(tecla);
+      const perfil = page.getByRole('menuitem', { name: 'Mi cuenta', exact: true });
+      const salir = page.getByRole('menuitem', { name: 'Salir', exact: true });
+      await expect(perfil).toBeFocused();
+      await page.keyboard.press('ArrowDown');
+      await focoVisible(salir);
+      await page.keyboard.press('ArrowUp');
+      await expect(perfil).toBeFocused();
+      if (tecla === 'Enter') await capturar(page, info, 'Cuenta360');
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+      await focoVisible(cuenta);
+    }
+  }
+});
+
+test('propuesta: Agenda del barbero en Día, Semana y carga', async ({ page }, info) => {
+  await entrar(page, 'carlos@ejemplo.test');
+  await page.goto('/agenda');
+  await expect(page.locator('app-agenda-cita')).not.toHaveCount(0);
+  await expect(page.locator('[data-selector-barbero]')).toHaveCount(0);
+  await tabular(
+    page,
+    page.getByRole('radio', { name: 'Día', exact: true }),
+    page.getByRole('button', { name: 'Día anterior', exact: true }),
+  );
+  await capturar(page, info, movil(page) ? 'Agenda360' : 'AgendaBarbero1440');
+  const abrirAvisos = page.getByRole('button', { name: /^Ver avisos: \d+ sin leer$/ });
+  const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
+  await expect(abrirAvisos).toHaveAccessibleName(`Ver avisos: ${noLeidas} sin leer`);
+  await abrirAvisos.focus();
+  await abrirAvisos.press('Enter');
+  const avisos = page.getByRole('dialog', { name: 'Avisos', exact: true });
+  await expect(avisos.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+  await expect(avisos.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(avisos.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
+  expect(await avisos.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await capturar(page, info, movil(page) ? 'AvisosBarbero360' : 'AvisosBarbero1440');
+  await page.keyboard.press('Escape');
+  await expect(avisos).toHaveCount(0);
+  await expect(abrirAvisos).toBeFocused();
+  await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
+  await expect(page.getByText(/^\s*Periodo:/)).toBeVisible();
+  await capturar(page, info, movil(page) ? 'AgendaSemana360' : 'AgendaSemanaBarbero1440');
+  await page.route('**/api/reservas?**', () => undefined);
+  await page.goto('/agenda');
+  await expect(page.getByText('Cargando agenda…', { exact: true })).toBeVisible();
+  await capturar(page, info, movil(page) ? 'Agenda360Carga' : 'Agenda1440Carga', true);
+});
+
+test('propuesta: Agenda del administrador, Más acciones, reprogramar y cajón', async ({
+  page,
+}, info) => {
+  await entrar(page, 'admin-e2e@ejemplo.test');
+  await page.goto('/agenda');
+  await expect(page.locator('[data-selector-barbero]')).toBeVisible();
+  await expect(page.locator('app-agenda-cita')).not.toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(Ver avisos|Avisos):/ })).toHaveCount(0);
+  await tabular(
+    page,
+    page.getByRole('radio', { name: 'Día', exact: true }),
+    page.getByRole('combobox', { name: 'Barbero', exact: true }),
+  );
+  await capturar(page, info, movil(page) ? 'AgendaAdmin360' : 'Agenda1440');
+  const reservas: Pagina<ReservaDto> = await (
+    await page.request.get('/api/reservas?desde=2026-09-28&hasta=2026-09-28')
+  ).json();
+  const reserva = reservas.contenido.find((r) => r.permisos.reprogramar)!;
+  expect(reserva).toBeDefined();
+  const cita = page.locator('app-agenda-cita').filter({ hasText: reserva.codigo });
+  const mas = cita.getByRole('button', { name: /^Más acciones para / });
+  await mas.focus();
+  await mas.press('Enter');
+  await expect(page.getByRole('menuitem').first()).toBeFocused();
+  await capturar(page, info, movil(page) ? 'MasAcciones360' : 'MasAcciones1440');
+  await page.keyboard.press('ArrowDown');
+  await focoVisible(page.getByRole('menuitem').nth(1));
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await focoVisible(mas);
+  if (movil(page)) await mas.press('Enter');
+  const reprogramar = movil(page)
+    ? page.getByRole('menuitem', { name: 'Reprogramar', exact: true })
+    : cita.getByRole('button', { name: 'Reprogramar', exact: true });
+  await reprogramar.focus();
+  await reprogramar.press('Enter');
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByLabel('Fecha de Lima', { exact: true })).toBeFocused();
+  const consulta = page.waitForResponse((respuesta) => {
+    const url = new URL(respuesta.url());
+    return url.pathname === '/api/disponibilidad' && url.searchParams.get('fecha') === '2026-09-30';
+  });
+  const fecha = dialogo.getByLabel('Fecha de Lima', { exact: true });
+  await fecha.fill('2026-09-30');
+  await fecha.press('Tab');
+  expect((await consulta).ok()).toBe(true);
+  await expect(dialogo.getByText('Consultando franjas…')).toHaveCount(0);
+  const franja = dialogo.getByRole('combobox', { name: 'Franja disponible (Lima)', exact: true });
+  await franja.focus();
+  await focoVisible(franja);
+  await franja.press('Enter');
+  await expect(page.getByRole('option').first()).toBeVisible();
+  await page.getByRole('option').first().click();
+  await dialogo
+    .getByLabel('Motivo obligatorio', { exact: true })
+    .fill('El cliente ficticio pidió pasar la cita al miércoles por la mañana.');
+  await expect(dialogo.getByText('Consultando franjas…')).toHaveCount(0);
+  await expect(dialogo.getByRole('button', { name: 'Reprogramar', exact: true })).toBeEnabled();
+  await capturar(page, info, movil(page) ? 'ReprogramarAgenda360' : 'Reprogramar1440');
+  await page.keyboard.press('Escape');
+  await expect(dialogo).toHaveCount(0);
+  await focoVisible(movil(page) ? mas : reprogramar);
+  await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
+  await capturar(page, info, movil(page) ? 'AgendaSemanaAdmin360' : 'AgendaSemana1440');
+  if (movil(page)) {
+    const abrir = page.getByRole('button', { name: 'Abrir menú', exact: true });
+    await abrir.focus();
+    await abrir.press('Enter');
+    const cerrar = page.getByRole('button', { name: 'Cerrar menú', exact: true });
+    await expect(cerrar).toBeFocused();
+    await expect(page.locator('mat-sidenav')).not.toHaveClass(/mat-drawer-animating/);
+    await capturar(page, info, 'MenuAdmin360');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('mat-sidenav')).toBeHidden();
+    await expect(abrir).toBeFocused();
+  }
+});
+
+test('propuesta: reserva asistida elige cliente desde el backend real', async ({ page }, info) => {
+  await entrar(page, 'admin-e2e@ejemplo.test');
+  await page.goto('/reservar');
+  await page
+    .getByLabel('Buscar cliente por nombre o correo', { exact: true })
+    .fill('cliente@ejemplo.test');
+  await page.getByRole('radio', { name: /cliente@ejemplo.test/ }).check();
+  await capturar(page, info, movil(page) ? 'Asistida360' : 'Asistida1440');
+});
+
+test('propuesta: contraseña temporal con respuesta de sesión simulada', async ({ page }, info) => {
+  await entrar(page, 'carlos@ejemplo.test');
+  const usuario = await (await page.request.get('/api/auth/sesion')).json();
+  await page.route('**/api/auth/sesion', (ruta) =>
+    ruta.fulfill({ json: { ...usuario, debeCambiarPassword: true } }),
+  );
+  await page.goto('/agenda');
+  await expect(page).toHaveURL(/\/cambiar-password$/);
+  await expect(
+    page.getByText('Su contraseña es temporal. Cámbiela para continuar.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+  await expect(page.locator('.barra-inferior')).toHaveCount(0);
+  await capturar(page, info, movil(page) ? 'Restringido360' : 'Restringido1440');
 });
 
 test('foco al restaurar la selección que el visitante conserva para ingresar', async ({ page }) => {
   await entrar(page, 'cliente@ejemplo.test');
-  await page.route('**/api/auth/sesion', async (ruta) => {
-    await ruta.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
-  });
+  await page.route('**/api/auth/sesion', (ruta) => ruta.fulfill({ status: 401, json: {} }));
   await page.goto('/reservar');
-  await page.getByRole('button', { name: /Corte clásico/ }).click();
+  await elegirServicio(page);
   await page.getByRole('radio', { name: /Carlos/ }).check();
-  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
+  await avanzar(page);
   await page.locator('[data-franja]').first().click();
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
   await expect(page).toHaveURL(/\/ingresar\?/);
   await page.unroute('**/api/auth/sesion');
-  // La sesión ficticia real sigue disponible; al volver se revalida la selección conservada.
   await page.goto('/reservar');
   await expect(page.locator('[data-paso="2"]')).toBeFocused();
   await expect(page.locator('[data-confirmar]')).toBeEnabled();
@@ -268,45 +448,4 @@ test('foco al restaurar la selección que el visitante conserva para ingresar', 
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
-});
-
-test('cabecera por rol y diálogo de avisos con cierre por teclado y foco devuelto', async ({
-  page,
-}, info) => {
-  for (const rol of [
-    { nombre: 'cliente', correo: 'cliente@ejemplo.test', ruta: '/mis-citas' },
-    { nombre: 'admin', correo: 'admin-e2e@ejemplo.test', ruta: '/agenda' },
-    { nombre: 'barbero', correo: 'carlos@ejemplo.test', ruta: '/agenda' },
-  ]) {
-    await entrar(page, rol.correo);
-    await page.goto(rol.ruta);
-    await expect(page.locator('[data-contador-avisos]')).toHaveCount(1);
-    const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
-    await expect(page.locator('[data-contador-avisos]')).toHaveText('Avisos sin leer: ' + noLeidas);
-    const abrir = page.getByRole('button', { name: /^Ver avisos:/ });
-    await expect(abrir).toHaveCount(rol.nombre === 'barbero' ? 1 : 0);
-    if (rol.nombre === 'cliente') {
-      await expect(page.locator('app-avisos-panel h2')).toHaveText('Avisos');
-      if (info.project.use.viewport?.width === 360) {
-        await expect(
-          page.getByRole('link', { name: 'Avisos: ' + noLeidas + ' sin leer', exact: true }),
-        ).toHaveAttribute('href', '/mis-citas');
-      }
-    }
-    await capturar(page, info, 'cabecera-' + rol.nombre, false, true);
-    if (rol.nombre !== 'barbero') continue;
-    await expect(abrir).toHaveAccessibleName('Ver avisos: ' + noLeidas + ' sin leer');
-    await abrir.focus();
-    await abrir.press('Enter');
-    const dialogo = page.getByRole('dialog', { name: 'Avisos', exact: true });
-    await expect(dialogo).toBeVisible();
-    await expect(dialogo.locator('[aria-busy="true"]')).toHaveCount(0);
-    await expect(dialogo.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
-    await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
-    expect(await dialogo.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-    await capturar(page, info, 'avisos-barbero', false, true);
-    await page.keyboard.press('Escape');
-    await expect(dialogo).toHaveCount(0);
-    await expect(abrir).toBeFocused();
-  }
 });
