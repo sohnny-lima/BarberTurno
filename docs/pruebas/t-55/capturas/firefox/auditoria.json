@@ -1,0 +1,498 @@
+{
+  "Reservar1440Paso1": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reservar1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 1277
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reservar1440Paso3": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MisCitas1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "ReprogramarCliente1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MisCitas1440Vacio": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reservar1440Error": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Avisos1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AgendaBarbero1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AvisosBarbero1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AgendaSemanaBarbero1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 1123
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Agenda1440Carga": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false,
+    "estadoSimulado": "carga"
+  },
+  "Asistida1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Restringido1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reservar360Paso1": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 1227
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 1227
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Agenda1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MisCitas360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 842
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 842
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reprogramar360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 1123
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 1123
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MisCitas360Vacio": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Avisos360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Agenda360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 917
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 917
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AvisosBarbero360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AgendaSemana360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 1260
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 1260
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Agenda360Carga": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 879
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 879
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false,
+    "estadoSimulado": "carga"
+  },
+  "AgendaAdmin360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 935
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Asistida360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Restringido360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reservar360Error": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 1103
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 1103
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Cuenta360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MasAcciones360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "ReprogramarAgenda360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Main": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 2031
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 2031
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reservar360Paso3": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 1013
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 1013
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AgendaSemanaAdmin360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 1278
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MenuAdmin360": {
+    "proyecto": "firefox-360",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 800
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "MasAcciones1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "Reprogramar1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 900
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  },
+  "AgendaSemana1440": {
+    "proyecto": "firefox-1440",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 1123
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false
+  }
+}

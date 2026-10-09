@@ -1,0 +1,661 @@
+T-55.5 / Encargos 065 y 065b, 08/10/2026. Salidas de pasadas fallidas; causas y correcciones en t-55.md.
+
+Archivo original ignorado: frontend/tmp/t-55-065-e2e-1.log
+
+
+  1) [chromium-1440] › e2e\recorrido.spec.ts:846:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF
+
+    Error: El reingreso sin recargar conserva un destino de foco válido.
+
+    El reingreso sin recargar conserva un destino de foco válido.
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      883 |       { message: 'El reingreso sin recargar conserva un destino de foco válido.' },
+      884 |     )
+    > 885 |     .toBe(true);
+          |      ^
+      886 |   await comprobarSalida(page);
+      887 | });
+      888 |
+        at D:\Proyectos\BarberTurno\frontend\e2e\recorrido.spec.ts:885:6
+
+    Error Context: test-results\recorrido-09-·-salir-y-vol-4e15a-argar-renueva-el-token-CSRF-chromium-1440\error-context.md
+
+  2) [firefox-1440] › e2e\recorrido.spec.ts:846:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF
+
+    Error: El reingreso sin recargar conserva un destino de foco válido.
+
+    El reingreso sin recargar conserva un destino de foco válido.
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      883 |       { message: 'El reingreso sin recargar conserva un destino de foco válido.' },
+      884 |     )
+    > 885 |     .toBe(true);
+          |      ^
+      886 |   await comprobarSalida(page);
+      887 | });
+      888 |
+        at D:\Proyectos\BarberTurno\frontend\e2e\recorrido.spec.ts:885:6
+
+    Error Context: test-results\recorrido-09-·-salir-y-vol-4e15a-argar-renueva-el-token-CSRF-firefox-1440\error-context.md
+
+  2 failed
+    [chromium-1440] › e2e\recorrido.spec.ts:846:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF
+    [firefox-1440] › e2e\recorrido.spec.ts:846:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF
+  6 did not run
+  40 passed (7.4m)
+
+Archivo original ignorado: frontend/tmp/t-55-065-capturas-1.log
+Running 36 tests using 1 worker
+
+(node:147892) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium-1440] › e2e\capturas.spec.ts:92:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (6.1s)
+  ok  2 [chromium-1440] › e2e\capturas.spec.ts:145:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (5.0s)
+  ok  3 [chromium-1440] › e2e\capturas.spec.ts:178:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (3.3s)
+  ok  4 [chromium-1440] › e2e\capturas.spec.ts:207:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (2.1s)
+  ok  5 [chromium-1440] › e2e\capturas.spec.ts:244:5 › propuesta: Agenda del barbero en Día, Semana y carga (5.5s)
+  x   6 [chromium-1440] › e2e\capturas.spec.ts:279:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (15.8s)
+(node:120900) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  7 [chromium-1440] › e2e\capturas.spec.ts:346:5 › propuesta: reserva asistida elige cliente desde el backend real (2.9s)
+  ok  8 [chromium-1440] › e2e\capturas.spec.ts:356:5 › propuesta: contraseña temporal con respuesta de sesión simulada (1.5s)
+  ok  9 [chromium-1440] › e2e\capturas.spec.ts:372:5 › foco al restaurar la selección que el visitante conserva para ingresar (4.8s)
+(node:228812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 10 [chromium-360] › e2e\capturas.spec.ts:92:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (5.8s)
+  ok 11 [chromium-360] › e2e\capturas.spec.ts:145:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (4.6s)
+  x  12 [chromium-360] › e2e\capturas.spec.ts:178:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (3.0s)
+(node:217852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  13 [chromium-360] › e2e\capturas.spec.ts:207:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (17.7s)
+(node:84724) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 14 [chromium-360] › e2e\capturas.spec.ts:244:5 › propuesta: Agenda del barbero en Día, Semana y carga (5.7s)
+  x  15 [chromium-360] › e2e\capturas.spec.ts:279:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (15.9s)
+(node:201760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 16 [chromium-360] › e2e\capturas.spec.ts:346:5 › propuesta: reserva asistida elige cliente desde el backend real (2.5s)
+  ok 17 [chromium-360] › e2e\capturas.spec.ts:356:5 › propuesta: contraseña temporal con respuesta de sesión simulada (1.5s)
+  ok 18 [chromium-360] › e2e\capturas.spec.ts:372:5 › foco al restaurar la selección que el visitante conserva para ingresar (4.5s)
+(node:68960) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 19 [firefox-1440] › e2e\capturas.spec.ts:92:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (9.7s)
+  ok 20 [firefox-1440] › e2e\capturas.spec.ts:145:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (6.6s)
+  ok 21 [firefox-1440] › e2e\capturas.spec.ts:178:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (4.0s)
+  ok 22 [firefox-1440] › e2e\capturas.spec.ts:207:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (3.0s)
+  ok 23 [firefox-1440] › e2e\capturas.spec.ts:244:5 › propuesta: Agenda del barbero en Día, Semana y carga (8.7s)
+  x  24 [firefox-1440] › e2e\capturas.spec.ts:279:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (16.6s)
+(node:61860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 25 [firefox-1440] › e2e\capturas.spec.ts:346:5 › propuesta: reserva asistida elige cliente desde el backend real (5.2s)
+  ok 26 [firefox-1440] › e2e\capturas.spec.ts:356:5 › propuesta: contraseña temporal con respuesta de sesión simulada (2.4s)
+  ok 27 [firefox-1440] › e2e\capturas.spec.ts:372:5 › foco al restaurar la selección que el visitante conserva para ingresar (5.2s)
+(node:98708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Archivo original ignorado: frontend/tmp/t-55-065b-capturas.log
+
+
+  1) [chromium-1440] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: MasAcciones1440
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 10
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         ".cdk-overlay-container",
+    +       ],
+    +     ],
+    +     "id": "region",
+    +   },
+    + ]
+
+      66 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+      67 |     nombre,
+    > 68 |   ).toEqual([]);
+         |     ^
+      69 |   const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+      70 |   mkdirSync(carpeta, { recursive: true });
+      71 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:68:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:324:3
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-chromium-1440\error-context.md
+
+  2) [chromium-360] › e2e\capturas.spec.ts:199:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      221 |         return !!panel && !!barra && panel.y + panel.height <= barra.y;
+      222 |       })
+    > 223 |       .toBe(true);
+          |        ^
+      224 |   }
+      225 |   await capturar(page, info, movil(page) ? 'Reservar360Error' : 'Reservar1440Error');
+      226 | });
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:223:8
+
+    Error Context: test-results\capturas-propuesta-error-d-87bbd-n-y-el-aviso-sobre-la-barra-chromium-360\error-context.md
+
+  3) [chromium-360] › e2e\capturas.spec.ts:228:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+
+    Error: Cuenta360
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 10
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         ".cdk-overlay-container",
+    +       ],
+    +     ],
+    +     "id": "region",
+    +   },
+    + ]
+
+      66 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+      67 |     nombre,
+    > 68 |   ).toEqual([]);
+         |     ^
+      69 |   const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+      70 |   mkdirSync(carpeta, { recursive: true });
+      71 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:68:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:257:30
+
+    Error Context: test-results\capturas-propuesta-avisos--2cf67--de-cuenta-solo-con-teclado-chromium-360\error-context.md
+
+  4) [chromium-360] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: MasAcciones360
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 10
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         ".cdk-overlay-container",
+    +       ],
+    +     ],
+    +     "id": "region",
+    +   },
+    + ]
+
+      66 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+      67 |     nombre,
+    > 68 |   ).toEqual([]);
+         |     ^
+      69 |   const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+      70 |   mkdirSync(carpeta, { recursive: true });
+      71 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:68:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:324:3
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-chromium-360\error-context.md
+
+  5) [firefox-1440] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: MasAcciones1440
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 10
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         ".cdk-overlay-container",
+    +       ],
+    +     ],
+    +     "id": "region",
+    +   },
+    + ]
+
+      66 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+      67 |     nombre,
+    > 68 |   ).toEqual([]);
+         |     ^
+      69 |   const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+      70 |   mkdirSync(carpeta, { recursive: true });
+      71 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:68:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:324:3
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-firefox-1440\error-context.md
+
+  6) [firefox-360] › e2e\capturas.spec.ts:113:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('[data-dia]').first()
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toBeFocused" locator('[data-dia]').first() with timeout 15000ms
+      - waiting for locator('[data-dia]').first()
+        33 × locator resolved to <button type="button" class="dia elegido" aria-pressed="true" data-dia="2026-09-28" _ngcontent-ng-c1873164321="" aria-label="lunes, 28 de setiembre de 2026">…</button>
+           - unexpected value "inactive"
+
+
+      89 | }
+      90 | async function focoVisible(control: Locator) {
+    > 91 |   await expect(control).toBeFocused();
+         |                         ^
+      92 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      93 |   await expect(control).toHaveCSS('outline-width', '3px');
+      94 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:91:25)
+        at tabular (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:99:9)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:150:3
+
+    Error Context: test-results\capturas-propuesta-Reserva-67f96-os-intermedios-y-tabulación-firefox-360\error-context.md
+
+  7) [firefox-360] › e2e\capturas.spec.ts:199:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      221 |         return !!panel && !!barra && panel.y + panel.height <= barra.y;
+      222 |       })
+    > 223 |       .toBe(true);
+          |        ^
+      224 |   }
+      225 |   await capturar(page, info, movil(page) ? 'Reservar360Error' : 'Reservar1440Error');
+      226 | });
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:223:8
+
+    Error Context: test-results\capturas-propuesta-error-d-87bbd-n-y-el-aviso-sobre-la-barra-firefox-360\error-context.md
+
+  8) [firefox-360] › e2e\capturas.spec.ts:228:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+
+    Error: Cuenta360
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 10
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         ".cdk-overlay-container",
+    +       ],
+    +     ],
+    +     "id": "region",
+    +   },
+    + ]
+
+      66 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+      67 |     nombre,
+    > 68 |   ).toEqual([]);
+         |     ^
+      69 |   const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+      70 |   mkdirSync(carpeta, { recursive: true });
+      71 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:68:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:257:30
+
+    Error Context: test-results\capturas-propuesta-avisos--2cf67--de-cuenta-solo-con-teclado-firefox-360\error-context.md
+
+  9) [firefox-360] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: MasAcciones360
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 10
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         ".cdk-overlay-container",
+    +       ],
+    +     ],
+    +     "id": "region",
+    +   },
+    + ]
+
+      66 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+      67 |     nombre,
+    > 68 |   ).toEqual([]);
+         |     ^
+      69 |   const carpeta = resolve('../docs/pruebas/t-55/capturas', info.project.use.browserName!);
+      70 |   mkdirSync(carpeta, { recursive: true });
+      71 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:68:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:324:3
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-firefox-360\error-context.md
+
+  9 failed
+    [chromium-1440] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+    [chromium-360] › e2e\capturas.spec.ts:199:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra
+    [chromium-360] › e2e\capturas.spec.ts:228:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+    [chromium-360] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+    [firefox-1440] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+    [firefox-360] › e2e\capturas.spec.ts:113:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación
+    [firefox-360] › e2e\capturas.spec.ts:199:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra
+    [firefox-360] › e2e\capturas.spec.ts:228:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado
+    [firefox-360] › e2e\capturas.spec.ts:300:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+  27 passed (7.8m)
+
+Archivo original ignorado: frontend/tmp/t-55-065b-lint-correcciones.log
+
+> frontend@0.0.0 lint
+> ng lint && tsc -p tsconfig.e2e.json
+
+
+Linting "frontend"...
+
+D:\Proyectos\BarberTurno\frontend\src\app\shared\region-menu.ts
+  7:24  error  The selector should start with one of these prefixes: "app"  @angular-eslint/directive-selector
+
+✖ 1 problem (1 error, 0 warnings)
+
+Lint errors found in the listed files.
+
+Archivo original ignorado: frontend/tmp/t-55-065b-capturas-diagnostico.log
+
+
+  1) [chromium-360] › e2e\capturas.spec.ts:311:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Test timeout of 120000ms exceeded.
+
+    Error: locator.click: Test timeout of 120000ms exceeded.
+    Call log:
+      - waiting for getByRole('dialog').getByRole('combobox', { name: 'Franja disponible (Lima)', exact: true })
+        - locator resolved to <mat-select tabindex="0" role="combobox" id="mat-select-2" aria-required="true" aria-invalid="false" aria-expanded="false" aria-disabled="false" aria-haspopup="listbox" formcontrolname="inicio" _ngcontent-ng-c3045662226="" aria-labelledby="mat-mdc-form-field-label-4" class="mat-mdc-select mat-mdc-select-required mat-mdc-select-empty ng-untouched ng-pristine ng-invalid">…</mat-select>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <mat-label _ngcontent-ng-c3045662226="">Franja disponible (Lima)</mat-label> from <div matformfieldnotchedoutline="" class="mdc-notched-outline mdc-notched-outline--upgraded">…</div> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <mat-label _ngcontent-ng-c3045662226="">Franja disponible (Lima)</mat-label> from <div matformfieldnotchedoutline="" class="mdc-notched-outline mdc-notched-outline--upgraded">…</div> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        221 × waiting for element to be visible, enabled and stable
+            - element is visible, enabled and stable
+            - scrolling into view if needed
+            - done scrolling
+            - <mat-label _ngcontent-ng-c3045662226="">Franja disponible (Lima)</mat-label> from <div matformfieldnotchedoutline="" class="mdc-notched-outline mdc-notched-outline--upgraded">…</div> subtree intercepts pointer events
+          - retrying click action
+            - waiting 500ms
+
+
+      348 |   await expect(dialogo.getByLabel('Fecha de Lima', { exact: true })).toBeFocused();
+      349 |   await dialogo.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-30');
+    > 350 |   await dialogo.getByRole('combobox', { name: 'Franja disponible (Lima)', exact: true }).click();
+          |                                                                                          ^
+      351 |   await page.getByRole('option').first().click();
+      352 |   await dialogo
+      353 |     .getByLabel('Motivo obligatorio', { exact: true })
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:350:90
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-chromium-360\error-context.md
+
+  2) [firefox-360] › e2e\capturas.spec.ts:124:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('[data-dia]').first()
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toBeFocused" locator('[data-dia]').first() with timeout 15000ms
+      - waiting for locator('[data-dia]').first()
+        33 × locator resolved to <button type="button" class="dia elegido" aria-pressed="true" data-dia="2026-09-28" _ngcontent-ng-c1873164321="" aria-label="lunes, 28 de setiembre de 2026">…</button>
+           - unexpected value "inactive"
+
+
+      89 | }
+      90 | async function focoVisible(control: Locator) {
+    > 91 |   await expect(control).toBeFocused();
+         |                         ^
+      92 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      93 |   await expect(control).toHaveCSS('outline-width', '3px');
+      94 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:91:25)
+        at tabular (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:99:9)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:161:3
+
+    Error Context: test-results\capturas-propuesta-Reserva-67f96-os-intermedios-y-tabulación-firefox-360\error-context.md
+
+  3) [firefox-360] › e2e\capturas.spec.ts:311:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Test timeout of 120000ms exceeded.
+
+    Error: locator.click: Test timeout of 120000ms exceeded.
+    Call log:
+      - waiting for getByRole('dialog').getByRole('combobox', { name: 'Franja disponible (Lima)', exact: true })
+        - locator resolved to <mat-select tabindex="0" role="combobox" id="mat-select-2" aria-required="true" aria-invalid="false" aria-expanded="false" aria-disabled="false" aria-haspopup="listbox" formcontrolname="inicio" _ngcontent-ng-c3045662226="" aria-labelledby="mat-mdc-form-field-label-4" class="mat-mdc-select mat-mdc-select-required mat-mdc-select-empty ng-untouched ng-pristine ng-invalid">…</mat-select>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <mat-label _ngcontent-ng-c3045662226="">Franja disponible (Lima)</mat-label> from <div matformfieldnotchedoutline="" class="mdc-notched-outline mdc-notched-outline--upgraded">…</div> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <mat-label _ngcontent-ng-c3045662226="">Franja disponible (Lima)</mat-label> from <div matformfieldnotchedoutline="" class="mdc-notched-outline mdc-notched-outline--upgraded">…</div> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        223 × waiting for element to be visible, enabled and stable
+            - element is visible, enabled and stable
+            - scrolling into view if needed
+            - done scrolling
+            - <mat-label _ngcontent-ng-c3045662226="">Franja disponible (Lima)</mat-label> from <div matformfieldnotchedoutline="" class="mdc-notched-outline mdc-notched-outline--upgraded">…</div> subtree intercepts pointer events
+          - retrying click action
+            - waiting 500ms
+
+
+      348 |   await expect(dialogo.getByLabel('Fecha de Lima', { exact: true })).toBeFocused();
+      349 |   await dialogo.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-30');
+    > 350 |   await dialogo.getByRole('combobox', { name: 'Franja disponible (Lima)', exact: true }).click();
+          |                                                                                          ^
+      351 |   await page.getByRole('option').first().click();
+      352 |   await dialogo
+      353 |     .getByLabel('Motivo obligatorio', { exact: true })
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:350:90
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-firefox-360\error-context.md
+
+  3 failed
+    [chromium-360] › e2e\capturas.spec.ts:311:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+    [firefox-360] › e2e\capturas.spec.ts:124:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación
+    [firefox-360] › e2e\capturas.spec.ts:311:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+  5 passed (5.7m)
+
+Archivo original ignorado: frontend/tmp/t-55-065b-capturas-diagnostico-2.log
+
+
+  1) [chromium-360] › e2e\capturas.spec.ts:319:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toBeFocused" locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / }) with timeout 15000ms
+      - waiting for locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / })
+        33 × locator resolved to <button aria-haspopup="menu" mat-stroked-button="" aria-expanded="false" _ngcontent-ng-c2216325351="" aria-label="Más acciones para BT-101" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-menu-trigger mas mdc-button--outlined mat-mdc-outlined-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      378 |   await page.keyboard.press('Escape');
+      379 |   await expect(dialogo).toHaveCount(0);
+    > 380 |   await expect(movil(page) ? mas : reprogramar).toBeFocused();
+          |                                                 ^
+      381 |   await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+      382 |   await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
+      383 |   await capturar(page, info, movil(page) ? 'AgendaSemanaAdmin360' : 'AgendaSemana1440');
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:380:49
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-chromium-360\error-context.md
+
+  2) [firefox-360] › e2e\capturas.spec.ts:132:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación
+
+    Error: {"ventanaActiva":true,"etiqueta":"Días disponibles","elemento":"DIV","id":""}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  locator('[data-dia]').first()
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":"Días disponibles","elemento":"DIV","id":""} locator('[data-dia]').first() with timeout 15000ms
+      - waiting for locator('[data-dia]').first()
+        33 × locator resolved to <button type="button" class="dia elegido" aria-pressed="true" data-dia="2026-09-28" _ngcontent-ng-c1873164321="" aria-label="lunes, 28 de setiembre de 2026">…</button>
+           - unexpected value "inactive"
+
+
+       96 |     id: document.activeElement?.id,
+       97 |   }));
+    >  98 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+       99 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      100 |   await expect(control).toHaveCSS('outline-width', '3px');
+      101 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:98:49)
+        at tabular (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:107:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:169:3
+
+    Error Context: test-results\capturas-propuesta-Reserva-67f96-os-intermedios-y-tabulación-firefox-360\error-context.md
+
+  3) [firefox-360] › e2e\capturas.spec.ts:319:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toBeFocused" locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / }) with timeout 15000ms
+      - waiting for locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / })
+        33 × locator resolved to <button aria-haspopup="menu" mat-stroked-button="" aria-expanded="false" _ngcontent-ng-c2216325351="" aria-label="Más acciones para BT-101" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-menu-trigger mas mdc-button--outlined mat-mdc-outlined-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      378 |   await page.keyboard.press('Escape');
+      379 |   await expect(dialogo).toHaveCount(0);
+    > 380 |   await expect(movil(page) ? mas : reprogramar).toBeFocused();
+          |                                                 ^
+      381 |   await page.getByRole('radio', { name: 'Semana', exact: true }).click();
+      382 |   await expect(page.getByRole('radio', { name: 'Semana', exact: true })).toBeChecked();
+      383 |   await capturar(page, info, movil(page) ? 'AgendaSemanaAdmin360' : 'AgendaSemana1440');
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:380:49
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-firefox-360\error-context.md
+
+  3 failed
+    [chromium-360] › e2e\capturas.spec.ts:319:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+    [firefox-360] › e2e\capturas.spec.ts:132:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación
+    [firefox-360] › e2e\capturas.spec.ts:319:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+  1 passed (2.2m)
+
+Archivo original ignorado: frontend/tmp/t-55-065b-capturas-diagnostico-3.log
+
+
+  1) [firefox-360] › e2e\capturas.spec.ts:326:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / }) with timeout 15000ms
+      - waiting for locator('app-agenda-cita').filter({ hasText: 'BT-101' }).getByRole('button', { name: /^Más acciones para / })
+        33 × locator resolved to <button aria-haspopup="menu" mat-stroked-button="" aria-expanded="false" _ngcontent-ng-c1496273694="" aria-label="Más acciones para BT-101" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-menu-trigger mas mdc-button--outlined mat-mdc-outlined-button mat-unthemed cdk-focused cdk-keyboard-focused">…</button>
+           - unexpected value "none"
+
+
+       97 |   }));
+       98 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    >  99 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      100 |   await expect(control).toHaveCSS('outline-width', '3px');
+      101 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      102 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:99:25)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:387:3
+
+    Error Context: test-results\capturas-propuesta-Agenda--83163-cciones-reprogramar-y-cajón-firefox-360\error-context.md
+
+  1 failed
+    [firefox-360] › e2e\capturas.spec.ts:326:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón
+  3 passed (1.5m)
