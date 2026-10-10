@@ -17,10 +17,37 @@ Dar una explicación neutral: «Reserve un turno como lo haría normalmente; pie
 | U1 · Reserva principal | Con la sesión de cliente ya abierta, reserve Corte clásico con Carlos el 01/10/2026 en una franja libre; revise los datos y confirme. | Mis citas muestra la reserva y el aviso, con la hora de Lima esperada. |
 | U2 · Reprogramación | Cambie esa cita a otra franja libre del mismo día. | Mis citas muestra el mismo código y la nueva hora. |
 | U3 · Cancelación | Cancele la cita que acaba de cambiar. | Estado Cancelada, aviso y acciones retiradas. |
-| U4 · Política | Busque la cita equivalente a BT-104 del 28/09/2026 a las 10:00 y explique qué puede hacer a las 09:00. | Identifica la restricción de menos de dos horas y el mensaje de ayuda. |
+| U4 · Política | Busque su cita de Barba con Carlos del 28/09/2026 a las 10:00 y explique qué puede hacer a las 09:00. | Identifica la restricción de menos de dos horas y el mensaje de ayuda. |
 | U5 · Orientación | Vuelva a Reservar y luego a Mis citas usando el menú. | Encuentra ambas pantallas sin perder controles ni desplazamiento global. |
 
 Restablecer solo las fixtures propias mediante las operaciones autorizadas o preparar cuentas independientes entre sesiones. No borrar una base existente. Si la franja de U1 ya está ocupada, el facilitador prepara otra libre antes de iniciar; anotar la entrada exacta.
+
+### Datos de partida (solo para el facilitador; 10/10/2026)
+
+Cada participante usa una copia nueva (`barberturno_cp11_p<n>`) de la plantilla `barberturno_cp11_base`, cargada con los datos de demostración. La aplicación arranca con los perfiles `dev,demo`, porque `ClockConfig` solo aplica el reloj fijo con `demo` o `test`. Los scripts de preparación están en `.local/coordinacion/cp11/`.
+
+**Comprobado sin cuentas** (copia aislada, 10/10/2026):
+- Reloj efectivo: 28/09/2026 entre las 09:00 y las 09:10 de Lima. El 27/09 no tiene franjas, y Barba del 28/09 empieza a las 09:10.
+- Profesionales activos: Carlos y Miguel. Servicios: Corte clásico (30 min) y Barba (20 min).
+- Jornadas de Carlos: de lunes a sábado, 09:00–13:00 y 14:00–18:00.
+- U1: el 01/10 hay 31 inicios libres de Corte con Carlos. Faltan los de 09:40 a 10:20 y los de 15:40 a 16:50.
+
+**Comprobado con las cuentas** (`verificar-cp11.ps1`, copia `barberturno_cp11_verif_20261010_111137`, commit `f7dc336`, resultado «VERIFICACIÓN CP-11 OK»):
+- `cliente@ejemplo.test` («Cliente de demostración», CLIENTE) y `carlos@ejemplo.test` (BARBERO, vinculado a Carlos) acceden sin cambio obligatorio de contraseña.
+- Citas del cliente al empezar:
+
+| Código | Servicio | Profesional | Fecha y hora (Lima) | Estado | A las 09:00 del 28/09 | Papel en el guion |
+|---|---|---|---|---|---|---|
+| **BT-100** | Corte clásico | Carlos | 01/10/2026 10:00–10:30 | CONFIRMADA | Puede cancelar y reprogramar | Ocupa las 10:00 del 01/10: U1 debe elegir otra franja |
+| **BT-103** | Barba | Carlos | 28/09/2026 10:00–10:20 | CONFIRMADA | No puede cancelar ni reprogramar (faltan menos de 2 h) | Cita de U4 |
+| BT-102 | Corte clásico | Miguel | 27/09/2026 10:00–10:30 | COMPLETADA | Sin acciones | Historial |
+
+- Ningún inicio libre de Corte con Carlos el 01/10 se solapa con BT-100 (10:00–10:30).
+- El segundo hueco de U1 (de 15:40 a 16:50) corresponde, según la carga, al bloqueo «Trámite» de 16:00 a 17:00. Es un bloqueo, no una reserva, y no se verifica por la API pública.
+
+**Códigos:** el código visible es `BT-<id>`, con identidad desde 100, y no coincide con la referencia del APF2 que la carga guarda en la auditoría. Por ejemplo, BT-103 corresponde a la BT-104 del APF2. La instrucción de U4 al participante no menciona el código.
+
+**Límites del cliente:** RN-04 impide reservas propias solapadas. Con RN-20, la reserva de U1 deja al cliente en el máximo de 3 reservas futuras que ocupan franja; una reserva adicional hecha por error haría fallar los intentos siguientes. Anotar cualquier reserva extra como error.
 
 ## Métricas y reglas de registro
 
