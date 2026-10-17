@@ -464,7 +464,7 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
   - **T-57.1** Patrones comunes (cabecera de página, estados, lista tabla/tarjetas, formularios, diálogos) y acceso y cuenta: ingresar, registro, privacidad, Mi cuenta, cambiar contraseña (voluntario y obligatorio).
   - **T-57.2** Servicios, barberos, `servicio-dialogo`, `barbero-dialogo`, `password-temporal-dialogo` y `confirmar-estado-dialogo`.
   - **T-57.3 · Hecha (17/10/2026, Encargo 070; cierre documental del coordinador tras el corte de cuota)** Horarios y bloqueos (`horarios`, `editor-semana`).
-  - **T-57.4** Reportes y usuarios.
+  - **T-57.4 · En curso (17/10/2026, Encargo 071)** Reportes y usuarios; ajuste de tipografía del rango de Bloqueos.
   - **T-57.5** Verificación final completa, capturas (Chromium y Firefox; 360, 1024 y 1440 px) y evidencia `docs/pruebas/t-57.md`.
 - **Criterios de aceptación:** pantallas y estados de `docs/diseno/t-57.md` §4 a 360 y 1440 px (y 1024 donde se indica); funciones, permisos, validaciones, textos funcionales y correcciones de T-54/T-55/T-56 (CSRF, avisos, foco, contraseña temporal) intactos; teclado y foco correctos; axe sin violaciones; sin desplazamiento horizontal; presupuestos sin elevar.
 - **Pruebas:** lint, formato, Vitest (Lima y Madrid), build de producción, E2E y capturas en Chromium y Firefox a 360 y 1440 px (selectores adaptados sin quitar aserciones; casos 04, 05, 07, 08, 09 y 10), suites con `barberturno_test` de una en una y sin reintentos añadidos.
