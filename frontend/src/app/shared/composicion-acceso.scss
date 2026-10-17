@@ -25,6 +25,9 @@ img {
   .registro {
     grid-template-columns: 520px minmax(0, 1fr);
   }
+  .registro img {
+    align-self: start;
+  }
   img {
     display: block;
     width: 100%;

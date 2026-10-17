@@ -103,4 +103,15 @@ describe('Perfil propio', () => {
     expect(f.nativeElement.querySelector('[formControlName=nombre]').value).toBe(perfil.nombre);
     expect(f.nativeElement.querySelector('button[type=submit]').disabled).toBe(false);
   });
+  it('alinea el contenido a la izquierda y presenta el enlace de Seguridad contorneado', () => {
+    const f = TestBed.createComponent(Perfil);
+    http.expectOne('/api/perfil').flush(perfil);
+    f.detectChanges();
+    const raiz: HTMLElement = f.nativeElement;
+    const cuenta = getComputedStyle(raiz.querySelector('.pagina-cuenta')!);
+    expect(cuenta.maxWidth).toBe('720px');
+    expect(cuenta.marginInline).toBe('0px');
+    const enlace = raiz.querySelector('a[href="/cambiar-password"]')!;
+    expect(enlace.hasAttribute('mat-stroked-button')).toBe(true);
+  });
 });

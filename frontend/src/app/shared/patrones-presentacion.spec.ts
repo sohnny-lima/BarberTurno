@@ -140,6 +140,11 @@ describe('Patrones de presentación verde', () => {
     expect(foto.getAttribute('src')).toBe('fotos/interior-vacio.webp');
     expect(foto.hasAttribute('loading')).toBe(false);
     expect(f.nativeElement.querySelector('.registro')).not.toBeNull();
+    expect(foto.style.maxHeight).toBe('640px');
+    f.componentRef.setInput('registro', false);
+    f.detectChanges();
+    expect(foto.style.maxHeight).toBe('');
+    expect(f.nativeElement.querySelector('.registro')).toBeNull();
   });
 
   it('la acción principal pasa de relleno a contorno de riesgo por un dato explícito', () => {

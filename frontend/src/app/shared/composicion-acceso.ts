@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   selector: 'app-composicion-acceso',
   template: `<div class="composicion" [class.registro]="registro()">
     <div class="columna"><ng-content /></div>
-    <img src="fotos/interior-vacio.webp" alt="" />
+    <img src="fotos/interior-vacio.webp" alt="" [style.max-height.px]="registro() ? 640 : null" />
   </div>`,
   styleUrl: './composicion-acceso.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

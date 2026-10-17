@@ -61,4 +61,14 @@ describe('Formulario de cambio de contraseña', () => {
       ).toBe('new-password');
     },
   );
+  it('conserva un ancho de lectura de 720 px alineado a la izquierda', () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    const f = TestBed.createComponent(CambiarPassword);
+    f.detectChanges();
+    const estilo = getComputedStyle(f.nativeElement.querySelector('.pagina-cuenta'));
+    expect(estilo.maxWidth).toBe('720px');
+    expect(estilo.marginInline).toBe('0px');
+  });
 });
