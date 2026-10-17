@@ -1,0 +1,55 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+}
+caption {
+  text-align: left;
+  padding: 12px;
+  color: var(--color-texto-2);
+}
+thead th {
+  font: 600 14px/20px var(--font-cuerpo);
+  color: var(--color-texto-2);
+  background: var(--color-fondo);
+}
+tr {
+  height: 56px;
+}
+th,
+td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-linea);
+  overflow-wrap: anywhere;
+  max-width: 220px;
+}
+.ficha {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+  background: var(--color-superficie);
+}
+.ficha-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+h3 {
+  margin: 0;
+  font: 700 16px/24px var(--font-cuerpo);
+  overflow-wrap: anywhere;
+}
+p {
+  margin: 8px 0 0;
+  font: 400 14px/20px var(--font-cuerpo);
+  color: var(--color-texto-2);
+  overflow-wrap: anywhere;
+}

@@ -6,6 +6,7 @@ import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
 import type { Pagina } from '../src/app/core/modelos/pagina';
 import type { ReservaDto } from '../src/app/core/modelos/reservas';
+import type { UsuarioAdminDto } from '../src/app/core/modelos/usuarios';
 
 let atencion: string;
 let cercana: string;
@@ -43,12 +44,16 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     nombre.startsWith('mis-citas') ||
     nombre === 'avisos-cliente' ||
     nombre.startsWith('agenda-') ||
-    nombre.startsWith('horarios')
+    nombre.startsWith('horarios') ||
+    nombre === 'reportes' ||
+    nombre === 'usuarios'
   ) {
     await testInfo.attach(nombre, {
       body: await page.screenshot({
-        fullPage: nombre.startsWith('horarios'),
-        ...(nombre.startsWith('horarios') ? { path: testInfo.outputPath(nombre + '.png') } : {}),
+        fullPage: nombre.startsWith('horarios') || nombre === 'reportes' || nombre === 'usuarios',
+        ...(['reportes', 'usuarios'].includes(nombre) || nombre.startsWith('horarios')
+          ? { path: testInfo.outputPath(nombre + '.png') }
+          : {}),
       }),
       contentType: 'image/png',
     });
@@ -664,6 +669,21 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
     if (width === 1200) {
       await page.screenshot({ path: testInfo.outputPath('horarios-1200.png'), fullPage: true });
     }
+    const rango = await page.locator('.rango').evaluate((e) => {
+      const campos = Array.from(e.querySelectorAll('input'));
+      const boton = e.querySelector('button')!.getBoundingClientRect();
+      const cajas = campos.map((c) => c.getBoundingClientRect());
+      return {
+        fuentes: campos.map((c) => getComputedStyle(c).fontSize),
+        fin: Math.max(...cajas.map((c) => c.bottom)),
+        botonY: boton.y,
+        anchoBoton: boton.width,
+        ancho: e.getBoundingClientRect().width,
+      };
+    });
+    expect(rango.fuentes).toEqual(['16px', '16px']);
+    expect(rango.botonY).toBeGreaterThan(rango.fin);
+    expect(rango.anchoBoton).toBeCloseTo(rango.ancho, 0);
     expect(await page.getByLabel('Lunes · Fin 2', { exact: true }).inputValue()).toBe('18:00');
     await expect(
       page.getByRole('button', { name: 'Quitar intervalo 2 del Lunes', exact: true }),
@@ -735,8 +755,69 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
         barras.map((b) => (b as HTMLProgressElement).value).sort((a, b) => a - b),
       ),
   ).toEqual([1, 6]);
-  await expect(page.locator('tbody tr')).toHaveCount(7);
+  const historial = page.locator('app-reporte-historial');
+  if (page.viewportSize()!.width >= 1200) {
+    await expect(historial.getByRole('table')).toHaveCount(1);
+    await expect(historial.locator('tbody tr')).toHaveCount(7);
+    await expect(historial.getByRole('listitem')).toHaveCount(0);
+  } else {
+    await expect(historial.getByRole('list', { name: 'Historial operativo' })).toBeVisible();
+    await expect(historial.getByRole('listitem')).toHaveCount(7);
+    await expect(historial.getByRole('table')).toHaveCount(0);
+  }
+  const columnasCifras = await page
+    .locator('.estadisticas')
+    .evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
+  if (page.viewportSize()!.width === 360) expect(columnasCifras).toBe(2);
   await revisar(page, testInfo, 'reportes');
+
+  // Solo lectura: estas cuentas siguen disponibles para los casos siguientes.
+  await page.goto('/admin/usuarios');
+  await expect(page.locator('app-usuarios app-lista-adaptable')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Rol', exact: true }).click();
+  await page.getByRole('option', { name: 'Barbero', exact: true }).click();
+  const consultaUsuarios = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === '/api/usuarios' &&
+      new URL(r.url()).searchParams.get('rol') === 'BARBERO',
+  );
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  const respuestaUsuarios = await consultaUsuarios;
+  expect(respuestaUsuarios.status()).toBe(200);
+  const usuarios = (await respuestaUsuarios.json()) as Pagina<UsuarioAdminDto>;
+  expect(usuarios.contenido.length).toBeGreaterThan(0);
+  const escritorioUsuarios = page.viewportSize()!.width >= 1200;
+  const listaUsuarios = page.locator('app-usuarios app-lista-adaptable');
+  await expect(listaUsuarios.getByRole('table')).toHaveCount(escritorioUsuarios ? 1 : 0);
+  await expect(listaUsuarios.getByRole('list')).toHaveCount(escritorioUsuarios ? 0 : 1);
+  const fichasUsuarios = listaUsuarios.locator(
+    escritorioUsuarios ? 'tbody tr' : '[role="listitem"]',
+  );
+  await expect(fichasUsuarios).toHaveCount(usuarios.contenido.length);
+  for (const [i, usuario] of usuarios.contenido.entries()) {
+    expect(usuario.rol).toBe('BARBERO');
+    const ficha = fichasUsuarios.nth(i);
+    await expect(ficha).toContainText(usuario.nombre);
+    await expect(ficha).toContainText(usuario.correo);
+    await expect(ficha).toContainText('Barbero');
+    await expect(ficha).toContainText(usuario.activo ? 'Activo' : 'Inactivo');
+    await expect(ficha).toContainText(
+      usuario.debeCambiarPassword ? 'Cambio obligatorio' : 'Personal',
+    );
+    await expect(
+      ficha.getByRole('button', {
+        name: 'Restablecer contraseña de ' + usuario.nombre,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      ficha.getByRole('button', {
+        name: (usuario.activo ? 'Desactivar ' : 'Activar ') + usuario.nombre,
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  await revisar(page, testInfo, 'usuarios');
 });
 
 test('05 · cliente redirigido de administración y protegido después de logout', async ({

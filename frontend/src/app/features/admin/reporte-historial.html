@@ -1,0 +1,43 @@
+<app-lista-adaptable nombre="Historial operativo" [tabla]="tabla" [tarjetas]="tarjetas" />
+<ng-template #tabla
+  ><table aria-label="Historial operativo">
+    <caption>
+      Reservas del periodo aplicado · fecha y hora de Lima
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Código</th>
+        <th scope="col">Fecha y hora</th>
+        <th scope="col">Cliente</th>
+        <th scope="col">Servicio</th>
+        <th scope="col">Barbero</th>
+        <th scope="col">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (reserva of filas(); track reserva.id) {
+        <tr>
+          <th scope="row">{{ reserva.codigo }}</th>
+          <td>{{ reserva.inicio | fechaLima }}</td>
+          <td>{{ reserva.cliente.nombre }}</td>
+          <td>{{ reserva.servicio.nombre }}</td>
+          <td>{{ reserva.barbero.nombre }}</td>
+          <td><app-estado-reserva-chip [estado]="reserva.estado" /></td>
+        </tr>
+      }
+    </tbody></table
+></ng-template>
+<ng-template #tarjetas>
+  @for (reserva of filas(); track reserva.id) {
+    <div class="ficha" role="listitem">
+      <div class="ficha-cabecera">
+        <h3>{{ reserva.codigo }}</h3>
+        <app-estado-reserva-chip [estado]="reserva.estado" />
+      </div>
+      <p>{{ reserva.inicio | fechaLima }}</p>
+      <p>Cliente: {{ reserva.cliente.nombre }}</p>
+      <p>Servicio: {{ reserva.servicio.nombre }}</p>
+      <p>Barbero: {{ reserva.barbero.nombre }}</p>
+    </div>
+  }
+</ng-template>

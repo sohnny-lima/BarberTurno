@@ -1,83 +1,132 @@
-<section>
-  <h1>Usuarios</h1>
-  <form (submit)="$event.preventDefault(); buscar()" class="filtros">
-    <mat-form-field appearance="outline"
-      ><mat-label>Nombre o correo</mat-label><input matInput [formControl]="busqueda"
-    /></mat-form-field>
-    <mat-form-field appearance="outline"
-      ><mat-label>Rol</mat-label
-      ><mat-select [formControl]="rol" [canSelectNullableOptions]="true"
-        ><mat-option [value]="null">Todos</mat-option
-        ><mat-option value="CLIENTE">Cliente</mat-option
-        ><mat-option value="BARBERO">Barbero</mat-option
-        ><mat-option value="ADMIN">Administrador</mat-option></mat-select
-      ></mat-form-field
-    >
-    <button mat-flat-button type="submit" [disabled]="operando()">Buscar</button>
-  </form>
-  @if (cargando()) {
-    <p role="status">Buscando usuarios…</p>
-  }
-  @if (mensaje()) {
-    <p role="alert">{{ mensaje() }}</p>
-    <button mat-button (click)="cargar()">Reintentar</button>
-  }
-  <div class="tabla" tabindex="0" role="region" aria-label="Usuarios y acciones de acceso">
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">Nombre</th>
-          <th scope="col">Correo</th>
-          <th scope="col">Teléfono</th>
-          <th scope="col">Rol</th>
-          <th scope="col">Estado</th>
-          <th scope="col">Contraseña</th>
-          <th scope="col">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (u of filas(); track u.id) {
-          <tr>
-            <td>{{ u.nombre }}</td>
-            <td>{{ u.correo }}</td>
-            <td>{{ u.telefono || '—' }}</td>
-            <td>{{ u.rol }}</td>
-            <td>{{ u.activo ? 'Activo' : 'Inactivo' }}</td>
-            <td>{{ u.debeCambiarPassword ? 'Cambio obligatorio' : 'Personal' }}</td>
-            <td class="acciones">
-              <button
-                mat-button
-                [disabled]="operando()"
-                (click)="restablecer(u)"
-                [attr.aria-label]="'Restablecer contraseña de ' + u.nombre"
-              >
-                Restablecer contraseña</button
-              ><button
-                mat-button
-                [disabled]="operando()"
-                (click)="cambiarEstado(u)"
-                [attr.aria-label]="(u.activo ? 'Desactivar ' : 'Activar ') + u.nombre"
-              >
-                {{ u.activo ? 'Desactivar' : 'Activar' }}
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          @if (!cargando() && !mensaje()) {
-            <tr>
-              <td colspan="7">No se encontraron usuarios.</td>
-            </tr>
-          }
-        }
-      </tbody>
-    </table>
-  </div>
-  <mat-paginator
-    aria-label="Páginas de usuarios"
-    [length]="total()"
-    [pageIndex]="pagina()"
-    [pageSize]="tamano()"
-    [pageSizeOptions]="[10, 20, 50]"
-    (page)="paginar($event)"
+<app-cabecera-pagina titulo="Usuarios" />
+<form (submit)="$event.preventDefault(); buscar()" class="tarjeta filtros">
+  <mat-form-field appearance="outline"
+    ><mat-label>Nombre o correo</mat-label><input matInput [formControl]="busqueda"
+  /></mat-form-field>
+  <mat-form-field appearance="outline"
+    ><mat-label>Rol</mat-label
+    ><mat-select [formControl]="rol" [canSelectNullableOptions]="true"
+      ><mat-option [value]="null">Todos</mat-option
+      ><mat-option value="CLIENTE">{{ nombresRol.CLIENTE }}</mat-option
+      ><mat-option value="BARBERO">{{ nombresRol.BARBERO }}</mat-option
+      ><mat-option value="ADMIN">{{ nombresRol.ADMIN }}</mat-option></mat-select
+    ></mat-form-field
+  >
+  <button mat-flat-button type="submit" [disabled]="operando()">Buscar</button>
+</form>
+
+@if (cargando()) {
+  <app-estado-contenido tipo="carga" texto="Buscando usuarios…" />
+} @else if (mensaje()) {
+  <app-estado-contenido
+    tipo="error"
+    [texto]="mensaje()"
+    reintento="Reintentar"
+    (reintentar)="cargar()"
   />
-</section>
+} @else if (!filas().length) {
+  <app-estado-contenido tipo="vacio" texto="No se encontraron usuarios." />
+} @else {
+  <app-lista-adaptable
+    nombre="Usuarios y acciones de acceso"
+    [tabla]="tabla"
+    [tarjetas]="tarjetas"
+  />
+}
+<mat-paginator
+  aria-label="Páginas de usuarios"
+  [length]="total()"
+  [pageIndex]="pagina()"
+  [pageSize]="tamano()"
+  [pageSizeOptions]="[10, 20, 50]"
+  (page)="paginar($event)"
+/>
+
+<ng-template #tabla>
+  <table aria-label="Usuarios y acciones de acceso">
+    <thead>
+      <tr>
+        <th scope="col">Nombre</th>
+        <th scope="col">Teléfono</th>
+        <th scope="col">Rol</th>
+        <th scope="col">Acceso</th>
+        <th scope="col">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (u of filas(); track u.id) {
+        <tr>
+          <td>
+            <strong>{{ u.nombre }}</strong>
+            <p class="ayuda">{{ u.correo }}</p>
+          </td>
+          <td>{{ u.telefono || '—' }}</td>
+          <td>{{ nombresRol[u.rol] }}</td>
+          <td>
+            <ng-container
+              [ngTemplateOutlet]="acceso"
+              [ngTemplateOutletContext]="{ $implicit: u }"
+            />
+          </td>
+          <td>
+            <div class="acciones-fila">
+              <ng-container
+                [ngTemplateOutlet]="acciones"
+                [ngTemplateOutletContext]="{ $implicit: u }"
+              />
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</ng-template>
+<ng-template #tarjetas>
+  @for (u of filas(); track u.id) {
+    <div class="ficha" role="listitem">
+      <div class="ficha-cabecera">
+        <h2>{{ u.nombre }}</h2>
+        <span class="estado" [class.inactivo]="!u.activo">{{
+          u.activo ? 'Activo' : 'Inactivo'
+        }}</span>
+      </div>
+      <p class="ayuda">{{ u.correo }}</p>
+      <p class="datos">Teléfono: {{ u.telefono || '—' }}</p>
+      <p class="datos">{{ nombresRol[u.rol] }}</p>
+      <ng-container [ngTemplateOutlet]="password" [ngTemplateOutletContext]="{ $implicit: u }" />
+      <div class="acciones-fila">
+        <ng-container [ngTemplateOutlet]="acciones" [ngTemplateOutletContext]="{ $implicit: u }" />
+      </div>
+    </div>
+  }
+</ng-template>
+<ng-template #acceso let-u>
+  <span class="estado" [class.inactivo]="!u.activo">{{ u.activo ? 'Activo' : 'Inactivo' }}</span>
+  <ng-container [ngTemplateOutlet]="password" [ngTemplateOutletContext]="{ $implicit: u }" />
+</ng-template>
+<ng-template #password let-u>
+  @if (u.debeCambiarPassword) {
+    <span class="estado pendiente">Cambio obligatorio</span>
+  } @else {
+    <p class="ayuda personal">Personal</p>
+  }
+</ng-template>
+<ng-template #acciones let-u>
+  <button
+    mat-stroked-button
+    [disabled]="operando()"
+    (click)="restablecer(u)"
+    [attr.aria-label]="'Restablecer contraseña de ' + u.nombre"
+  >
+    Restablecer contraseña
+  </button>
+  <button
+    mat-stroked-button
+    [class.riesgo]="u.activo"
+    [disabled]="operando()"
+    (click)="cambiarEstado(u)"
+    [attr.aria-label]="(u.activo ? 'Desactivar ' : 'Activar ') + u.nombre"
+  >
+    {{ u.activo ? 'Desactivar' : 'Activar' }}
+  </button>
+</ng-template>

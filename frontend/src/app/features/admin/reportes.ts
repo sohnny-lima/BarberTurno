@@ -24,10 +24,15 @@ import { EstadoReserva, ReservaDto } from '../../core/modelos/reservas';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { instanteLima } from '../../core/tiempo/instante-lima';
 import { mesLima } from '../../core/tiempo/mes-lima';
-import { EstadoReservaChip, ESTADOS_RESERVA } from '../../shared/estado-reserva-chip';
+import { ESTADOS_RESERVA } from '../../shared/estado-reserva-chip';
 import { mostrarErrores } from '../../shared/formulario';
 import { paginadorEspanol } from '../../shared/paginador-es';
 import { rangoReporte } from '../../shared/rango-reporte';
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { ReporteCifras } from './reporte-cifras';
+import { ReporteBarras } from './reporte-barras';
+import { ReporteHistorial } from './reporte-historial';
 
 /** Conserva las seis categorías del servidor, incluso cuando todas valen cero. */
 export function tarjetasResumen(resumen: ResumenReporteDto) {
@@ -47,7 +52,11 @@ export function tarjetasResumen(resumen: ResumenReporteDto) {
     MatPaginatorModule,
     MatSelectModule,
     FechaLimaPipe,
-    EstadoReservaChip,
+    CabeceraPagina,
+    EstadoContenido,
+    ReporteCifras,
+    ReporteBarras,
+    ReporteHistorial,
   ],
   providers: [{ provide: MatPaginatorIntl, useFactory: paginadorEspanol }],
   templateUrl: './reportes.html',
