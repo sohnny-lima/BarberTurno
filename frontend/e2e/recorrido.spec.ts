@@ -817,6 +817,9 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
     const ficha = fichasUsuarios.nth(i);
     await expect(ficha).toContainText(usuario.nombre);
     await expect(ficha).toContainText(usuario.correo);
+    const correoVisible = ficha.getByText(usuario.correo, { exact: true });
+    await expect(correoVisible).toHaveCSS('font-size', '14px');
+    await expect(correoVisible).toHaveCSS('line-height', '20px');
     await expect(ficha).toContainText('Barbero');
     await expect(ficha).toContainText(usuario.activo ? 'Activo' : 'Inactivo');
     await expect(ficha).toContainText(

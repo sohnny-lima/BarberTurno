@@ -1,6 +1,8 @@
 @use './catalogo-lista';
-@use '../../shared/formulario-pagina' as formulario;
-@include formulario.contenido;
+mat-form-field {
+  width: 100%;
+  min-width: 0;
+}
 .filtros {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
