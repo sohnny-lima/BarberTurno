@@ -326,12 +326,30 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
     'Hasta las 11:30, hora de Lima',
   );
   await revisar(page, testInfo, 'reservar-confirmacion');
-  // Iniciar la lectura antes de que el clic complete la navegación a Mis citas.
-  const respuesta = page
-    .waitForResponse((r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST')
-    .then((r) => r.json());
+  // Leer el cuerpo real antes de entregarlo a la SPA y permitir su navegación.
+  let creada!: ReservaDto;
+  await page.route(
+    '**/api/reservas',
+    async (ruta) => {
+      expect(ruta.request().method()).toBe('POST');
+      const cabeceras = await ruta.request().allHeaders();
+      const cookieCsrf = /(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(cabeceras['cookie'] ?? '')?.[1];
+      expect(!!cookieCsrf && decodeURIComponent(cookieCsrf) === cabeceras['x-xsrf-token']).toBe(
+        true,
+      );
+      expect((cabeceras['cookie'] ?? '').includes('BT_SESION=')).toBe(true);
+      const respuesta = await ruta.fetch({ maxRetries: 0, maxRedirects: 0 });
+      creada = (await respuesta.json()) as ReservaDto;
+      await ruta.fulfill({ response: respuesta });
+    },
+    { times: 1 },
+  );
+  const respuesta = page.waitForResponse(
+    (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
-  const creada: ReservaDto = await respuesta;
+  expect((await respuesta).status()).toBe(201);
+  expect(creada).toBeDefined();
   await expect(page).toHaveURL(/\/mis-citas/);
   expect(Date.now() - inicio).toBeLessThan(180_000);
   await testInfo.attach('usabilidad-automatizada', {
