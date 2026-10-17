@@ -1,0 +1,41 @@
+:host {
+  display: block;
+  margin-bottom: 24px;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+h1 {
+  font: 700 28px/36px var(--font-cuerpo);
+  margin: 0;
+}
+p {
+  color: var(--color-texto-2);
+  font: 400 16px/24px var(--font-cuerpo);
+  margin: 12px 0 0;
+}
+.accion:empty {
+  display: none;
+}
+@media (max-width: 767.98px) {
+  header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .accion {
+    display: grid;
+  }
+  .titulo-movil h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .titulo-movil p {
+    margin-top: 0;
+  }
+}

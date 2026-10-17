@@ -1,0 +1,35 @@
+@use '@angular/material' as mat;
+
+// Aplicar con @include dialogo.marco en cada diálogo de la fase 2.
+@mixin marco {
+  :host {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 32px);
+    max-width: calc(100vw - 32px);
+    @include mat.dialog-overrides(
+      (
+        container-shape: 20px,
+        subhead-font: var(--font-cuerpo),
+        subhead-weight: 700,
+        subhead-size: 22px,
+        headline-padding: 24px 24px 16px,
+        with-actions-content-padding: 0 24px 24px,
+        actions-padding: 0 24px 24px,
+      )
+    );
+  }
+  [mat-dialog-title],
+  mat-dialog-actions {
+    flex-shrink: 0;
+  }
+  mat-dialog-content {
+    min-height: 0;
+    overflow: auto;
+  }
+  mat-dialog-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}

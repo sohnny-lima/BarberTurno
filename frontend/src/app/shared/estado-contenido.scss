@@ -1,0 +1,49 @@
+:host {
+  display: block;
+  margin-block: 20px;
+}
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.esqueletos {
+  display: grid;
+  gap: 16px;
+}
+.esqueletos span {
+  height: 80px;
+  background: var(--color-desactivado);
+  border-radius: var(--radius-control);
+}
+.formulario span {
+  height: 56px;
+}
+.error,
+.aviso,
+.vacio {
+  padding: 16px;
+  border-radius: var(--radius-control);
+  overflow-wrap: anywhere;
+}
+.error {
+  color: var(--color-error-texto);
+  background: var(--color-no-asistio-fondo);
+}
+.aviso {
+  color: var(--color-aviso-texto);
+  background: var(--color-aviso-fondo);
+}
+.vacio {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+}
+p {
+  margin: 0;
+}
+button {
+  margin-top: 8px;
+}
