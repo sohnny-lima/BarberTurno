@@ -91,6 +91,7 @@
 | T-54 | Integración final de T-52 (T-48 + T-51) y T-49 en una rama revisable | M | T-52, T-49 | Hecha | 06/10/2026 | inicio `99d6da4`; `d48971b`; merge T-52 `0f6881722f6148792160a2e230bd273b35469e7d`; merge T-49 `689abf5de21bc423753ae6d83b379165113bf4c2`; `a39bff3779f7c341d6789e1be38c45ed9944e0cc`; cierre 060 `5dd21ea69852e97bf6acedacd0b62cbc08a17312`; corrección 060b `8c8547de13c3a7741634d2950ff154030f80c0b1`; cierre test(e2e) por asunto (evidencia) |
 | T-55 | Dirección visual «verde» de la fase 1: tema, navegación por rol, Reservar, Mis citas y Agenda (MJ-20, DA-27) | S | T-54 | Hecha (aprobada por el responsable sobre la propuesta y las evidencias; integrada en `main` con T-56) | 09/10/2026 | `81c1b1d`, `838febb`, `a3b0e51`, `ddd668f`, `783f2ac` (T-55.1); 0ecc7fc, 6d648a7, 5c30b85, 31ce563, 5707f78 (T-55.2); 2362163, ed86302, c97c656 (T-55.3); 5c8bb0a, da545cd, e23d766, 6453f36 (T-55.4); 759cca2, d96962a, 00e53ea, dd4ccb4 (T-55.5; cierre por asunto en nota); aa8bc52, 88f88bc, fd628ba (Repaso 066; cierre por asunto en nota) |
 | T-56 | Ayuda de contraseña conforme a RN-25 en registro y cambio de contraseña | S | T-55 | Hecha | 08/10/2026 | `24c95f9b1f55105db6eabca4dfe3d925a49375c7`, `9a577acef5e35fe31d6e527045194b5e76396d31`; cierre por asunto en nota; sin merge |
+| T-57 | Dirección visual «verde», fase 2: acceso, cuenta, catálogo, horarios, reportes, usuarios y diálogos (MJ-21, DA-28; excepción al freeze) | S | T-55, T-56 | En curso | 17/10/2026 | — |
 
 Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 
@@ -454,6 +455,20 @@ Estados posibles: `Pendiente` · `En curso` · `Hecha` · `Bloqueada (motivo)`.
 - **Alcance:** solo los dos textos de ayuda, con la redacción ya usada en el alta de barberos («De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito»), y sus pruebas. Sin cambios de reglas, validadores, mensajes del servidor ni backend. Rama `tarea/T-56-ayuda-password` desde T-55 (`c5d3c0c`). **No se integra en `main`.**
 - **Criterios de aceptación:** ambas ayudas dicen lo mismo que RN-25; prueba unitaria que lo comprueba; lint, formato, Vitest (Lima y Madrid) y build sin avisos.
 - **Prioridad:** M (defecto de texto que contradice una regla).
+
+
+### T-57 · Dirección visual «verde», fase 2
+- **Origen:** autorización del responsable (17/10/2026) para extender la identidad aprobada en T-55 al resto de la aplicación, como excepción al freeze limitada a la presentación; integración en `main`, push y CI autorizados al cumplirse los criterios.
+- **Alcance:** rama `tarea/T-57-fase2-verde` desde `main`; solo capa visual del frontend según `docs/diseno/t-57.md` (inventario §1, patrones §3, pantallas §4). Sin backend, contratos, permisos, validadores, reglas, navegación ni funciones nuevas (sin autorregistro de barberos ni fotos de profesionales).
+- **Subtareas (un implementador, Codex; encargos secuenciales):**
+  - **T-57.1** Patrones comunes (cabecera de página, estados, lista tabla/tarjetas, formularios, diálogos) y acceso y cuenta: ingresar, registro, privacidad, Mi cuenta, cambiar contraseña (voluntario y obligatorio).
+  - **T-57.2** Servicios, barberos, `servicio-dialogo`, `barbero-dialogo`, `password-temporal-dialogo` y `confirmar-estado-dialogo`.
+  - **T-57.3** Horarios y bloqueos (`horarios`, `editor-semana`).
+  - **T-57.4** Reportes y usuarios.
+  - **T-57.5** Verificación final completa, capturas (Chromium y Firefox; 360, 1024 y 1440 px) y evidencia `docs/pruebas/t-57.md`.
+- **Criterios de aceptación:** pantallas y estados de `docs/diseno/t-57.md` §4 a 360 y 1440 px (y 1024 donde se indica); funciones, permisos, validaciones, textos funcionales y correcciones de T-54/T-55/T-56 (CSRF, avisos, foco, contraseña temporal) intactos; teclado y foco correctos; axe sin violaciones; sin desplazamiento horizontal; presupuestos sin elevar.
+- **Pruebas:** lint, formato, Vitest (Lima y Madrid), build de producción, E2E y capturas en Chromium y Firefox a 360 y 1440 px (selectores adaptados sin quitar aserciones; casos 04, 05, 07, 08, 09 y 10), suites con `barberturno_test` de una en una y sin reintentos añadidos.
+- **Prioridad:** S (coherencia visual y RNF-08 en administración).
 
 ---
 
