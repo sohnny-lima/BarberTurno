@@ -1,0 +1,20 @@
+@use '../../shared/formulario-pagina' as formulario;
+@include formulario.contenido;
+
+.acciones-formulario {
+  flex-direction: column;
+  align-items: stretch;
+}
+.privacidad {
+  margin-block: 8px;
+}
+.privacidad p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+.privacidad a {
+  display: inline;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

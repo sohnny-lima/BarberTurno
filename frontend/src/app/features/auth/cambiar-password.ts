@@ -1,3 +1,6 @@
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { SeccionFormulario } from '../../shared/seccion-formulario';
+import { EstadoContenido } from '../../shared/estado-contenido';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -11,8 +14,17 @@ import { errorCampo, mostrarErrores } from '../../shared/formulario';
 
 @Component({
   selector: 'app-cambiar-password',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [
+    CabeceraPagina,
+    SeccionFormulario,
+    EstadoContenido,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+  ],
   templateUrl: './cambiar-password.html',
+  styleUrl: './cambiar-password.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CambiarPassword {

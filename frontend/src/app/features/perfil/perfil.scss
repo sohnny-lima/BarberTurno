@@ -1,0 +1,11 @@
+@use '../../shared/formulario-pagina' as formulario;
+@include formulario.contenido;
+
+.pagina-cuenta {
+  max-width: 720px;
+  margin-inline: auto;
+}
+.seguridad-texto {
+  color: var(--color-texto-2);
+  margin: 0 0 12px;
+}
