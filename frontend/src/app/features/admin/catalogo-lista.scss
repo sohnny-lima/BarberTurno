@@ -1,0 +1,97 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.herramientas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.herramientas > button {
+  flex-shrink: 0;
+}
+table {
+  width: 100%;
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+  overflow: hidden;
+  background: var(--color-superficie);
+}
+th {
+  font: 600 14px/20px var(--font-cuerpo);
+  color: var(--color-texto-2);
+  background: var(--color-fondo);
+}
+th,
+td {
+  border-bottom-color: var(--color-linea);
+}
+tr {
+  height: 56px;
+}
+td {
+  max-width: 260px;
+  padding-block: 8px;
+  overflow-wrap: anywhere;
+}
+th:last-child,
+td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+td:last-child button + button {
+  margin-left: 8px;
+}
+.ficha {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radius-tarjeta);
+}
+.ficha-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+h2 {
+  font: 700 16px/24px var(--font-cuerpo);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.estado {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: 600 13px/20px var(--font-cuerpo);
+  background: var(--color-confirmada-fondo);
+  color: var(--color-confirmada);
+}
+.inactivo {
+  background: var(--color-completada-fondo);
+  color: var(--color-completada);
+}
+.ayuda,
+.datos {
+  margin: 0 0 8px;
+  font: 400 14px/20px var(--font-cuerpo);
+  color: var(--color-texto-2);
+  overflow-wrap: anywhere;
+}
+td .ayuda {
+  margin: 4px 0 0;
+}
+.acciones-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+  margin-top: auto;
+}

@@ -4,6 +4,7 @@ import { FormGroup } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { finalize, Observable } from 'rxjs';
+import { AccionDialogo } from './accion-dialogo';
 import { mostrarErrores } from './formulario';
 
 export interface ConfirmarEstadoDatos {
@@ -12,12 +13,14 @@ export interface ConfirmarEstadoDatos {
   texto?: string;
   boton?: string;
   activar: boolean;
+  riesgo?: boolean;
   cambiar: () => Observable<number>;
 }
 @Component({
   selector: 'app-confirmar-estado-dialogo',
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [MatDialogModule, MatButtonModule, AccionDialogo],
   templateUrl: './confirmar-estado-dialogo.html',
+  styleUrl: './confirmar-estado-dialogo.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConfirmarEstadoDialogo {

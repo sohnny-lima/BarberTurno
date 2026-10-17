@@ -1,3 +1,5 @@
+import { MatFormField } from '@angular/material/form-field';
+import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -163,5 +165,43 @@ describe('Alta y edición de barberos', () => {
     expect(fixture.componentInstance.formulario.invalid).toBe(true);
     fixture.componentInstance.guardar();
     http.expectNone('/api/barberos');
+  });
+  it('mantiene campos outline y el pie fuera del contenido desplazable', () => {
+    const f = nueva();
+    const campos = f.debugElement.queryAll(By.directive(MatFormField));
+    expect(campos.length).toBeGreaterThan(0);
+    for (const campo of campos) expect(campo.componentInstance.appearance).toBe('outline');
+    const raiz: HTMLElement = f.nativeElement;
+    expect(raiz.querySelector('mat-dialog-content mat-dialog-actions')).toBeNull();
+    expect(
+      raiz.querySelector('form > mat-dialog-actions button[type=submit]')?.textContent?.trim(),
+    ).toBe('Guardar barbero');
+    expect(raiz.querySelector('mat-dialog-actions button[type=button]')?.textContent?.trim()).toBe(
+      'Cancelar',
+    );
+  });
+  it('Generar acompaña el campo, conserva su ayuda y deja el aviso completo antes del pie', () => {
+    const f = preparar();
+    const raiz: HTMLElement = f.nativeElement;
+    const generar = raiz.querySelector<HTMLButtonElement>('.password-generar button')!;
+    expect(generar.hasAttribute('mat-stroked-button')).toBe(true);
+    expect(generar.textContent?.trim()).toBe('Generar');
+    expect(raiz.querySelector('mat-label')?.textContent).toBe('Tipo de alta');
+    generar.click();
+    f.detectChanges();
+    expect(
+      f.componentInstance.formulario.controls.passwordTemporal.value.length,
+    ).toBeGreaterThanOrEqual(8);
+    const aviso = raiz.querySelector('#aviso-password-temporal')!;
+    expect(aviso.textContent?.trim()).toBe(
+      'Tras crear la cuenta se mostrará una sola vez para comunicarla en persona.',
+    );
+    expect(
+      raiz.querySelector('[formControlName=passwordTemporal]')?.getAttribute('aria-describedby'),
+    ).toContain(aviso.id);
+    expect(
+      aviso.compareDocumentPosition(raiz.querySelector('mat-dialog-actions')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

@@ -314,11 +314,12 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
     'Hasta las 11:30, hora de Lima',
   );
   await revisar(page, testInfo, 'reservar-confirmacion');
-  const respuesta = page.waitForResponse(
-    (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
-  );
+  // Iniciar la lectura antes de que el clic complete la navegación a Mis citas.
+  const respuesta = page
+    .waitForResponse((r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST')
+    .then((r) => r.json());
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
-  const creada = await (await respuesta).json();
+  const creada: ReservaDto = await respuesta;
   await expect(page).toHaveURL(/\/mis-citas/);
   expect(Date.now() - inicio).toBeLessThan(180_000);
   await testInfo.attach('usabilidad-automatizada', {
@@ -514,7 +515,47 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await expect(
     page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }),
   ).toBeVisible();
+  const viewportCatalogo = page.viewportSize()!;
+  for (const width of [1024, 1199, 1200]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole('table', { name: 'Servicios', exact: true })).toHaveCount(
+      width >= 1200 ? 1 : 0,
+    );
+    await expect(page.getByRole('list', { name: 'Servicios', exact: true })).toHaveCount(
+      width >= 1200 ? 0 : 1,
+    );
+    await expect(
+      page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page.getByRole('button', { name: 'Desactivar Corte clásico', exact: true }),
+    ).toHaveCount(1);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize(viewportCatalogo);
   await revisar(page, testInfo, 'servicios');
+  await page.getByRole('button', { name: 'Desactivar Corte clásico', exact: true }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Desactivar', exact: true }),
+  ).toHaveClass(/riesgo/);
+  const confirmacionEstado = page.getByRole('dialog');
+  await expect(
+    confirmacionEstado.getByRole('button', { name: 'Cancelar', exact: true }),
+  ).toBeFocused();
+  // Axe debe leer los colores finales, después de la transición pública de apertura.
+  await confirmacionEstado.evaluate(async (dialogo) => {
+    await Promise.all(
+      dialogo
+        .getAnimations({ subtree: true })
+        .map((animacion) => animacion.finished.catch(() => undefined)),
+    );
+  });
+  await revisar(page, testInfo, 'servicio-confirmacion');
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(
@@ -536,7 +577,46 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   );
   await page.getByRole('button', { name: 'Guardar servicio', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('table')).toContainText('Corte y acabado de demostración E2E');
+  const catalogo =
+    (page.viewportSize()?.width ?? 1440) >= 1200
+      ? page.getByRole('table', { name: 'Servicios', exact: true })
+      : page.getByRole('list', { name: 'Servicios', exact: true });
+  await expect(catalogo).toContainText('Corte y acabado de demostración E2E');
+  await page.goto('/admin/barberos');
+  await expect(
+    page.getByRole('button', { name: 'Editar barbero Carlos', exact: true }),
+  ).toHaveCount(1);
+  await revisar(page, testInfo, 'barberos');
+  await page.getByRole('button', { name: 'Nuevo barbero', exact: true }).click();
+  const altaBarbero = page.getByRole('dialog');
+  await expect(
+    altaBarbero.getByRole('combobox', { name: 'Tipo de alta', exact: true }),
+  ).toBeFocused();
+  const campoTipo = altaBarbero
+    .locator('mat-form-field')
+    .filter({ has: page.locator('mat-label', { hasText: 'Tipo de alta' }) });
+  const contenidoBarbero = altaBarbero.locator('mat-dialog-content');
+  const etiquetaTipo = await campoTipo.locator('mat-label').boundingBox();
+  const limiteContenido = await contenidoBarbero.boundingBox();
+  expect(etiquetaTipo!.y).toBeGreaterThanOrEqual(limiteContenido!.y);
+  const generar = altaBarbero.getByRole('button', { name: 'Generar', exact: true });
+  await generar.click();
+  await expect(altaBarbero.getByLabel('Contraseña temporal', { exact: true })).not.toHaveValue('');
+  const notaTemporal = altaBarbero.getByText(
+    'Tras crear la cuenta se mostrará una sola vez para comunicarla en persona.',
+    { exact: true },
+  );
+  await notaTemporal.scrollIntoViewIfNeeded();
+  const notaCaja = await notaTemporal.boundingBox();
+  const contenidoCaja = await contenidoBarbero.boundingBox();
+  expect(notaCaja!.y).toBeGreaterThanOrEqual(contenidoCaja!.y);
+  expect(notaCaja!.y + notaCaja!.height).toBeLessThanOrEqual(
+    contenidoCaja!.y + contenidoCaja!.height + 1,
+  );
+  const pieBarbero = await altaBarbero.locator('mat-dialog-actions').boundingBox();
+  expect(pieBarbero!.y + pieBarbero!.height).toBeLessThanOrEqual(page.viewportSize()!.height - 16);
+  await revisar(page, testInfo, 'barbero-dialogo');
+  await altaBarbero.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.goto('/admin/horarios');
   await seleccionar(page, 'Barbero', 'Carlos');
   await expect(page.getByLabel('Lunes · Fin 2', { exact: true })).toBeVisible();
@@ -644,6 +724,11 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   page,
 }, testInfo) => {
   await page.goto('/registro');
+  const fotoRegistro = page.locator('app-composicion-acceso img');
+  if ((page.viewportSize()?.width ?? 1440) >= 1024) {
+    await expect(fotoRegistro).toBeVisible();
+    expect((await fotoRegistro.boundingBox())!.height).toBeLessThanOrEqual(640);
+  } else await expect(fotoRegistro).toBeHidden();
   const correo = `registro-${testInfo.project.name}@ejemplo.test`;
   await page.getByLabel('Nombre', { exact: true }).fill('Cliente E2E de registro');
   await page.getByLabel('Correo', { exact: true }).fill(correo);
@@ -665,7 +750,35 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   await expect(page.getByRole('status').filter({ hasText: 'Perfil guardado.' })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Cliente E2E actualizado');
+  const cuenta = page.locator('app-perfil .pagina-cuenta');
+  const seguridad = page.getByRole('link', { name: 'Cambiar contraseña', exact: true });
+  const parrafoSeguridad = page.getByText(
+    'Cambie la contraseña con la que ingresa a BarberTurno.',
+    { exact: true },
+  );
+  await expect(seguridad).toHaveAttribute('mat-stroked-button', '');
+  expect((await seguridad.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await seguridad.boundingBox())!.x).toBe((await parrafoSeguridad.boundingBox())!.x);
+  if ((page.viewportSize()?.width ?? 1440) >= 768) {
+    const marco = page.locator('main');
+    expect((await cuenta.boundingBox())!.x).toBe(
+      await marco.evaluate(
+        (e) => e.getBoundingClientRect().x + parseFloat(getComputedStyle(e).paddingLeft),
+      ),
+    );
+    expect((await cuenta.boundingBox())!.width).toBeLessThanOrEqual(720);
+  }
   await revisar(page, testInfo, 'perfil');
+  await seguridad.click();
+  await expect(page).toHaveURL(/\/cambiar-password$/);
+  const cambio = page.locator('app-cambiar-password .pagina-cuenta');
+  expect((await cambio.boundingBox())!.x).toBe(
+    await page
+      .locator('main')
+      .evaluate((e) => e.getBoundingClientRect().x + parseFloat(getComputedStyle(e).paddingLeft)),
+  );
+  expect((await cambio.boundingBox())!.width).toBeLessThanOrEqual(720);
+  await revisar(page, testInfo, 'cambiar-password');
 });
 
 async function salirConRespuesta(page: Page) {

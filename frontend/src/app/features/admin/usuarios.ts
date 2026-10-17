@@ -141,6 +141,7 @@ export class Usuarios {
         data: {
           nombre: usuario.nombre,
           activar: !usuario.activo,
+          riesgo: usuario.activo,
           texto:
             'Este cambio afecta el acceso de la cuenta. La agenda del profesional se administra en Barberos.',
           cambiar: () => this.api.cambiarEstado(usuario.id, !usuario.activo).pipe(map(() => 0)),

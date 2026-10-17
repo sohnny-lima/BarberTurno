@@ -147,6 +147,7 @@ export class BarberoDialogo {
                   disableClose: true,
                   width: '480px',
                   maxWidth: 'calc(100vw - 32px)',
+                  maxHeight: 'calc(100dvh - 32px)',
                   autoFocus: 'first-tabbable',
                 }),
               );

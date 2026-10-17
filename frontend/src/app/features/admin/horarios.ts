@@ -232,6 +232,7 @@ export class Horarios {
         data: {
           nombre: bloqueo.motivo,
           activar: false,
+          riesgo: true,
           titulo: 'Eliminar bloqueo',
           texto:
             '¿Desea eliminar este bloqueo? El intervalo volverá a estar disponible según la jornada y las reservas.',

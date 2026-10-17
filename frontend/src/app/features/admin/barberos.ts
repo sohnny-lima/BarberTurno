@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup } from '@angular/forms';
@@ -8,15 +9,26 @@ import { MatTableModule } from '@angular/material/table';
 import { finalize, map } from 'rxjs';
 import { BarberosApi } from '../../core/api/barberos-api';
 import { BarberoDto } from '../../core/modelos/catalogo';
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { ListaAdaptable } from '../../shared/lista-adaptable';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { mostrarErrores } from '../../shared/formulario';
 import { BarberoDialogo } from './barbero-dialogo';
 
 @Component({
   selector: 'app-barberos',
-  imports: [MatButtonModule, MatSlideToggleModule, MatTableModule],
+  imports: [
+    NgTemplateOutlet,
+    CabeceraPagina,
+    EstadoContenido,
+    ListaAdaptable,
+    MatButtonModule,
+    MatSlideToggleModule,
+    MatTableModule,
+  ],
   templateUrl: './barberos.html',
-  styleUrl: './catalogo.scss',
+  styleUrl: './catalogo-lista.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Barberos {
@@ -27,7 +39,7 @@ export class Barberos {
   readonly inactivos = signal(false);
   readonly cargando = signal(false);
   readonly mensaje = signal('');
-  readonly columnas = ['nombre', 'especialidad', 'correo', 'telefono', 'estado', 'acciones'];
+  readonly columnas = ['nombre', 'correo', 'telefono', 'estado', 'acciones'];
   constructor() {
     this.cargar();
   }
@@ -53,6 +65,7 @@ export class Barberos {
         data: barbero,
         width: '540px',
         maxWidth: 'calc(100vw - 32px)',
+        maxHeight: 'calc(100dvh - 32px)',
         autoFocus: 'first-tabbable',
       })
       .afterClosed()
@@ -66,10 +79,12 @@ export class Barberos {
       .open(ConfirmarEstadoDialogo, {
         width: '480px',
         maxWidth: 'calc(100vw - 32px)',
+        maxHeight: 'calc(100dvh - 32px)',
         autoFocus: 'first-tabbable',
         data: {
           nombre: barbero.nombre,
           activar: !barbero.activo,
+          riesgo: barbero.activo,
           cambiar: () =>
             this.api
               .cambiarEstado(barbero.id, !barbero.activo)

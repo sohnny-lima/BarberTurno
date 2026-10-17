@@ -1,3 +1,5 @@
+import { MatFormField } from '@angular/material/form-field';
+import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -80,5 +82,19 @@ describe('Diálogo de servicio y errores por campo', () => {
     fixture.componentInstance.guardar();
     fixture.componentInstance.guardar();
     http.expectOne('/api/servicios').flush({ id: 4 });
+  });
+  it('mantiene campos outline y el pie fuera del contenido desplazable', () => {
+    const f = preparar();
+    const campos = f.debugElement.queryAll(By.directive(MatFormField));
+    expect(campos.length).toBeGreaterThan(0);
+    for (const campo of campos) expect(campo.componentInstance.appearance).toBe('outline');
+    const raiz: HTMLElement = f.nativeElement;
+    expect(raiz.querySelector('mat-dialog-content mat-dialog-actions')).toBeNull();
+    expect(
+      raiz.querySelector('form > mat-dialog-actions button[type=submit]')?.textContent?.trim(),
+    ).toBe('Guardar servicio');
+    expect(raiz.querySelector('mat-dialog-actions button[type=button]')?.textContent?.trim()).toBe(
+      'Cancelar',
+    );
   });
 });

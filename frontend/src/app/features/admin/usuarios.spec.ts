@@ -80,6 +80,7 @@ describe('Gestión de usuarios', () => {
     s.restablecer(cliente);
     expect(dialogos.open).toHaveBeenCalledTimes(1);
     const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
+    expect(datos.riesgo).toBeUndefined();
     datos.cambiar().subscribe();
     const req = http.expectOne('/api/usuarios/9/restablecer-password');
     expect(req.request.method).toBe('POST');
@@ -111,6 +112,7 @@ describe('Gestión de usuarios', () => {
     s.cambiarEstado(cliente);
     const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
     expect(datos.activar).toBe(false);
+    expect(datos.riesgo).toBe(true);
     datos.cambiar().subscribe();
     const req = http.expectOne('/api/usuarios/9/estado');
     expect(req.request.method).toBe('PATCH');

@@ -231,7 +231,11 @@ describe('Administración de horarios', () => {
     expect(dialogos.open).toHaveBeenCalledWith(
       ConfirmarEstadoDialogo,
       expect.objectContaining({
-        data: expect.objectContaining({ titulo: 'Eliminar bloqueo', boton: 'Eliminar' }),
+        data: expect.objectContaining({
+          titulo: 'Eliminar bloqueo',
+          boton: 'Eliminar',
+          riesgo: true,
+        }),
       }),
     );
     const config = (

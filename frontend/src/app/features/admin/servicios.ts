@@ -1,4 +1,4 @@
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup } from '@angular/forms';
@@ -9,15 +9,27 @@ import { MatTableModule } from '@angular/material/table';
 import { finalize, map } from 'rxjs';
 import { ServiciosApi } from '../../core/api/servicios-api';
 import { ServicioDto } from '../../core/modelos/catalogo';
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { ListaAdaptable } from '../../shared/lista-adaptable';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { mostrarErrores } from '../../shared/formulario';
 import { ServicioDialogo } from './servicio-dialogo';
 
 @Component({
   selector: 'app-servicios',
-  imports: [CurrencyPipe, MatButtonModule, MatSlideToggleModule, MatTableModule],
+  imports: [
+    NgTemplateOutlet,
+    CabeceraPagina,
+    EstadoContenido,
+    ListaAdaptable,
+    CurrencyPipe,
+    MatButtonModule,
+    MatSlideToggleModule,
+    MatTableModule,
+  ],
   templateUrl: './servicios.html',
-  styleUrl: './catalogo.scss',
+  styleUrl: './catalogo-lista.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Servicios {
@@ -54,6 +66,7 @@ export class Servicios {
         data: servicio,
         width: '520px',
         maxWidth: 'calc(100vw - 32px)',
+        maxHeight: 'calc(100dvh - 32px)',
         autoFocus: 'first-tabbable',
       })
       .afterClosed()
@@ -67,10 +80,12 @@ export class Servicios {
       .open(ConfirmarEstadoDialogo, {
         width: '480px',
         maxWidth: 'calc(100vw - 32px)',
+        maxHeight: 'calc(100dvh - 32px)',
         autoFocus: 'first-tabbable',
         data: {
           nombre: servicio.nombre,
           activar: !servicio.activo,
+          riesgo: servicio.activo,
           cambiar: () => this.api.cambiarEstado(servicio.id, !servicio.activo).pipe(map(() => 0)),
         },
       })
