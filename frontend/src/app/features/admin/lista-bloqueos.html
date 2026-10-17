@@ -1,0 +1,23 @@
+<ul class="lista-bloqueos" aria-label="Bloqueos del barbero seleccionado">
+  @for (bloqueo of bloqueos(); track bloqueo.id) {
+    <li>
+      <div>
+        <p class="fechas">
+          {{ bloqueo.inicio | fechaLima: 'fechaHora' }} –
+          {{ bloqueo.fin | fechaLima: 'fechaHora' }}
+        </p>
+        <p>{{ bloqueo.motivo }}</p>
+      </div>
+      <button
+        mat-stroked-button
+        class="riesgo"
+        (click)="eliminar.emit(bloqueo)"
+        [attr.aria-label]="'Eliminar bloqueo: ' + bloqueo.motivo"
+      >
+        Eliminar
+      </button>
+    </li>
+  } @empty {
+    <li class="vacio">No hay bloqueos en el rango consultado.</li>
+  }
+</ul>

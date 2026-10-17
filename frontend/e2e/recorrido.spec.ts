@@ -42,9 +42,16 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     nombre.startsWith('asistida-') ||
     nombre.startsWith('mis-citas') ||
     nombre === 'avisos-cliente' ||
-    nombre.startsWith('agenda-')
+    nombre.startsWith('agenda-') ||
+    nombre.startsWith('horarios')
   ) {
-    await testInfo.attach(nombre, { body: await page.screenshot(), contentType: 'image/png' });
+    await testInfo.attach(nombre, {
+      body: await page.screenshot({
+        fullPage: nombre.startsWith('horarios'),
+        ...(nombre.startsWith('horarios') ? { path: testInfo.outputPath(nombre + '.png') } : {}),
+      }),
+      contentType: 'image/png',
+    });
   }
   expect(
     await page.evaluate(
@@ -618,8 +625,77 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await revisar(page, testInfo, 'barbero-dialogo');
   await altaBarbero.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.goto('/admin/horarios');
+  await expect(
+    page.getByText('Elija un barbero para ver su semana y sus bloqueos.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('app-horarios .disposicion')).toHaveCount(0);
+  await revisar(page, testInfo, 'horarios-sin-barbero');
   await seleccionar(page, 'Barbero', 'Carlos');
   await expect(page.getByLabel('Lunes · Fin 2', { exact: true })).toBeVisible();
+  const viewportHorarios = page.viewportSize()!;
+  for (const width of [360, 1024, 1199, 1200, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const disposicion = page.locator('app-horarios .disposicion');
+    if (width >= 1200) await expect(disposicion).toHaveClass(/dos-columnas/);
+    else await expect(disposicion).not.toHaveClass(/dos-columnas/);
+    // Leer todas las cajas en el mismo frame: el navegador puede ajustar el scroll al redimensionar.
+    const { semana, bloqueos, alta } = await page.locator('app-horarios').evaluate((pagina) => {
+      const caja = (id: string) => {
+        const { x, y, width, height } = pagina
+          .querySelector('[aria-labelledby="' + id + '"]')!
+          .getBoundingClientRect();
+        return { x, y, width, height };
+      };
+      return {
+        semana: caja('titulo-semana'),
+        bloqueos: caja('titulo-bloqueos'),
+        alta: caja('titulo-alta'),
+      };
+    });
+    if (width >= 1200) {
+      expect(bloqueos!.x).toBeGreaterThan(semana!.x + semana!.width);
+      expect(Math.abs(bloqueos!.y - semana!.y)).toBeLessThan(1);
+      expect(semana!.width / bloqueos!.width).toBeCloseTo(2, 1);
+    } else {
+      expect(bloqueos!.y).toBeGreaterThan(semana!.y + semana!.height);
+      expect(bloqueos!.x).toBe(semana!.x);
+    }
+    expect(alta!.y).toBeGreaterThan(bloqueos!.y + bloqueos!.height);
+    if (width === 1200) {
+      await page.screenshot({ path: testInfo.outputPath('horarios-1200.png'), fullPage: true });
+    }
+    expect(await page.getByLabel('Lunes · Fin 2', { exact: true }).inputValue()).toBe('18:00');
+    await expect(
+      page.getByRole('button', { name: 'Quitar intervalo 2 del Lunes', exact: true }),
+    ).toHaveCount(1);
+    const camposLunes = await page
+      .locator('.dia')
+      .first()
+      .locator('input')
+      .evaluateAll((campos) => {
+        const [inicio, fin] = campos.map((campo) => campo.getBoundingClientRect());
+        return {
+          inicio: { x: inicio.x, y: inicio.y, ancho: inicio.width },
+          fin: { x: fin.x, y: fin.y, ancho: fin.width },
+        };
+      });
+    expect(camposLunes.inicio.y).toBe(camposLunes.fin.y);
+    expect(camposLunes.fin.x).toBeGreaterThan(camposLunes.inicio.x);
+    expect(camposLunes.inicio.ancho).toBeCloseTo(camposLunes.fin.ancho, 0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize(viewportHorarios);
+  await page.getByLabel('Lunes · Fin 2', { exact: true }).focus();
+  await expect(page.getByLabel('Lunes · Fin 2', { exact: true })).toBeFocused();
+  expect(
+    await page
+      .getByLabel('Lunes · Fin 2', { exact: true })
+      .evaluate((campo) => getComputedStyle(campo).outlineStyle),
+  ).toBe('solid');
   await revisar(page, testInfo, 'horarios');
   await page.getByLabel('Lunes · Fin 2', { exact: true }).fill('18:10');
   await page.getByRole('button', { name: 'Guardar semana' }).click();
@@ -634,6 +710,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await page.getByLabel('Hora de fin', { exact: true }).fill('17:00');
   await page.getByRole('button', { name: 'Agregar bloqueo' }).click();
   await expect(page.getByRole('status').filter({ hasText: /creado|agregado/i })).toBeVisible();
+  await revisar(page, testInfo, 'horarios-bloqueo-creado');
   await page.goto('/admin/reportes');
   await page.getByLabel('Desde', { exact: true }).fill('2026-09-27');
   await page.getByLabel('Hasta', { exact: true }).fill('2026-10-01');

@@ -1,0 +1,53 @@
+<section class="dia" [attr.aria-label]="dia()">
+  <h3>{{ dia() }}</h3>
+  @for (fila of filas(); track fila; let i = $index) {
+    <div class="intervalo" [formGroup]="fila">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label
+          ><span class="sr-only">{{ dia() }} · </span>Inicio<span class="sr-only">
+            {{ i + 1 }}</span
+          ></mat-label
+        >
+        <input matInput type="time" formControlName="horaInicio" step="60" />
+        @if (fila.controls.horaInicio.invalid && fila.controls.horaInicio.touched) {
+          <mat-error>{{ errorCampo(fila.controls.horaInicio) }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label
+          ><span class="sr-only">{{ dia() }} · </span>Fin<span class="sr-only">
+            {{ i + 1 }}</span
+          ></mat-label
+        >
+        <input matInput type="time" formControlName="horaFin" step="60" />
+        @if (fila.controls.horaFin.invalid && fila.controls.horaFin.touched) {
+          <mat-error>{{ errorCampo(fila.controls.horaFin) }}</mat-error>
+        }
+      </mat-form-field>
+      <button
+        type="button"
+        mat-button
+        class="quitar"
+        [attr.aria-label]="'Quitar intervalo ' + (i + 1) + ' del ' + dia()"
+        (click)="quitar.emit(fila)"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        <span class="texto-quitar">Quitar</span>
+      </button>
+      @if (fila.errors && fila.touched) {
+        <p role="alert" class="error-campo error-intervalo">{{ errorCampo(fila) }}</p>
+      }
+    </div>
+  } @empty {
+    <p class="libre">Sin intervalos.</p>
+  }
+  <button
+    type="button"
+    mat-button
+    (click)="agregar.emit()"
+    [attr.aria-label]="'Añadir intervalo al ' + dia()"
+  >
+    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+    Añadir intervalo
+  </button>
+</section>
