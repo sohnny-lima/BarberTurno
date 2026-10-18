@@ -10,7 +10,7 @@ Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detall
 | Publicación | `origin/main` = `f7dc336` | CI `37895739087` (`17e4081`) y `37896565925` (`f7dc336`): success (comprobado en la API pública el 17/10/2026) |
 | 18 de 19 casos de aceptación con evidencia técnica (CP-01…CP-19 salvo CP-11) | `docs/pruebas/aceptacion.md` | Acreditado |
 | RNF-01 (carga), RNF-03 (salvo HTTPS real), RNF-04, RNF-05, RNF-08, RNF-09 (ensayo local), RNF-10, RNF-11, RNF-12, RNF-13, RNF-14 | `docs/pruebas/aceptacion.md` §RNF | Acreditado con las salvedades indicadas allí |
-| **Fase 2 visual (T-57)**: acceso, cuenta, servicios, barberos, horarios, reportes, usuarios y diálogos | `docs/diseno/t-57.md`, `docs/pruebas/t-57.md`, capturas `docs/pruebas/t-57/capturas/` (98 PNG, axe 0) | Hecho y revisado (Gemini g036 APROBADO); integración en `main` en curso |
+| **Fase 2 visual (T-57)**: acceso, cuenta, servicios, barberos, horarios, reportes, usuarios y diálogos | `docs/diseno/t-57.md`, `docs/pruebas/t-57.md`, capturas `docs/pruebas/t-57/capturas/` (98 PNG, axe 0) | Hecho y revisado (Gemini g036 APROBADO); integrado en `main` (`bb3d644`, código verificado en `720f022`) |
 | Datos y scripts de CP-11 verificados (plantilla con BT-100 y BT-103, reloj compartido) | `docs/pruebas/usabilidad-plantilla.md` (`3684999`) | Preparado; 0/5 sesiones |
 
 ## 2. Trabajo necesario para el cierre (en curso o independiente)
