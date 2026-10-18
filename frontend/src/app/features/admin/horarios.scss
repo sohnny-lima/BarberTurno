@@ -1,11 +1,17 @@
+@use '../../shared/formulario-pagina' as formulario;
+@include formulario.contenido;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+.selector {
+  max-width: 420px;
+}
 fieldset {
   border: 0;
   padding: 0;
   margin: 0;
-  min-width: 0;
-}
-mat-form-field {
-  width: 100%;
   min-width: 0;
 }
 .sr-only {
@@ -15,41 +21,88 @@ mat-form-field {
   overflow: hidden;
   clip-path: inset(50%);
 }
-.dia {
-  border-top: 1px solid #d8e3e6;
-  padding: 12px 0;
-}
-.intervalo,
-.campos {
-  display: flex;
-  flex-wrap: wrap;
+.disposicion,
+.columna-bloqueos {
+  display: grid;
   align-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+.dos-columnas {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.tarjeta {
+  min-width: 0;
+  margin: 0;
+  background: var(--color-superficie);
+}
+h2 {
+  font: 700 18px/24px var(--font-cuerpo);
+  margin: 0 0 20px;
+}
+.copiar {
+  margin: 8px 0 24px;
+  white-space: normal;
+  height: auto;
+  min-height: 44px;
+}
+.conflictos {
+  border-radius: 12px;
+}
+.conflictos p {
+  margin: 0 0 8px;
+}
+.rango,
+.campos {
+  display: grid;
   gap: 12px;
-  margin-bottom: 12px;
 }
-.intervalo mat-form-field,
-.campos mat-form-field {
-  flex: 1 1 180px;
+.rango {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
-.error-intervalo {
-  flex-basis: 100%;
+.rango button {
+  grid-column: 1 / -1;
+  width: 100%;
 }
-.lista-bloqueos {
-  padding: 0;
-  list-style: none;
+.rango input {
+  font-size: 16px;
+  min-width: 0;
+  width: calc(100% + 24px);
+  margin-inline: -12px;
 }
-.lista-bloqueos li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid #d8e3e6;
-  overflow-wrap: anywhere;
-}
-.lista-bloqueos p {
-  margin: 6px 0;
+.campos {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 mat-checkbox {
-  margin: 12px 0;
+  margin: 16px 0;
+}
+@media (max-width: 767.98px) {
+  .tarjeta {
+    padding: 16px;
+  }
+  .campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// La fecha usa todo el ancho disponible, también en la columna lateral.
+.campos input {
+  font-size: 16px;
+  min-width: 0;
+}
+.campos mat-form-field:has(input[type='date']) {
+  grid-column: 1 / -1;
+}
+
+// En la columna lateral estrecha se prioriza la fecha completa a 16 px.
+@media (max-width: 399.98px), (min-width: 1200px) and (max-width: 1599.98px) {
+  .rango {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
 }

@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -15,9 +16,16 @@ import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { mostrarErrores } from '../../shared/formulario';
 import { paginadorEspanol } from '../../shared/paginador-es';
 import { PasswordTemporalDialogo } from './password-temporal-dialogo';
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { ListaAdaptable } from '../../shared/lista-adaptable';
 @Component({
   selector: 'app-usuarios',
   imports: [
+    NgTemplateOutlet,
+    CabeceraPagina,
+    EstadoContenido,
+    ListaAdaptable,
     ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -36,6 +44,11 @@ export class Usuarios {
   private readonly destroyRef = inject(DestroyRef);
   private peticion?: Subscription;
   private filtros: { q: string; rol?: Rol } = { q: '' };
+  readonly nombresRol: Record<Rol, string> = {
+    CLIENTE: 'Cliente',
+    BARBERO: 'Barbero',
+    ADMIN: 'Administrador',
+  };
   readonly busqueda = new FormControl('', { nonNullable: true });
   readonly rol = new FormControl<Rol | null>(null);
   readonly filas = signal<UsuarioAdminDto[]>([]);
@@ -141,6 +154,7 @@ export class Usuarios {
         data: {
           nombre: usuario.nombre,
           activar: !usuario.activo,
+          riesgo: usuario.activo,
           texto:
             'Este cambio afecta el acceso de la cuenta. La agenda del profesional se administra en Barberos.',
           cambiar: () => this.api.cambiarEstado(usuario.id, !usuario.activo).pipe(map(() => 0)),

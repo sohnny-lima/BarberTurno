@@ -1,8 +1,9 @@
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { Subject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import {
   ConfirmarEstadoDialogo,
   ConfirmarEstadoDatos,
@@ -11,6 +12,8 @@ import { Horarios } from './horarios';
 
 describe('Administración de horarios', () => {
   let http: HttpTestingController;
+  let cambios: BehaviorSubject<BreakpointState>;
+  const observe = vi.fn();
   let cerrado = new Subject<boolean>();
   const dialogos = { open: vi.fn(() => ({ afterClosed: () => cerrado })) };
   const semana = [
@@ -25,11 +28,14 @@ describe('Administración de horarios', () => {
     motivo: 'Trámite ficticio',
   };
   beforeEach(() => {
+    cambios = new BehaviorSubject<BreakpointState>({ matches: false, breakpoints: {} });
+    observe.mockReset().mockReturnValue(cambios);
     cerrado = new Subject<boolean>();
     dialogos.open.mockClear();
     TestBed.configureTestingModule({
       imports: [Horarios],
       providers: [
+        { provide: BreakpointObserver, useValue: { observe } },
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: MatDialog, useValue: dialogos },
@@ -63,6 +69,101 @@ describe('Administración de horarios', () => {
       todos,
     });
   }
+  it('orienta sin barbero, conserva Procesando y no solicita semana ni bloqueos hasta elegir', () => {
+    const f = TestBed.createComponent(Horarios);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[role=status]').textContent).toBe('Procesando…');
+    expect(f.nativeElement.querySelector('mat-select').getAttribute('aria-disabled')).toBe('true');
+    http
+      .expectOne('/api/barberos?incluirInactivos=true')
+      .flush([{ id: 17, nombre: 'Ficticio A', activo: true }]);
+    f.detectChanges();
+    expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+    expect(f.nativeElement.querySelector('h1').textContent).toBe('Horarios y bloqueos');
+    expect(f.nativeElement.querySelector('.selector mat-label').textContent).toBe('Barbero');
+    expect(f.nativeElement.querySelector('app-estado-contenido').textContent).toContain(
+      'Elija un barbero para ver su semana y sus bloqueos.',
+    );
+    expect(f.nativeElement.querySelector('.disposicion')).toBeNull();
+    expect(f.componentInstance.seleccion.value).toBeNull();
+    http.expectNone((r) => /jornadas|bloqueos/.test(r.url));
+  });
+  it('conserva el vacío cuando no existen barberos', () => {
+    const f = TestBed.createComponent(Horarios);
+    http.expectOne('/api/barberos?incluirInactivos=true').flush([]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('No hay barberos para configurar.');
+    expect(f.nativeElement.textContent).not.toContain('Elija un barbero');
+    expect(f.nativeElement.querySelector('.disposicion')).toBeNull();
+  });
+  it('adapta una o dos columnas sin duplicar formularios, perder edición ni cambiar el orden', () => {
+    const f = preparar();
+    const p = f.componentInstance;
+    p.editor.delDia(1)[1].controls.horaFin.setValue('18:10');
+    for (const ancho of [360, 1024, 1199, 1200, 1440, 360]) {
+      cambios.next({
+        matches: ancho >= 1200,
+        breakpoints: { '(min-width: 1200px)': ancho >= 1200 },
+      });
+      f.detectChanges();
+      const raiz: HTMLElement = f.nativeElement;
+      expect(raiz.querySelector('.disposicion')?.classList.contains('dos-columnas')).toBe(
+        ancho >= 1200,
+      );
+      expect(Array.from(raiz.querySelectorAll('h2')).map((h) => h.textContent)).toEqual([
+        'Jornada semanal',
+        'Bloqueos',
+        'Nuevo bloqueo',
+      ]);
+      expect(raiz.querySelectorAll('form')).toHaveLength(3);
+      expect(raiz.querySelectorAll('[aria-label="Quitar intervalo 2 del Lunes"]')).toHaveLength(1);
+      expect(p.editor.delDia(1)[1].controls.horaFin.value).toBe('18:10');
+      expect(raiz.querySelectorAll('[aria-labelledby="titulo-semana"]')).toHaveLength(1);
+      expect(raiz.querySelector('.columna-bloqueos')?.querySelectorAll('section')).toHaveLength(2);
+    }
+    expect(observe).toHaveBeenCalledWith('(min-width: 1200px)');
+    f.destroy();
+    expect(cambios.observed).toBe(false);
+  });
+  it('conserva etiquetas outline, riesgo y aria-label de eliminación, y el vacío tras consultar', () => {
+    const f = preparar();
+    const raiz: HTMLElement = f.nativeElement;
+    expect(
+      Array.from(raiz.querySelectorAll('mat-form-field')).every((c) =>
+        c.classList.contains('mat-form-field-appearance-outline'),
+      ),
+    ).toBe(true);
+    const boton = raiz.querySelector<HTMLButtonElement>(
+      '[aria-label="Eliminar bloqueo: Trámite ficticio"]',
+    )!;
+    expect(boton.classList.contains('riesgo')).toBe(true);
+    expect(boton.hasAttribute('mat-stroked-button')).toBe(true);
+    boton.click();
+    expect(dialogos.open).toHaveBeenCalledTimes(1);
+    cerrado.next(false);
+    cerrado.complete();
+    f.componentInstance.cargarBloqueos();
+    http.expectOne((r) => r.url === '/api/barberos/17/bloqueos').flush([]);
+    f.detectChanges();
+    expect(raiz.querySelector('.lista-bloqueos')?.textContent).toContain(
+      'No hay bloqueos en el rango consultado.',
+    );
+    expect(raiz.querySelectorAll('.lista-bloqueos button')).toHaveLength(0);
+  });
+  it('muestra la alerta de rango del alta y los errores de campo sin enviar datos inválidos', () => {
+    const f = preparar();
+    alta(f.componentInstance, false);
+    f.componentInstance.alta.controls.horaFin.setValue('15:00');
+    f.componentInstance.alta.controls.motivo.setValue('');
+    f.componentInstance.crearBloqueo();
+    f.detectChanges();
+    const altaElemento = f.nativeElement.querySelector('[aria-labelledby="titulo-alta"]');
+    expect(altaElemento.querySelector('[role=alert]').textContent).toBe(
+      'El fin debe ser posterior al inicio.',
+    );
+    expect(altaElemento.querySelector('mat-error').textContent).toBeTruthy();
+    http.expectNone((r) => r.method === 'POST');
+  });
   it('muestra los inactivos, ayuda del descanso, siete días y horas de Lima', () => {
     const f = preparar();
     expect(f.componentInstance.barberos().find((b) => b.id === 19)?.activo).toBe(false);
@@ -132,6 +233,9 @@ describe('Administración de horarios', () => {
     expect(f.nativeElement.textContent).toContain('BT-101');
     expect(f.nativeElement.textContent).toContain('BT-102');
     expect(p.editor.dto()).toEqual(semana);
+    expect(f.nativeElement.querySelector('[role=alert]').classList.contains('conflictos')).toBe(
+      true,
+    );
   });
   it.each([false, true])('la casilla todos=%s usa el endpoint y los ids correctos', (todos) => {
     const f = preparar();
@@ -231,7 +335,11 @@ describe('Administración de horarios', () => {
     expect(dialogos.open).toHaveBeenCalledWith(
       ConfirmarEstadoDialogo,
       expect.objectContaining({
-        data: expect.objectContaining({ titulo: 'Eliminar bloqueo', boton: 'Eliminar' }),
+        data: expect.objectContaining({
+          titulo: 'Eliminar bloqueo',
+          boton: 'Eliminar',
+          riesgo: true,
+        }),
       }),
     );
     const config = (

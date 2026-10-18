@@ -2,7 +2,7 @@
 <form [formGroup]="formulario" (ngSubmit)="guardar()">
   <mat-dialog-content class="formulario">
     @if (!barbero) {
-      <mat-form-field subscriptSizing="dynamic">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Tipo de alta</mat-label>
         <mat-select formControlName="modo" (selectionChange)="ajustarModo()">
           <mat-option value="nueva">Nueva cuenta de barbero</mat-option>
@@ -11,7 +11,7 @@
       </mat-form-field>
     }
     @if (!barbero && formulario.controls.modo.value === 'vincular') {
-      <mat-form-field subscriptSizing="dynamic">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>ID del usuario administrador</mat-label>
         <input matInput type="number" formControlName="usuarioId" min="1" step="1" />
         <mat-error>{{ errorCampo(formulario.controls.usuarioId) }}</mat-error>
@@ -20,13 +20,13 @@
         Ingrese el usuarioId de un ADMIN activo. T-31 aportará la búsqueda de administradores.
       </p>
     } @else {
-      <mat-form-field subscriptSizing="dynamic">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Nombre</mat-label>
         <input matInput formControlName="nombre" maxlength="100" autocomplete="name" />
         <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error>
       </mat-form-field>
       @if (!barbero) {
-        <mat-form-field subscriptSizing="dynamic">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Correo</mat-label>
           <input
             matInput
@@ -40,7 +40,7 @@
       } @else {
         <p class="ayuda">Correo: {{ barbero.correo }}</p>
       }
-      <mat-form-field subscriptSizing="dynamic">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Teléfono (opcional)</mat-label>
         <input
           matInput
@@ -53,27 +53,30 @@
         <mat-error>{{ errorCampo(formulario.controls.telefono) }}</mat-error>
       </mat-form-field>
     }
-    <mat-form-field subscriptSizing="dynamic">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Especialidad</mat-label>
       <input matInput formControlName="especialidad" maxlength="100" />
       <mat-error>{{ errorCampo(formulario.controls.especialidad) }}</mat-error>
     </mat-form-field>
     @if (!barbero && formulario.controls.modo.value === 'nueva') {
-      <mat-form-field subscriptSizing="dynamic">
-        <mat-label>Contraseña temporal</mat-label>
-        <input
-          matInput
-          type="password"
-          formControlName="passwordTemporal"
-          autocomplete="new-password"
-        />
-        <mat-hint>De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</mat-hint>
-        <mat-error>{{ errorCampo(formulario.controls.passwordTemporal) }}</mat-error>
-      </mat-form-field>
-      <button mat-stroked-button type="button" [disabled]="guardando()" (click)="generar()">
-        Generar
-      </button>
-      <p class="ayuda">
+      <div class="password-generar">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Contraseña temporal</mat-label>
+          <input
+            matInput
+            type="password"
+            formControlName="passwordTemporal"
+            aria-describedby="aviso-password-temporal"
+            autocomplete="new-password"
+          />
+          <mat-hint>De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</mat-hint>
+          <mat-error>{{ errorCampo(formulario.controls.passwordTemporal) }}</mat-error>
+        </mat-form-field>
+        <button mat-stroked-button type="button" [disabled]="guardando()" (click)="generar()">
+          Generar
+        </button>
+      </div>
+      <p class="ayuda" id="aviso-password-temporal">
         Tras crear la cuenta se mostrará una sola vez para comunicarla en persona.
       </p>
     }

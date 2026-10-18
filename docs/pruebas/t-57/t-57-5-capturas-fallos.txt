@@ -1,0 +1,1298 @@
+
+> frontend@0.0.0 e2e:capturas
+> powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1 --config=playwright.capturas.config.ts
+
+
+> frontend@0.0.0 build
+> ng build
+
+> Building...
+√ Building...
+Initial chunk files | Names         |  Raw size | Estimated transfer size
+chunk-axkK9k7a.js   | -             | 230.38 kB |                66.41 kB
+main-2L3F25JU.js    | main          | 158.33 kB |                37.98 kB
+chunk-5T2K18nx.js   | -             |  89.77 kB |                17.35 kB
+styles-7ZXSUYMQ.css | styles        |  17.91 kB |                 3.43 kB
+
+                    | Initial total | 496.39 kB |               125.17 kB
+
+Lazy chunk files    | Names         |  Raw size | Estimated transfer size
+chunk-Cf2MvYcj.js   | reservar      | 196.80 kB |                39.52 kB
+chunk-BrZL8atu.js   | -             | 107.69 kB |                19.23 kB
+chunk-D9QGDjQT.js   | -             |  68.35 kB |                13.12 kB
+chunk-DOHhYg-O.js   | shell         |  44.85 kB |                 9.67 kB
+chunk-BbKZEORe.js   | agenda        |  41.81 kB |                 9.97 kB
+chunk-DB29CUUI.js   | -             |  40.47 kB |                 9.41 kB
+chunk-Dnqjg2Q1.js   | -             |  30.14 kB |                 7.10 kB
+chunk-1s8h8aU7.js   | -             |  29.25 kB |                 4.87 kB
+chunk-CNNMZQMa.js   | -             |  26.61 kB |                 5.96 kB
+chunk-C3q8KbNv.js   | -             |  26.36 kB |                 7.10 kB
+chunk-BicslypB.js   | horarios      |  22.58 kB |                 6.50 kB
+chunk-DO2-ryVe.js   | mis-citas     |  20.33 kB |                 5.78 kB
+chunk-TbqjTCFs.js   | reportes      |  19.79 kB |                 5.55 kB
+chunk-DiMjruyW.js   | barberos      |  18.39 kB |                 5.04 kB
+chunk-BH4hv0wy.js   | -             |  17.78 kB |                 4.83 kB
+...and 31 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [9.690 seconds] - 2026-10-18T00:23:07.469Z
+
+Output location: D:\Proyectos\BarberTurno\frontend\dist\frontend
+
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ---------------------< pe.barberturno:barberturno >---------------------
+[INFO] Building BarberTurno 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- clean:3.5.0:clean (default-clean) @ barberturno ---
+[INFO] Deleting D:\Proyectos\BarberTurno\backend\target
+[INFO]
+[INFO] --- dependency:3.10.0:properties (rutas-de-dependencias) @ barberturno ---
+[INFO]
+[INFO] --- jacoco:0.8.15:prepare-agent (prepare-agent) @ barberturno ---
+[INFO] argLine set to -javaagent:C:\\Users\\limas\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.15\\org.jacoco.agent-0.8.15-runtime.jar=destfile=D:\\Proyectos\\BarberTurno\\backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- exec:3.6.4:exec (frontend-instalar) @ barberturno ---
+[INFO] skipping execute as per configuration
+[INFO]
+[INFO] --- exec:3.6.4:exec (frontend-compilar) @ barberturno ---
+[INFO] skipping execute as per configuration
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ barberturno ---
+[INFO] Copying 5 resources from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- resources:3.5.0:copy-resources (frontend-empaquetar) @ barberturno ---
+[INFO] Copying 57 resources from ..\frontend\dist\frontend\browser to target\classes\static
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ barberturno ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 110 source files with javac [debug parameters release 21] to target\classes
+[INFO] /D:/Proyectos/BarberTurno/backend/src/main/java/pe/barberturno/reporting/ReporteRepository.java: D:\Proyectos\BarberTurno\backend\src\main\java\pe\barberturno\reporting\ReporteRepository.java uses or overrides a deprecated API.
+[INFO] /D:/Proyectos/BarberTurno/backend/src/main/java/pe/barberturno/reporting/ReporteRepository.java: Recompile with -Xlint:deprecation for details.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ barberturno ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ barberturno ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 58 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /D:/Proyectos/BarberTurno/backend/src/test/java/pe/barberturno/reservations/ReservaAsistidaIT.java: Some input files use or override a deprecated API.
+[INFO] /D:/Proyectos/BarberTurno/backend/src/test/java/pe/barberturno/reservations/ReservaAsistidaIT.java: Recompile with -Xlint:deprecation for details.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ barberturno ---
+[INFO] Tests are skipped.
+[INFO]
+[INFO] --- jar:3.5.1:jar (default-jar) @ barberturno ---
+[INFO] Building jar: D:\Proyectos\BarberTurno\backend\target\barberturno-0.0.1-SNAPSHOT.jar
+[INFO]
+[INFO] --- spring-boot:4.1.1:repackage (repackage) @ barberturno ---
+[INFO] Replacing main artifact D:\Proyectos\BarberTurno\backend\target\barberturno-0.0.1-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to D:\Proyectos\BarberTurno\backend\target\barberturno-0.0.1-SNAPSHOT.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  18.765 s
+[INFO] Finished at: 2026-10-17T19:23:29-05:00
+[INFO] ------------------------------------------------------------------------
+Base E2E: barberturno_test; limpieza antes y después de cada proyecto.
+
+Running 88 tests using 1 worker
+
+(node:59972) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium-1440] › e2e\capturas.spec.ts:162:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (7.2s)
+  ok  2 [chromium-1440] › e2e\capturas.spec.ts:236:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (5.0s)
+  ok  3 [chromium-1440] › e2e\capturas.spec.ts:269:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (3.4s)
+  ok  4 [chromium-1440] › e2e\capturas.spec.ts:298:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (2.4s)
+  ok  5 [chromium-1440] › e2e\capturas.spec.ts:335:5 › propuesta: Agenda del barbero en Día, Semana y carga (6.1s)
+  ok  6 [chromium-1440] › e2e\capturas.spec.ts:370:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (6.8s)
+  ok  7 [chromium-1440] › e2e\capturas.spec.ts:449:5 › propuesta: reserva asistida elige cliente desde el backend real (2.4s)
+  ok  8 [chromium-1440] › e2e\capturas.spec.ts:459:5 › propuesta: contraseña temporal con respuesta de sesión simulada (1.6s)
+  ok  9 [chromium-1440] › e2e\capturas.spec.ts:475:5 › foco al restaurar la selección que el visitante conserva para ingresar (4.5s)
+  x  10 [chromium-1440] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad (17.9s)
+(node:61168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 11 [chromium-1440] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (4.4s)
+  ok 12 [chromium-1440] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo (4.3s)
+  ok 13 [chromium-1440] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal (4.9s)
+  x  14 [chromium-1440] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (15.9s)
+(node:16764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  15 [chromium-1440] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real (2.9s)
+(node:64560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  16 [chromium-1440] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (19.2s)
+(node:65984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 17 [chromium-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado carga simulado (1.8s)
+  ok 18 [chromium-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado (2.0s)
+  ok 19 [chromium-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado vacio simulado (1.8s)
+  ok 20 [chromium-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado vacio simulado (2.1s)
+  x  21 [chromium-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado (1.0s)
+(node:62040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  22 [chromium-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado (1.2s)
+(node:49464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 23 [chromium-360] › e2e\capturas.spec.ts:162:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (7.1s)
+  ok 24 [chromium-360] › e2e\capturas.spec.ts:236:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (5.0s)
+  ok 25 [chromium-360] › e2e\capturas.spec.ts:269:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (3.3s)
+  ok 26 [chromium-360] › e2e\capturas.spec.ts:298:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (3.6s)
+  ok 27 [chromium-360] › e2e\capturas.spec.ts:335:5 › propuesta: Agenda del barbero en Día, Semana y carga (5.3s)
+  ok 28 [chromium-360] › e2e\capturas.spec.ts:370:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (8.2s)
+  ok 29 [chromium-360] › e2e\capturas.spec.ts:449:5 › propuesta: reserva asistida elige cliente desde el backend real (2.3s)
+  ok 30 [chromium-360] › e2e\capturas.spec.ts:459:5 › propuesta: contraseña temporal con respuesta de sesión simulada (1.8s)
+  ok 31 [chromium-360] › e2e\capturas.spec.ts:475:5 › foco al restaurar la selección que el visitante conserva para ingresar (4.1s)
+  x  32 [chromium-360] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad (17.7s)
+(node:64704) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 33 [chromium-360] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (4.1s)
+  x  34 [chromium-360] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo (2.5s)
+(node:16716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  35 [chromium-360] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal (3.1s)
+(node:66488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  36 [chromium-360] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (16.2s)
+(node:61100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 37 [chromium-360] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real (2.4s)
+  x  38 [chromium-360] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (17.3s)
+(node:63836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 39 [chromium-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado carga simulado (1.7s)
+  ok 40 [chromium-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado (1.9s)
+  ok 41 [chromium-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado vacio simulado (1.8s)
+  ok 42 [chromium-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado vacio simulado (2.1s)
+  x  43 [chromium-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado (873ms)
+(node:52972) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  44 [chromium-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado (1.2s)
+(node:41636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 45 [firefox-1440] › e2e\capturas.spec.ts:162:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (11.6s)
+  ok 46 [firefox-1440] › e2e\capturas.spec.ts:236:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (7.6s)
+  ok 47 [firefox-1440] › e2e\capturas.spec.ts:269:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (4.5s)
+  ok 48 [firefox-1440] › e2e\capturas.spec.ts:298:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (3.2s)
+  ok 49 [firefox-1440] › e2e\capturas.spec.ts:335:5 › propuesta: Agenda del barbero en Día, Semana y carga (8.9s)
+  ok 50 [firefox-1440] › e2e\capturas.spec.ts:370:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (10.4s)
+  ok 51 [firefox-1440] › e2e\capturas.spec.ts:449:5 › propuesta: reserva asistida elige cliente desde el backend real (3.6s)
+  ok 52 [firefox-1440] › e2e\capturas.spec.ts:459:5 › propuesta: contraseña temporal con respuesta de sesión simulada (2.8s)
+  ok 53 [firefox-1440] › e2e\capturas.spec.ts:475:5 › foco al restaurar la selección que el visitante conserva para ingresar (5.8s)
+  x  54 [firefox-1440] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad (20.2s)
+(node:67412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  55 [firefox-1440] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (20.2s)
+(node:61232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  56 [firefox-1440] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo (22.0s)
+(node:67120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  57 [firefox-1440] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal (20.0s)
+(node:60924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  58 [firefox-1440] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (18.1s)
+(node:65948) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  59 [firefox-1440] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real (6.0s)
+(node:62776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  60 [firefox-1440] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (22.5s)
+(node:65972) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 61 [firefox-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado carga simulado (5.3s)
+  x  62 [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado (16.4s)
+(node:67404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 63 [firefox-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado vacio simulado (4.9s)
+  ok 64 [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado vacio simulado (3.6s)
+  x  65 [firefox-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado (1.3s)
+(node:68504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  66 [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado (3.3s)
+(node:66740) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 67 [firefox-360] › e2e\capturas.spec.ts:162:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (10.8s)
+  ok 68 [firefox-360] › e2e\capturas.spec.ts:236:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (7.2s)
+  ok 69 [firefox-360] › e2e\capturas.spec.ts:269:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (4.4s)
+  ok 70 [firefox-360] › e2e\capturas.spec.ts:298:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (4.9s)
+  ok 71 [firefox-360] › e2e\capturas.spec.ts:335:5 › propuesta: Agenda del barbero en Día, Semana y carga (8.5s)
+  ok 72 [firefox-360] › e2e\capturas.spec.ts:370:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (13.1s)
+  ok 73 [firefox-360] › e2e\capturas.spec.ts:449:5 › propuesta: reserva asistida elige cliente desde el backend real (3.3s)
+  ok 74 [firefox-360] › e2e\capturas.spec.ts:459:5 › propuesta: contraseña temporal con respuesta de sesión simulada (2.3s)
+  ok 75 [firefox-360] › e2e\capturas.spec.ts:475:5 › foco al restaurar la selección que el visitante conserva para ingresar (5.2s)
+  x  76 [firefox-360] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad (19.7s)
+(node:66432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  77 [firefox-360] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (21.7s)
+(node:55700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  78 [firefox-360] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo (19.7s)
+(node:63392) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  79 [firefox-360] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal (19.6s)
+(node:69016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  80 [firefox-360] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (18.1s)
+(node:58236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 81 [firefox-360] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real (5.2s)
+  x  82 [firefox-360] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (18.3s)
+(node:68672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  83 [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado carga simulado (17.9s)
+(node:67652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  84 [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado (17.9s)
+(node:64020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 85 [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado vacio simulado (4.2s)
+  ok 86 [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado vacio simulado (3.2s)
+  x  87 [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado (1.2s)
+(node:66188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  88 [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado (2.9s)
+
+
+  1) [chromium-1440] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ────────
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('link', { name: 'Volver al registro', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('link', { name: 'Volver al registro', exact: true }) with timeout 15000ms
+      - waiting for getByRole('link', { name: 'Volver al registro', exact: true })
+        33 × locator resolved to <a mat-button="" href="/registro" routerlink="/registro" _ngcontent-ng-c2366167385="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed cdk-focused cdk-keyboard-focused">…</a>
+           - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:559:3
+
+    Error Context: test-results\capturas-fase-2-ingresar-registro-y-privacidad-chromium-1440\error-context.md
+
+  2) [chromium-1440] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('combobox', { name: 'Barbero', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('combobox', { name: 'Barbero', exact: true }) with timeout 15000ms
+      - waiting for getByRole('combobox', { name: 'Barbero', exact: true })
+        33 × locator resolved to <mat-select tabindex="0" role="combobox" id="mat-select-0" aria-invalid="false" aria-expanded="false" aria-required="false" aria-disabled="false" aria-haspopup="listbox" _ngcontent-ng-c2209460317="" aria-labelledby="mat-mdc-form-field-label-0" class="mat-mdc-select mat-mdc-select-empty ng-pristine ng-valid ng-touched">…</mat-select>
+           - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:682:3
+
+    Error Context: test-results\capturas-fase-2-horarios-s-c1200-cha-completa-de-1200-a-1440-chromium-1440\error-context.md
+
+  3) [chromium-1440] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      728 |       .locator('app-reporte-cifras .estadistica')
+      729 |       .evaluateAll((elementos) => elementos.every((e) => e.scrollWidth <= e.clientWidth)),
+    > 730 |   ).toBe(true);
+          |     ^
+      731 |   const [total, ...estados] = posiciones;
+      732 |   if (page.viewportSize()!.width < 768) {
+      733 |     expect(total.width).toBeGreaterThan(estados[0].width * 2);
+        at comprobarCifras (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:730:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:758:5
+
+    Error Context: test-results\capturas-fase-2-reportes-c-b8101-uilibradas-e-historial-real-chromium-1440\error-context.md
+
+  4) [chromium-1440] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+        2 × locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed cdk-focused cdk-keyboard-focused">…</button>
+          - unexpected value "none"
+        31 × locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed">…</button>
+           - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:807:3
+
+    Error Context: test-results\capturas-fase-2-usuarios-f-2182d-es-y-confirmación-de-riesgo-chromium-1440\error-context.md
+
+  5) [chromium-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      823 |           ? 'No hay barberos para mostrar.'
+      824 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 825 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      826 |     const control =
+      827 |       estado === 'carga'
+      828 |         ? movil(page)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:825:60
+
+    Error Context: test-results\capturas-fase-2-barberos-en-estado-error-simulado-chromium-1440\error-context.md
+
+  6) [chromium-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      874 |           ? 'No hay reservas en esta página con los filtros aplicados.'
+      875 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 876 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      877 |     await capturarFase2(
+      878 |       page,
+      879 |       info,
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:876:60
+
+    Error Context: test-results\capturas-fase-2-reportes-en-estado-error-simulado-chromium-1440\error-context.md
+
+  7) [chromium-360] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ─────────
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('link', { name: 'Volver al registro', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('link', { name: 'Volver al registro', exact: true }) with timeout 15000ms
+      - waiting for getByRole('link', { name: 'Volver al registro', exact: true })
+        33 × locator resolved to <a mat-button="" href="/registro" routerlink="/registro" _ngcontent-ng-c2366167385="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed cdk-focused cdk-keyboard-focused">…</a>
+           - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:559:3
+
+    Error Context: test-results\capturas-fase-2-ingresar-registro-y-privacidad-chromium-360\error-context.md
+
+  8) [chromium-360] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo
+
+    Error: DialogoServicio360
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 31
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         "#mat-mdc-form-field-label-0 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-1 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-2 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-hint-3",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-3 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-hint-5",
+    +       ],
+    +       Array [
+    +         ".mat-mdc-button[type=\"button\"][mat-button=\"\"] > .mdc-button__label",
+    +       ],
+    +       Array [
+    +         "button[type=\"submit\"] > .mdc-button__label",
+    +       ],
+    +     ],
+    +     "id": "color-contrast",
+    +   },
+    + ]
+
+       96 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+       97 |     nombre,
+    >  98 |   ).toEqual([]);
+          |     ^
+       99 |   const carpeta = resolve('../docs/pruebas', fase, 'capturas', info.project.use.browserName!);
+      100 |   mkdirSync(carpeta, { recursive: true });
+      101 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:98:5)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:515:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:628:3
+
+    Error Context: test-results\capturas-fase-2-servicios-tarjetas-intermedias-y-diálogo-chromium-360\error-context.md
+
+  9) [chromium-360] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal
+
+    Error: DialogoBarbero360
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 40
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "elementos": Array [
+    +       Array [
+    +         "#mat-mdc-form-field-label-1 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-2 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-5 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-3 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-0 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-form-field-label-4 > mat-label",
+    +       ],
+    +       Array [
+    +         "#mat-mdc-hint-5",
+    +       ],
+    +       Array [
+    +         ".mdc-button--outlined.mat-mdc-outlined-button[type=\"button\"] > .mdc-button__label",
+    +       ],
+    +       Array [
+    +         "#aviso-password-temporal",
+    +       ],
+    +       Array [
+    +         ".mat-mdc-button[type=\"button\"][mat-button=\"\"] > .mdc-button__label",
+    +       ],
+    +       Array [
+    +         "button[type=\"submit\"] > .mdc-button__label",
+    +       ],
+    +     ],
+    +     "id": "color-contrast",
+    +   },
+    + ]
+
+       96 |     axe.violations.map(({ id, nodes }) => ({ id, elementos: nodes.map((n) => n.target) })),
+       97 |     nombre,
+    >  98 |   ).toEqual([]);
+          |     ^
+       99 |   const carpeta = resolve('../docs/pruebas', fase, 'capturas', info.project.use.browserName!);
+      100 |   mkdirSync(carpeta, { recursive: true });
+      101 |   const png = await page.screenshot({
+        at capturar (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:98:5)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:515:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:648:3
+
+    Error Context: test-results\capturas-fase-2-barberos-a-39120-ticia-y-contraseña-temporal-chromium-360\error-context.md
+
+  10) [chromium-360] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('combobox', { name: 'Barbero', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('combobox', { name: 'Barbero', exact: true }) with timeout 15000ms
+      - waiting for getByRole('combobox', { name: 'Barbero', exact: true })
+        33 × locator resolved to <mat-select tabindex="0" role="combobox" id="mat-select-0" aria-invalid="false" aria-expanded="false" aria-required="false" aria-disabled="false" aria-haspopup="listbox" _ngcontent-ng-c2209460317="" aria-labelledby="mat-mdc-form-field-label-0" class="mat-mdc-select mat-mdc-select-empty ng-pristine ng-valid ng-touched">…</mat-select>
+           - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:682:3
+
+    Error Context: test-results\capturas-fase-2-horarios-s-c1200-cha-completa-de-1200-a-1440-chromium-360\error-context.md
+
+  11) [chromium-360] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+        3 × locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed cdk-focused cdk-keyboard-focused">…</button>
+          - unexpected value "none"
+        30 × locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed">…</button>
+           - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:807:3
+
+    Error Context: test-results\capturas-fase-2-usuarios-f-2182d-es-y-confirmación-de-riesgo-chromium-360\error-context.md
+
+  12) [chromium-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      823 |           ? 'No hay barberos para mostrar.'
+      824 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 825 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      826 |     const control =
+      827 |       estado === 'carga'
+      828 |         ? movil(page)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:825:60
+
+    Error Context: test-results\capturas-fase-2-barberos-en-estado-error-simulado-chromium-360\error-context.md
+
+  13) [chromium-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      874 |           ? 'No hay reservas en esta página con los filtros aplicados.'
+      875 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 876 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      877 |     await capturarFase2(
+      878 |       page,
+      879 |       info,
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:876:60
+
+    Error Context: test-results\capturas-fase-2-reportes-en-estado-error-simulado-chromium-360\error-context.md
+
+  14) [firefox-1440] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ────────
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"A","id":""}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('link', { name: 'Volver al registro', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"A","id":""} getByRole('link', { name: 'Volver al registro', exact: true }) with timeout 15000ms
+      - waiting for getByRole('link', { name: 'Volver al registro', exact: true })
+        33 × locator resolved to <a mat-button="" href="/registro" routerlink="/registro" _ngcontent-ng-c2366167385="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed">…</a>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:559:3
+
+    Error Context: test-results\capturas-fase-2-ingresar-registro-y-privacidad-firefox-1440\error-context.md
+
+  15) [firefox-1440] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"INPUT","id":"mat-input-1"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('button', { name: 'Guardar contraseña', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"INPUT","id":"mat-input-1"} getByRole('button', { name: 'Guardar contraseña', exact: true }) with timeout 15000ms
+      - waiting for getByRole('button', { name: 'Guardar contraseña', exact: true })
+        33 × locator resolved to <button type="submit" mat-flat-button="" _ngcontent-ng-c3766464137="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:580:3
+
+    Error Context: test-results\capturas-fase-2-Mi-cuenta--88ad5-ña-voluntaria-y-obligatoria-firefox-1440\error-context.md
+
+  16) [firefox-1440] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'Nuevo servicio', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+    Expected: "2px"
+    Received: "0px"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('dialog', { name: 'Nuevo servicio', exact: true }).getByRole('button', { name: 'Cancelar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Nuevo servicio', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+        33 × locator resolved to <button mat-button="" type="button" _ngcontent-ng-c2238134870="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed">…</button>
+           - unexpected value "0px"
+
+
+      510 |   await page.keyboard.press('Shift+Tab');
+      511 |   await focoVisible(control);
+    > 512 |   await expect(control).toHaveCSS('outline-offset', '2px');
+          |                         ^
+      513 |   const ancho = page.viewportSize()!.width;
+      514 |   const clave = `${nombre}${ancho}`;
+      515 |   await capturar(page, info, clave, estado === 'carga', 't-57');
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:512:25)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:628:3
+
+    Error Context: test-results\capturas-fase-2-servicios-tarjetas-intermedias-y-diálogo-firefox-1440\error-context.md
+
+  17) [firefox-1440] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-0"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('dialog', { name: 'Nuevo barbero', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-0"} getByRole('dialog', { name: 'Nuevo barbero', exact: true }).getByRole('button', { name: 'Cancelar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Nuevo barbero', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+        33 × locator resolved to <button mat-button="" type="button" _ngcontent-ng-c3270202485="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:648:3
+
+    Error Context: test-results\capturas-fase-2-barberos-a-39120-ticia-y-contraseña-temporal-firefox-1440\error-context.md
+
+  18) [firefox-1440] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"BUTTON","id":""}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('combobox', { name: 'Barbero', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"BUTTON","id":""} getByRole('combobox', { name: 'Barbero', exact: true }) with timeout 15000ms
+      - waiting for getByRole('combobox', { name: 'Barbero', exact: true })
+        33 × locator resolved to <mat-select tabindex="0" role="combobox" id="mat-select-0" aria-invalid="false" aria-expanded="false" aria-required="false" aria-disabled="false" aria-haspopup="listbox" _ngcontent-ng-c2209460317="" aria-labelledby="mat-mdc-form-field-label-0" class="mat-mdc-select mat-mdc-select-empty ng-pristine ng-valid ng-touched">…</mat-select>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:682:3
+
+    Error Context: test-results\capturas-fase-2-horarios-s-c1200-cha-completa-de-1200-a-1440-firefox-1440\error-context.md
+
+  19) [firefox-1440] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      728 |       .locator('app-reporte-cifras .estadistica')
+      729 |       .evaluateAll((elementos) => elementos.every((e) => e.scrollWidth <= e.clientWidth)),
+    > 730 |   ).toBe(true);
+          |     ^
+      731 |   const [total, ...estados] = posiciones;
+      732 |   if (page.viewportSize()!.width < 768) {
+      733 |     expect(total.width).toBeGreaterThan(estados[0].width * 2);
+        at comprobarCifras (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:730:5)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:758:5
+
+    Error Context: test-results\capturas-fase-2-reportes-c-b8101-uilibradas-e-historial-real-firefox-1440\error-context.md
+
+  20) [firefox-1440] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+        - locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed cdk-focused cdk-keyboard-focused">…</button>
+        32 × unexpected value "none"
+           - locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed">…</button>
+        - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:807:3
+
+    Error Context: test-results\capturas-fase-2-usuarios-f-2182d-es-y-confirmación-de-riesgo-firefox-1440\error-context.md
+
+  21) [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado ──────
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-1"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('button', { name: 'Aplicar', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-1"} getByRole('button', { name: 'Aplicar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('button', { name: 'Aplicar', exact: true })
+        33 × locator resolved to <button type="submit" mat-flat-button="" _ngcontent-ng-c2911205256="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:877:5
+
+    Error Context: test-results\capturas-fase-2-reportes-en-estado-carga-simulado-firefox-1440\error-context.md
+
+  22) [firefox-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      823 |           ? 'No hay barberos para mostrar.'
+      824 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 825 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      826 |     const control =
+      827 |       estado === 'carga'
+      828 |         ? movil(page)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:825:60
+
+    Error Context: test-results\capturas-fase-2-barberos-en-estado-error-simulado-firefox-1440\error-context.md
+
+  23) [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      874 |           ? 'No hay reservas en esta página con los filtros aplicados.'
+      875 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 876 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      877 |     await capturarFase2(
+      878 |       page,
+      879 |       info,
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:876:60
+
+    Error Context: test-results\capturas-fase-2-reportes-en-estado-error-simulado-firefox-1440\error-context.md
+
+  24) [firefox-360] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ─────────
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"A","id":""}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('link', { name: 'Volver al registro', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"A","id":""} getByRole('link', { name: 'Volver al registro', exact: true }) with timeout 15000ms
+      - waiting for getByRole('link', { name: 'Volver al registro', exact: true })
+        33 × locator resolved to <a mat-button="" href="/registro" routerlink="/registro" _ngcontent-ng-c2366167385="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed">…</a>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:559:3
+
+    Error Context: test-results\capturas-fase-2-ingresar-registro-y-privacidad-firefox-360\error-context.md
+
+  25) [firefox-360] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"INPUT","id":"mat-input-1"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('button', { name: 'Guardar contraseña', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"INPUT","id":"mat-input-1"} getByRole('button', { name: 'Guardar contraseña', exact: true }) with timeout 15000ms
+      - waiting for getByRole('button', { name: 'Guardar contraseña', exact: true })
+        33 × locator resolved to <button type="submit" mat-flat-button="" _ngcontent-ng-c3766464137="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:596:3
+
+    Error Context: test-results\capturas-fase-2-Mi-cuenta--88ad5-ña-voluntaria-y-obligatoria-firefox-360\error-context.md
+
+  26) [firefox-360] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"INPUT","id":"mat-input-0"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('dialog', { name: 'Nuevo servicio', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"INPUT","id":"mat-input-0"} getByRole('dialog', { name: 'Nuevo servicio', exact: true }).getByRole('button', { name: 'Cancelar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Nuevo servicio', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+        33 × locator resolved to <button mat-button="" type="button" _ngcontent-ng-c2238134870="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:628:3
+
+    Error Context: test-results\capturas-fase-2-servicios-tarjetas-intermedias-y-diálogo-firefox-360\error-context.md
+
+  27) [firefox-360] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-0"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('dialog', { name: 'Nuevo barbero', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-0"} getByRole('dialog', { name: 'Nuevo barbero', exact: true }).getByRole('button', { name: 'Cancelar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Nuevo barbero', exact: true }).getByRole('button', { name: 'Cancelar', exact: true })
+        33 × locator resolved to <button mat-button="" type="button" _ngcontent-ng-c3270202485="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:648:3
+
+    Error Context: test-results\capturas-fase-2-barberos-a-39120-ticia-y-contraseña-temporal-firefox-360\error-context.md
+
+  28) [firefox-360] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+
+    Error: {"ventanaActiva":true,"etiqueta":"Abrir cuenta","elemento":"BUTTON","id":""}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('combobox', { name: 'Barbero', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":"Abrir cuenta","elemento":"BUTTON","id":""} getByRole('combobox', { name: 'Barbero', exact: true }) with timeout 15000ms
+      - waiting for getByRole('combobox', { name: 'Barbero', exact: true })
+        33 × locator resolved to <mat-select tabindex="0" role="combobox" id="mat-select-0" aria-invalid="false" aria-expanded="false" aria-required="false" aria-disabled="false" aria-haspopup="listbox" _ngcontent-ng-c2209460317="" aria-labelledby="mat-mdc-form-field-label-0" class="mat-mdc-select mat-mdc-select-empty ng-pristine ng-valid ng-touched">…</mat-select>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:682:3
+
+    Error Context: test-results\capturas-fase-2-horarios-s-c1200-cha-completa-de-1200-a-1440-firefox-360\error-context.md
+
+  29) [firefox-360] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+    Expected: "solid"
+    Received: "none"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveCSS" getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('dialog', { name: 'Desactivar Carlos', exact: true }).getByRole('button', { name: 'Desactivar', exact: true })
+        - locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed cdk-focused cdk-keyboard-focused">…</button>
+        32 × unexpected value "none"
+           - locator resolved to <button type="button" _ngcontent-ng-c1764754539="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base riesgo mdc-button--outlined mat-mdc-outlined-button mat-unthemed">…</button>
+        - unexpected value "none"
+
+
+      127 |   }));
+      128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+    > 129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+          |                         ^
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+      132 | }
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:129:25)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:807:3
+
+    Error Context: test-results\capturas-fase-2-usuarios-f-2182d-es-y-confirmación-de-riesgo-firefox-360\error-context.md
+
+  30) [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado carga simulado ───────
+
+    Error: {"ventanaActiva":true,"etiqueta":"Abrir menú","elemento":"BUTTON","id":""}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('button', { name: 'Abrir cuenta', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":"Abrir menú","elemento":"BUTTON","id":""} getByRole('button', { name: 'Abrir cuenta', exact: true }) with timeout 15000ms
+      - waiting for getByRole('button', { name: 'Abrir cuenta', exact: true })
+        33 × locator resolved to <button mat-button="" aria-haspopup="menu" aria-expanded="false" appregionmenu="Cuenta" aria-label="Abrir cuenta" _ngcontent-ng-c1725732517="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mat-mdc-menu-trigger cuenta mat-mdc-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:835:5
+
+    Error Context: test-results\capturas-fase-2-barberos-en-estado-carga-simulado-firefox-360\error-context.md
+
+  31) [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado ───────
+
+    Error: {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-1"}
+
+    expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('button', { name: 'Aplicar', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  15000ms
+
+    Call log:
+      - {"ventanaActiva":true,"etiqueta":null,"elemento":"MAT-SELECT","id":"mat-select-1"} getByRole('button', { name: 'Aplicar', exact: true }) with timeout 15000ms
+      - waiting for getByRole('button', { name: 'Aplicar', exact: true })
+        33 × locator resolved to <button type="submit" mat-flat-button="" _ngcontent-ng-c2911205256="" mat-ripple-loader-class-name="mat-mdc-button-ripple" class="mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed">…</button>
+           - unexpected value "inactive"
+
+
+      126 |     id: document.activeElement?.id,
+      127 |   }));
+    > 128 |   await expect(control, JSON.stringify(actual)).toBeFocused();
+          |                                                 ^
+      129 |   await expect(control).toHaveCSS('outline-style', 'solid');
+      130 |   await expect(control).toHaveCSS('outline-width', '3px');
+      131 |   await expect(control).toHaveCSS('outline-color', 'rgb(20, 92, 67)');
+        at focoVisible (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:128:49)
+        at capturarFase2 (D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:511:3)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:877:5
+
+    Error Context: test-results\capturas-fase-2-reportes-en-estado-carga-simulado-firefox-360\error-context.md
+
+  32) [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ───────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#mat-snack-bar-container-live-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      823 |           ? 'No hay barberos para mostrar.'
+      824 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 825 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      826 |     const control =
+      827 |       estado === 'carga'
+      828 |         ? movil(page)
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:825:60
+
+    Error Context: test-results\capturas-fase-2-barberos-en-estado-error-simulado-firefox-360\error-context.md
+
+  33) [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ───────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) resolved to 2 elements:
+        1) <p _ngcontent-ng-c968429220="">No pudimos completar la solicitud. Intente nuevam…</p> aka locator('#contenido').getByText('No pudimos completar la')
+        2) <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label"> No pudimos completar la solicitud. Intente nueva…</div> aka locator('#cdk-overlay-0').getByText('No pudimos completar la')
+
+    Call log:
+      - Expect "toBeVisible" getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true }) with timeout 15000ms
+      - waiting for getByText('No pudimos completar la solicitud. Intente nuevamente.', { exact: true })
+
+
+      874 |           ? 'No hay reservas en esta página con los filtros aplicados.'
+      875 |           : 'No pudimos completar la solicitud. Intente nuevamente.';
+    > 876 |     await expect(page.getByText(mensaje, { exact: true })).toBeVisible();
+          |                                                            ^
+      877 |     await capturarFase2(
+      878 |       page,
+      879 |       info,
+        at D:\Proyectos\BarberTurno\frontend\e2e\capturas.spec.ts:876:60
+
+    Error Context: test-results\capturas-fase-2-reportes-en-estado-error-simulado-firefox-360\error-context.md
+
+  33 failed
+    [chromium-1440] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ─────────
+    [chromium-1440] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+    [chromium-1440] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real
+    [chromium-1440] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+    [chromium-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ───────
+    [chromium-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ───────
+    [chromium-360] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ──────────
+    [chromium-360] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo
+    [chromium-360] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal
+    [chromium-360] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+    [chromium-360] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+    [chromium-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ────────
+    [chromium-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ────────
+    [firefox-1440] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ──────────
+    [firefox-1440] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria
+    [firefox-1440] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo
+    [firefox-1440] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal
+    [firefox-1440] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+    [firefox-1440] › e2e\capturas.spec.ts:745:5 › fase 2: reportes con cifras equilibradas e historial real
+    [firefox-1440] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+    [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado ────────
+    [firefox-1440] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ────────
+    [firefox-1440] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ────────
+    [firefox-360] › e2e\capturas.spec.ts:543:5 › fase 2: ingresar, registro y privacidad ───────────
+    [firefox-360] › e2e\capturas.spec.ts:567:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria
+    [firefox-360] › e2e\capturas.spec.ts:605:5 › fase 2: servicios, tarjetas intermedias y diálogo ─
+    [firefox-360] › e2e\capturas.spec.ts:636:5 › fase 2: barberos, alta real ficticia y contraseña temporal
+    [firefox-360] › e2e\capturas.spec.ts:673:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440
+    [firefox-360] › e2e\capturas.spec.ts:762:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo
+    [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado carga simulado ─────────
+    [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado carga simulado ─────────
+    [firefox-360] › e2e\capturas.spec.ts:812:7 › fase 2: barberos en estado error simulado ─────────
+    [firefox-360] › e2e\capturas.spec.ts:844:7 › fase 2: reportes en estado error simulado ─────────
+  55 passed (21.6m)

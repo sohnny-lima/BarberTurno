@@ -34,4 +34,16 @@ describe('Entrega de contraseña temporal', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No pudimos copiarla');
   });
+  it('agrupa contraseña y Copiar, conserva el aviso y solo ofrece Cerrar como salida', () => {
+    const f = TestBed.createComponent(PasswordTemporalDialogo);
+    f.detectChanges();
+    const raiz: HTMLElement = f.nativeElement;
+    expect(raiz.querySelector('.credencial .password')?.textContent).toBe('Ficticia123');
+    expect(raiz.querySelector('.credencial button')?.textContent?.trim()).toBe('Copiar');
+    expect(raiz.querySelector('.aviso')?.textContent).toContain('Deberá cambiarla al ingresar.');
+    const salidas = raiz.querySelectorAll('[mat-dialog-close]');
+    expect(salidas).toHaveLength(1);
+    expect(salidas[0].textContent?.trim()).toBe('Cerrar');
+    expect(raiz.querySelectorAll('button')).toHaveLength(2);
+  });
 });

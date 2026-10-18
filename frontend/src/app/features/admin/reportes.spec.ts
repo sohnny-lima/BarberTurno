@@ -1,3 +1,5 @@
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { BehaviorSubject } from 'rxjs';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -30,9 +32,15 @@ const PAGINA = {
 
 describe('Reportes e historial operativo', () => {
   let http: HttpTestingController;
+  let cambios: BehaviorSubject<BreakpointState>;
   beforeEach(() => {
+    cambios = new BehaviorSubject<BreakpointState>({ matches: true, breakpoints: {} });
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: BreakpointObserver, useValue: { observe: () => cambios } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -256,5 +264,86 @@ describe('Reportes e historial operativo', () => {
     fixture.destroy();
     expect(peticiones.resumen.cancelled).toBe(true);
     expect(peticiones.historial.cancelled).toBe(true);
+  });
+
+  it('mantiene los seis datos del historial al alternar tabla y tarjetas sin duplicar filas', () => {
+    const f = crear();
+    const dom = f.nativeElement as HTMLElement;
+    for (const ancho of [360, 1024, 1199, 1200, 1440, 360]) {
+      cambios.next({ matches: ancho >= 1200, breakpoints: {} });
+      f.detectChanges();
+      expect(dom.querySelectorAll('table')).toHaveLength(ancho >= 1200 ? 1 : 0);
+      expect(dom.querySelectorAll('[role="list"]')).toHaveLength(ancho < 1200 ? 1 : 0);
+      const filas = dom.querySelectorAll(ancho >= 1200 ? 'tbody tr' : '[role="listitem"]');
+      expect(filas).toHaveLength(1);
+      for (const dato of [
+        RESERVA_PRUEBA.codigo,
+        '05/10/2026',
+        '10:00',
+        RESERVA_PRUEBA.cliente.nombre,
+        RESERVA_PRUEBA.servicio.nombre,
+        RESERVA_PRUEBA.barbero.nombre,
+        'Confirmada',
+      ]) {
+        expect(filas[0].textContent).toContain(dato);
+      }
+    }
+  });
+
+  it('presenta Total primero y conserva valor, máximo y etiqueta de ambas barras', () => {
+    const f = crear();
+    const dom = f.nativeElement as HTMLElement;
+    expect(dom.querySelector('.estadistica.total')?.textContent).toContain('Total');
+    expect(dom.querySelector('.estadistica strong')?.textContent).toBe('12');
+    for (const [id, nombre] of [
+      ['servicio-3', 'Corte'],
+      ['barbero-5', 'Profesional ficticio'],
+    ]) {
+      const label = dom.querySelector('label[for="' + id + '"]')!;
+      expect(label.textContent?.replace(/\s+/g, ' ').trim()).toBe(nombre + ': 12 de 12');
+      const barra = dom.querySelector('#' + id) as HTMLProgressElement;
+      expect(barra.value).toBe(12);
+      expect(barra.max).toBe(12);
+      expect(barra.labels![0]).toBe(label);
+    }
+  });
+
+  it('la carga se anuncia y el error general permite reintentar desde su alerta', () => {
+    const f = crear(false);
+    expect(f.nativeElement.querySelector('[role="status"]').textContent).toContain(
+      'Consultando reportes e historial…',
+    );
+    const peticiones = pendientes();
+    peticiones.resumen.flush({}, { status: 503, statusText: 'Service Unavailable' });
+    expect(peticiones.historial.cancelled).toBe(true);
+    f.detectChanges();
+    const alerta = f.nativeElement.querySelector('[role="alert"]');
+    expect(alerta.textContent).toContain('No pudimos completar la solicitud. Intente nuevamente.');
+    alerta.querySelector('button').click();
+    const nuevas = pendientes();
+    nuevas.resumen.flush(RESUMEN);
+    nuevas.historial.flush(PAGINA);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('el error de catálogos conserva su texto y reintenta ambas listas incluyendo inactivos', () => {
+    const f = TestBed.createComponent(Reportes);
+    http
+      .expectOne('/api/servicios?incluirInactivos=true')
+      .flush({}, { status: 503, statusText: 'Service Unavailable' });
+    http.expectOne('/api/barberos?incluirInactivos=true');
+    const peticiones = pendientes();
+    peticiones.resumen.flush(RESUMEN);
+    peticiones.historial.flush(PAGINA);
+    f.detectChanges();
+    const alerta = f.nativeElement.querySelector('[role="alert"]');
+    expect(alerta.textContent).toContain('No pudimos cargar los servicios y profesionales.');
+    expect(alerta.querySelector('button').textContent).toContain('Reintentar catálogos');
+    alerta.querySelector('button').click();
+    http.expectOne('/api/servicios?incluirInactivos=true').flush([]);
+    http.expectOne('/api/barberos?incluirInactivos=true').flush([]);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 });

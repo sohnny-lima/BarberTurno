@@ -1,8 +1,9 @@
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { of, Subject } from 'rxjs';
+import { BehaviorSubject, of, Subject } from 'rxjs';
 import { ConfirmarEstadoDatos } from '../../shared/confirmar-estado-dialogo';
 import { PasswordTemporalDialogo } from './password-temporal-dialogo';
 import { Usuarios } from './usuarios';
@@ -17,16 +18,19 @@ const cliente = {
 };
 describe('Gestión de usuarios', () => {
   let http: HttpTestingController;
+  let cambios: BehaviorSubject<BreakpointState>;
   let cierre: Subject<boolean>;
   let temporalCierre: Subject<void>;
   const dialogos = { open: vi.fn() };
   beforeEach(() => {
+    cambios = new BehaviorSubject<BreakpointState>({ matches: true, breakpoints: {} });
     cierre = new Subject();
     temporalCierre = new Subject();
     dialogos.open.mockReset();
     TestBed.configureTestingModule({
       imports: [Usuarios],
       providers: [
+        { provide: BreakpointObserver, useValue: { observe: () => cambios } },
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: MatDialog, useValue: dialogos },
@@ -80,6 +84,7 @@ describe('Gestión de usuarios', () => {
     s.restablecer(cliente);
     expect(dialogos.open).toHaveBeenCalledTimes(1);
     const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
+    expect(datos.riesgo).toBeUndefined();
     datos.cambiar().subscribe();
     const req = http.expectOne('/api/usuarios/9/restablecer-password');
     expect(req.request.method).toBe('POST');
@@ -111,6 +116,7 @@ describe('Gestión de usuarios', () => {
     s.cambiarEstado(cliente);
     const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
     expect(datos.activar).toBe(false);
+    expect(datos.riesgo).toBe(true);
     datos.cambiar().subscribe();
     const req = http.expectOne('/api/usuarios/9/estado');
     expect(req.request.method).toBe('PATCH');
@@ -133,5 +139,106 @@ describe('Gestión de usuarios', () => {
       .flush({ detail: 'No disponible' }, { status: 503, statusText: 'Service Unavailable' });
     expect(s.mensaje()).toBe('No pudimos completar la solicitud. Intente nuevamente.');
     expect(s.filas()).toEqual([]);
+  });
+
+  it('tabla de cinco columnas y tarjetas conservan datos, nombres, acciones y riesgo', () => {
+    const f = preparar();
+    const dom = f.nativeElement as HTMLElement;
+    const restablecer = vi
+      .spyOn(f.componentInstance, 'restablecer')
+      .mockImplementation(() => undefined);
+    const cambiar = vi
+      .spyOn(f.componentInstance, 'cambiarEstado')
+      .mockImplementation(() => undefined);
+    const inactivo = {
+      ...cliente,
+      id: 10,
+      nombre: 'Personal ficticio',
+      correo: 'personal@ejemplo.test',
+      telefono: '',
+      rol: 'ADMIN' as const,
+      activo: false,
+      debeCambiarPassword: true,
+    };
+    const barbero = { ...cliente, id: 11, nombre: 'Barbero ficticio', rol: 'BARBERO' as const };
+    f.componentInstance.filas.set([cliente, inactivo, barbero]);
+    for (const ancho of [360, 1024, 1199, 1200, 1440, 360]) {
+      cambios.next({ matches: ancho >= 1200, breakpoints: {} });
+      f.detectChanges();
+      expect(dom.querySelectorAll('table')).toHaveLength(ancho >= 1200 ? 1 : 0);
+      expect(dom.querySelectorAll('[role="list"]')).toHaveLength(ancho < 1200 ? 1 : 0);
+      if (ancho >= 1200)
+        expect(Array.from(dom.querySelectorAll('thead th'), (c) => c.textContent?.trim())).toEqual([
+          'Nombre',
+          'Teléfono',
+          'Rol',
+          'Acceso',
+          'Acciones',
+        ]);
+      const filas = dom.querySelectorAll(ancho >= 1200 ? 'tbody tr' : '[role="listitem"]');
+      expect(filas).toHaveLength(3);
+      for (const [i, u] of [cliente, inactivo, barbero].entries()) {
+        for (const dato of [
+          u.nombre,
+          u.correo,
+          u.telefono || '—',
+          f.componentInstance.nombresRol[u.rol],
+          u.activo ? 'Activo' : 'Inactivo',
+          u.debeCambiarPassword ? 'Cambio obligatorio' : 'Personal',
+        ])
+          expect(filas[i].textContent).toContain(dato);
+        const botones = filas[i].querySelectorAll('button');
+        expect(botones).toHaveLength(2);
+        expect(botones[0].getAttribute('aria-label')).toBe('Restablecer contraseña de ' + u.nombre);
+        expect(botones[1].getAttribute('aria-label')).toBe(
+          (u.activo ? 'Desactivar ' : 'Activar ') + u.nombre,
+        );
+        expect(botones[1].classList.contains('riesgo')).toBe(u.activo);
+        botones[0].click();
+        botones[1].click();
+        expect(restablecer).toHaveBeenLastCalledWith(u);
+        expect(cambiar).toHaveBeenLastCalledWith(u);
+      }
+      expect(filas[1].querySelector('.pendiente')?.textContent).toContain('Cambio obligatorio');
+      expect(filas[1].querySelector('.inactivo')?.textContent).toContain('Inactivo');
+      f.componentInstance.operando.set(true);
+      f.detectChanges();
+      expect(
+        Array.from(
+          dom.querySelectorAll('app-lista-adaptable button'),
+          (b) => (b as HTMLButtonElement).disabled,
+        ),
+      ).toEqual(Array(6).fill(true));
+      f.componentInstance.operando.set(false);
+    }
+  });
+
+  it('Activar mantiene la confirmación sin estilo de riesgo', () => {
+    const s = preparar().componentInstance;
+    dialogos.open.mockReturnValue({ afterClosed: () => of(false) });
+    s.cambiarEstado({ ...cliente, activo: false });
+    const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
+    expect(datos.activar).toBe(true);
+    expect(datos.riesgo).toBe(false);
+    http.expectNone('/api/usuarios/9/estado');
+  });
+
+  it('anuncia carga y permite recuperar el error desde la alerta', () => {
+    const f = TestBed.createComponent(Usuarios);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[role="status"]').textContent).toContain(
+      'Buscando usuarios…',
+    );
+    http
+      .expectOne((r) => r.url === '/api/usuarios')
+      .flush({}, { status: 503, statusText: 'Service Unavailable' });
+    f.detectChanges();
+    const alerta = f.nativeElement.querySelector('[role="alert"]');
+    expect(alerta.textContent).toContain('No pudimos completar la solicitud. Intente nuevamente.');
+    alerta.querySelector('button').click();
+    http.expectOne((r) => r.url === '/api/usuarios').flush({ contenido: [], totalElementos: 0 });
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('No se encontraron usuarios.');
+    expect(f.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 });

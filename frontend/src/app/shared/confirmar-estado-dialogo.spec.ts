@@ -1,10 +1,13 @@
+import { MatButton } from '@angular/material/button';
+import { By } from '@angular/platform-browser';
+import { Subject } from 'rxjs';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { map } from 'rxjs';
 import { BarberosApi } from '../core/api/barberos-api';
-import { ConfirmarEstadoDialogo } from './confirmar-estado-dialogo';
+import { ConfirmarEstadoDatos, ConfirmarEstadoDialogo } from './confirmar-estado-dialogo';
 
 describe('Confirmación de desactivación de barbero', () => {
   let http: HttpTestingController;
@@ -76,4 +79,42 @@ describe('Confirmación de desactivación de barbero', () => {
     expect(fixture.componentInstance.guardando()).toBe(false);
     expect(referencia.close).not.toHaveBeenCalled();
   });
+  it.each([undefined, false, true])(
+    'el riesgo = %s es explícito y Cerrar conserva el estilo normal tras completar',
+    (riesgo) => {
+      const respuesta = new Subject<number>();
+      const cambiar = vi.fn(() => respuesta);
+      Object.assign(TestBed.inject<ConfirmarEstadoDatos>(MAT_DIALOG_DATA), {
+        nombre: 'Ficticio',
+        activar: false,
+        riesgo,
+        boton: 'Restablecer contraseña',
+        cambiar,
+      });
+      const f = TestBed.createComponent(ConfirmarEstadoDialogo);
+      f.detectChanges();
+      const accion = f.debugElement.query(By.css('app-accion-dialogo'));
+      const boton = accion.query(By.directive(MatButton)).componentInstance as MatButton;
+      expect(boton.appearance).toBe(riesgo ? 'outlined' : 'filled');
+      const confirmar: HTMLButtonElement = accion.nativeElement.querySelector('button');
+      expect(confirmar.classList.contains('riesgo')).toBe(riesgo === true);
+      expect(confirmar.textContent?.trim()).toBe('Restablecer contraseña');
+      expect(cambiar).not.toHaveBeenCalled();
+      confirmar.click();
+      f.detectChanges();
+      expect(confirmar.disabled).toBe(true);
+      expect(confirmar.textContent?.trim()).toBe('Guardando…');
+      confirmar.click();
+      expect(cambiar).toHaveBeenCalledOnce();
+      respuesta.next(3);
+      respuesta.complete();
+      f.detectChanges();
+      expect(f.nativeElement.querySelector('app-accion-dialogo')).toBeNull();
+      const cerrar = f.debugElement.query(By.directive(MatButton)).componentInstance as MatButton;
+      expect(cerrar.appearance).toBe('filled');
+      expect(f.nativeElement.querySelector('button').textContent.trim()).toBe('Cerrar');
+      f.nativeElement.querySelector('button').click();
+      expect(referencia.close).toHaveBeenCalledWith(true);
+    },
+  );
 });

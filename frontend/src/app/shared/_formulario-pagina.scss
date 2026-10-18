@@ -1,0 +1,27 @@
+// Estilos del contenido proyectado: se incluyen en la hoja de la página, nunca en la global.
+@mixin contenido {
+  mat-form-field {
+    width: 100%;
+    min-width: 0;
+  }
+  .ayuda {
+    font: 400 13px/18px var(--font-cuerpo);
+    color: var(--color-texto-2);
+    margin: 0 0 8px;
+  }
+  .acciones-formulario {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  @media (max-width: 767.98px) {
+    .acciones-formulario {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .acciones-formulario > [mat-flat-button] {
+      width: 100%;
+    }
+  }
+}

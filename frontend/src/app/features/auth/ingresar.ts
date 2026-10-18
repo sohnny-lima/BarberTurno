@@ -1,3 +1,7 @@
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { SeccionFormulario } from '../../shared/seccion-formulario';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { ComposicionAcceso } from '../../shared/composicion-acceso';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -11,8 +15,19 @@ import { errorCampo, mostrarErrores } from '../../shared/formulario';
 
 @Component({
   selector: 'app-ingresar',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, RouterLink],
+  imports: [
+    CabeceraPagina,
+    SeccionFormulario,
+    EstadoContenido,
+    ComposicionAcceso,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    RouterLink,
+  ],
   templateUrl: './ingresar.html',
+  styleUrl: './acceso.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Ingresar {

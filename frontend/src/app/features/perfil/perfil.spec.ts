@@ -61,4 +61,57 @@ describe('Perfil propio', () => {
       'El teléfono es obligatorio para el cliente.',
     );
   });
+
+  it('muestra dos secciones y un único título con la variante móvil de cuenta', () => {
+    const f = TestBed.createComponent(Perfil);
+    http.expectOne('/api/perfil').flush(perfil);
+    f.detectChanges();
+    expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+    expect(f.nativeElement.querySelector('.titulo-movil h1').textContent).toBe('Mi cuenta');
+    expect(
+      Array.from(f.nativeElement.querySelectorAll('h2'), (e) => (e as HTMLElement).textContent),
+    ).toEqual(['Datos personales', 'Seguridad']);
+    expect(f.nativeElement.querySelector('a[href="/cambiar-password"]').textContent.trim()).toBe(
+      'Cambiar contraseña',
+    );
+    expect(f.nativeElement.textContent).toContain(
+      'Cambie la contraseña con la que ingresa a BarberTurno.',
+    );
+  });
+
+  it('anuncia la carga, contiene el reintento en el error y recupera el formulario', () => {
+    const f = TestBed.createComponent(Perfil);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('form').getAttribute('aria-busy')).toBe('true');
+    expect(f.nativeElement.querySelector('[role=status]').textContent).toBe('Cargando…');
+    expect(f.nativeElement.querySelector('button[type=submit]').disabled).toBe(true);
+    http
+      .expectOne('/api/perfil')
+      .flush(
+        { detail: 'No se pudo cargar el perfil.' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+    f.detectChanges();
+    const alerta = f.nativeElement.querySelector('[role=alert]');
+    expect(alerta.textContent).toContain('No pudimos completar la solicitud. Intente nuevamente.');
+    expect(alerta.querySelector('button').textContent.trim()).toBe('Volver a cargar');
+    alerta.querySelector('button').click();
+    http.expectOne('/api/perfil').flush(perfil);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[role=alert]')).toBeNull();
+    expect(f.nativeElement.querySelector('form').getAttribute('aria-busy')).toBe('false');
+    expect(f.nativeElement.querySelector('[formControlName=nombre]').value).toBe(perfil.nombre);
+    expect(f.nativeElement.querySelector('button[type=submit]').disabled).toBe(false);
+  });
+  it('alinea el contenido a la izquierda y presenta el enlace de Seguridad contorneado', () => {
+    const f = TestBed.createComponent(Perfil);
+    http.expectOne('/api/perfil').flush(perfil);
+    f.detectChanges();
+    const raiz: HTMLElement = f.nativeElement;
+    const cuenta = getComputedStyle(raiz.querySelector('.pagina-cuenta')!);
+    expect(cuenta.maxWidth).toBe('720px');
+    expect(cuenta.marginInline).toBe('0px');
+    const enlace = raiz.querySelector('a[href="/cambiar-password"]')!;
+    expect(enlace.hasAttribute('mat-stroked-button')).toBe(true);
+  });
 });

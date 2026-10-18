@@ -6,6 +6,7 @@ import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
 import type { Pagina } from '../src/app/core/modelos/pagina';
 import type { ReservaDto } from '../src/app/core/modelos/reservas';
+import type { UsuarioAdminDto } from '../src/app/core/modelos/usuarios';
 
 let atencion: string;
 let cercana: string;
@@ -42,9 +43,20 @@ async function revisar(page: Page, testInfo: TestInfo, nombre: string) {
     nombre.startsWith('asistida-') ||
     nombre.startsWith('mis-citas') ||
     nombre === 'avisos-cliente' ||
-    nombre.startsWith('agenda-')
+    nombre.startsWith('agenda-') ||
+    nombre.startsWith('horarios') ||
+    nombre === 'reportes' ||
+    nombre === 'usuarios'
   ) {
-    await testInfo.attach(nombre, { body: await page.screenshot(), contentType: 'image/png' });
+    await testInfo.attach(nombre, {
+      body: await page.screenshot({
+        fullPage: nombre.startsWith('horarios') || nombre === 'reportes' || nombre === 'usuarios',
+        ...(['reportes', 'usuarios'].includes(nombre) || nombre.startsWith('horarios')
+          ? { path: testInfo.outputPath(nombre + '.png') }
+          : {}),
+      }),
+      contentType: 'image/png',
+    });
   }
   expect(
     await page.evaluate(
@@ -314,11 +326,30 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
     'Hasta las 11:30, hora de Lima',
   );
   await revisar(page, testInfo, 'reservar-confirmacion');
+  // Leer el cuerpo real antes de entregarlo a la SPA y permitir su navegación.
+  let creada!: ReservaDto;
+  await page.route(
+    '**/api/reservas',
+    async (ruta) => {
+      expect(ruta.request().method()).toBe('POST');
+      const cabeceras = await ruta.request().allHeaders();
+      const cookieCsrf = /(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(cabeceras['cookie'] ?? '')?.[1];
+      expect(!!cookieCsrf && decodeURIComponent(cookieCsrf) === cabeceras['x-xsrf-token']).toBe(
+        true,
+      );
+      expect((cabeceras['cookie'] ?? '').includes('BT_SESION=')).toBe(true);
+      const respuesta = await ruta.fetch({ maxRetries: 0, maxRedirects: 0 });
+      creada = (await respuesta.json()) as ReservaDto;
+      await ruta.fulfill({ response: respuesta });
+    },
+    { times: 1 },
+  );
   const respuesta = page.waitForResponse(
     (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
   );
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
-  const creada = await (await respuesta).json();
+  expect((await respuesta).status()).toBe(201);
+  expect(creada).toBeDefined();
   await expect(page).toHaveURL(/\/mis-citas/);
   expect(Date.now() - inicio).toBeLessThan(180_000);
   await testInfo.attach('usabilidad-automatizada', {
@@ -514,7 +545,47 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await expect(
     page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }),
   ).toBeVisible();
+  const viewportCatalogo = page.viewportSize()!;
+  for (const width of [1024, 1199, 1200]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole('table', { name: 'Servicios', exact: true })).toHaveCount(
+      width >= 1200 ? 1 : 0,
+    );
+    await expect(page.getByRole('list', { name: 'Servicios', exact: true })).toHaveCount(
+      width >= 1200 ? 0 : 1,
+    );
+    await expect(
+      page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page.getByRole('button', { name: 'Desactivar Corte clásico', exact: true }),
+    ).toHaveCount(1);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize(viewportCatalogo);
   await revisar(page, testInfo, 'servicios');
+  await page.getByRole('button', { name: 'Desactivar Corte clásico', exact: true }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Desactivar', exact: true }),
+  ).toHaveClass(/riesgo/);
+  const confirmacionEstado = page.getByRole('dialog');
+  await expect(
+    confirmacionEstado.getByRole('button', { name: 'Cancelar', exact: true }),
+  ).toBeFocused();
+  // Axe debe leer los colores finales, después de la transición pública de apertura.
+  await confirmacionEstado.evaluate(async (dialogo) => {
+    await Promise.all(
+      dialogo
+        .getAnimations({ subtree: true })
+        .map((animacion) => animacion.finished.catch(() => undefined)),
+    );
+  });
+  await revisar(page, testInfo, 'servicio-confirmacion');
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(
@@ -536,10 +607,133 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   );
   await page.getByRole('button', { name: 'Guardar servicio', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('table')).toContainText('Corte y acabado de demostración E2E');
+  const catalogo =
+    (page.viewportSize()?.width ?? 1440) >= 1200
+      ? page.getByRole('table', { name: 'Servicios', exact: true })
+      : page.getByRole('list', { name: 'Servicios', exact: true });
+  await expect(catalogo).toContainText('Corte y acabado de demostración E2E');
+  await page.goto('/admin/barberos');
+  await expect(
+    page.getByRole('button', { name: 'Editar barbero Carlos', exact: true }),
+  ).toHaveCount(1);
+  await revisar(page, testInfo, 'barberos');
+  await page.getByRole('button', { name: 'Nuevo barbero', exact: true }).click();
+  const altaBarbero = page.getByRole('dialog');
+  await expect(
+    altaBarbero.getByRole('combobox', { name: 'Tipo de alta', exact: true }),
+  ).toBeFocused();
+  const campoTipo = altaBarbero
+    .locator('mat-form-field')
+    .filter({ has: page.locator('mat-label', { hasText: 'Tipo de alta' }) });
+  const contenidoBarbero = altaBarbero.locator('mat-dialog-content');
+  const etiquetaTipo = await campoTipo.locator('mat-label').boundingBox();
+  const limiteContenido = await contenidoBarbero.boundingBox();
+  expect(etiquetaTipo!.y).toBeGreaterThanOrEqual(limiteContenido!.y);
+  const generar = altaBarbero.getByRole('button', { name: 'Generar', exact: true });
+  await generar.click();
+  await expect(altaBarbero.getByLabel('Contraseña temporal', { exact: true })).not.toHaveValue('');
+  const notaTemporal = altaBarbero.getByText(
+    'Tras crear la cuenta se mostrará una sola vez para comunicarla en persona.',
+    { exact: true },
+  );
+  await notaTemporal.scrollIntoViewIfNeeded();
+  const notaCaja = await notaTemporal.boundingBox();
+  const contenidoCaja = await contenidoBarbero.boundingBox();
+  expect(notaCaja!.y).toBeGreaterThanOrEqual(contenidoCaja!.y);
+  expect(notaCaja!.y + notaCaja!.height).toBeLessThanOrEqual(
+    contenidoCaja!.y + contenidoCaja!.height + 1,
+  );
+  const pieBarbero = await altaBarbero.locator('mat-dialog-actions').boundingBox();
+  expect(pieBarbero!.y + pieBarbero!.height).toBeLessThanOrEqual(page.viewportSize()!.height - 16);
+  await revisar(page, testInfo, 'barbero-dialogo');
+  await altaBarbero.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.goto('/admin/horarios');
+  await expect(
+    page.getByText('Elija un barbero para ver su semana y sus bloqueos.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('app-horarios .disposicion')).toHaveCount(0);
+  await revisar(page, testInfo, 'horarios-sin-barbero');
   await seleccionar(page, 'Barbero', 'Carlos');
   await expect(page.getByLabel('Lunes · Fin 2', { exact: true })).toBeVisible();
+  const viewportHorarios = page.viewportSize()!;
+  for (const width of [360, 1024, 1199, 1200, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const disposicion = page.locator('app-horarios .disposicion');
+    if (width >= 1200) await expect(disposicion).toHaveClass(/dos-columnas/);
+    else await expect(disposicion).not.toHaveClass(/dos-columnas/);
+    // Leer todas las cajas en el mismo frame: el navegador puede ajustar el scroll al redimensionar.
+    const { semana, bloqueos, alta } = await page.locator('app-horarios').evaluate((pagina) => {
+      const caja = (id: string) => {
+        const { x, y, width, height } = pagina
+          .querySelector('[aria-labelledby="' + id + '"]')!
+          .getBoundingClientRect();
+        return { x, y, width, height };
+      };
+      return {
+        semana: caja('titulo-semana'),
+        bloqueos: caja('titulo-bloqueos'),
+        alta: caja('titulo-alta'),
+      };
+    });
+    if (width >= 1200) {
+      expect(bloqueos!.x).toBeGreaterThan(semana!.x + semana!.width);
+      expect(Math.abs(bloqueos!.y - semana!.y)).toBeLessThan(1);
+      expect(semana!.width / bloqueos!.width).toBeCloseTo(2, 1);
+    } else {
+      expect(bloqueos!.y).toBeGreaterThan(semana!.y + semana!.height);
+      expect(bloqueos!.x).toBe(semana!.x);
+    }
+    expect(alta!.y).toBeGreaterThan(bloqueos!.y + bloqueos!.height);
+    if (width === 1200) {
+      await page.screenshot({ path: testInfo.outputPath('horarios-1200.png'), fullPage: true });
+    }
+    const rango = await page.locator('.rango').evaluate((e) => {
+      const campos = Array.from(e.querySelectorAll('input'));
+      const boton = e.querySelector('button')!.getBoundingClientRect();
+      const cajas = campos.map((c) => c.getBoundingClientRect());
+      return {
+        fuentes: campos.map((c) => getComputedStyle(c).fontSize),
+        fin: Math.max(...cajas.map((c) => c.bottom)),
+        botonY: boton.y,
+        anchoBoton: boton.width,
+        ancho: e.getBoundingClientRect().width,
+      };
+    });
+    expect(rango.fuentes).toEqual(['16px', '16px']);
+    expect(rango.botonY).toBeGreaterThan(rango.fin);
+    expect(rango.anchoBoton).toBeCloseTo(rango.ancho, 0);
+    expect(await page.getByLabel('Lunes · Fin 2', { exact: true }).inputValue()).toBe('18:00');
+    await expect(
+      page.getByRole('button', { name: 'Quitar intervalo 2 del Lunes', exact: true }),
+    ).toHaveCount(1);
+    const camposLunes = await page
+      .locator('.dia')
+      .first()
+      .locator('input')
+      .evaluateAll((campos) => {
+        const [inicio, fin] = campos.map((campo) => campo.getBoundingClientRect());
+        return {
+          inicio: { x: inicio.x, y: inicio.y, ancho: inicio.width },
+          fin: { x: fin.x, y: fin.y, ancho: fin.width },
+        };
+      });
+    expect(camposLunes.inicio.y).toBe(camposLunes.fin.y);
+    expect(camposLunes.fin.x).toBeGreaterThan(camposLunes.inicio.x);
+    expect(camposLunes.inicio.ancho).toBeCloseTo(camposLunes.fin.ancho, 0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize(viewportHorarios);
+  await page.getByLabel('Lunes · Fin 2', { exact: true }).focus();
+  await expect(page.getByLabel('Lunes · Fin 2', { exact: true })).toBeFocused();
+  expect(
+    await page
+      .getByLabel('Lunes · Fin 2', { exact: true })
+      .evaluate((campo) => getComputedStyle(campo).outlineStyle),
+  ).toBe('solid');
   await revisar(page, testInfo, 'horarios');
   await page.getByLabel('Lunes · Fin 2', { exact: true }).fill('18:10');
   await page.getByRole('button', { name: 'Guardar semana' }).click();
@@ -554,6 +748,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await page.getByLabel('Hora de fin', { exact: true }).fill('17:00');
   await page.getByRole('button', { name: 'Agregar bloqueo' }).click();
   await expect(page.getByRole('status').filter({ hasText: /creado|agregado/i })).toBeVisible();
+  await revisar(page, testInfo, 'horarios-bloqueo-creado');
   await page.goto('/admin/reportes');
   await page.getByLabel('Desde', { exact: true }).fill('2026-09-27');
   await page.getByLabel('Hasta', { exact: true }).fill('2026-10-01');
@@ -578,8 +773,72 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
         barras.map((b) => (b as HTMLProgressElement).value).sort((a, b) => a - b),
       ),
   ).toEqual([1, 6]);
-  await expect(page.locator('tbody tr')).toHaveCount(7);
+  const historial = page.locator('app-reporte-historial');
+  if (page.viewportSize()!.width >= 1200) {
+    await expect(historial.getByRole('table')).toHaveCount(1);
+    await expect(historial.locator('tbody tr')).toHaveCount(7);
+    await expect(historial.getByRole('listitem')).toHaveCount(0);
+  } else {
+    await expect(historial.getByRole('list', { name: 'Historial operativo' })).toBeVisible();
+    await expect(historial.getByRole('listitem')).toHaveCount(7);
+    await expect(historial.getByRole('table')).toHaveCount(0);
+  }
+  const columnasCifras = await page
+    .locator('.estadisticas')
+    .evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
+  if (page.viewportSize()!.width === 360) expect(columnasCifras).toBe(2);
   await revisar(page, testInfo, 'reportes');
+
+  // Solo lectura: estas cuentas siguen disponibles para los casos siguientes.
+  await page.goto('/admin/usuarios');
+  await expect(page.locator('app-usuarios app-lista-adaptable')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Rol', exact: true }).click();
+  await page.getByRole('option', { name: 'Barbero', exact: true }).click();
+  const consultaUsuarios = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === '/api/usuarios' &&
+      new URL(r.url()).searchParams.get('rol') === 'BARBERO',
+  );
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  const respuestaUsuarios = await consultaUsuarios;
+  expect(respuestaUsuarios.status()).toBe(200);
+  const usuarios = (await respuestaUsuarios.json()) as Pagina<UsuarioAdminDto>;
+  expect(usuarios.contenido.length).toBeGreaterThan(0);
+  const escritorioUsuarios = page.viewportSize()!.width >= 1200;
+  const listaUsuarios = page.locator('app-usuarios app-lista-adaptable');
+  await expect(listaUsuarios.getByRole('table')).toHaveCount(escritorioUsuarios ? 1 : 0);
+  await expect(listaUsuarios.getByRole('list')).toHaveCount(escritorioUsuarios ? 0 : 1);
+  const fichasUsuarios = listaUsuarios.locator(
+    escritorioUsuarios ? 'tbody tr' : '[role="listitem"]',
+  );
+  await expect(fichasUsuarios).toHaveCount(usuarios.contenido.length);
+  for (const [i, usuario] of usuarios.contenido.entries()) {
+    expect(usuario.rol).toBe('BARBERO');
+    const ficha = fichasUsuarios.nth(i);
+    await expect(ficha).toContainText(usuario.nombre);
+    await expect(ficha).toContainText(usuario.correo);
+    const correoVisible = ficha.getByText(usuario.correo, { exact: true });
+    await expect(correoVisible).toHaveCSS('font-size', '14px');
+    await expect(correoVisible).toHaveCSS('line-height', '20px');
+    await expect(ficha).toContainText('Barbero');
+    await expect(ficha).toContainText(usuario.activo ? 'Activo' : 'Inactivo');
+    await expect(ficha).toContainText(
+      usuario.debeCambiarPassword ? 'Cambio obligatorio' : 'Personal',
+    );
+    await expect(
+      ficha.getByRole('button', {
+        name: 'Restablecer contraseña de ' + usuario.nombre,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      ficha.getByRole('button', {
+        name: (usuario.activo ? 'Desactivar ' : 'Activar ') + usuario.nombre,
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  await revisar(page, testInfo, 'usuarios');
 });
 
 test('05 · cliente redirigido de administración y protegido después de logout', async ({
@@ -644,6 +903,11 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   page,
 }, testInfo) => {
   await page.goto('/registro');
+  const fotoRegistro = page.locator('app-composicion-acceso img');
+  if ((page.viewportSize()?.width ?? 1440) >= 1024) {
+    await expect(fotoRegistro).toBeVisible();
+    expect((await fotoRegistro.boundingBox())!.height).toBeLessThanOrEqual(640);
+  } else await expect(fotoRegistro).toBeHidden();
   const correo = `registro-${testInfo.project.name}@ejemplo.test`;
   await page.getByLabel('Nombre', { exact: true }).fill('Cliente E2E de registro');
   await page.getByLabel('Correo', { exact: true }).fill(correo);
@@ -665,7 +929,35 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   await expect(page.getByRole('status').filter({ hasText: 'Perfil guardado.' })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Cliente E2E actualizado');
+  const cuenta = page.locator('app-perfil .pagina-cuenta');
+  const seguridad = page.getByRole('link', { name: 'Cambiar contraseña', exact: true });
+  const parrafoSeguridad = page.getByText(
+    'Cambie la contraseña con la que ingresa a BarberTurno.',
+    { exact: true },
+  );
+  await expect(seguridad).toHaveAttribute('mat-stroked-button', '');
+  expect((await seguridad.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await seguridad.boundingBox())!.x).toBe((await parrafoSeguridad.boundingBox())!.x);
+  if ((page.viewportSize()?.width ?? 1440) >= 768) {
+    const marco = page.locator('main');
+    expect((await cuenta.boundingBox())!.x).toBe(
+      await marco.evaluate(
+        (e) => e.getBoundingClientRect().x + parseFloat(getComputedStyle(e).paddingLeft),
+      ),
+    );
+    expect((await cuenta.boundingBox())!.width).toBeLessThanOrEqual(720);
+  }
   await revisar(page, testInfo, 'perfil');
+  await seguridad.click();
+  await expect(page).toHaveURL(/\/cambiar-password$/);
+  const cambio = page.locator('app-cambiar-password .pagina-cuenta');
+  expect((await cambio.boundingBox())!.x).toBe(
+    await page
+      .locator('main')
+      .evaluate((e) => e.getBoundingClientRect().x + parseFloat(getComputedStyle(e).paddingLeft)),
+  );
+  expect((await cambio.boundingBox())!.width).toBeLessThanOrEqual(720);
+  await revisar(page, testInfo, 'cambiar-password');
 });
 
 async function salirConRespuesta(page: Page) {

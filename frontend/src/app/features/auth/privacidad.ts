@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-privacidad',
-  imports: [RouterLink],
-  template: `<section class="pagina-identidad tarjeta">
+  imports: [RouterLink, MatButtonModule],
+  template: `<section class="lectura">
     <h1>Aviso de privacidad</h1>
     <p>
       BarberTurno es un proyecto académico de una barbería ficticia de Huamanga. Este entorno
@@ -21,8 +22,9 @@ import { RouterLink } from '@angular/router';
       derechos de acceso, rectificación, cancelación y oposición deberán completarse y validarse
       antes de un uso real.
     </p>
-    <a routerLink="/registro">Volver al registro</a>
+    <a mat-button routerLink="/registro">Volver al registro</a>
   </section>`,
+  styleUrl: './privacidad.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Privacidad {}

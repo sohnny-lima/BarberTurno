@@ -1,0 +1,18 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: inline-block;
+}
+.riesgo {
+  @include mat.button-overrides(
+    (
+      outlined-label-text-color: var(--color-no-asistio),
+      outlined-outline-color: var(--color-riesgo-borde),
+    )
+  );
+}
+
+button:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}

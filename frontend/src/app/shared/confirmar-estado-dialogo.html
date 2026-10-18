@@ -24,8 +24,12 @@
     <button mat-flat-button (click)="referencia.close(true)">Cerrar</button>
   } @else {
     <button mat-button [disabled]="guardando()" (click)="referencia.close(false)">Cancelar</button>
-    <button mat-flat-button [disabled]="guardando()" (click)="confirmar()">
+    <app-accion-dialogo
+      [riesgo]="datos.riesgo ?? false"
+      [desactivada]="guardando()"
+      (confirmar)="confirmar()"
+    >
       {{ guardando() ? 'Guardando…' : (datos.boton ?? (datos.activar ? 'Activar' : 'Desactivar')) }}
-    </button>
+    </app-accion-dialogo>
   }
 </mat-dialog-actions>

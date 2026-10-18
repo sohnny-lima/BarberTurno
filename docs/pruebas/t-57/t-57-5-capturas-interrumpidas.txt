@@ -1,0 +1,194 @@
+
+> frontend@0.0.0 e2e:capturas
+> powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1 --config=playwright.capturas.config.ts
+
+
+> frontend@0.0.0 build
+> ng build
+
+> Building...
+√ Building...
+Initial chunk files | Names         |  Raw size | Estimated transfer size
+chunk-axkK9k7a.js   | -             | 230.38 kB |                66.41 kB
+main-J3OGGZUI.js    | main          | 158.33 kB |                37.99 kB
+chunk-5T2K18nx.js   | -             |  89.77 kB |                17.35 kB
+styles-7ZXSUYMQ.css | styles        |  17.91 kB |                 3.43 kB
+
+                    | Initial total | 496.39 kB |               125.18 kB
+
+Lazy chunk files    | Names         |  Raw size | Estimated transfer size
+chunk-DG50_bVK.js   | reservar      | 196.80 kB |                39.52 kB
+chunk-BrZL8atu.js   | -             | 107.69 kB |                19.23 kB
+chunk-BQ3Cs0tX.js   | -             |  68.35 kB |                13.11 kB
+chunk-sJzwixgE.js   | shell         |  44.85 kB |                 9.69 kB
+chunk-CXuNKOsa.js   | agenda        |  41.81 kB |                10.01 kB
+chunk-CR-gYxkh.js   | -             |  40.47 kB |                 9.44 kB
+chunk-BeCXW1zH.js   | -             |  30.14 kB |                 7.09 kB
+chunk-1s8h8aU7.js   | -             |  29.25 kB |                 4.87 kB
+chunk-Cx07pPoZ.js   | -             |  26.61 kB |                 5.94 kB
+chunk-CdazbjhZ.js   | -             |  26.36 kB |                 7.07 kB
+chunk-B-25Qeho.js   | horarios      |  22.68 kB |                 6.54 kB
+chunk-C4cf40er.js   | mis-citas     |  20.33 kB |                 5.78 kB
+chunk-D9mVIngN.js   | reportes      |  19.95 kB |                 5.60 kB
+chunk-hYCNzQZE.js   | barberos      |  18.39 kB |                 5.03 kB
+chunk-Nv_5n2OJ.js   | -             |  17.78 kB |                 4.83 kB
+...and 31 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [11.573 seconds] - 2026-10-18T00:57:20.221Z
+
+Output location: D:\Proyectos\BarberTurno\frontend\dist\frontend
+
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ---------------------< pe.barberturno:barberturno >---------------------
+[INFO] Building BarberTurno 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- clean:3.5.0:clean (default-clean) @ barberturno ---
+[INFO] Deleting D:\Proyectos\BarberTurno\backend\target
+[INFO]
+[INFO] --- dependency:3.10.0:properties (rutas-de-dependencias) @ barberturno ---
+[INFO]
+[INFO] --- jacoco:0.8.15:prepare-agent (prepare-agent) @ barberturno ---
+[INFO] argLine set to -javaagent:C:\\Users\\limas\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.15\\org.jacoco.agent-0.8.15-runtime.jar=destfile=D:\\Proyectos\\BarberTurno\\backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- exec:3.6.4:exec (frontend-instalar) @ barberturno ---
+[INFO] skipping execute as per configuration
+[INFO]
+[INFO] --- exec:3.6.4:exec (frontend-compilar) @ barberturno ---
+[INFO] skipping execute as per configuration
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ barberturno ---
+[INFO] Copying 5 resources from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- resources:3.5.0:copy-resources (frontend-empaquetar) @ barberturno ---
+[INFO] Copying 57 resources from ..\frontend\dist\frontend\browser to target\classes\static
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ barberturno ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 110 source files with javac [debug parameters release 21] to target\classes
+[INFO] /D:/Proyectos/BarberTurno/backend/src/main/java/pe/barberturno/reporting/ReporteRepository.java: D:\Proyectos\BarberTurno\backend\src\main\java\pe\barberturno\reporting\ReporteRepository.java uses or overrides a deprecated API.
+[INFO] /D:/Proyectos/BarberTurno/backend/src/main/java/pe/barberturno/reporting/ReporteRepository.java: Recompile with -Xlint:deprecation for details.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ barberturno ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ barberturno ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 58 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /D:/Proyectos/BarberTurno/backend/src/test/java/pe/barberturno/reservations/ReservaAsistidaIT.java: Some input files use or override a deprecated API.
+[INFO] /D:/Proyectos/BarberTurno/backend/src/test/java/pe/barberturno/reservations/ReservaAsistidaIT.java: Recompile with -Xlint:deprecation for details.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ barberturno ---
+[INFO] Tests are skipped.
+[INFO]
+[INFO] --- jar:3.5.1:jar (default-jar) @ barberturno ---
+[INFO] Building jar: D:\Proyectos\BarberTurno\backend\target\barberturno-0.0.1-SNAPSHOT.jar
+[INFO]
+[INFO] --- spring-boot:4.1.1:repackage (repackage) @ barberturno ---
+[INFO] Replacing main artifact D:\Proyectos\BarberTurno\backend\target\barberturno-0.0.1-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to D:\Proyectos\BarberTurno\backend\target\barberturno-0.0.1-SNAPSHOT.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  19.515 s
+[INFO] Finished at: 2026-10-17T19:57:43-05:00
+[INFO] ------------------------------------------------------------------------
+Base E2E: barberturno_test; limpieza antes y después de cada proyecto.
+
+Running 88 tests using 1 worker
+
+(node:68012) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium-1440] › e2e\capturas.spec.ts:167:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (7.2s)
+  ok  2 [chromium-1440] › e2e\capturas.spec.ts:241:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (4.9s)
+  ok  3 [chromium-1440] › e2e\capturas.spec.ts:274:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (3.4s)
+  ok  4 [chromium-1440] › e2e\capturas.spec.ts:303:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (2.3s)
+  ok  5 [chromium-1440] › e2e\capturas.spec.ts:340:5 › propuesta: Agenda del barbero en Día, Semana y carga (5.8s)
+  ok  6 [chromium-1440] › e2e\capturas.spec.ts:375:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (6.5s)
+  ok  7 [chromium-1440] › e2e\capturas.spec.ts:454:5 › propuesta: reserva asistida elige cliente desde el backend real (2.5s)
+  ok  8 [chromium-1440] › e2e\capturas.spec.ts:464:5 › propuesta: contraseña temporal con respuesta de sesión simulada (1.6s)
+  ok  9 [chromium-1440] › e2e\capturas.spec.ts:480:5 › foco al restaurar la selección que el visitante conserva para ingresar (4.4s)
+  ok 10 [chromium-1440] › e2e\capturas.spec.ts:566:5 › fase 2: ingresar, registro y privacidad (3.9s)
+  ok 11 [chromium-1440] › e2e\capturas.spec.ts:590:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (4.2s)
+  x  12 [chromium-1440] › e2e\capturas.spec.ts:628:5 › fase 2: servicios, tarjetas intermedias y diálogo (4.3s)
+(node:66728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 13 [chromium-1440] › e2e\capturas.spec.ts:659:5 › fase 2: barberos, alta real ficticia y contraseña temporal (5.8s)
+  ok 14 [chromium-1440] › e2e\capturas.spec.ts:696:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (9.4s)
+  ok 15 [chromium-1440] › e2e\capturas.spec.ts:775:5 › fase 2: reportes con cifras equilibradas e historial real (2.5s)
+  ok 16 [chromium-1440] › e2e\capturas.spec.ts:792:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (5.2s)
+  ok 17 [chromium-1440] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado carga simulado (1.6s)
+  ok 18 [chromium-1440] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado carga simulado (2.0s)
+  ok 19 [chromium-1440] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado vacio simulado (1.7s)
+  ok 20 [chromium-1440] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado vacio simulado (2.2s)
+  ok 21 [chromium-1440] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado error simulado (1.8s)
+  ok 22 [chromium-1440] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado error simulado (1.9s)
+(node:544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 23 [chromium-360] › e2e\capturas.spec.ts:167:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (6.9s)
+  ok 24 [chromium-360] › e2e\capturas.spec.ts:241:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (4.8s)
+  ok 25 [chromium-360] › e2e\capturas.spec.ts:274:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (3.4s)
+  ok 26 [chromium-360] › e2e\capturas.spec.ts:303:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (3.4s)
+  ok 27 [chromium-360] › e2e\capturas.spec.ts:340:5 › propuesta: Agenda del barbero en Día, Semana y carga (5.5s)
+  ok 28 [chromium-360] › e2e\capturas.spec.ts:375:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (8.2s)
+  ok 29 [chromium-360] › e2e\capturas.spec.ts:454:5 › propuesta: reserva asistida elige cliente desde el backend real (2.1s)
+  ok 30 [chromium-360] › e2e\capturas.spec.ts:464:5 › propuesta: contraseña temporal con respuesta de sesión simulada (1.6s)
+  ok 31 [chromium-360] › e2e\capturas.spec.ts:480:5 › foco al restaurar la selección que el visitante conserva para ingresar (4.2s)
+  ok 32 [chromium-360] › e2e\capturas.spec.ts:566:5 › fase 2: ingresar, registro y privacidad (3.7s)
+  ok 33 [chromium-360] › e2e\capturas.spec.ts:590:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (4.0s)
+  x  34 [chromium-360] › e2e\capturas.spec.ts:628:5 › fase 2: servicios, tarjetas intermedias y diálogo (2.9s)
+(node:54572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 35 [chromium-360] › e2e\capturas.spec.ts:659:5 › fase 2: barberos, alta real ficticia y contraseña temporal (5.6s)
+  ok 36 [chromium-360] › e2e\capturas.spec.ts:696:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (4.6s)
+  ok 37 [chromium-360] › e2e\capturas.spec.ts:775:5 › fase 2: reportes con cifras equilibradas e historial real (2.4s)
+  ok 38 [chromium-360] › e2e\capturas.spec.ts:792:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (3.8s)
+  ok 39 [chromium-360] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado carga simulado (1.6s)
+  ok 40 [chromium-360] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado carga simulado (2.1s)
+  ok 41 [chromium-360] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado vacio simulado (1.7s)
+  ok 42 [chromium-360] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado vacio simulado (2.2s)
+  ok 43 [chromium-360] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado error simulado (1.9s)
+  ok 44 [chromium-360] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado error simulado (1.9s)
+(node:68148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 45 [firefox-1440] › e2e\capturas.spec.ts:167:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (12.0s)
+  ok 46 [firefox-1440] › e2e\capturas.spec.ts:241:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (7.7s)
+  ok 47 [firefox-1440] › e2e\capturas.spec.ts:274:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (4.1s)
+  ok 48 [firefox-1440] › e2e\capturas.spec.ts:303:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (3.1s)
+  ok 49 [firefox-1440] › e2e\capturas.spec.ts:340:5 › propuesta: Agenda del barbero en Día, Semana y carga (9.1s)
+  ok 50 [firefox-1440] › e2e\capturas.spec.ts:375:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (11.0s)
+  ok 51 [firefox-1440] › e2e\capturas.spec.ts:454:5 › propuesta: reserva asistida elige cliente desde el backend real (3.6s)
+  ok 52 [firefox-1440] › e2e\capturas.spec.ts:464:5 › propuesta: contraseña temporal con respuesta de sesión simulada (2.7s)
+  ok 53 [firefox-1440] › e2e\capturas.spec.ts:480:5 › foco al restaurar la selección que el visitante conserva para ingresar (5.1s)
+  ok 54 [firefox-1440] › e2e\capturas.spec.ts:566:5 › fase 2: ingresar, registro y privacidad (7.3s)
+  ok 55 [firefox-1440] › e2e\capturas.spec.ts:590:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (6.8s)
+  ok 56 [firefox-1440] › e2e\capturas.spec.ts:628:5 › fase 2: servicios, tarjetas intermedias y diálogo (6.7s)
+  ok 57 [firefox-1440] › e2e\capturas.spec.ts:659:5 › fase 2: barberos, alta real ficticia y contraseña temporal (7.3s)
+  ok 58 [firefox-1440] › e2e\capturas.spec.ts:696:5 › fase 2: horarios sin selección y con Carlos; fecha completa de 1200 a 1440 (12.9s)
+  ok 59 [firefox-1440] › e2e\capturas.spec.ts:775:5 › fase 2: reportes con cifras equilibradas e historial real (3.4s)
+  ok 60 [firefox-1440] › e2e\capturas.spec.ts:792:5 › fase 2: usuarios, filtros compactos, acciones y confirmación de riesgo (7.9s)
+  ok 61 [firefox-1440] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado carga simulado (2.6s)
+  ok 62 [firefox-1440] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado carga simulado (2.7s)
+  ok 63 [firefox-1440] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado vacio simulado (2.8s)
+  ok 64 [firefox-1440] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado vacio simulado (4.6s)
+  ok 65 [firefox-1440] › e2e\capturas.spec.ts:842:7 › fase 2: barberos en estado error simulado (3.0s)
+  ok 66 [firefox-1440] › e2e\capturas.spec.ts:874:7 › fase 2: reportes en estado error simulado (3.3s)
+(node:70212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 67 [firefox-360] › e2e\capturas.spec.ts:167:5 › propuesta: Reservar pasos 1, 2 y 3, anchos intermedios y tabulación (11.4s)
+  ok 68 [firefox-360] › e2e\capturas.spec.ts:241:5 › propuesta: Mis citas, vacío y reprogramación de una cita real (7.0s)
+  ok 69 [firefox-360] › e2e\capturas.spec.ts:274:5 › propuesta: error de horas conserva la selección y el aviso sobre la barra (4.6s)
+  ok 70 [firefox-360] › e2e\capturas.spec.ts:303:5 › propuesta: avisos del cliente y menú de cuenta solo con teclado (5.2s)
+  ok 71 [firefox-360] › e2e\capturas.spec.ts:340:5 › propuesta: Agenda del barbero en Día, Semana y carga (8.5s)
+  ok 72 [firefox-360] › e2e\capturas.spec.ts:375:5 › propuesta: Agenda del administrador, Más acciones, reprogramar y cajón (12.0s)
+  ok 73 [firefox-360] › e2e\capturas.spec.ts:454:5 › propuesta: reserva asistida elige cliente desde el backend real (3.4s)
+  ok 74 [firefox-360] › e2e\capturas.spec.ts:464:5 › propuesta: contraseña temporal con respuesta de sesión simulada (2.5s)
+  ok 75 [firefox-360] › e2e\capturas.spec.ts:480:5 › foco al restaurar la selección que el visitante conserva para ingresar (5.0s)
+  ok 76 [firefox-360] › e2e\capturas.spec.ts:566:5 › fase 2: ingresar, registro y privacidad (7.1s)
+  ok 77 [firefox-360] › e2e\capturas.spec.ts:590:5 › fase 2: Mi cuenta y contraseña voluntaria y obligatoria (6.4s)
+  x  78 [firefox-360] › e2e\capturas.spec.ts:628:5 › fase 2: servicios, tarjetas intermedias y diálogo (4.5s)
+(node:69464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)

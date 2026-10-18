@@ -36,6 +36,23 @@ describe('Formulario de registro', () => {
       'De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.',
     );
   });
+  it('mantiene un único título visible en móvil, la ayuda asociada y el enlace normal de privacidad', () => {
+    expect(fixture.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('.titulo-movil')).toBeNull();
+    const enlace = fixture.nativeElement.querySelector('.privacidad a');
+    expect(enlace.textContent.trim()).toBe(
+      'Leer el aviso de privacidad (Ley 29733; abre otra pestaña)',
+    );
+    expect(enlace.getAttribute('target')).toBe('_blank');
+    expect(enlace.getAttribute('rel')).toBe('noopener');
+    expect(enlace.hasAttribute('mat-button')).toBe(false);
+    expect(
+      fixture.nativeElement
+        .querySelector('[formControlName=password]')
+        .getAttribute('aria-describedby'),
+    ).toContain('ayuda-password');
+    expect(fixture.nativeElement.querySelector('img').getAttribute('alt')).toBe('');
+  });
   it('exige consentimiento antes de enviar', () => {
     rellenar();
     pagina.formulario.controls.aceptaPrivacidad.setValue(false);

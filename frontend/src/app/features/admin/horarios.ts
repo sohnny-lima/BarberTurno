@@ -1,3 +1,4 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -7,7 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   FormControl,
   FormGroup,
@@ -26,10 +27,14 @@ import { BarberosApi } from '../../core/api/barberos-api';
 import { HorariosApi } from '../../core/api/horarios-api';
 import { BarberoDto } from '../../core/modelos/catalogo';
 import { BloqueoDto, ConflictoHorarios } from '../../core/modelos/horarios';
-import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { fechaHoyLima, instanteLima } from '../../core/tiempo/instante-lima';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { errorCampo, mostrarErrores } from '../../shared/formulario';
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { SeccionFormulario } from '../../shared/seccion-formulario';
+import { DiaSemana } from './dia-semana';
+import { ListaBloqueos } from './lista-bloqueos';
 import { EditorSemana, ordenHoras } from './editor-semana';
 
 @Component({
@@ -41,10 +46,14 @@ import { EditorSemana, ordenHoras } from './editor-semana';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    FechaLimaPipe,
+    CabeceraPagina,
+    EstadoContenido,
+    SeccionFormulario,
+    DiaSemana,
+    ListaBloqueos,
   ],
   templateUrl: './horarios.html',
-  styleUrls: ['./catalogo.scss', './horarios.scss'],
+  styleUrl: './horarios.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Horarios {
@@ -52,6 +61,12 @@ export class Horarios {
   private readonly barberosApi = inject(BarberosApi);
   private readonly dialogos = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
+  readonly escritorio = toSignal(
+    inject(BreakpointObserver)
+      .observe('(min-width: 1200px)')
+      .pipe(map((estado) => estado.matches)),
+    { initialValue: false },
+  );
   readonly barberos = signal<BarberoDto[]>([]);
   readonly bloqueos = signal<BloqueoDto[]>([]);
   readonly ocupado = signal(false);
@@ -232,6 +247,7 @@ export class Horarios {
         data: {
           nombre: bloqueo.motivo,
           activar: false,
+          riesgo: true,
           titulo: 'Eliminar bloqueo',
           texto:
             '¿Desea eliminar este bloqueo? El intervalo volverá a estar disponible según la jornada y las reservas.',

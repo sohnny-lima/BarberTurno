@@ -1,3 +1,6 @@
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { SeccionFormulario } from '../../shared/seccion-formulario';
+import { EstadoContenido } from '../../shared/estado-contenido';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -13,8 +16,18 @@ import { errorCampo, mostrarErrores } from '../../shared/formulario';
 
 @Component({
   selector: 'app-perfil',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, RouterLink],
+  imports: [
+    CabeceraPagina,
+    SeccionFormulario,
+    EstadoContenido,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    RouterLink,
+  ],
   templateUrl: './perfil.html',
+  styleUrl: './perfil.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Perfil {

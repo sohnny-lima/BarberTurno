@@ -1,3 +1,7 @@
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
+import { SeccionFormulario } from '../../shared/seccion-formulario';
+import { EstadoContenido } from '../../shared/estado-contenido';
+import { ComposicionAcceso } from '../../shared/composicion-acceso';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -13,6 +17,10 @@ import { confirmarPassword, errorCampo, mostrarErrores } from '../../shared/form
 @Component({
   selector: 'app-registro',
   imports: [
+    CabeceraPagina,
+    SeccionFormulario,
+    EstadoContenido,
+    ComposicionAcceso,
     ReactiveFormsModule,
     MatButtonModule,
     MatCheckboxModule,
@@ -21,6 +29,7 @@ import { confirmarPassword, errorCampo, mostrarErrores } from '../../shared/form
     RouterLink,
   ],
   templateUrl: './registro.html',
+  styleUrl: './acceso.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Registro {

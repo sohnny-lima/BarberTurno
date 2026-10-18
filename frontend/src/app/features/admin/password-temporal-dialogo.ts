@@ -6,7 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
   selector: 'app-password-temporal-dialogo',
   imports: [MatDialogModule, MatButtonModule],
   templateUrl: './password-temporal-dialogo.html',
-  styles: '.password { font-family: monospace; font-size: 1.25rem; overflow-wrap: anywhere; }',
+  styleUrl: './password-temporal-dialogo.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PasswordTemporalDialogo {
