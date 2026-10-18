@@ -215,7 +215,7 @@ Cada mejora queda incorporada en los requisitos, en la arquitectura y en las tar
 |---|---|---|---|
 | P-01 | Validar reglas, precios, jornadas y el límite de 2 h con un representante de la barbería [Inf p. 3, 24]. | Estudiante / negocio | Se usan los valores académicos actuales. |
 | P-02 | ~~Confirmar con el docente el método de conteo del % Java (RA-02).~~ **Resuelta el 04/10/2026 por el responsable:** el % de Java no es un requisito de aprobación; el requisito real (backend en Java) ya se cumple. RA-02 queda como métrica informativa (con T-18 integrada, 57,50 % sin pruebas y 72,74 % con pruebas). | Estudiante | — |
-| P-03 | Proveedor de alojamiento, dominio y certificado TLS para producción (RNF-02, RNF-03). | Estudiante | T-33 deja todo listo para cualquier host con Java 21 + PostgreSQL. |
+| P-03 | Proveedor de alojamiento, dominio y certificado TLS para producción (RNF-02, RNF-03). | Estudiante | T-33 deja todo listo para cualquier host con Java 21 + PostgreSQL. Propuesta comparada y recomendación (17/10/2026): `docs/p-03-alojamiento.md`, pendiente de la aprobación del responsable. |
 | P-04 | ~~Crear el repositorio remoto (GitHub) para activar la CI.~~ **Resuelta el 05/10/2026:** repositorio público https://github.com/sohnny-lima/BarberTurno; primer CI verde en la ejecución 37314699514 (ver `docs/pruebas/ci-primer-run.md`). | Estudiante | — |
 | P-05 | Fechas reales de los siguientes avances y de la entrega final (la línea base propone el 20/12/2026). | Docente | Se usa el Gantt del APF2. |
 | P-06 | Política ante inasistencias (¿penalización?). | Negocio | Solo se registra `NO_ASISTIO`. |

@@ -1,6 +1,6 @@
 # CP-11 · Plantilla de usabilidad con cinco participantes
 
-Estado: **pendiente de ejecución por el responsable (P-07)**. Preparada el 04/10/2026 para T-37. No hay observaciones humanas registradas. El E2E automático acredita controles y recorridos, pero no sustituye esta sesión.
+Estado: **pendiente de ejecución por el responsable (P-07)**. Guía de sesiones, comandos, consentimiento, instrucciones y fichas sobre la versión final: [cp11-sesiones.md](cp11-sesiones.md). Preparada el 04/10/2026 para T-37. No hay observaciones humanas registradas. El E2E automático acredita controles y recorridos, pero no sustituye esta sesión.
 
 ## Preparación y consentimiento
 
