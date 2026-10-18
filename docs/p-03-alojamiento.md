@@ -80,6 +80,8 @@ El saldo real se comprueba en el [portal de patrocinios](https://www.microsoftaz
 **Al agotarse el crédito o cumplirse 12 meses**, la suscripción y sus servicios se **deshabilitan**; no hay cargos automáticos porque no se registra tarjeta. Continuar exigiría pasar a pago por uso a través del soporte de Azure, con la aprobación previa del responsable. Para RNF-02, el mes de observación debe caer dentro de ese periodo.
 
 ## 9. Verificar la elegibilidad y activar Azure for Students (sin crear recursos)
+**Hecho por el responsable el 18/10/2026** (activación: 100 USD, gasto 0, vencimiento 18/10/2027). La confirmación en el portal sigue en §10.
+
 Lo ejecuta el responsable con su cuenta; el coordinador no accede a la suscripción. **No se crea ningún recurso** (ni grupo de recursos) hasta aprobar el coste de §8. No se registra tarjeta. Al informar, basta con los datos indicados; no hace falta compartir identificadores, correos ni capturas con datos personales.
 
 1. **¿Ya existe la oferta?** Abra el [portal de patrocinios](https://www.microsoftazuresponsorships.com/balance) e inicie sesión con el correo institucional de la UTP. Si muestra un saldo, la oferta ya está activa: anote el **saldo restante** y la **fecha de expiración del crédito** y pase al paso 3.
@@ -89,3 +91,73 @@ Lo ejecuta el responsable con su cuenta; el coordinador no accede a la suscripci
 5. **Beneficios disponibles:** en el portal, busque *Servicios gratuitos* (Free services). Anote si aparecen «Azure Database for PostgreSQL – Flexible Server, Burstable B1MS (750 h)», «32 GB de almacenamiento» y «32 GB de copias», y su fecha de fin.
 
 Con esos cinco datos (saldo, expiración, oferta y estado, regiones, beneficios) el coordinador recalcula §8 para la región permitida y presenta la configuración final para su aprobación antes de crear nada.
+
+## 10. Confirmación de la suscripción en el portal (solo lectura)
+**Situación del 18/10/2026:** el responsable activó Azure for Students. El resumen de activación indica 100 USD disponibles, 0 de gasto y vencimiento el 18/10/2027. Pendiente de confirmar en el portal: no se crea nada y todas las órdenes son de lectura.
+
+1. **Saldo y vencimiento:** abra el [portal de patrocinios](https://www.microsoftazuresponsorships.com/balance) → *Balance*. Confirme: crédito 100 USD, usado 0 y fecha de expiración (bajo el gráfico) 18/10/2027.
+2. **Oferta y estado:** en [portal.azure.com](https://portal.azure.com) → *Suscripciones* → su suscripción. Confirme el estado *Activa* y la oferta *Azure for Students*.
+3. **Servicios gratuitos:** busque *Servicios gratuitos* (Free services) en el portal. Confirme si aparecen PostgreSQL Flexible Server B1MS (750 h), 32 GB de almacenamiento y 32 GB de copias, con su fecha de fin.
+4. **Regiones y disponibilidad** con [Cloud Shell sin almacenamiento](https://learn.microsoft.com/en-us/azure/cloud-shell/get-started/ephemeral): icono `>_` de la barra superior → *Bash* → **«No storage account required»** → su suscripción → *Aplicar*. Así no se crea ninguna cuenta de almacenamiento. Pegue estas órdenes de lectura y copie la salida (no contiene secretos; puede ocultar el identificador de suscripción):
+   ```bash
+   az rest --method get --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)?api-version=2022-12-01" --query "{estado:state, politicas:subscriptionPolicies}"
+   az policy assignment list --query "[].{asignacion:displayName, regiones:parameters.listOfAllowedLocations.value}" -o json
+   for r in eastus2 eastus southcentralus brazilsouth; do echo "== $r: $(az postgres flexible-server list-skus --location "$r" -o json 2>&1 | grep -o -i -m1 '"Standard_B1ms"' || echo 'sin B1MS o restringida')"; done
+   az appservice list-locations --sku B1 --linux-workers-enabled --query "[].name" -o tsv
+   az webapp list-runtimes --os linux -o tsv | grep -i "JAVA:21"
+   ```
+   Resultado esperado:
+   - la primera orden muestra `quotaId` = `AzureForStudents_2018-01-01` y `spendingLimit` = `On`;
+   - la segunda, la lista de regiones permitidas;
+   - la tercera, `"Standard_B1ms"` en las regiones donde la suscripción puede crear el B1MS («sin B1MS o restringida» descarta la región);
+   - la cuarta, las regiones con App Service B1 en Linux;
+   - la quinta, que existe Java 21 para App Service Linux.
+
+   La comprobación definitiva de la región se hará al crear los recursos: el asistente valida la región antes de confirmar.
+
+**Regla de elección:** la región más barata de §8 que esté permitida y ofrezca B1MS. En orden: East US 2, East US, South Central US y, por último, Brazil South (≈ 6,8 meses de crédito).
+
+## 11. Configuración final propuesta (pendiente de la región y de la aprobación del responsable)
+Se mantiene la arquitectura documentada (DA-06, DA-12): **un único jar de Spring Boot con la SPA de Angular dentro**, en **App Service Linux (Java SE 21)**, y **PostgreSQL 18 administrado**. Sin frontend separado ni Container Apps (no hay una necesidad demostrada).
+
+| # | Recurso | Nombre propuesto | Configuración | Coste |
+|---|---|---|---|---|
+| 1 | Grupo de recursos | `rg-barberturno-prod` | Región elegida (§10) | 0 |
+| 2 | Azure Database for PostgreSQL Flexible | `pg-barberturno-<sufijo>` | PostgreSQL **18**, Burstable **B1MS**, 32 GB Premium SSD **sin crecimiento automático** (para no salir de los 32 GB gratuitos), copias 7 días LRS, sin HA, TLS obligatorio, acceso público solo para servicios de Azure + la IP del responsable, `azure.extensions = BTREE_GIST`, base y rol `barberturno_prod` (docs/despliegue.md) | 0 (gratuito 12 meses) |
+| 3 | Plan de App Service | `asp-barberturno` | Linux **B1**, 1 instancia, sin escalado automático | **0,017 USD/h ≈ 12,41 USD/mes** |
+| 4 | Aplicación web | `barberturno-<sufijo>` | Java SE 21, *Always On*, *HTTPS Only*, TLS ≥ 1.2, FTP desactivado, *Health check* `/actuator/health`, registros en el sistema de archivos, variables de §5 (las introduce el responsable) | Incluido en el plan |
+| 5 | Grupo de acciones (correo) | `ag-barberturno` | Correo del responsable | 0 (notificaciones por correo incluidas) |
+| 6 | Alertas del registro de actividad | `al-barberturno-cambios` | Aviso por correo ante cualquier creación, modificación o borrado de recursos en la suscripción y ante *Service Health* | 0 |
+| 7 | Bloqueo de recurso | `CanNotDelete` sobre el servidor PostgreSQL | Evita borrados accidentales de la base | 0 |
+| — | Externos | UptimeRobot Free y Healthchecks.io Hobbyist | Monitor de `/actuator/health` cada 5 min y latido de la copia semanal | 0 |
+
+**No se crean:** Application Insights ni Log Analytics (cobran por ingesta), dominio propio, ranuras de despliegue (requieren el nivel Standard), segunda base ni Container Registry.
+
+### Consumo estimado del crédito (estimación condicionada al consumo)
+| Concepto | Valor |
+|---|---|
+| Cargo mensual previsto | ≈ 12,41 USD (solo el plan B1; el resto es gratuito o 0) |
+| Cargo semanal de referencia | ≈ 2,86 USD |
+| Crédito | 100 USD, vence el 18/10/2027 |
+| Duración estimada | ≈ 8 meses desde la creación del plan (p. ej., creado el 20/10/2026 → agotamiento previsto hacia mediados de junio de 2027), **antes** del vencimiento. Supone una sola instancia B1, una sola base encendida, ≤ 32 GB, ≤ 100 GB de salida al mes y precios sin cambios |
+| Periodo de RNF-02 | Un mes natural completo dentro de ese plazo (p. ej., noviembre de 2026) |
+| Ahorro opcional tras la evaluación académica | Pasar el plan a F1 (gratis) o eliminarlo detiene el cargo de 12,41 USD/mes; la base sigue siendo gratuita hasta el 18/10/2027. Requiere decisión del responsable (F1 no tiene *Always On*: deja de servir para RNF-02) |
+
+### Alertas de gasto: lo que admite esta oferta
+- **Presupuestos de Cost Management: no disponibles.** Microsoft Learn lista *Azure for Students (MS-AZR-0170P)* entre las ofertas **no admitidas** por Cost Management ([fuente](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/understand-cost-mgt-data)), así que no se pueden crear presupuestos con alertas de importe. Si el portal ofreciera *Presupuestos* en la suscripción, se crearía uno de 15 USD/mes con avisos al 50, 80 y 100 %. No se cuenta con ello.
+- **Sustitutos que sí funcionan:**
+  1. Alerta del registro de actividad (recurso 6): cualquier recurso nuevo o modificado, la principal causa de un gasto inesperado, avisa por correo en minutos.
+  2. **Revisión semanal del portal de patrocinios** (*Balance* y *Usage*), cotejada con la referencia de ≈ 2,86 USD/semana. Si el gasto acumulado supera la curva prevista en más de un 20 %, se investiga en *Usage* qué servicio lo consume. El portal se actualiza con 24–72 h de retraso.
+  3. Aviso por correo de Azure al alcanzar el límite de gasto.
+  4. Opcional: un recordatorio semanal en el calendario del responsable (se crea solo si él lo pide).
+
+### Qué protege el límite de gasto
+- La suscripción tiene un **límite de gasto igual al crédito (100 USD)**: no se puede subir ni personalizar, y quitarlo exige registrar un medio de pago y pasar a pago por uso ([límite de gasto](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/spending-limit); [suscripción deshabilitada](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/azurestudents-subscription-disabled)). Sin tarjeta registrada **no puede haber cargos al responsable**.
+- **Qué ocurre al alcanzarlo o al vencer el 18/10/2027:** Azure deshabilita la suscripción y sus servicios. La aplicación deja de responder, los recursos salen de producción y los datos de almacenamiento quedan en solo lectura. Para seguir habría que pasar a pago por uso (decisión del responsable).
+- **Qué no protege:**
+  - la **disponibilidad**: agotar el crédito es una caída total (afectaría a RNF-02), de ahí la revisión semanal;
+  - el **consumo indebido del crédito** por recursos olvidados (p. ej., un segundo servidor tras una restauración);
+  - los servicios de Marketplace de terceros que se facturan aparte (no se usan; sin medio de pago no se pueden contratar).
+
+### Lo que se aprueba con esta configuración
+Región (la que resulte de §10), los recursos 1–7 y el cargo previsto de ≈ 12,41 USD/mes contra el crédito (0 de bolsillo). Tras la aprobación, por este orden: creación de recursos, secretos introducidos por el responsable, despliegue del jar verificado en la CI, HTTPS, *Health check*, monitor externo, ensayo de restauración y comienzo del periodo de RNF-02.
