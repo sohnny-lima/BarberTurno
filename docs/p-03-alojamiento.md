@@ -12,7 +12,7 @@ Propuesta para la decisión del responsable (P-03). **No se ha contratado ni pub
 ## 2. Comparación (precios en USD/mes salvo indicación)
 | Opción | Coste total estimado | Límites relevantes | PostgreSQL 18 y persistencia | Suspensión por inactividad | Copias | Compatibilidad |
 |---|---|---|---|---|---|---|
-| **A. Azure for Students**: App Service Linux B1 + Azure Database for PostgreSQL Flexible B1MS | **0 de bolsillo**: B1 ≈ 12,41 (0,017/h) cubierto por el crédito de 100 USD (≈ 8 meses); B1MS, 32 GB de almacenamiento y 32 GB de copias gratis 12 meses | Solo estudiantes a tiempo completo con correo institucional, renovación anual; B1: 1 núcleo, 1,75 GB RAM; posibles restricciones de regiones en la suscripción | 18 (GA, soporte hasta 14/11/2030), gestionado, SLA 99,9 % sin HA; `btree_gist` hay que permitirla en `azure.extensions` | No con B1 y *Always On* (F1 gratis no sirve: 1 h de CPU al día) | Automáticas con PITR, retención 7–35 días | Java SE 21 en App Service; TLS gestionado en `*.azurewebsites.net` (dominio propio opcional con certificado gratuito) |
+| **A. Azure for Students**: App Service Linux B1 + Azure Database for PostgreSQL Flexible B1MS | **0 de bolsillo**: B1 ≈ 12,41 (0,017/h) cubierto por el crédito de 100 USD (≈ 8 meses **estimados**, condicionados al consumo; ver §8); B1MS, 32 GB de almacenamiento y 32 GB de copias gratis 12 meses | Solo estudiantes a tiempo completo con correo institucional, renovación anual; B1: 1 núcleo, 1,75 GB RAM; posibles restricciones de regiones en la suscripción | 18 (GA, soporte hasta 14/11/2030), gestionado, SLA 99,9 % sin HA; `btree_gist` hay que permitirla en `azure.extensions` | No con B1 y *Always On* (F1 gratis no sirve: 1 h de CPU al día) | Automáticas con PITR, retención 7–35 días | Java SE 21 en App Service; TLS gestionado en `*.azurewebsites.net` (dominio propio opcional con certificado gratuito) |
 | B. Render: Starter + Postgres Basic-256mb | ≈ 13,30 (7 + 6 + 1 GB × 0,30); con 2 GB de RAM (Standard) ≈ 31,30 | Starter: 0,5 CPU y **512 MB** (justo para Spring Boot); Hobby: 5 GB de ancho de banda | 13–18, gestionado | No en instancias de pago (la gratuita duerme a los 15 min y su BD expira a los 30 días) | PITR 3 días (Hobby) + exportaciones lógicas 7 días | Docker o nativo; TLS gestionado en `*.onrender.com` |
 | C. Railway Hobby | ≈ 8–12 (5 de suscripción con 5 de uso incluido; RAM 10/GB·mes, CPU 20/vCPU·mes, volumen 0,15/GB) | Volumen 5 GB por servicio en Hobby | Imagen de PostgreSQL en contenedor con volumen (autogestionado en la plantilla) | No por defecto (*Serverless* es opcional) | Copias de volumen diarias/semanales/mensuales (6/27/89 días) | Docker; TLS en `*.up.railway.app` |
 | D. VPS (DigitalOcean 2 GB) autogestionado | 12 + 3,60 de copias diarias = 15,60 (+ dominio) | 1 vCPU, 2 GB; todo el mantenimiento (parches, PostgreSQL, proxy, TLS) recae en el responsable | 18 instalado a mano | No | Instantáneas del proveedor + `tools/respaldo.sh` | Requiere Caddy/Nginx y dominio para un certificado |
@@ -21,7 +21,7 @@ Propuesta para la decisión del responsable (P-03). **No se ha contratado ni pub
 Descartadas: niveles gratuitos que duermen (Render Free, App Service F1) por RNF-02; Hetzner CX23 (5,49 EUR sin IPv4) figura como no disponible para pedidos; bases gestionadas de pago por separado (Neon/Supabase) añaden un segundo proveedor sin ventaja.
 
 ## 3. Recomendación
-**Opción A (Azure for Students)** si el responsable es elegible: coste de bolsillo 0 durante el periodo académico y la observación de RNF-02, PostgreSQL 18 gestionado con copias y PITR (cubre RNF-09 sin programar `cron`), TLS gestionado y *health check* integrado. **Alternativa B (Render, ≈ 13,30 USD/mes)** si no hay elegibilidad, condicionada a la memoria: medición del coordinador (17/10/2026, jar de T-57 con `-XX:MaxRAM=512m`, perfil `dev`, tras 100 peticiones): **352 MB residentes / 392 MB privados** en reposo; cabe en 512 MB con poco margen (y 0,5 CPU alarga el arranque y el BCrypt de coste 12). Si en el ensayo supera el límite, C (Railway) antes que pagar 31 USD.
+**Opción A (Azure for Students)** si el responsable es elegible: coste de bolsillo 0 durante el periodo académico y la observación de RNF-02, PostgreSQL 18 gestionado con copias y PITR (cubre RNF-09 sin programar `cron`), TLS gestionado y *health check* integrado. **Alternativa B (Render, ≈ 13,30 USD/mes)** si no hay elegibilidad, condicionada a la memoria. **Es memoria real del proceso, no el tamaño del archivo** (el jar ocupa 67 MB en disco, dato que no dice nada de la RAM): el coordinador arrancó el jar de T-57 el 17/10/2026 con `-XX:MaxRAM=512m` y perfil `dev`, hizo 100 peticiones y leyó el proceso `java` en Windows: **352 MB de conjunto de trabajo (residente) y 392 MB de memoria privada** en reposo. Es una medición puntual, sin carga concurrente y fuera de un contenedor Linux; el límite de 512 MB de Render se aplica al contenedor completo, así que la cifra pertinente es la privada (392 MB) más el margen del sistema. **No acredita que quepa**: solo lo hace plausible con poco margen y habría que confirmarlo en un ensayo real antes de elegir B (0,5 CPU además alarga el arranque y el BCrypt de coste 12). Si en el ensayo supera el límite, C (Railway) antes que pagar 31 USD.
 
 Monitorización externa (ambas): **UptimeRobot Free** (50 monitores, cada 5 min, página de estado básica) sobre `https://<host>/actuator/health` con palabra clave `"UP"`, y **Healthchecks.io Hobbyist** (20 comprobaciones) para el latido de la copia lógica semanal descrita en §5.
 
@@ -51,3 +51,41 @@ Monitorización externa (ambas): **UptimeRobot Free** (50 monitores, cada 5 min,
 - **Periodo:** un mes natural completo tras el despliegue (o, si el calendario académico no lo permite, 30 días consecutivos, indicándolo como desviación).
 - **Cálculo:** disponibilidad = 1 − (minutos caídos fuera de mantenimiento registrado) / (minutos del periodo − minutos de mantenimiento registrado). Cumple si ≥ 99 % (≤ 432 min caídos en 30 días). Resolución ±5 min por la frecuencia de comprobación.
 - **Evidencia:** `docs/pruebas/rnf-02.md` con el periodo, el export del monitor, las ventanas de mantenimiento y el cálculo. **No se declara cumplido** hasta cerrar el periodo con esas pruebas.
+
+## 8. Coste total de la configuración concreta (opción A)
+Precios de lista de Azure (API pública de precios, consultada el 18/10/2026, USD, sin impuestos), región **East US / East US 2**, la más barata de las comprobadas (en Brazil South el B1 cuesta 0,02 USD/h y el B1MS 0,035 USD/h). Meses de 730 h. Condiciones de la oferta según [Azure for Students](https://azure.microsoft.com/en-us/free/students) y [Microsoft Learn](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/azurestudents-subscription-disabled).
+
+| Componente | Configuración | Precio de lista | Cubierto por | Cargo al crédito |
+|---|---|---|---|---|
+| Plan App Service | Linux **B1** (1 núcleo, 1,75 GB), 1 instancia, *Always On* | 0,017 USD/h ≈ **12,41 USD/mes** | Nada (F1 gratis no sirve: 1 h de CPU al día, sin *Always On*) | **12,41 USD/mes** |
+| PostgreSQL Flexible | **B1MS**, PostgreSQL 18, sin HA | 0,017 USD/h ≈ 12,41 USD/mes | 750 h/mes gratis 12 meses (un servidor: ningún mes supera 744 h) | 0 |
+| Almacenamiento de la base | 32 GB | 0,115 USD/GB·mes ≈ 3,68 USD/mes | 32 GB gratis 12 meses | 0 |
+| Copias de la base (PITR 7 días, LRS) | Hasta 32 GB | 0,095 USD/GB·mes | 32 GB gratis 12 meses | 0 |
+| Tráfico de salida | Estimado < 5 GB/mes | 0 los primeros 100 GB/mes; después 0,087 USD/GB | Primeros 100 GB/mes | 0 |
+| HTTPS | Certificado gestionado de `*.azurewebsites.net` | Incluido en el plan | — | 0 |
+| *Health check* y registros en el sistema de archivos | Incluidos en B1 | Incluido | — | 0 |
+| Application Insights / Log Analytics | **No se activan** (cobran por ingesta) | — | — | 0 |
+| Monitor externo y latido de copias | UptimeRobot Free, Healthchecks.io Hobbyist | 0 | Fuera de Azure | 0 |
+| Dominio propio | **No incluido** (opcional; registrador externo, coste anual aparte) | — | — | 0 |
+| **Total** | | | | **≈ 12,41 USD/mes del crédito; 0 de bolsillo** |
+
+**Duración del crédito: 100 / 12,41 ≈ 8 meses, como estimación condicionada al consumo.** Solo vale si se mantiene exactamente esta configuración:
+- una instancia B1 y una sola base B1MS encendida (una restauración a un instante crea un segundo servidor; mientras coexistan, el segundo consume crédito, ≈ 0,41 USD/día);
+- almacenamiento ≤ 32 GB y salida ≤ 100 GB/mes;
+- sin Application Insights ni otros servicios;
+- precios sin cambios en la región elegida (en Brazil South, la estimación baja a ≈ 6,8 meses).
+
+El saldo real se comprueba en el [portal de patrocinios](https://www.microsoftazuresponsorships.com/balance) (Balance y Usage).
+
+**Al agotarse el crédito o cumplirse 12 meses**, la suscripción y sus servicios se **deshabilitan**; no hay cargos automáticos porque no se registra tarjeta. Continuar exigiría pasar a pago por uso a través del soporte de Azure, con la aprobación previa del responsable. Para RNF-02, el mes de observación debe caer dentro de ese periodo.
+
+## 9. Verificar la elegibilidad y activar Azure for Students (sin crear recursos)
+Lo ejecuta el responsable con su cuenta; el coordinador no accede a la suscripción. **No se crea ningún recurso** (ni grupo de recursos) hasta aprobar el coste de §8. No se registra tarjeta. Al informar, basta con los datos indicados; no hace falta compartir identificadores, correos ni capturas con datos personales.
+
+1. **¿Ya existe la oferta?** Abra el [portal de patrocinios](https://www.microsoftazuresponsorships.com/balance) e inicie sesión con el correo institucional de la UTP. Si muestra un saldo, la oferta ya está activa: anote el **saldo restante** y la **fecha de expiración del crédito** y pase al paso 3.
+2. **Activar:** en [Azure for Students](https://azure.microsoft.com/en-us/free/students), «Activar ahora» con el correo institucional; complete la verificación académica que se le pida y acepte los términos. Requisitos de la oferta: estudiante universitario a tiempo completo, una cuenta por persona, sin tarjeta. Si la verificación falla, **pare** y avise: se reevaluará la opción B o C (no se pasa a pago por uso).
+3. **Confirmar la suscripción:** en [portal.azure.com](https://portal.azure.com) → *Suscripciones*: anote el **nombre de la oferta** (debe ser *Azure for Students*) y el **estado** (*Activa*).
+4. **Regiones permitidas:** *Directiva* (Policy) → *Asignaciones*: si existe «Allowed resource deployment regions» o similar, anote las regiones permitidas. Se elegirá la más barata de §8 que esté permitida.
+5. **Beneficios disponibles:** en el portal, busque *Servicios gratuitos* (Free services). Anote si aparecen «Azure Database for PostgreSQL – Flexible Server, Burstable B1MS (750 h)», «32 GB de almacenamiento» y «32 GB de copias», y su fecha de fin.
+
+Con esos cinco datos (saldo, expiración, oferta y estado, regiones, beneficios) el coordinador recalcula §8 para la región permitida y presenta la configuración final para su aprobación antes de crear nada.

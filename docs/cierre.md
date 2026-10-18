@@ -18,19 +18,19 @@ Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detall
 | Trabajo | Quién | Estado |
 |---|---|---|
 | **CP-11:** cinco sesiones con personas (P-07) | Responsable (facilitador) | Materiales listos; 0/5. No se sustituye por E2E ni cuenta el piloto |
-| **P-03:** alojamiento, HTTPS, monitor, copias, restauración y reversión | Claude preparó · Gemini contrastó (g035) · **responsable aprueba** | Propuesta y plan en `docs/p-03-alojamiento.md`. Recomendación: Azure for Students; alternativa Render. Nada contratado ni publicado |
+| **P-03:** alojamiento, HTTPS, monitor, copias, restauración y reversión | Claude preparó · Gemini contrastó (g035) · **responsable aprueba** | Propuesta, coste de la configuración concreta (§8: ≈ 12,41 USD/mes del crédito, 0 de bolsillo; ≈ 8 meses estimados, condicionados al consumo) y guía de verificación (§9) en `docs/p-03-alojamiento.md`. **En curso: verificación de elegibilidad por el responsable.** Nada creado, contratado ni publicado |
 | Despliegue, ensayo de restauración y monitor | Tras la aprobación de P-03 | Pendiente |
 | **RNF-02:** 99 % mensual, excluido el mantenimiento | Tras el despliegue | Método definido en `docs/p-03-alojamiento.md` §7; **no cumplido ni medible** hasta cerrar un mes de observación con evidencias |
 | RNF-07: matriz con las versiones comerciales de Chrome, Edge y Firefox | Claude/Codex | Parcial (Playwright Chromium y Firefox). Se completará sobre la versión desplegada |
-| `listen_addresses` de PostgreSQL y limpieza local | Claude preparó · responsable decide | Propuesta lista, nada aplicado ni borrado (ver §3) |
+| `listen_addresses` de PostgreSQL y limpieza local | Claude preparó · responsable decide | Propuesta lista, nada aplicado ni borrado; la limpieza, tras el despliegue (ver §3) |
 
 ## 3. Intervención que necesito del responsable
 | Decisión o acción | Detalle |
 |---|---|
 | CP-11 | Conseguir 5 participantes y ejecutar las sesiones con `docs/pruebas/cp11-sesiones.md`. Antes, fijar el **plazo de conservación** y el **canal de retirada** de datos que se leen en el consentimiento. |
-| P-03 | Elegir servicio (A Azure for Students, B Render ≈ 13,30 USD/mes, C Railway ≈ 8–12 USD/mes), confirmar elegibilidad y región, crear la cuenta e introducir los secretos directamente en el proveedor. |
+| P-03 | **Paso actual:** verificar elegibilidad y activar Azure for Students sin crear recursos (`docs/p-03-alojamiento.md` §9) e informar saldo, expiración, oferta y estado, regiones permitidas y beneficios. Después: aprobar la configuración y el coste recalculados e introducir los secretos directamente en el proveedor. |
 | PostgreSQL local | Aprobar el cambio a `listen_addresses = 'localhost'` en las instancias 17 y 18 (hoy escuchan en todas las interfaces aunque `pg_hba` solo admite conexiones locales; ninguna aplicación necesita acceso remoto). Requiere consola de administrador y reinicio del servicio. |
-| Limpieza | Autorizar por elemento: caché npm de C: (3,5 GB), restos de `frontend/tmp` (≈ 1,4 GB, conservando los navegadores), worktrees `BarberTurno-diag`, bases de revisión `t48/t54/t55`, verificaciones y ensayo de CP-11. Se conservan `barberturno_demo_t32` y `antes-de-18.6-sin-clean.sql`. |
+| Limpieza | **Aplazada hasta después del despliegue** (decisión del responsable, 18/10/2026); se conservan todas las bases y respaldos. Propuesta por elemento: caché npm de C: (3,5 GB), restos de `frontend/tmp` (≈ 1,4 GB, conservando los navegadores), worktrees `BarberTurno-diag`, bases de revisión `t48/t54/t55`, verificaciones y ensayo de CP-11. Se conservan `barberturno_demo_t32` y `antes-de-18.6-sin-clean.sql`. |
 
 ## 4. Mejoras futuras fuera del cierre
 - P-01 validación de reglas y precios con la barbería, P-06 política de inasistencias, P-08 informe del APF1 (decisiones del negocio o del docente).
