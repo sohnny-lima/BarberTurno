@@ -1,6 +1,6 @@
 # BarberTurno · Registro único de cierre
 
-Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detalle está en las evidencias enlazadas. Última actualización: **17/10/2026**.
+Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detalle está en las evidencias enlazadas. Última actualización: **18/10/2026**.
 
 ## 1. Terminado y acreditado
 | Elemento | Evidencia | Estado |
@@ -10,12 +10,12 @@ Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detall
 | Publicación | `origin/main` = `f7dc336` | CI `37895739087` (`17e4081`) y `37896565925` (`f7dc336`): success (comprobado en la API pública el 17/10/2026) |
 | 18 de 19 casos de aceptación con evidencia técnica (CP-01…CP-19 salvo CP-11) | `docs/pruebas/aceptacion.md` | Acreditado |
 | RNF-01 (carga), RNF-03 (salvo HTTPS real), RNF-04, RNF-05, RNF-08, RNF-09 (ensayo local), RNF-10, RNF-11, RNF-12, RNF-13, RNF-14 | `docs/pruebas/aceptacion.md` §RNF | Acreditado con las salvedades indicadas allí |
+| **Fase 2 visual (T-57)**: acceso, cuenta, servicios, barberos, horarios, reportes, usuarios y diálogos | `docs/diseno/t-57.md`, `docs/pruebas/t-57.md`, capturas `docs/pruebas/t-57/capturas/` (98 PNG, axe 0) | Hecho y revisado (Gemini g036 APROBADO); integración en `main` en curso |
 | Datos y scripts de CP-11 verificados (plantilla con BT-100 y BT-103, reloj compartido) | `docs/pruebas/usabilidad-plantilla.md` (`3684999`) | Preparado; 0/5 sesiones |
 
 ## 2. Trabajo necesario para el cierre (en curso o independiente)
 | Trabajo | Responsable | Estado |
 |---|---|---|
-| T-57 · Fase 2 de la dirección verde (autorizada el 17/10/2026) | Codex implementa · Claude revisa · Gemini verifica | En curso (especificación `docs/diseno/t-57.md`) |
 | Integrar T-57 en `main`, push y comprobar la CI | Claude (autorizado) | Tras T-57.5 y revisión de Gemini |
 | CP-11 sobre la versión final: jar, scripts, reloj y materiales de P1…P5 | Claude prepara | Tras integrar T-57 |
 | P-03 · comparación de alojamiento, recomendación y material de despliegue (HTTPS, salud, monitor, copias, restauración y reversión) | Claude investiga · Gemini contrasta | Pendiente de iniciar |
