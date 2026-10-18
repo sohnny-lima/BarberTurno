@@ -3,7 +3,7 @@
 }
 .estadisticas {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 .estadistica {
@@ -19,8 +19,20 @@
   font: 700 28px/36px var(--font-cuerpo);
 }
 .total {
+  grid-column: 1 / -1;
   background: var(--color-verde-claro);
 }
 .total span {
   font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .estadisticas {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .total {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-content: center;
+  }
 }

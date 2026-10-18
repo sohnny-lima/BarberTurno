@@ -43,3 +43,10 @@ td:last-child {
     align-items: baseline;
   }
 }
+
+@media (max-width: 767.98px) {
+  .ficha .acciones-fila {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -86,21 +86,13 @@ mat-checkbox {
   }
 }
 
-@media (min-width: 1200px) {
-  .campos input {
-    font-size: 14px;
-    width: calc(100% + 16px);
-    margin-inline: -8px;
-  }
+// La fecha usa todo el ancho disponible, también en la columna lateral.
+.campos input {
+  font-size: 16px;
+  min-width: 0;
 }
-@media (min-width: 1200px) and (max-width: 1359.98px) {
-  .campos input {
-    font-size: 13px;
-  }
-  .campos input[type='date'] {
-    font-size: 12px;
-    letter-spacing: -0.3px;
-  }
+.campos mat-form-field:has(input[type='date']) {
+  grid-column: 1 / -1;
 }
 
 // En la columna lateral estrecha se prioriza la fecha completa a 16 px.

@@ -1,9 +1,9 @@
 <app-cabecera-pagina titulo="Usuarios" />
 <form (submit)="$event.preventDefault(); buscar()" class="tarjeta filtros">
-  <mat-form-field appearance="outline"
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"
     ><mat-label>Nombre o correo</mat-label><input matInput [formControl]="busqueda"
   /></mat-form-field>
-  <mat-form-field appearance="outline"
+  <mat-form-field appearance="outline" subscriptSizing="dynamic"
     ><mat-label>Rol</mat-label
     ><mat-select [formControl]="rol" [canSelectNullableOptions]="true"
       ><mat-option [value]="null">Todos</mat-option
