@@ -5,33 +5,35 @@ Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detall
 ## 1. Terminado y acreditado
 | Elemento | Evidencia | Estado |
 |---|---|---|
-| Plan T-01…T-56 (T-53 no abierta por decisión del responsable) | `docs/tareas.md` (tabla de estado y notas de cierre) | Hecho y revisado |
+| Plan T-01…T-57 (T-53 no abierta por decisión del responsable) | `docs/tareas.md` (tabla de estado y notas de cierre) | Hecho y revisado |
 | Fase 1 visual (T-48 → T-55) y ayuda de contraseña (T-56) | `docs/pruebas/integracion-t56.md`, `docs/pruebas/t-55/` | Integrado en `main` (`17e4081`) |
-| Publicación | `origin/main` = `f7dc336` | CI `37895739087` (`17e4081`) y `37896565925` (`f7dc336`): success (comprobado en la API pública el 17/10/2026) |
+| **Fase 2 visual (T-57):** acceso, cuenta, servicios, barberos, horarios, reportes, usuarios y diálogos | `docs/diseno/t-57.md`, `docs/pruebas/t-57.md`, `docs/pruebas/t-57/capturas/` (98 PNG, axe 0, guía en `indice.md`) | Integrado en `main` (merge `bb3d644`; código verificado en `720f022`). Gemini g034 y g036 (APROBADO) |
+| Verificación de la versión publicada (checkpoint del coordinador, 17–18/10/2026) | `docs/tareas.md`, nota «T-57 · Cierre del coordinador» | `mvnw clean verify` 1548/1548; lint y formato; Vitest 442/442 en Lima y Madrid; build inicial 496,39 kB sin elevar presupuestos; E2E 48/48 (Chromium y Firefox, 360 y 1440 px); capturas 88/88 |
+| **Publicación** | `origin/main` = `d2f3107` (código) | CI **39099141093** sobre `d2f3107`: **success** (18/10/2026, API pública de GitHub). Los commits posteriores son solo documentación |
 | 18 de 19 casos de aceptación con evidencia técnica (CP-01…CP-19 salvo CP-11) | `docs/pruebas/aceptacion.md` | Acreditado |
 | RNF-01 (carga), RNF-03 (salvo HTTPS real), RNF-04, RNF-05, RNF-08, RNF-09 (ensayo local), RNF-10, RNF-11, RNF-12, RNF-13, RNF-14 | `docs/pruebas/aceptacion.md` §RNF | Acreditado con las salvedades indicadas allí |
-| **Fase 2 visual (T-57)**: acceso, cuenta, servicios, barberos, horarios, reportes, usuarios y diálogos | `docs/diseno/t-57.md`, `docs/pruebas/t-57.md`, capturas `docs/pruebas/t-57/capturas/` (98 PNG, axe 0) | Hecho y revisado (Gemini g036 APROBADO); integrado en `main` (`bb3d644`, código verificado en `720f022`) |
-| Datos y scripts de CP-11 verificados (plantilla con BT-100 y BT-103, reloj compartido) | `docs/pruebas/usabilidad-plantilla.md` (`3684999`) | Preparado; 0/5 sesiones |
+| CP-11 preparado sobre la versión final | `docs/pruebas/cp11-sesiones.md`, `docs/pruebas/usabilidad-plantilla.md` | Jar final fijado (SHA-256), comandos P1–P5 con copias independientes, consentimiento, instrucciones, fichas y distribución; ensayo con «RELOJ COMPARTIDO OK». **0/5 sesiones** |
 
-## 2. Trabajo necesario para el cierre (en curso o independiente)
-| Trabajo | Responsable | Estado |
+## 2. Trabajo pendiente para el cierre
+| Trabajo | Quién | Estado |
 |---|---|---|
-| Integrar T-57 en `main`, push y comprobar la CI | Claude (autorizado) | Tras T-57.5 y revisión de Gemini |
-| CP-11 sobre la versión final: jar, scripts, reloj y materiales de P1…P5 | Claude prepara | Tras integrar T-57 |
-| P-03 · comparación de alojamiento, recomendación y material de despliegue (HTTPS, salud, monitor, copias, restauración y reversión) | Claude investiga · Gemini contrasta | Pendiente de iniciar |
-| RNF-02 · método de evaluación (99 % mensual excluido mantenimiento) | Claude | Se define con P-03; no se declara cumplido sin periodo ni evidencias |
-| RNF-07 · matriz con navegadores comerciales (Chrome, Edge, Firefox) | Claude/Codex | Parcial (Playwright Chromium y Firefox) |
-| `listen_addresses` de PostgreSQL y limpieza de archivos, bases de revisión y worktrees | Claude prepara · responsable aprueba | Por preparar (sin borrar nada) |
+| **CP-11:** cinco sesiones con personas (P-07) | Responsable (facilitador) | Materiales listos; 0/5. No se sustituye por E2E ni cuenta el piloto |
+| **P-03:** alojamiento, HTTPS, monitor, copias, restauración y reversión | Claude preparó · Gemini contrastó (g035) · **responsable aprueba** | Propuesta y plan en `docs/p-03-alojamiento.md`. Recomendación: Azure for Students; alternativa Render. Nada contratado ni publicado |
+| Despliegue, ensayo de restauración y monitor | Tras la aprobación de P-03 | Pendiente |
+| **RNF-02:** 99 % mensual, excluido el mantenimiento | Tras el despliegue | Método definido en `docs/p-03-alojamiento.md` §7; **no cumplido ni medible** hasta cerrar un mes de observación con evidencias |
+| RNF-07: matriz con las versiones comerciales de Chrome, Edge y Firefox | Claude/Codex | Parcial (Playwright Chromium y Firefox). Se completará sobre la versión desplegada |
+| `listen_addresses` de PostgreSQL y limpieza local | Claude preparó · responsable decide | Propuesta lista, nada aplicado ni borrado (ver §3) |
 
 ## 3. Intervención que necesito del responsable
-| Decisión o acción | Cuándo |
+| Decisión o acción | Detalle |
 |---|---|
-| Reclutar y ejecutar CP-11 con 5 participantes (el piloto propio no cuenta) | Cuando estén listos los materiales (§2) |
-| Aprobar servicio de alojamiento, coste y configuración; introducir los secretos directamente en el proveedor | Tras la comparación de P-03 |
-| Autorizar explícitamente cualquier borrado de bases o respaldos (se conservan `barberturno_demo_t32` y `antes-de-18.6-sin-clean.sql`) | Tras la propuesta de limpieza |
-| Aplicar, si procede, el cambio de `listen_addresses` (requiere reiniciar el servicio) | Tras la propuesta |
+| CP-11 | Conseguir 5 participantes y ejecutar las sesiones con `docs/pruebas/cp11-sesiones.md`. Antes, fijar el **plazo de conservación** y el **canal de retirada** de datos que se leen en el consentimiento. |
+| P-03 | Elegir servicio (A Azure for Students, B Render ≈ 13,30 USD/mes, C Railway ≈ 8–12 USD/mes), confirmar elegibilidad y región, crear la cuenta e introducir los secretos directamente en el proveedor. |
+| PostgreSQL local | Aprobar el cambio a `listen_addresses = 'localhost'` en las instancias 17 y 18 (hoy escuchan en todas las interfaces aunque `pg_hba` solo admite conexiones locales; ninguna aplicación necesita acceso remoto). Requiere consola de administrador y reinicio del servicio. |
+| Limpieza | Autorizar por elemento: caché npm de C: (3,5 GB), restos de `frontend/tmp` (≈ 1,4 GB, conservando los navegadores), worktrees `BarberTurno-diag`, bases de revisión `t48/t54/t55`, verificaciones y ensayo de CP-11. Se conservan `barberturno_demo_t32` y `antes-de-18.6-sin-clean.sql`. |
 
 ## 4. Mejoras futuras fuera del cierre
 - P-01 validación de reglas y precios con la barbería, P-06 política de inasistencias, P-08 informe del APF1 (decisiones del negocio o del docente).
 - T-53 (precarga de componentes diferidos en `app.routes.spec`): no abierta; solo si el timeout se reproduce en ejecución aislada.
 - Autorregistro de barberos y fotografías de profesionales: fuera de alcance por decisión del responsable.
+- Monitor con comprobación cada minuto (plan de pago) y nonce de CSP en lugar de `style-src 'unsafe-inline'`.
