@@ -17,3 +17,8 @@ p {
     padding: 16px;
   }
 }
+
+a[mat-button]:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}

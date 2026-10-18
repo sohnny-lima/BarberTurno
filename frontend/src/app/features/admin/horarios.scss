@@ -101,3 +101,8 @@ mat-checkbox {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+mat-select:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: 2px;
+}

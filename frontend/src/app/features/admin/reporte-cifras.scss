@@ -36,3 +36,14 @@
     align-content: center;
   }
 }
+
+// El riel de navegación reduce el espacio disponible al inicio del escritorio.
+@media (min-width: 768px) and (max-width: 879.98px) {
+  .estadisticas {
+    gap: 8px;
+  }
+  .estadistica {
+    padding-inline: 0;
+    justify-items: center;
+  }
+}
