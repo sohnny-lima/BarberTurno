@@ -53,7 +53,7 @@ Monitorización externa (ambas): **UptimeRobot Free** (50 monitores, cada 5 min,
 - **Evidencia:** `docs/pruebas/rnf-02.md` con el periodo, el export del monitor, las ventanas de mantenimiento y el cálculo. **No se declara cumplido** hasta cerrar el periodo con esas pruebas.
 
 ## 8. Coste total de la configuración concreta (opción A)
-Precios de lista de Azure (API pública de precios, consultada el 18/10/2026, USD, sin impuestos), región **East US / East US 2**, la más barata de las comprobadas (en Brazil South el B1 cuesta 0,02 USD/h y el B1MS 0,035 USD/h). Meses de 730 h. Condiciones de la oferta según [Azure for Students](https://azure.microsoft.com/en-us/free/students) y [Microsoft Learn](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/azurestudents-subscription-disabled).
+Precios de lista de Azure (API pública de precios, consultada el 18/10/2026, USD, sin impuestos). Esta tabla se calculó primero con East US / East US 2; la suscripción no permite esas regiones (§10), y **West US 2 tiene los mismos precios** (B1 0,017 USD/h, B1MS 0,017 USD/h, almacenamiento 0,115 USD/GB·mes), así que las cifras valen para la región elegida. Meses de 730 h. Condiciones de la oferta según [Azure for Students](https://azure.microsoft.com/en-us/free/students) y [Microsoft Learn](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/azurestudents-subscription-disabled).
 
 | Componente | Configuración | Precio de lista | Cubierto por | Cargo al crédito |
 |---|---|---|---|---|
@@ -104,7 +104,7 @@ Con esos cinco datos (saldo, expiración, oferta y estado, regiones, beneficios)
    az policy assignment list --query "[].{asignacion:displayName, regiones:parameters.listOfAllowedLocations.value}" -o json
    for r in eastus2 eastus southcentralus brazilsouth; do echo "== $r: $(az postgres flexible-server list-skus --location "$r" -o json 2>&1 | grep -o -i -m1 '"Standard_B1ms"' || echo 'sin B1MS o restringida')"; done
    az appservice list-locations --sku B1 --linux-workers-enabled --query "[].name" -o tsv
-   az webapp list-runtimes --os linux -o tsv | grep -i "JAVA:21"
+   az webapp list-runtimes --os linux -o tsv | grep -i "java|21"
    ```
    Resultado esperado:
    - la primera orden muestra `quotaId` = `AzureForStudents_2018-01-01` y `spendingLimit` = `On`;
@@ -115,14 +115,34 @@ Con esos cinco datos (saldo, expiración, oferta y estado, regiones, beneficios)
 
    La comprobación definitiva de la región se hará al crear los recursos: el asistente valida la región antes de confirmar.
 
-**Regla de elección:** la región más barata de §8 que esté permitida y ofrezca B1MS. En orden: East US 2, East US, South Central US y, por último, Brazil South (≈ 6,8 meses de crédito).
+**Resultados del responsable (Cloud Shell, 18/10/2026):**
+- estado `Enabled`, `quotaId` = `AzureForStudents_2018-01-01` y `spendingLimit` = `On`;
+- regiones permitidas por la directiva de la suscripción: `westus`, `westus2`, `canadacentral`, `brazilsouth` y `chilecentral`. East US, East US 2 y South Central US quedan **fuera**;
+- `Standard_B1ms` de PostgreSQL y App Service Linux B1 aparecen en el catálogo de las cinco;
+- Java SE 21 figura como *Active* (`JAVA|21-java21`). El filtro original `grep -i "JAVA:21"` no coincidía con el formato actual (`JAVA|21-…`), por eso la orden de arriba usa `grep -i "java|21"`.
 
-## 11. Configuración final propuesta (pendiente de la región y de la aprobación del responsable)
+Pendiente: el paso 3 (*Servicios gratuitos*), que se describe en §11 como verificación del beneficio de PostgreSQL.
+
+**Precios oficiales en las regiones permitidas** (API pública de precios de Azure, 18/10/2026, USD de lista, 730 h/mes):
+
+| Región | App Service Linux B1 | Cargo mensual al crédito | Duración estimada de 100 USD | PostgreSQL B1MS (solo si no fuese gratuito) | Almacenamiento PostgreSQL (solo > 32 GB) |
+|---|---|---|---|---|---|
+| **West US 2** (Washington) | **0,017 USD/h** | **≈ 12,41** | **≈ 8,1 meses** | 0,017 USD/h | 0,115 USD/GB·mes |
+| West US (California) | 0,018 USD/h | ≈ 13,14 | ≈ 7,6 meses | 0,022 USD/h | 0,138 USD/GB·mes |
+| Canada Central | 0,018 USD/h | ≈ 13,14 | ≈ 7,6 meses | 0,0185 USD/h | 0,1265 USD/GB·mes |
+| Brazil South | 0,020 USD/h | ≈ 14,60 | ≈ 6,8 meses | 0,035 USD/h | 0,2185 USD/GB·mes |
+| Chile Central | 0,0238 USD/h | ≈ 17,37 | ≈ 5,8 meses | 0,0238 USD/h | 0,161 USD/GB·mes |
+
+En todas, la salida a internet es gratuita hasta 100 GB/mes. Brazil South y Chile Central están más cerca de Huamanga, pero cuestan entre un 18 % y un 40 % más de crédito. Para una SPA de reservas, la latencia adicional de un centro de datos en Estados Unidos (del orden de decenas de milisegundos por petición) no compromete RNF-01 (≤ 2 s) y se medirá en el despliegue. Todas las regiones están fuera de Perú: la consideración de transferencia internacional de la Ley 29733 es la misma en cualquiera de ellas, y los datos del proyecto académico son ficticios.
+
+**Región elegida: West US 2**, la más barata permitida, con B1 y B1MS disponibles.
+
+## 11. Configuración final propuesta (pendiente de la aprobación del responsable)
 Se mantiene la arquitectura documentada (DA-06, DA-12): **un único jar de Spring Boot con la SPA de Angular dentro**, en **App Service Linux (Java SE 21)**, y **PostgreSQL 18 administrado**. Sin frontend separado ni Container Apps (no hay una necesidad demostrada).
 
 | # | Recurso | Nombre propuesto | Configuración | Coste |
 |---|---|---|---|---|
-| 1 | Grupo de recursos | `rg-barberturno-prod` | Región elegida (§10) | 0 |
+| 1 | Grupo de recursos | `rg-barberturno-prod` | **West US 2** (`westus2`), para todos los recursos | 0 |
 | 2 | Azure Database for PostgreSQL Flexible | `pg-barberturno-<sufijo>` | PostgreSQL **18**, Burstable **B1MS**, 32 GB Premium SSD **sin crecimiento automático** (para no salir de los 32 GB gratuitos), copias 7 días LRS, sin HA, TLS obligatorio, acceso público solo para servicios de Azure + la IP del responsable, `azure.extensions = BTREE_GIST`, base y rol `barberturno_prod` (docs/despliegue.md) | 0 (gratuito 12 meses) |
 | 3 | Plan de App Service | `asp-barberturno` | Linux **B1**, 1 instancia, sin escalado automático | **0,017 USD/h ≈ 12,41 USD/mes** |
 | 4 | Aplicación web | `barberturno-<sufijo>` | Java SE 21, *Always On*, *HTTPS Only*, TLS ≥ 1.2, FTP desactivado, *Health check* `/actuator/health`, registros en el sistema de archivos, variables de §5 (las introduce el responsable) | Incluido en el plan |
@@ -133,13 +153,19 @@ Se mantiene la arquitectura documentada (DA-06, DA-12): **un único jar de Sprin
 
 **No se crean:** Application Insights ni Log Analytics (cobran por ingesta), dominio propio, ranuras de despliegue (requieren el nivel Standard), segunda base ni Container Registry.
 
+### Verificación del beneficio gratuito de PostgreSQL en la suscripción
+El beneficio (750 h/mes de B1MS, 32 GB de almacenamiento y 32 GB de copias durante 12 meses) se aplica automáticamente a un servidor que cumpla esas condiciones. Se comprueba en tres momentos, sin cambiar nada de la suscripción:
+1. **Antes de crear (solo lectura):** en el portal, *Servicios gratuitos* → la fila «Azure Database for PostgreSQL – Flexible Server» debe mostrar 750 h de Burstable B1MS, 32 GB de almacenamiento y 32 GB de copias, con su fecha de fin. Si no aparece, se para y se consulta (sin beneficio, la base costaría ≈ 16,09 USD/mes en West US 2, 12,41 de cómputo y 3,68 de almacenamiento; con el plan B1, ≈ 28,50 USD/mes, y el crédito duraría ≈ 3,5 meses).
+2. **Al crear:** en el asistente del servidor (B1MS, 32 GB, sin crecimiento automático, sin HA), la pestaña *Revisar y crear* muestra el coste estimado antes de confirmar. Con el beneficio aplicable debe indicar que la configuración está dentro de la cuota gratuita o un coste de 0. Si muestra un importe, no se confirma.
+3. **Después de crear (24–72 h):** en el [portal de patrocinios](https://www.microsoftazuresponsorships.com/balance) → *Usage*, el cómputo y el almacenamiento de PostgreSQL deben aparecer con gasto 0 y solo el plan de App Service con ≈ 0,41 USD/día. Si PostgreSQL consume crédito, se investiga de inmediato.
+
 ### Consumo estimado del crédito (estimación condicionada al consumo)
 | Concepto | Valor |
 |---|---|
 | Cargo mensual previsto | ≈ 12,41 USD (solo el plan B1; el resto es gratuito o 0) |
 | Cargo semanal de referencia | ≈ 2,86 USD |
 | Crédito | 100 USD, vence el 18/10/2027 |
-| Duración estimada | ≈ 8 meses desde la creación del plan (p. ej., creado el 20/10/2026 → agotamiento previsto hacia mediados de junio de 2027), **antes** del vencimiento. Supone una sola instancia B1, una sola base encendida, ≤ 32 GB, ≤ 100 GB de salida al mes y precios sin cambios |
+| Duración estimada | ≈ 8,1 meses (100 / 12,41) desde la creación del plan (p. ej., creado el 20/10/2026 → agotamiento previsto hacia mediados de junio de 2027), **antes** del vencimiento. Supone una sola instancia B1, una sola base encendida, ≤ 32 GB, ≤ 100 GB de salida al mes y precios sin cambios |
 | Periodo de RNF-02 | Un mes natural completo dentro de ese plazo (p. ej., noviembre de 2026) |
 | Ahorro opcional tras la evaluación académica | Pasar el plan a F1 (gratis) o eliminarlo detiene el cargo de 12,41 USD/mes; la base sigue siendo gratuita hasta el 18/10/2027. Requiere decisión del responsable (F1 no tiene *Always On*: deja de servir para RNF-02) |
 
@@ -160,4 +186,4 @@ Se mantiene la arquitectura documentada (DA-06, DA-12): **un único jar de Sprin
   - los servicios de Marketplace de terceros que se facturan aparte (no se usan; sin medio de pago no se pueden contratar).
 
 ### Lo que se aprueba con esta configuración
-Región (la que resulte de §10), los recursos 1–7 y el cargo previsto de ≈ 12,41 USD/mes contra el crédito (0 de bolsillo). Tras la aprobación, por este orden: creación de recursos, secretos introducidos por el responsable, despliegue del jar verificado en la CI, HTTPS, *Health check*, monitor externo, ensayo de restauración y comienzo del periodo de RNF-02.
+Región **West US 2**, los recursos 1–7 y el cargo previsto de ≈ 12,41 USD/mes contra el crédito (0 de bolsillo). Tras la aprobación, por este orden: creación de recursos, secretos introducidos por el responsable, despliegue del jar verificado en la CI, HTTPS, *Health check*, monitor externo, ensayo de restauración y comienzo del periodo de RNF-02.
