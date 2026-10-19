@@ -137,7 +137,7 @@ En todas, la salida a internet es gratuita hasta 100 GB/mes. Brazil South y Chil
 
 **Región elegida: West US 2**, la más barata permitida, con B1 y B1MS disponibles.
 
-## 11. Configuración final propuesta (pendiente de la aprobación del responsable)
+## 11. Configuración final propuesta (aprobada; desplegada con desviaciones, ver §12)
 Se mantiene la arquitectura documentada (DA-06, DA-12): **un único jar de Spring Boot con la SPA de Angular dentro**, en **App Service Linux (Java SE 21)**, y **PostgreSQL 18 administrado**. Sin frontend separado ni Container Apps (no hay una necesidad demostrada).
 
 | # | Recurso | Nombre propuesto | Configuración | Coste |
@@ -187,3 +187,99 @@ El beneficio (750 h/mes de B1MS, 32 GB de almacenamiento y 32 GB de copias duran
 
 ### Lo que se aprueba con esta configuración
 Región **West US 2**, los recursos 1–7 y el cargo previsto de ≈ 12,41 USD/mes contra el crédito (0 de bolsillo). Tras la aprobación, por este orden: creación de recursos, secretos introducidos por el responsable, despliegue del jar verificado en la CI, HTTPS, *Health check*, monitor externo, ensayo de restauración y comienzo del periodo de RNF-02.
+
+## 12. Despliegue realizado (19/10/2026) y estado operativo
+El responsable creó los recursos y desplegó manualmente desde el portal y Cloud Shell (sin Azure CLI en Windows). **Desviación de §11:** la región real es **West US** (`westus`), no West US 2. Por eso el plan B1 cuesta 0,018 USD/h, **≈ 13,14 USD/mes del crédito**, y la duración estimada de los 100 USD baja a **≈ 7,6 meses**: unos 7,6 meses desde el 19/10/2026, es decir, hacia comienzos de junio de 2027. Sigue siendo una estimación condicionada al consumo y anterior al vencimiento del 18/10/2027. Si el beneficio de PostgreSQL no se aplicara, el B1MS de West US costaría 0,022 USD/h.
+
+### 12.1 Recursos (observado por el responsable)
+| Recurso | Nombre | Configuración |
+|---|---|---|
+| Grupo | `rg-barberturno-prod` | West US |
+| Plan | `plan-barberturno-prod` | Linux B1, 1 instancia |
+| App Service | `barberturno-web-202610` | Java SE 21, *Always On* y *HTTPS Only* activados, *Health check* en `/actuator/health` («Correcto») |
+| PostgreSQL | `pg-barberturno-202610` | 18.6, B1ms, 32 GB, crecimiento automático y HA desactivados, copias automáticas con retención de 7 días |
+| Base y rol | `barberturno_prod` / `barberturno_app` | Rol de aplicación distinto del administrador; extensión `btree_gist` creada |
+| Red de la base | Reglas individuales | 13 IP salientes actuales de App Service + 1 IP del responsable; **sin** «permitir servicios de Azure». No se añaden automáticamente las demás `possibleOutboundIpAddresses` |
+| Variables | App Service | Perfil de producción, JDBC con `sslmode=verify-full`, cookies seguras y secreto JWT persistente (valores no registrados aquí); sin perfil `demo` ni reloj fijo |
+
+URL pública: https://barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net
+
+**Riesgo de la regla de red:** si Azure cambia las IP salientes de la aplicación (cambio de nivel del plan, migración de la unidad de escalado), la aplicación perdería la conexión con la base y `/actuator/health` pasaría a DOWN (lo detectaría el monitor). Remedio: comparar `outboundIpAddresses` con las reglas y añadir las nuevas, con la aprobación del responsable.
+
+### 12.2 Artefacto y despliegue
+- Jar: `.local/coordinacion/cp11/jar/barberturno-final.jar`, SHA-256 `aa4dcf8f282ebfe3bcf45f120d9d7fad8a7c873b05fa5b82542dfc7b25388bc2`.
+  - Coincide en Windows y en Cloud Shell (responsable) y con `jar-final.txt` (coordinador, 19/10/2026).
+  - Construido en el checkpoint del coordinador (E2E 48/48) desde `720f022`, con código idéntico a `d2f3107`, el commit publicado con la CI **39099141093 success**.
+  - `git diff d2f3107 HEAD -- backend frontend` está vacío: lo posterior es solo documentación.
+- Despliegue: `az webapp deploy --type jar`, identificador `b850dc93-92cc-4c3c-b66d-a004ec9f3b39`, inicio 19/10/2026 06:53 UTC (01:53 de Lima). Resultado `RuntimeSuccessful`, una instancia correcta y ninguna fallida.
+
+### 12.3 Comprobaciones
+**Observadas por el responsable (19/10/2026):** la URL pública sirve la interfaz; el administrador inició sesión y entró en Agenda; `/actuator/health` → 200 `{"status":"UP"}` repetidamente; *Always On*, *HTTPS Only* y *Health check* correctos.
+
+**Comprobadas por el coordinador** (19/10/2026, solo peticiones GET/HEAD públicas, sin credenciales):
+- `GET /actuator/health` → 200 `{"status":"UP"}` (0,74 s);
+- `http://` → **301** a `https://`;
+- `GET /`, `/reservar`, `/actuator/health` y `/api/servicios` llevan HSTS (`max-age=31536000 ; includeSubDomains`), CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options` y `Referrer-Policy`;
+- la cookie `XSRF-TOKEN` es `Secure; SameSite=Strict`;
+- las rutas de la SPA responden 200 HTML;
+- Swagger no es público (401).
+
+**Observación menor (sin acción en el freeze):** `HEAD /` responde 200 sin las cabeceras de seguridad y `HEAD /reservar` responde 404, mientras que GET es correcto en ambos. No afecta a los navegadores, que usan GET; se deja anotado por si un monitor usara HEAD (el de UptimeRobot consulta `/actuator/health`, que responde bien también a HEAD).
+
+**Todavía no acreditado:** el recorrido completo de reserva en producción (§12.5), RNF-01 desde internet (no se hará prueba de carga en producción sin una decisión expresa) y RNF-07/08 en producción.
+
+### 12.4 Criterios de P-03 frente a lo implementado
+| Criterio (§5–§7, §11; RNF-02/03/09/14) | Estado | Evidencia o falta |
+|---|---|---|
+| Alojamiento sin suspensión por inactividad | **Cumplido** | B1 con *Always On* (responsable) |
+| HTTPS con certificado válido y redirección | **Cumplido** | *HTTPS Only*; 301 HTTP→HTTPS; HSTS (coordinador) |
+| Configuración de producción sin `demo` ni reloj fijo; secretos fuera del repositorio | **Cumplido** (observado) | Responsable; el perfil `prod` rechaza `demo` y el reloj fijo al arrancar (T-33) |
+| Base gestionada PostgreSQL 18 con TLS verificado y rol sin privilegios | **Cumplido** (observado) | `verify-full`, `barberturno_app`, `btree_gist` |
+| Comprobación de salud (RNF-14) | **Cumplido** | `/actuator/health` 200 UP; *Health check* de Azure |
+| Monitor externo (RNF-02) | **Configurado** | UptimeRobot `804331244`, cada 5 min; solo hubo correo de prueba, sin caída ni recuperación reales |
+| Copias automáticas (RNF-09, RPO 24 h) | **Configurado, sin evidencia de restauración** | Retención de 7 días. Falta el ensayo en Azure (§12.6) |
+| Segunda ubicación (copia lógica semanal) y latido Healthchecks.io | **Pendiente** | No creado |
+| Bloqueo `CanNotDelete` de la base | **Pendiente** | Sin evidencia de creación |
+| Avisos por correo de cambios en recursos (registro de actividad) | **Pendiente** | Sin evidencia de creación |
+| Beneficio gratuito de PostgreSQL | **Pendiente de verificar** | Revisar *Usage* entre el 20/10 02:00 y el 22/10 02:00 de Lima (24–72 h tras la creación): PostgreSQL con gasto 0 y App Service ≈ 0,43 USD/día |
+| Revisión semanal del saldo | **Pendiente de iniciar** | Referencia: ≈ 3,03 USD/semana (West US) |
+| RNF-02 (99 % mensual) | **En observación, no cumplido** | §12.7 |
+
+### 12.5 Prueba mínima en producción (manual, con datos ficticios)
+Sin E2E, sin cargas de datos de prueba o demo y sin prueba de carga. Cada escritura requiere la autorización del responsable. Todos los datos creados se registran en la tabla de abajo.
+
+| Paso | Comprobación | Escrituras | Estado |
+|---|---|---|---|
+| PM-0 | HTTP→HTTPS y cabeceras | No | **Hecho** (coordinador, §12.3) |
+| PM-1 | Inventario como administrador: servicios, barberos y horarios existentes | No | Pendiente |
+| PM-2 | Configuración mínima si falta: 1 servicio, 1 barbero con cuenta y horario de lunes a sábado | Sí | Pendiente de autorización |
+| PM-3 | Alta de un cliente ficticio (`prueba.cliente1@ejemplo.test`) y acceso | Sí | Pendiente de autorización |
+| PM-4 | Reserva completa del cliente; aparece en Mis citas con su aviso y en la Agenda y la campana del barbero | Sí | Pendiente |
+| PM-5 | Reprogramación (con más de 2 h de antelación) y cancelación | Sí | Pendiente |
+| PM-6 | Aislamiento: un segundo cliente ficticio no ve la cita; el barbero solo ve las suyas; el administrador no tiene campana | Sí (segundo cliente) | Pendiente |
+| PM-7 | Salir y volver a entrar sin recargar, en Chrome y en Firefox | No | Pendiente |
+| PM-8 | Recorrido de reserva a 360 px (modo adaptable del navegador) sin controles tapados ni desplazamiento horizontal | Sí (una reserva) | Pendiente |
+
+**Datos de prueba creados en producción** (se rellenan al crearlos; conservación o retirada a acordar al terminar):
+
+| Fecha | Tipo | Identificación (ficticia) | Quién | Destino acordado |
+|---|---|---|---|---|
+| — | — | — | — | — |
+
+Las reservas no se borran desde la aplicación: las de prueba quedan canceladas en el historial. Los servicios y barberos de prueba se pueden desactivar. Retirarlos por completo exigiría SQL con la aprobación del responsable.
+
+### 12.6 Ensayo de restauración en Azure (preparado, no ejecutado)
+RNF-09 se verificó en T-36 con los scripts y un ensayo local. Para producción, `aceptacion.md` deja pendiente comprobar la operación diaria y §6 de este documento exige un ensayo antes de dar el despliegue por operativo. Procedimiento propuesto:
+1. Restauración a un instante («hace 1 h») hacia un servidor nuevo `pg-barberturno-ensayo` en West US, sin tocar el de producción ni la aplicación.
+2. Fijar `azure.extensions = BTREE_GIST` y comparar recuentos por tabla entre el origen y el restaurado (función `resumir` de `tools/respaldo-comun.sh` y `cmp`).
+3. Cronometrar el proceso (RTO ≤ 4 h) y **eliminar el servidor de ensayo** de inmediato.
+
+**Coste estimado:** octubre solo consume ≈ 13 días de las 750 h gratuitas del B1MS, así que unas horas de un segundo B1MS quedan dentro del beneficio. Los 32 GB adicionales de almacenamiento (0,138 USD/GB·mes en West US) suponen ≈ 0,01 USD por hora de vida del servidor. Total previsto: **menos de 0,10 USD** si se elimina el mismo día y se hace en octubre. Requiere la autorización del responsable porque crea un recurso.
+
+### 12.7 RNF-02 en observación
+- Monitor UptimeRobot `804331244` «BarberTurno producción»: HTTP sobre `https://…/actuator/health`, cada 5 min, alertas por correo (correo de prueba recibido). Creado hacia el 19/10/2026 02:15 de Lima; **pendiente de confirmar la hora exacta** en el panel.
+- **Zona horaria:** America/Lima (UTC−5). Configure la zona horaria de la cuenta de UptimeRobot en Lima para que los informes y los cortes de mes coincidan.
+- **Periodo de evaluación:** el requisito es mensual. Se propone el **mes natural de noviembre de 2026**, del 01/11 00:00 al 30/11 23:59 de Lima (720 h), y se conservan también los datos de octubre (19–31/10) como observación previa.
+- **Cálculo** (§7): disponibilidad = 1 − minutos caídos confirmados fuera de mantenimiento registrado / (43 200 − minutos de mantenimiento registrado). Cumple si es ≥ 99 % (≤ 432 min).
+- **Evidencia:** el plan gratuito conserva 3 meses de registros y su página de precios no menciona exportación. El 01/12/2026 se guardan en `docs/pruebas/rnf-02.md` la lista de incidentes, la disponibilidad de noviembre y las ventanas de mantenimiento, con capturas del panel si no hubiera exportación.
+- **No se declara cumplido** antes de cerrar el periodo y hacer el cálculo.
