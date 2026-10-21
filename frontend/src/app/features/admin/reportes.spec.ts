@@ -48,7 +48,6 @@ describe('Reportes e historial operativo', () => {
 
   describe('Descargar Excel', () => {
     let nombre: string;
-    let enlace: HTMLAnchorElement;
     beforeEach(() => {
       nombre = '';
       const UrlOriginal = URL;
@@ -63,7 +62,6 @@ describe('Reportes e historial operativo', () => {
         this: HTMLAnchorElement,
       ) {
         nombre = this.download;
-        enlace = this;
       });
     });
     afterEach(() => {
@@ -95,7 +93,7 @@ describe('Reportes e historial operativo', () => {
       expect(nombre).toBe('nombre-servidor.xlsx');
       expect(URL.createObjectURL).toHaveBeenCalledWith(archivo);
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:reporte');
-      expect(enlace.isConnected).toBe(false);
+      expect(document.querySelector('a[download="nombre-servidor.xlsx"]')).toBeNull();
       expect(boton.disabled).toBe(false);
       expect(boton.getAttribute('aria-busy')).toBe('false');
       expect(f.componentInstance.resumen()).toEqual(RESUMEN);
