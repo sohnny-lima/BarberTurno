@@ -133,7 +133,42 @@ export class Reportes {
       });
   }
 
-  descargarExcel() {}
+  descargarExcel() {
+    const consulta = this.filtrosAplicados();
+    if (!consulta || !this.resumen() || this.cargando() || this.descargando()) return;
+    this.mensajeDescarga.set('');
+    this.descargando.set(true);
+    this.api
+      .excel(consulta)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.descargando.set(false)),
+      )
+      .subscribe({
+        next: (respuesta) => {
+          if (!respuesta.body) {
+            this.mensajeDescarga.set('No se recibió el archivo. Intente nuevamente.');
+            return;
+          }
+          const url = URL.createObjectURL(respuesta.body);
+          const enlace = document.createElement('a');
+          const cabecera = respuesta.headers.get('Content-Disposition') ?? '';
+          const nombre = /filename\s*=\s*(?:"([^"]+)"|([^;]+))/i.exec(cabecera);
+          enlace.href = url;
+          enlace.download =
+            (nombre?.[1] ?? nombre?.[2])?.trim() ||
+            `reporte-barberturno-${consulta.desde}_${consulta.hasta}.xlsx`;
+          document.body.appendChild(enlace);
+          try {
+            enlace.click();
+          } finally {
+            enlace.remove();
+            URL.revokeObjectURL(url);
+          }
+        },
+        error: (error) => this.mensajeDescarga.set(mostrarErrores(new FormGroup({}), error)),
+      });
+  }
 
   aplicar() {
     this.formulario.markAllAsTouched();

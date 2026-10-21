@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, type Response, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
 import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
@@ -788,6 +789,42 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
     .evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
   if (page.viewportSize()!.width === 360) expect(columnasCifras).toBe(2);
   await revisar(page, testInfo, 'reportes');
+
+  // La descarga conserva el periodo/profesional aplicados aunque se edite el formulario.
+  await page.getByRole('combobox', { name: 'Profesional', exact: true }).click();
+  await page.getByRole('option', { name: 'Carlos', exact: true }).click();
+  const resumenFiltrado = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === '/api/reportes/resumen' &&
+      new URL(r.url()).searchParams.has('barberoId'),
+  );
+  await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
+  const aplicado = new URL((await resumenFiltrado).url());
+  await expect(page.locator('app-reportes [aria-busy="true"]')).toHaveCount(0);
+  await page.getByLabel('Desde', { exact: true }).fill('2027-01-01');
+  const respuestaExcel = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/reportes/resumen.xlsx',
+  );
+  const descargado = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+  const respuestaArchivo = await respuestaExcel;
+  expect(respuestaArchivo.status()).toBe(200);
+  expect(respuestaArchivo.headers()['content-type']).toBe(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  expect(respuestaArchivo.headers()['cache-control']).toBe('no-store');
+  const consultaExcel = new URL(respuestaArchivo.url());
+  expect([...consultaExcel.searchParams.entries()].sort()).toEqual(
+    [...aplicado.searchParams.entries()].sort(),
+  );
+  const descarga = await descargado;
+  expect(descarga.suggestedFilename()).toBe('reporte-barberturno-2026-09-27_2026-10-01.xlsx');
+  expect(await descarga.failure()).toBeNull();
+  const bytes = await readFile((await descarga.path())!);
+  expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+  expect(bytes.includes(Buffer.from('xl/workbook.xml'))).toBe(true);
+  expect(bytes.includes(Buffer.from('xl/worksheets/sheet1.xml'))).toBe(true);
+  await expect(page.getByRole('button', { name: 'Descargar Excel', exact: true })).toBeEnabled();
 
   // Solo lectura: estas cuentas siguen disponibles para los casos siguientes.
   await page.goto('/admin/usuarios');

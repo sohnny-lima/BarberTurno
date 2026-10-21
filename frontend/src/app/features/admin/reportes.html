@@ -68,6 +68,17 @@
     />
   }
 </form>
+@if (descargando()) {
+  <app-estado-contenido tipo="carga" texto="Preparando el archivo Excel…" />
+}
+@if (mensajeDescarga()) {
+  <app-estado-contenido
+    tipo="error"
+    [texto]="mensajeDescarga()"
+    reintento="Reintentar descarga"
+    (reintentar)="descargarExcel()"
+  />
+}
 @if (mensaje()) {
   <app-estado-contenido
     tipo="error"
