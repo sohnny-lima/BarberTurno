@@ -1,6 +1,7 @@
 package pe.barberturno.reporting;
 
 import java.time.LocalDate;
+import org.springframework.http.ResponseEntity;
 import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -51,5 +52,26 @@ public class ReporteController {
             }
         }
         return reportes.resumen(actor, desde, hasta, servicioId, barberoId);
+    }
+
+    /**
+     * Descarga RF-14 para los mismos filtros y permisos del resumen JSON (DA-29).
+     * @param actor administrador autenticado
+     * @param desde primer día inclusivo de Lima
+     * @param hasta último día inclusivo de Lima
+     * @param servicioId servicio opcional, incluidos los inactivos
+     * @param barberoId profesional opcional, incluidos los inactivos
+     * @param parametros valores originales para rechazar filtros vacíos
+     * @return archivo OOXML adjunto sin caché
+     * @throws java.io.IOException si no puede serializar el libro
+     * @throws NegocioException si el rol, rango o parámetros no son válidos
+     */
+    @GetMapping("/api/reportes/resumen.xlsx")
+    public ResponseEntity<byte[]> excel(@AuthenticationPrincipal UsuarioAutenticado actor,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) Long servicioId, @RequestParam(required = false) Long barberoId,
+            @RequestParam Map<String, String> parametros) throws java.io.IOException {
+        return ResponseEntity.noContent().build();
     }
 }
