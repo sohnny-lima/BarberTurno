@@ -21,6 +21,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import pe.barberturno.catalog.Servicio;
 import pe.barberturno.common.error.NegocioException;
+import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.reporting.ReporteExcelService;
 import pe.barberturno.reporting.ReporteService;
 import pe.barberturno.reporting.dto.ResumenReporteDto;
@@ -108,7 +109,7 @@ class ReporteExcelIT extends ReservaPruebaBase {
             assertThat(numero(hoja, "Total")).isEqualTo(resumen.total());
             int i = 8;
             for (var estado : EstadoReserva.values()) {
-                assertThat(hoja.getRow(i++).getCell(1).getNumericCellValue()).isEqualTo(resumen.porEstado().get(estado));
+                assertThat(hoja.getRow(i++).getCell(1).getNumericCellValue()).isEqualTo(resumen.porEstado().get(estado).doubleValue());
             }
             for (var grupo : resumen.porServicio()) assertThat(numero(hoja, grupo.nombre())).isEqualTo(grupo.total());
             for (var grupo : resumen.porBarbero()) assertThat(numero(hoja, grupo.nombre())).isEqualTo(grupo.total());
@@ -156,6 +157,14 @@ class ReporteExcelIT extends ReservaPruebaBase {
         mvc.perform(peticion()).andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
+    }
+
+    @Test void exportacionImponeAdminTambienAlInvocarServicio() {
+        for (var usuario : List.of(cliente, barbero.getUsuario())) {
+            assertThatThrownBy(() -> reportes.exportar(actor(usuario), LocalDate.of(2026, 10, 1),
+                    LocalDate.of(2026, 10, 1), null, null)).isInstanceOf(NegocioException.class)
+                    .extracting(e -> ((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.PROHIBIDO);
+        }
     }
 
     @ParameterizedTest @CsvSource({"2026-10-02,2026-10-01", "2026-01-01,2027-01-02"})

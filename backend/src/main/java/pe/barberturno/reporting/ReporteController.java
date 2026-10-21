@@ -2,6 +2,10 @@ package pe.barberturno.reporting;
 
 import java.time.LocalDate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,11 +50,7 @@ public class ReporteController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) Long servicioId, @RequestParam(required = false) Long barberoId,
             @RequestParam Map<String, String> parametros) {
-        for (String clave : new String[]{"desde", "hasta", "servicioId", "barberoId"}) {
-            if (parametros.containsKey(clave) && parametros.get(clave).isBlank()) {
-                throw new NegocioException(ErrorCodigo.VALIDACION, "El parámetro " + clave + " no puede estar vacío.");
-            }
-        }
+        validarParametros(parametros);
         return reportes.resumen(actor, desde, hasta, servicioId, barberoId);
     }
 
@@ -72,6 +72,21 @@ public class ReporteController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) Long servicioId, @RequestParam(required = false) Long barberoId,
             @RequestParam Map<String, String> parametros) throws java.io.IOException {
-        return ResponseEntity.noContent().build();
+        validarParametros(parametros);
+        byte[] archivo = reportes.exportar(actor, desde, hasta, servicioId, barberoId);
+        String nombre = "reporte-barberturno-" + (desde == null ? "inicio" : desde)
+                + "_" + (hasta == null ? "hoy" : hasta) + ".xlsx";
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(nombre).build().toString())
+                .cacheControl(CacheControl.noStore()).body(archivo);
+    }
+
+    private void validarParametros(Map<String, String> parametros) {
+        for (String clave : new String[]{"desde", "hasta", "servicioId", "barberoId"}) {
+            if (parametros.containsKey(clave) && parametros.get(clave).isBlank()) {
+                throw new NegocioException(ErrorCodigo.VALIDACION, "El parámetro " + clave + " no puede estar vacío.");
+            }
+        }
     }
 }
