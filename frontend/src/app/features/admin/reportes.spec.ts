@@ -46,6 +46,108 @@ describe('Reportes e historial operativo', () => {
   });
   afterEach(() => http.verify());
 
+  describe('Descargar Excel', () => {
+    let nombre: string;
+    let enlace: HTMLAnchorElement;
+    beforeEach(() => {
+      nombre = '';
+      const UrlOriginal = URL;
+      vi.stubGlobal(
+        'URL',
+        class extends UrlOriginal {
+          static override createObjectURL = vi.fn(() => 'blob:reporte');
+          static override revokeObjectURL = vi.fn();
+        },
+      );
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        nombre = this.download;
+        enlace = this;
+      });
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    it('usa filtros aplicados, bloquea duplicados, respeta el nombre y libera la URL', () => {
+      const f = crear();
+      const aplicados = f.componentInstance.filtrosAplicados()!;
+      f.componentInstance.formulario.patchValue({ desde: '2027-01-01', servicioId: 999 });
+      const boton = f.nativeElement.querySelector(
+        'app-cabecera-pagina button',
+      ) as HTMLButtonElement;
+      expect(boton.textContent).toContain('Descargar Excel');
+      boton.click();
+      f.detectChanges();
+      expect(boton.disabled).toBe(true);
+      expect(boton.getAttribute('aria-busy')).toBe('true');
+      f.componentInstance.descargarExcel();
+      const r = http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx');
+      expect(r.request.params.get('desde')).toBe(aplicados.desde);
+      expect(r.request.params.has('servicioId')).toBe(false);
+      const archivo = new Blob(['OOXML']);
+      r.flush(archivo, {
+        headers: { 'Content-Disposition': 'attachment; filename="nombre-servidor.xlsx"' },
+      });
+      f.detectChanges();
+      expect(nombre).toBe('nombre-servidor.xlsx');
+      expect(URL.createObjectURL).toHaveBeenCalledWith(archivo);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:reporte');
+      expect(enlace.isConnected).toBe(false);
+      expect(boton.disabled).toBe(false);
+      expect(boton.getAttribute('aria-busy')).toBe('false');
+      expect(f.componentInstance.resumen()).toEqual(RESUMEN);
+    });
+
+    it('ofrece nombre alternativo si falta Content-Disposition', () => {
+      const f = crear();
+      const consulta = f.componentInstance.filtrosAplicados()!;
+      f.componentInstance.descargarExcel();
+      http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx').flush(new Blob(['libro']));
+      expect(nombre).toBe(`reporte-barberturno-${consulta.desde}_${consulta.hasta}.xlsx`);
+    });
+
+    it('muestra el problema en una alerta, permite reintentar y conserva el resumen', async () => {
+      const f = crear();
+      f.componentInstance.descargarExcel();
+      http
+        .expectOne((r) => r.url === '/api/reportes/resumen.xlsx')
+        .flush(
+          new Blob([JSON.stringify({ detail: 'Revise el periodo.', codigo: 'VALIDACION' })], {
+            type: 'application/problem+json',
+          }),
+          { status: 400, statusText: 'Bad Request' },
+        );
+      await vi.waitFor(() =>
+        expect(f.componentInstance.mensajeDescarga()).toBe('Revise el periodo.'),
+      );
+      f.detectChanges();
+      const alerta = f.nativeElement.querySelector('[role="alert"]');
+      expect(alerta.textContent).toContain('Revise el periodo.');
+      expect(f.componentInstance.resumen()).toEqual(RESUMEN);
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      alerta.querySelector('button').click();
+      http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx').flush(new Blob(['libro']));
+      expect(f.componentInstance.mensajeDescarga()).toBe('');
+    });
+
+    it('impide descargar antes del resumen y cancela la descarga al destruir', () => {
+      const f = crear(false);
+      f.componentInstance.descargarExcel();
+      http.expectNone((r) => r.url === '/api/reportes/resumen.xlsx');
+      const p = pendientes();
+      p.resumen.flush(RESUMEN);
+      p.historial.flush(PAGINA);
+      f.componentInstance.descargarExcel();
+      const r = http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx');
+      f.destroy();
+      expect(r.cancelled).toBe(true);
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+  });
+
   function pendientes() {
     // Las dos peticiones deben existir antes de que responda cualquiera de ellas.
     return {

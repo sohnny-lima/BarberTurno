@@ -1,4 +1,5 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
+import { of } from 'rxjs';
 import { inject, Injectable } from '@angular/core';
 import { ConsultaResumen, ResumenReporteDto } from '../modelos/reportes';
 
@@ -12,5 +13,9 @@ export class ReportesApi {
       if (valor !== undefined) params = params.set(clave, valor);
     }
     return this.http.get<ResumenReporteDto>('/api/reportes/resumen', { params });
+  }
+
+  excel(_consulta: ConsultaResumen) {
+    return of(new HttpResponse<Blob>({ body: new Blob() }));
   }
 }

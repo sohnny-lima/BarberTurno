@@ -103,6 +103,8 @@ export class Reportes {
   readonly cargando = signal(false);
   readonly mensaje = signal('');
   readonly mensajeHistorial = signal('');
+  readonly descargando = signal(false);
+  readonly mensajeDescarga = signal('');
   readonly pagina = signal(0);
   readonly tamano = signal(10);
   readonly total = signal(0);
@@ -130,6 +132,8 @@ export class Reportes {
         error: (error) => this.errorCatalogos.set(mostrarErrores(new FormGroup({}), error)),
       });
   }
+
+  descargarExcel() {}
 
   aplicar() {
     this.formulario.markAllAsTouched();
