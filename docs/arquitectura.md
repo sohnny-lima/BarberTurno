@@ -395,7 +395,7 @@ Nota (T-46, 04/10/2026): los rechazos estándar de Spring MVC por método no per
 | `GET /api/notificaciones/conteo` | — | 200 `{noLeidas}` |
 | `POST /api/notificaciones/{id}/lectura` · `POST /api/notificaciones/lectura` | — | 204 (una / todas) |
 | `GET /api/reportes/resumen` | `desde`, `hasta`, `servicioId?`, `barberoId?` | 200 `{total, porEstado:{PENDIENTE:n,…}, porServicio:[{id,nombre,total}], porBarbero:[{id,nombre,total}]}` |
-| `GET /api/reportes/resumen.xlsx` (MJ-22, T-58) | Los mismos parámetros y validaciones que `/resumen` | 200 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename="reporte-barberturno-<desde>_<hasta>.xlsx"` (fechas `yyyy-MM-dd`; `inicio`/`hoy` si faltan), `Cache-Control: no-store`. Contenido: el mismo `ResumenReporteDto` (DA-29). Errores como en `/resumen` y siempre en `application/problem+json`, aunque la petición acepte `.xlsx` |
+| `GET /api/reportes/resumen.xlsx` (MJ-22, T-58) | Los mismos parámetros y validaciones que `/resumen` | 200 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename="reporte-barberturno-<desde>_<hasta>.xlsx"` (fechas `yyyy-MM-dd`; ambas son obligatorias porque se reutiliza la validación del resumen), `Cache-Control: no-store`. Contenido: el mismo `ResumenReporteDto` (DA-29). Errores como en `/resumen` y siempre en `application/problem+json`, aunque la petición acepte `.xlsx` |
 | `GET /api/usuarios` | `q?`, `rol?`, paginación | 200 `Pagina<UsuarioAdminDto>` |
 | `POST /api/usuarios/{id}/restablecer-password` | — | 200 `{passwordTemporal}` (se muestra una sola vez) |
 | `PATCH /api/usuarios/{id}/estado` | `{activo}` | 200 |
