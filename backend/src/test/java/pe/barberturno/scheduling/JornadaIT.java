@@ -82,7 +82,7 @@ class JornadaIT {
         assertThat(filas(otro.getId())).isEqualTo(anteriorOtro);
         mvc.perform(get(ruta(barbero.getId())).cookie(admin)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(4));
-        assertThat(jornadas.listarPorBarbero(barbero.getId())).noneMatch(j -> j.getDiaSemana() == 4);
+        assertThat(jdbc.enTransaccion(() -> jornadas.listarPorBarbero(barbero.getId()))).noneMatch(j -> j.getDiaSemana() == 4);
         SqlPruebas.limpiar();
         escribir(barbero.getId(), admin, semana).andExpect(status().isOk());
         var sql = SqlPruebas.sentencias();

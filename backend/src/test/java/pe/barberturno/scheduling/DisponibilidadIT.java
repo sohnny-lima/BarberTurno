@@ -77,7 +77,7 @@ class DisponibilidadIT {
     @Test void corrida_publicaSinSesion_intervalosCompletosContiguosYDesfaseLima() throws Exception {
         assertThat(bt101.getId()).isEqualTo(101L);
         assertThat(jdbc.queryForObject("select hora_inicio::text from jornada order by id limit 1", String.class)).isEqualTo("09:00:00");
-        assertThat(jornadas.listarPorBarbero(carlos.getId()).getFirst().getHoraInicio()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(jdbc.enTransaccion(() -> jornadas.listarPorBarbero(carlos.getId()).getFirst().getHoraInicio())).isEqualTo(LocalTime.of(9, 0));
         var antes = jdbc.queryForList("select * from reserva order by id");
         var resultado = consultar(peticion(FECHA));
         assertThat(resultado.fecha()).isEqualTo(FECHA);

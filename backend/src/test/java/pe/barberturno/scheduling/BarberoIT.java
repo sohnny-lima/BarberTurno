@@ -175,13 +175,13 @@ class BarberoIT {
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true))
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.codigo").value("LIMITE_BARBEROS_ACTIVOS"));
         assertThat(usuarios.findByCorreo("nuevo@ejemplo.test")).isEmpty();
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
         assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isFalse();
-        long activo = barberos.listar(false).getFirst().getId();
+        long activo = jdbc.enTransaccion(() -> barberos.listar(false).getFirst().getId());
         escribir("PATCH", activo, admin, Map.of("activo", true)).andExpect(status().isOk());
         escribir("PATCH", activo, admin, Map.of("activo", false)).andExpect(status().isOk());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
     }
 
     @ParameterizedTest @ValueSource(strings = {"altas", "reactivaciones", "mixto"})
@@ -224,7 +224,7 @@ class BarberoIT {
             assertThat(estados.stream().filter(s -> s == 200 || s == 201).count()).isEqualTo(1);
             assertThat(estados.stream().filter(s -> s == 422).count()).isEqualTo(1);
         }
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
         assertThat(usuarios.count()).isEqualTo(barberos.count() + 1);
     }
 

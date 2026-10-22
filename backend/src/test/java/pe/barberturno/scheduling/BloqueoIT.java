@@ -400,7 +400,7 @@ class BloqueoIT {
             assertThat(resultadoB.getResponse().getStatus()).as(diagnostico(resultadoB)).isEqualTo(orden.equals("bloqueoPrimero") ? 200 : 201);
         }
         assertThat(bloqueos.count()).isEqualTo(1);
-        assertThat(jornadas.listarPorBarbero(barbero.getId())).singleElement()
+        assertThat(jdbc.enTransaccion(() -> jornadas.listarPorBarbero(barbero.getId()))).singleElement()
                 .satisfies(j -> { assertThat(j.getHoraInicio()).isEqualTo(LocalTime.of(8, 0));
                     assertThat(j.getHoraFin()).isEqualTo(LocalTime.of(19, 0)); });
         assertThat(jdbc.queryForObject("select hora_inicio::text from jornada", String.class)).isEqualTo("08:00:00");
