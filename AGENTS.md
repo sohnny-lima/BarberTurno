@@ -56,6 +56,13 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 8. Integrar en `main` localmente (`git merge --no-ff`) cuando se cumpla la Definición de Hecho. **No hacer push** sin autorización.
 9. Informar: qué se hizo, pruebas ejecutadas y su resultado (con la salida si algo falló), desviaciones y la siguiente tarea.
 
+### 5.1 BarberTurno v2 (rama `v2`; propuesta del 21/10/2026, pendiente de aprobación)
+Especificación en `docs/v2/` (empezar por `docs/v2/00-README.md`). Mientras el responsable no la apruebe, **no se implementa nada de v2**. Una vez aprobada:
+- v2 vive en la rama de integración `v2` (worktree `D:\Proyectos\BarberTurno-v2`); las tareas `V2-NN` usan ramas `tarea/V2-NN-…` desde `v2` y se integran en `v2`, **nunca en `main`**. Los pasos 1, 3, 7 y 8 de §5 se leen con `v2` en lugar de `main` y con `docs/v2/10-backlog.md` en lugar de `docs/tareas.md`.
+- El freeze de §5 rige en `main` (v1 académica); en `v2` solo si el responsable no lo levanta (P2-09).
+- Migraciones de v2 en el rango `V100+`; bases `barberturno_v2` y `barberturno_v2_test`; puerto 8081; secretos en el `.local/` del worktree.
+- Desde v2 no se modifican `docs/apf2/`, `entregables/`, las evidencias de v1, Azure ni las bases locales de v1.
+
 ## 6. Convenciones
 ### Idioma
 - Documentación, comentarios, Javadoc, mensajes de commit, mensajes de UI y de error: **español**.
