@@ -323,7 +323,7 @@ Puerto `ModeloConversacional` con una implementación falsa programable (pruebas
 | Elemento | v1 (no cambia) | v2 |
 |---|---|---|
 | Carpeta | `D:\Proyectos\BarberTurno` (rama `main`) | `D:\Proyectos\BarberTurno-v2` (worktree de la rama `v2`) |
-| Bases | `barberturno`, `barberturno_test`, copias de CP-11 | `barberturno_v2`, `barberturno_v2_test` (PostgreSQL 18.6, puerto 5433) |
+| Bases | `barberturno`, `barberturno_test`, copias de CP-11 | `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion` (pruebas de instalación y actualización, V2-DA-22) (PostgreSQL 18.6, puerto 5433) |
 | Roles | `barberturno` | `barberturno_v2` (propietario, Flyway) y `barberturno_v2_app` (aplicación, sin `BYPASSRLS`) |
 | Secretos | `.local/barberturno.env` | `D:\Proyectos\BarberTurno-v2\.local\barberturno.env` (lo crea el responsable; mismas claves + `BT_DB_APP_*`, `BT_WA_*`, `BT_IA_*`). Las rutas relativas de DA-17 lo resuelven solas dentro del worktree |
 | Puertos | 8080 / 4200 | 8081 / 4201 |

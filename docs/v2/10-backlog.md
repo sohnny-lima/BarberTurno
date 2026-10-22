@@ -39,18 +39,26 @@ Por qué este orden: el riesgo técnico mayor (aislamiento con RLS sobre el cód
 ## 3. Primera tarea implementable: V2-01 · Fundación de aislamiento
 **Objetivo:** demostrar que `negocio_id` + FK compuestas + RLS `FORCE` con contexto por transacción funcionan con Hikari, Hibernate 7.4 y el protocolo de v1, **sin cambiar el comportamiento ni los contratos** (un solo negocio).
 
+**Autorización (22/10/2026):** el responsable aprueba la dirección general y autoriza **solo V2-01**, con los ajustes registrados en V2-DA-19…22: rama `v2` + worktree, etiqueta anotada `v1.0-apf3` sobre `3bcd5d0`, freeze levantado solo para las tareas aprobadas de v2, repositorio público, **sin push ni cambios en `main`**, sin WhatsApp, IA ni otras tareas, sin tocar Azure ni las bases existentes, y Meta/IA como estimaciones pendientes (no se contrata nada ni se elige modelo).
+
 **Prerrequisitos (antes de lanzar a Codex):**
-1. El responsable aprueba esta especificación, la rama `v2` y levantar el freeze solo en `v2` (P2-01, P2-09).
-2. Claude crea la rama `v2` desde `tarea/V2-00-especificacion` y el worktree `D:\Proyectos\BarberTurno-v2` (si no existe ya).
-3. Claude prepara `tools/db-local-v2.sql` (roles `barberturno_v2` y `barberturno_v2_app`, bases `barberturno_v2` y `barberturno_v2_test`, permisos; idempotente, contraseñas con `\password`) y `tools/barberturno-v2.env.example`; **el responsable** los ejecuta con el cliente 18 y crea `D:\Proyectos\BarberTurno-v2\.local\barberturno.env`.
+1. Hecho: `v1.0-apf3` → `3bcd5d0`; rama `v2` = `03908b0`; rama `tarea/V2-01-fundacion-aislamiento` desde `v2` en el worktree `D:\Proyectos\BarberTurno-v2`.
+2. Claude prepara `tools/db-local-v2.sql`, `tools/preparar-entorno-v2.ps1` y `tools/barberturno-v2.env.example` (primer commit de la rama de tarea).
+3. **El responsable** ejecuta `tools/preparar-entorno-v2.ps1` desde el worktree: crea los roles `barberturno_v2` y `barberturno_v2_app` y las bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`; las contraseñas de los roles nuevos se generan al azar (o se teclean de forma oculta) y nunca se muestran; la única que se teclea es la de `postgres`, en el aviso oculto de `psql`. Escribe `.local/barberturno.env` del worktree. Nadie más lee ese archivo; no se reutiliza ninguna credencial de v1 ni de producción.
 
 **Alcance (rama `tarea/V2-01-fundacion-aislamiento` desde `v2`):**
-1. Configuración: la aplicación se conecta con `barberturno_v2_app`; Flyway con `barberturno_v2` (`spring.flyway.user/password`, variables nuevas `BT_FLYWAY_USER`/`BT_FLYWAY_PASSWORD`); `dev` y `test` apuntan a `barberturno_v2` y `barberturno_v2_test`; puerto 8081 en `dev`; `.github/workflows/ci.yml` crea los dos roles en el servicio `postgres:18`. `connection-init-sql` (`lock_timeout`) se conserva.
+1. Configuración: la aplicación se conecta con `barberturno_v2_app`; Flyway con `barberturno_v2` (`spring.flyway.user/password`, variables nuevas `BT_FLYWAY_USER`/`BT_FLYWAY_PASSWORD`); `dev` y `test` apuntan a `barberturno_v2` y `barberturno_v2_test` con esos usuarios por defecto; puerto 8081 en `dev`; `.github/workflows/ci.yml` crea los dos roles y las tres bases en el servicio `postgres:18` con contraseñas de la propia ejecución. `connection-init-sql` (`lock_timeout`) se conserva. El frontend no cambia en V2-01.
 2. Migración `V100__negocio_y_rls.sql`: tabla `negocio` (DDL de `04-arquitectura-datos.md` §3.2) y el negocio único (`slug` por *placeholder*); función `app_negocio_actual()`; `negocio_id` en tres pasos (anulable → `UPDATE` con el id del negocio único → `SET NOT NULL` + `SET DEFAULT app_negocio_actual()`, porque Flyway corre sin contexto, `04-arquitectura-datos.md` §3.4) en `servicio`, `barbero`, `jornada`, `bloqueo`, `reserva`, `auditoria_reserva` y `notificacion`; `UNIQUE (negocio_id, id)` en `servicio`, `barbero` y `reserva`; FK compuestas jornada/bloqueo/reserva → barbero, reserva → servicio, auditoría/aviso → reserva; `servicio_nombre_uk` por `(negocio_id, lower(nombre))` **conservando su nombre** (lo traduce `ManejadorErrores`); RLS `ENABLE` + `FORCE` y política de lectura y escritura en las siete; permisos mínimos del rol de la aplicación. `usuario` sin RLS en esta tarea. `reserva.cliente_id` sigue apuntando a `usuario` (cambia en V2-03).
 3. Java, paquete `pe.barberturno.common.tenancy`: proveedor del negocio actual con la implementación **transitoria** basada en `barberturno.tenancy.negocio-unico-id` (obligatoria, sin valor por defecto; definida solo en `application-dev.yml` y `application-test.yml`; el perfil `prod` falla al arrancar si existe o si falta un resolutor); mecanismo que ejecuta `set_config('app.negocio_id', ?, true)` al comenzar **cada** transacción de Spring (Codex verifica y documenta el punto de extensión correcto en Spring 7 / Hibernate 7.4). **Ninguna entidad JPA, DTO, controlador ni contrato cambia.**
-4. Pruebas nuevas: `EsquemaV2IT` (políticas y `FORCE` en las siete tablas; rol de la aplicación sin propiedad, sin `BYPASSRLS` y sin superusuario; FK compuestas; unicidad del nombre por negocio), `ContextoNegocioIT` (*pool* de 1 conexión: con contexto ve filas; JDBC sin contexto ve 0 e `INSERT` falla; el contexto no sobrevive al `COMMIT` ni al `ROLLBACK`; `WITH CHECK` rechaza otro negocio), `AislamientoBaseIT` (negocio B creado con el rol propietario y datos homónimos: con el contexto de A no se ve nada de B en ninguna de las siete tablas).
-5. Adaptación de las pruebas existentes solo donde el esquema cambie (`EsquemaIT` y `DatosDemoRunnerIT` cuentan 8 tablas; `LimpiezaBaseDatos` no debe borrar el negocio único o lo recrea), **sin debilitar aserciones**; lista de cada prueba tocada y por qué.
-6. Documentación: sección de arranque de v2 en el README de la rama, evidencia `docs/v2/pruebas/v2-01.md`, estado y notas de cierre en `docs/v2/10-backlog.md`.
+4. Pruebas nuevas, todas con el **rol de la aplicación** salvo lo que V2-DA-20 reserva al propietario:
+   - `EsquemaV2IT`: políticas y `FORCE` en las siete tablas; el usuario del contexto de Spring es `barberturno_v2_app`, sin propiedad, `BYPASSRLS` ni superusuario; permisos exactos; FK compuestas; unicidad del nombre por negocio.
+   - `ContextoNegocioIT`: *pool* de 1 conexión y proveedor programable de prueba; casos (a)–(d) de V2-DA-20; `WITH CHECK` rechaza otro negocio.
+   - `AislamientoNegocioIT`: negocio B creado **con el rol de la aplicación** bajo su propio contexto, con datos homónimos; con el contexto de A, ninguna de las siete tablas muestra filas de B y los **servicios de v1** no las ven: catálogo y barberos (`listar`), disponibilidad, reservas (listado, detalle por id de B → 404 `NO_ENCONTRADO`), avisos (contador y «marcar todas») y resumen del reporte.
+   - `InstalacionNuevaIT` y `ActualizacionV1IT` (V2-DA-22), en `barberturno_v2_migracion`.
+   - `MigracionesV1InalteradasTest` y el manifiesto `v1-manifiesto.sha256` (V2-DA-21).
+5. Adaptación de las pruebas existentes solo donde el esquema cambie (p. ej., `EsquemaIT` y `DatosDemoRunnerIT` cuentan 8 tablas; `LimpiezaBaseDatos` limpia con el propietario y conserva el negocio único), **sin debilitar aserciones**. La evidencia lista cada prueba tocada, el motivo y cada camino de producción que hubo que hacer transaccional (V2-DA-19).
+6. Documentación: sección de arranque de v2 en el README de la rama, evidencia `docs/v2/pruebas/v2-01.md` (comandos, resultados, migraciones, decisiones menores, deuda), estado y notas de cierre en este archivo.
+7. **Sin merge en `v2`**: la rama de tarea queda revisada y pendiente de la revisión del responsable; integrar en `v2` será el primer paso de la siguiente autorización.
 
 **Criterios de aceptación:**
 | # | Criterio |
@@ -61,13 +69,18 @@ Por qué este orden: el riesgo técnico mayor (aislamiento con RLS sobre el cód
 | CA-4 | Una fila de otro negocio no se puede leer, insertar ni actualizar con el contexto del negocio único; una reserva con servicio y barbero de negocios distintos viola la FK compuesta. |
 | CA-5 | El mismo nombre de servicio es válido en dos negocios y repetido en el mismo da 409 `NOMBRE_DUPLICADO`, como en v1. |
 | CA-6 | La aplicación no arranca sin `barberturno.tenancy.negocio-unico-id`, ni con el perfil `prod`. |
-| CA-7 | El *diff* de `backend/src/main/java` se limita a `common/tenancy` y configuración; ningún contrato de API (arquitectura v1 §6) ni entidad cambia. |
-| CA-8 | Nada en `main`, en Azure ni en las bases de v1; sin push; merge `--no-ff` en `v2` solo tras la revisión de Claude y la de Gemini. |
+| CA-7 | El *diff* de `backend/src/main/java` se limita a `common/tenancy`, configuración y, si aparecen, los caminos que haya que hacer transaccionales (cada uno justificado); ningún contrato de API (arquitectura v1 §6) ni entidad cambia. |
+| CA-8 | Nada en `main`, en Azure ni en las bases existentes; sin push; sin merge en `v2`. |
+| CA-9 | Ninguna prueba ni aserción usa un rol que eluda RLS; el propietario solo aparece en Flyway, la limpieza y la preparación del estado «v1» (V2-DA-20). |
+| CA-10 | `InstalacionNuevaIT` y `ActualizacionV1IT` en verde: los datos de v1 se conservan (huellas idénticas) y las FK compuestas impiden mezclar negocios (V2-DA-22). |
+| CA-11 | `MigracionesV1InalteradasTest` en verde; sin `outOfOrder`, sin `ignoreMigrationPatterns` y sin editar migraciones (V2-DA-21). |
+| CA-12 | Las suites se ejecutan en serie: nunca dos ejecuciones contra el mismo PostgreSQL a la vez. |
 
-**Revisión:** Claude (criterios, RLS con el rol real, *diff* de pruebas modificadas, repetición de `ContextoNegocioIT` y `ConcurrenciaReservaIT`) → Gemini *diff-first* (políticas, roles, contexto y *pool*, FK, migración) → decisión.
+**Revisión:** Claude (criterios, RLS con el rol real, *diff* de pruebas modificadas, repetición de las pruebas nuevas y de `ConcurrenciaReservaIT`, y la suite completa en un *checkpoint*) → Gemini *diff-first* de aislamiento en solo lectura (políticas, roles y permisos, contexto y *pool*, FK, migración y prueba de actualización) → decisión → revisión del responsable.
 
 ## 4. Estado
 | ID | Estado | Fecha | Commit | Notas |
 |---|---|---|---|---|
-| V2-00 | En revisión del responsable | 21/10/2026 | `620e155` + correcciones de g038 | Auditoría Codex 075; Gemini g038 con 10 hallazgos aplicados (`00-README.md` §4) |
-| V2-01 … V2-17 | Pendiente | — | — | — |
+| V2-00 | Aprobada (dirección general) | 22/10/2026 | `620e155`, `03908b0` | Auditoría Codex 075; Gemini g038 con 10 hallazgos aplicados (`00-README.md` §4); ajustes V2-DA-19…22 |
+| V2-01 | En curso | 22/10/2026 | — | Rama `tarea/V2-01-fundacion-aislamiento` |
+| V2-02 … V2-17 | Pendiente (no autorizadas) | — | — | — |
