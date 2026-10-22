@@ -1,7 +1,17 @@
 <app-cabecera-pagina
   titulo="Reportes e historial operativo"
   subtitulo="Seleccione el periodo de inicio de las reservas. Las fechas y horas corresponden a Lima."
-/>
+>
+  <button
+    mat-stroked-button
+    type="button"
+    (click)="descargarExcel()"
+    [disabled]="descargando() || cargando() || !resumen()"
+    [attr.aria-busy]="descargando()"
+  >
+    Descargar Excel
+  </button>
+</app-cabecera-pagina>
 <form class="tarjeta" [formGroup]="formulario" (ngSubmit)="aplicar()">
   <div class="filtros">
     <mat-form-field appearance="outline">
@@ -58,6 +68,17 @@
     />
   }
 </form>
+@if (descargando()) {
+  <app-estado-contenido tipo="carga" texto="Preparando el archivo Excel…" />
+}
+@if (mensajeDescarga()) {
+  <app-estado-contenido
+    tipo="error"
+    [texto]="mensajeDescarga()"
+    reintento="Reintentar descarga"
+    (reintentar)="descargarExcel()"
+  />
+}
 @if (mensaje()) {
   <app-estado-contenido
     tipo="error"

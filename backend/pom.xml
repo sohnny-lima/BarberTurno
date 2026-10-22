@@ -18,9 +18,36 @@
     <argLine />
     <springdoc.version>3.1.1</springdoc.version>
     <jacoco.version>0.8.15</jacoco.version>
+    <poi.version>5.5.1</poi.version>
+    <guava.version>33.7.2-jre</guava.version>
+    <commons-io.version>2.21.0</commons-io.version>
     <jacoco.dominio.minimo>0.70</jacoco.dominio.minimo>
   </properties>
+  <dependencyManagement>
+    <dependencies>
+      <!-- Unifica Commons Compress con la transitiva que POI ya selecciona; no añade artefactos. -->
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>${commons-io.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <dependencies>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
