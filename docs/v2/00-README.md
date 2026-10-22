@@ -31,4 +31,4 @@ Una plataforma para varias barberías independientes, con datos separados por ne
 | Fecha | Revisor | Alcance | Resultado |
 |---|---|---|---|
 | 21/10/2026 | Codex (encargo 075, solo lectura) | Auditoría de impacto del código de v1 | Incorporada en `03`; hallazgo nuevo convertido en V2-RN-16 |
-| 21/10/2026 | Gemini (g038, solo lectura) | Modelo de aislamiento, permisos y WhatsApp | *Pendiente* |
+| 21/10/2026 | Gemini 3.8 Flash (g038, solo lectura, *diff-first* `efd52aa..620e155`, repositorio sin cambios) | Modelo de aislamiento, permisos y WhatsApp | `CON HALLAZGOS` 10 (2 defectos de diseño medios/altos, 3 riesgos, 5 de coherencia), **todos validados y aplicados**: conversación previa a la ficha (`conversacion.wa_id`, `cliente_id` anulable, purga a 30 días); `invitacion.barbero_id`; el encargado solo gestiona barberos (R2-08, V2-RF-03/05); `negocio_id` en tres pasos en `V100`; anular la operación vigente al proponer otra; ciclo de vida de `conversacion.estado`; FK de `operacion_pendiente` a la ficha; referencias corregidas |

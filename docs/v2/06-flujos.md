@@ -25,11 +25,11 @@ sequenceDiagram
 ## 2. Invitaciones del equipo
 | Paso | Regla |
 |---|---|
-| Invitar | Propietario: cualquier rol. Encargado: `ENCARGADO` o `BARBERO`. Si el rol es `BARBERO`, la invitación puede asociarse a un perfil `barbero` ya creado (con su horario) y al aceptar se rellena `barbero.usuario_id`. Una invitación pendiente por correo y negocio (`invitacion_pendiente_uk`). |
+| Invitar | Propietario: cualquier rol. Encargado: solo `BARBERO`. Si el rol es `BARBERO`, la invitación puede asociarse a un perfil `barbero` ya creado (con su horario; `invitacion.barbero_id`) y al aceptar se rellena `barbero.usuario_id`. Una invitación pendiente por correo y negocio (`invitacion_pendiente_uk`). |
 | Aceptar | Mismo flujo que el §1. Si la persona ya tiene membresía en el negocio → 409 `YA_ES_MIEMBRO`. |
 | Revocar invitación | Pasa a `REVOCADA`; el enlace deja de servir en el acto. |
 | Cambiar rol | Solo el propietario. Degradar al último propietario → 409 `ULTIMO_PROPIETARIO`. |
-| Revocar membresía | `REVOCADA`; efecto inmediato en la siguiente petición (la membresía se revalida siempre). Si era `BARBERO`, el perfil se desactiva con la regla de v1 (avisa de reservas futuras vigentes). La cuenta global no cambia (V2-RN-16). |
+| Revocar membresía | Propietario: cualquiera (salvo el último propietario). Encargado: solo membresías `BARBERO`. `REVOCADA`; efecto inmediato en la siguiente petición (la membresía se revalida siempre). Si era `BARBERO`, el perfil se desactiva con la regla de v1 (avisa de reservas futuras vigentes). La cuenta global no cambia (V2-RN-16). |
 | Salir del negocio | Igual que revocar la propia; el último propietario no puede salir. |
 | Último propietario | `pg_advisory_xact_lock(313131, negocio_id)` → contar propietarios activos excluyendo el afectado → si quedaría 0, rechazar. Dos propietarios que se revocan a la vez: el segundo espera, recuenta y es rechazado (V2-CP-04). |
 | Transferir la propiedad | Invitar o ascender a otro propietario y, después, degradarse o salir. |
@@ -67,13 +67,13 @@ sequenceDiagram
   M->>W: POST /api/whatsapp/webhook (firmado)
   W->>DB: evento PENDIENTE (idempotente) → 200
   W->>O: negocio por phone_number_id; ficha por wa_id → no existe
-  O->>DB: crea conversación (sin ficha definitiva todavía)
+  O->>DB: crea conversación (negocio, wa_id; cliente_id nulo hasta aceptar)
   O-->>C: «Hola, soy el asistente de reservas de Barbería X. Para reservar guardaremos tu nombre y número. Aviso de privacidad: <enlace>. ¿Aceptas?» [Aceptar] [No, gracias]
   C->>O: [Aceptar]
-  O->>DB: crea ficha (wa_id, nombre del perfil de WhatsApp o el que indique, privacidad_aceptada_en)
+  O->>DB: crea ficha (wa_id, nombre del perfil de WhatsApp o el que indique, privacidad_aceptada_en) y la enlaza a la conversación
   O-->>C: continúa con la intención del primer mensaje
 ```
-- Sin aceptación no se crea la ficha ni se reserva; sí se puede consultar el catálogo y la disponibilidad.
+- Sin aceptación no se crea la ficha ni se reserva; sí se puede consultar el catálogo y la disponibilidad. La conversación sin ficha solo guarda `wa_id` y los mensajes, y se purga a los 30 días.
 - El opt-in para **recordatorios** es una pregunta aparte después de la primera reserva («¿Quieres que te recordemos la cita un día antes?»); se guarda `whatsapp_optin_en`. «BAJA» o «STOP» lo retira (`whatsapp_optout_en`) y se confirma.
 
 ## 7. WhatsApp: reservar

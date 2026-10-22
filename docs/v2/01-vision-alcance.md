@@ -13,7 +13,7 @@ Principio rector: **la IA interpreta y conversa; el backend decide y ejecuta.** 
 |---|---|---|
 | Administrador de la plataforma | Plataforma | Da de alta negocios e invita a su propietario. Suspende o reactiva negocios. **No ve** clientes, reservas ni conversaciones de los negocios en el MVP. |
 | Propietario | Negocio | Responsable del negocio. Todo lo del encargado, más: gestionar el equipo (incluidos otros propietarios), conectar WhatsApp y la configuración del negocio. Siempre hay al menos uno activo. |
-| Encargado | Negocio | Opera el negocio: catálogo, profesionales, horarios, bloqueos, reservas de cualquier cliente, reportes, bandeja de WhatsApp e invitaciones de barberos y encargados. |
+| Encargado | Negocio | Opera el negocio: catálogo, profesionales, horarios, bloqueos, reservas de cualquier cliente, reportes, bandeja de WhatsApp, e invitación y revocación de barberos (no gestiona a otros encargados ni a propietarios). |
 | Barbero | Negocio | Su agenda, sus horarios y bloqueos (lectura), sus avisos y las transiciones de sus citas. |
 | Cliente | Negocio | Ficha del cliente **dentro de cada negocio**. Reserva, consulta, reprograma y cancela sus citas por la web (con cuenta) o por WhatsApp (identificado por su número). |
 | Persona usuaria | Plataforma | Cuenta global (correo y contraseña). Una misma persona puede ser propietaria de un negocio, barbera en otro y cliente en un tercero. |

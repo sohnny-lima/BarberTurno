@@ -78,7 +78,7 @@ CREATE UNIQUE INDEX negocio_slug_uk ON negocio (slug);
 
 ALTER TABLE usuario ADD COLUMN rol_plataforma varchar(16) NOT NULL DEFAULT 'NINGUNO'
   CHECK (rol_plataforma IN ('NINGUNO','ADMIN_PLATAFORMA'));
--- usuario.rol se elimina en una migración posterior (expandir → migrar → contraer, §8)
+-- usuario.rol se elimina en una migración posterior (expandir → migrar → contraer, 08-pruebas-migracion-reversion.md §6.1)
 
 CREATE TABLE membresia (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -100,7 +100,10 @@ CREATE TABLE invitacion (
   expira_en   timestamptz  NOT NULL,
   invitada_por bigint NOT NULL REFERENCES usuario(id),
   aceptada_por bigint REFERENCES usuario(id),
-  creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL
+  barbero_id   bigint,                        -- perfil que se vincula al aceptar (solo rol BARBERO)
+  creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,
+  CONSTRAINT invitacion_barbero_fk  FOREIGN KEY (negocio_id, barbero_id) REFERENCES barbero (negocio_id, id),
+  CONSTRAINT invitacion_barbero_rol CHECK (barbero_id IS NULL OR rol = 'BARBERO')
 );
 CREATE UNIQUE INDEX invitacion_token_uk ON invitacion (token_hash);
 CREATE UNIQUE INDEX invitacion_pendiente_uk ON invitacion (negocio_id, correo) WHERE estado = 'PENDIENTE';
@@ -172,16 +175,20 @@ ALTER TABLE reserva ADD CONSTRAINT reserva_cliente_fk  FOREIGN KEY (negocio_id, 
 CREATE TABLE conversacion (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   negocio_id bigint NOT NULL REFERENCES negocio(id),
-  cliente_id bigint NOT NULL,
+  wa_id      varchar(20) NOT NULL,                  -- la conversación existe antes de la ficha (consentimiento pendiente)
+  cliente_id bigint,                                -- se rellena al aceptar la privacidad (06-flujos.md §6)
   modo   varchar(8)  NOT NULL DEFAULT 'ASISTENTE' CHECK (modo IN ('ASISTENTE','HUMANO')),
-  estado jsonb       NOT NULL DEFAULT '{}',          -- datos ya fijados: servicio, profesional, fecha, franja
+  estado jsonb       NOT NULL DEFAULT '{}',          -- datos ya fijados: servicio, profesional, fecha, franja (ciclo de vida en §7.1)
   ultima_entrada_en timestamptz,                     -- ventana de 24 h (V2-RN-13)
   version integer NOT NULL DEFAULT 0,
   creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,
   CONSTRAINT conversacion_negocio_id_uk UNIQUE (negocio_id, id),
   CONSTRAINT conversacion_cliente_fk FOREIGN KEY (negocio_id, cliente_id) REFERENCES cliente (negocio_id, id),
-  CONSTRAINT conversacion_cliente_uk UNIQUE (negocio_id, cliente_id)
+  CONSTRAINT conversacion_wa_uk      UNIQUE (negocio_id, wa_id),
+  CONSTRAINT conversacion_cliente_uk UNIQUE (negocio_id, cliente_id)   -- admite varios NULL
 );
+-- Invariante de servicio: si cliente_id no es nulo, cliente.wa_id = conversacion.wa_id.
+-- Las conversaciones sin ficha (no se aceptó la privacidad) se purgan con sus mensajes a los 30 días.
 
 CREATE TABLE mensaje_whatsapp (                     -- historial y outbox de salida
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -208,9 +215,12 @@ CREATE TABLE operacion_pendiente (                  -- V2-RN-10
   estado varchar(10) NOT NULL DEFAULT 'VIGENTE' CHECK (estado IN ('VIGENTE','EJECUTADA','CADUCADA','RECHAZADA','ANULADA')),
   expira_en timestamptz NOT NULL, resultado jsonb,
   creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,
-  CONSTRAINT operacion_conversacion_fk FOREIGN KEY (negocio_id, conversacion_id) REFERENCES conversacion (negocio_id, id)
+  CONSTRAINT operacion_conversacion_fk FOREIGN KEY (negocio_id, conversacion_id) REFERENCES conversacion (negocio_id, id),
+  CONSTRAINT operacion_cliente_fk      FOREIGN KEY (negocio_id, cliente_id)      REFERENCES cliente (negocio_id, id)
 );
 CREATE UNIQUE INDEX operacion_vigente_uk ON operacion_pendiente (conversacion_id) WHERE estado = 'VIGENTE';
+-- Proponer una operación nueva marca antes como ANULADA la VIGENTE de la conversación (misma transacción).
+-- La caducidad se evalúa al usarla (expira_en <= ahora → CADUCADA), sin depender de un trabajo programado.
 
 CREATE TABLE uso_ia (                               -- límites y costes (V2-RN-14)
   negocio_id bigint NOT NULL, dia date NOT NULL, conversacion_id bigint NOT NULL,
@@ -238,7 +248,7 @@ CREATE POLICY T_aislamiento ON T
 - **Rendimiento:** índices que empiezan por `negocio_id` donde las consultas filtran por negocio; la función `STABLE` se evalúa una vez por consulta.
 
 ### 3.4 Primera fundación sin tocar entidades (V2-01)
-En la primera tarea, `negocio_id` se añade con `DEFAULT app_negocio_actual()`: las entidades JPA de v1 no cambian (Hibernate no inserta la columna y `ddl-auto=validate` admite columnas no mapeadas), y la política `WITH CHECK` garantiza que nada se escriba fuera del negocio del contexto. Mientras no exista el `ResolutorNegocio` (V2-05), el contexto sale de una propiedad **explícita y transitoria** `barberturno.tenancy.negocio-unico-id` sin valor por defecto: si falta, la aplicación no arranca (nada de un negocio por defecto silencioso, hallazgo de la auditoría 075) y el perfil `prod` la rechaza. Las tareas siguientes mapean `negocioId` en las entidades cuando lo necesitan. Así se valida pronto la decisión más arriesgada (RLS + Hikari + Hibernate) con un cambio pequeño y revisable.
+En la primera tarea, `negocio_id` se añade **en tres pasos** (columna anulable → `UPDATE` con el id del negocio único → `SET NOT NULL` y `SET DEFAULT app_negocio_actual()`): añadirla directamente como `NOT NULL DEFAULT app_negocio_actual()` fallaría sobre tablas con filas, porque Flyway se ejecuta sin contexto y la función devuelve `NULL` (hallazgo g038-4). Con el `DEFAULT`, las entidades JPA de v1 no cambian (Hibernate no inserta la columna y `ddl-auto=validate` admite columnas no mapeadas), y la política `WITH CHECK` garantiza que nada se escriba fuera del negocio del contexto. Mientras no exista el `ResolutorNegocio` (V2-05), el contexto sale de una propiedad **explícita y transitoria** `barberturno.tenancy.negocio-unico-id` sin valor por defecto: si falta, la aplicación no arranca (nada de un negocio por defecto silencioso, hallazgo de la auditoría 075) y el perfil `prod` la rechaza. Las tareas siguientes mapean `negocioId` en las entidades cuando lo necesitan. Así se valida pronto la decisión más arriesgada (RLS + Hikari + Hibernate) con un cambio pequeño y revisable.
 
 ## 4. Autenticación, negocio activo y autorización
 1. **Sesión:** igual que v1 (JWT HS256 en cookie `HttpOnly`, CSRF, `token_version`). El JWT **no** lleva el negocio ni el rol del negocio: así no hay que reemitirlo al cambiar de negocio, varias pestañas pueden trabajar con negocios distintos y una revocación de membresía tiene efecto inmediato.
@@ -280,7 +290,8 @@ El modelo **interpreta y redacta**; el servidor **consulta, valida, propone y ej
 1. Si es la pulsación de un botón de confirmación → `EjecutorOperaciones` (sin IA): valida nonce, ficha, vigencia y estado; ejecuta el servicio de dominio; compone la respuesta con una **plantilla del servidor** a partir del resultado (V2-RN-11).
 2. Si la conversación está en modo `HUMANO` → solo se guarda y se avisa al personal (V2-RN-15).
 3. Si se superan los límites o el modelo no está disponible → **menús guiados** (la Fase 1, que se conserva como respaldo permanente).
-4. En otro caso → `Orquestador` llama al modelo con: instrucciones fijas del sistema, el catálogo del negocio (solo ese negocio), el estado de la conversación, la fecha y hora actuales en Lima con el día de la semana, y los últimos N mensajes. El modelo puede responder texto o pedir herramientas.
+4. **Ciclo de vida de `conversacion.estado`:** se vacía (`{}`) cuando una operación pasa a `EJECUTADA`, cuando el cliente vuelve al menú principal y cuando pasan 24 h sin mensajes del cliente; así el modelo nunca hereda servicio, profesional o fecha de una interacción anterior.
+5. En otro caso → `Orquestador` llama al modelo con: instrucciones fijas del sistema, el catálogo del negocio (solo ese negocio), el estado de la conversación, la fecha y hora actuales en Lima con el día de la semana, y los últimos N mensajes. El modelo puede responder texto o pedir herramientas.
 
 ### 7.2 Herramientas (definidas y ejecutadas por el backend, con `strict: true`)
 | Herramienta | Tipo | Hace |

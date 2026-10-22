@@ -11,9 +11,9 @@
 |---|---|---|---|
 | V2-RF-01 | El administrador de la plataforma crea un negocio (nombre, `slug` único, zona horaria, parámetros) y emite la invitación de su primer propietario. | Must | 0 |
 | V2-RF-02 | El administrador de la plataforma lista, suspende y reactiva negocios. | Must | 0 |
-| V2-RF-03 | Un propietario o encargado invita a una persona por correo con un rol (`ENCARGADO` o `BARBERO`; `PROPIETARIO` solo lo invita un propietario). La invitación es un enlace de un solo uso, caduca a los 7 días y se puede revocar. | Must | 0 |
+| V2-RF-03 | El propietario invita a una persona por correo con cualquier rol; el encargado, solo con el rol `BARBERO`. La invitación es un enlace de un solo uso, caduca a los 7 días y se puede revocar. | Must | 0 |
 | V2-RF-04 | La persona invitada acepta con una cuenta cuyo correo coincide con el invitado (si no tiene cuenta, la crea en el mismo flujo). Aceptar crea la membresía. | Must | 0 |
-| V2-RF-05 | El propietario cambia roles y revoca membresías; cualquier miembro puede salir del negocio. Nunca queda un negocio sin propietario activo. | Must | 0 |
+| V2-RF-05 | El propietario cambia roles y revoca membresías; el encargado solo revoca membresías `BARBERO`; cualquier miembro puede salir del negocio. Nunca queda un negocio sin propietario activo. | Must | 0 |
 | V2-RF-06 | Una persona con varias membresías o fichas elige el negocio con el que trabaja; la URL del negocio (`/n/{slug}`) identifica el negocio en cada pantalla. | Must | 0 |
 | V2-RF-07 | Cada negocio tiene una página pública (`/n/{slug}`) para explorar servicios, profesionales y disponibilidad, y para reservar con cuenta. | Must | 0 |
 | V2-RF-08 | Restablecimiento de acceso con contraseña temporal (como RF-19), sujeto a V2-RN-16: la plataforma puede restablecer cualquier cuenta (auditado); el propietario o encargado, solo las cuentas de su equipo o de sus clientes que **no** tengan membresías ni fichas en otros negocios. | Must | 0 |

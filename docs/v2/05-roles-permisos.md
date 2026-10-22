@@ -1,4 +1,4 @@
-# BarberTurno v2 · 04 · Roles y matriz de permisos
+# BarberTurno v2 · 05 · Roles y matriz de permisos
 
 > Estado: propuesta · 21/10/2026. Sustituye, en v2, a la matriz de v1 (arquitectura §7.2), que sigue vigente en `main`.
 
@@ -15,8 +15,9 @@ Reglas:
 - **R2-03.** El negocio activo de una petición sale **siempre de la ruta** (`/api/n/{slug}/…`) y se autoriza en el servidor con la membresía o la ficha de cliente del actor en ese negocio. El `slug` o el `negocioId` que envía el navegador **solo identifican**; nunca autorizan. Si el actor no pertenece al negocio → **404** (no se revela que el recurso existe), igual que las reservas ajenas en v1.
 - **R2-04.** Un negocio `SUSPENDIDO` no acepta reservas ni mensajes de WhatsApp nuevos; su personal conserva el acceso de lectura y el administrador de la plataforma puede reactivarlo.
 - **R2-05.** Siempre queda **al menos un PROPIETARIO activo** por negocio (V2-RN-06). Las operaciones que cambian propietarios toman `pg_advisory_xact_lock(313131, negocio_id)` antes de contar (generaliza DA-23).
-- **R2-07.** Un negocio no cambia la identidad global de una persona que también pertenece a otros negocios (V2-RN-16): solo revoca su membresía, desactiva su perfil o su ficha y edita el nombre visible local.
 - **R2-06.** La pertenencia se revalida en **cada petición** junto con `activo` y `token_version` (la misma consulta que hoy hace `UsuarioJwtConverter`, ampliada). Revocar una membresía tiene efecto inmediato sin tocar el JWT.
+- **R2-07.** Un negocio no cambia la identidad global de una persona que también pertenece a otros negocios (V2-RN-16): solo revoca su membresía, desactiva su perfil o su ficha y edita el nombre visible local.
+- **R2-08.** El encargado gestiona solo a los barberos: no invita, revoca, cambia de rol ni restablece a otros encargados ni a propietarios (hallazgo g038-3).
 
 ## 2. Matriz de permisos
 Leyenda: ✔ permitido · **P** solo lo propio (la ficha de cliente del actor) · **A** solo lo asignado al barbero (`barbero.usuario_id = actor`) · **N** solo dentro del negocio de la ruta · — denegado (403 por rol; 404 si es un recurso concreto ajeno o de otro negocio).
@@ -52,8 +53,9 @@ Leyenda: ✔ permitido · **P** solo lo propio (la ficha de cliente del actor) �
 | Reportes y su exportación `.xlsx` | — | — | — | N | N |
 | Avisos propios | — | P | P | P | P |
 | Bandeja de WhatsApp: ver conversaciones derivadas, responder, devolver al asistente | — | — | — | N | N |
-| Invitar o revocar BARBERO y ENCARGADO; desactivar el perfil de profesional (no la cuenta global); restablecer su contraseña solo si su cuenta no tiene relación con otros negocios (V2-RN-16) | — | — | — | N | N |
-| Invitar o revocar PROPIETARIO; cambiar el rol de un ENCARGADO a PROPIETARIO | — | — | — | — | N (no puede dejar 0 propietarios) |
+| Invitar o revocar BARBERO; desactivar el perfil de profesional (no la cuenta global); restablecer su contraseña solo si su cuenta no tiene relación con otros negocios (V2-RN-16) | — | — | — | N | N |
+| Invitar, revocar o restablecer a un ENCARGADO (con la misma condición de V2-RN-16) | — | — | — | — | N |
+| Invitar o revocar PROPIETARIO; cambiar roles (p. ej., ENCARGADO ↔ PROPIETARIO) | — | — | — | — | N (no puede dejar 0 propietarios) |
 | Conectar, reconectar o desconectar el número de WhatsApp; ver su estado | — | — | — | — (solo ver estado) | N |
 | Configuración del negocio (nombre, parámetros de reserva, horario de atención humana) | — | — | — | — | N |
 | Salir del negocio (renunciar a la propia membresía) | — | — | ✔ | ✔ | ✔ (si queda otro propietario) |

@@ -79,8 +79,8 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 | Migración | Contenido | Reversible por |
 |---|---|---|
 | `V100__negocio_y_rls.sql` (V2-01) | `negocio` + negocio único (`slug` por *placeholder* de Flyway); `negocio_id` con relleno en todas las tablas; `UNIQUE (negocio_id, id)`; FK compuestas; unicidades por negocio; RLS; permisos del rol de la aplicación | Restaurar la copia previa (§7) |
-| `V101__identidad_membresias.sql` (V2-03) | `rol_plataforma`; `membresia` desde `usuario.rol` (`ADMIN` → `PROPIETARIO`; `BARBERO` → `BARBERO`); el `BT_ADMIN_*` → `ADMIN_PLATAFORMA`; `usuario.rol` **se conserva** | ídem |
-| `V102__ficha_cliente.sql` (V2-04) | `cliente` desde `usuario` con rol `CLIENTE`, **con el mismo id** (`OVERRIDING SYSTEM VALUE` y ajuste de la secuencia); `reserva.cliente_id` pasa a referenciar `cliente`; `barbero.nombre_visible` desde `usuario.nombre` | ídem |
+| `V101__identidad_membresias.sql` (V2-02) | `rol_plataforma`; `membresia` desde `usuario.rol` (`ADMIN` → `PROPIETARIO`; `BARBERO` → `BARBERO`); el `BT_ADMIN_*` → `ADMIN_PLATAFORMA`; `usuario.rol` **se conserva** | ídem |
+| `V102__ficha_cliente.sql` (V2-03) | `cliente` desde `usuario` con rol `CLIENTE`, **con el mismo id** (`OVERRIDING SYSTEM VALUE` y ajuste de la secuencia); `reserva.cliente_id` pasa a referenciar `cliente`; `barbero.nombre_visible` desde `usuario.nombre` | ídem |
 | `V103+` (equipo, WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
 | `V1xx__contraer.sql` (tras el corte) | Eliminar `usuario.rol`, `usuario_cliente_completo` y las rutas antiguas | Solo después de un periodo estable |
 
