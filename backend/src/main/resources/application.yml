@@ -4,6 +4,12 @@ spring:
   datasource:
     hikari:
       connection-init-sql: SET lock_timeout = '5s'
+  flyway:
+    user: ${BT_FLYWAY_USER:barberturno_v2}
+    password: ${BT_FLYWAY_PASSWORD}
+    placeholders:
+      rolAplicacion: ${BT_DB_USER:barberturno_v2_app}
+      negocioUnicoSlug: barberturno
   jpa:
     open-in-view: false
     hibernate:
