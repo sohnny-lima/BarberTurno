@@ -14,6 +14,14 @@ Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detall
 | **Pendientes** | CP-11 (0/5), RNF-02 (noviembre), PM-1…PM-8, restauración en Azure, protecciones operativas, RNF-07 y validación con el negocio (§2) |
 | **Continuidad** | `docs/continuidad-v2.md` |
 
+### 0.1 Commits del punto final
+| Commit | Contenido |
+|---|---|
+| `3bcd5d0` | **Código entregado**: merge de T-58 en `main` |
+| `12a4185` | Anotación del merge (solo documentación); CI **39716850704 success** |
+| `36173a9` | **Publicación de la documentación**: materiales del APF3, APF2 final, medición de Java, cierre y continuidad |
+| Commit siguiente | Esta anotación de §0.1 (solo documentación) |
+
 ## 1. Terminado y acreditado
 | Elemento | Evidencia | Estado |
 |---|---|---|
