@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2d3a35"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7a8a84"/></marker>
+  </defs>
+  <rect width="1600" height="980" fill="#ffffff"/>
+  <text x="40" y="52" font-size="30" font-weight="700" fill="#14231d">BarberTurno · Arquitectura implementada (alternativa A1)</text>
+  <text x="40" y="84" font-size="17" fill="#4a5a54">SPA Angular 22 + API Spring Boot 4.1.1 / Java 21 + PostgreSQL 18 · un único jar desplegado en Azure for Students (West US)</text>
+
+  <!-- Navegador -->
+  <rect x="40" y="120" width="330" height="560" rx="14" fill="#f4f7f5" stroke="#9fb3aa" stroke-width="2"/>
+  <text x="60" y="155" font-size="20" font-weight="700" fill="#14231d">Navegador (cliente)</text>
+  <text x="60" y="180" font-size="15" fill="#4a5a54">Angular 22 · standalone · signals</text>
+  <rect x="60" y="200" width="290" height="96" rx="10" fill="#fff" stroke="#9fb3aa"/>
+  <text x="76" y="228" font-size="16" font-weight="600" fill="#14231d">Vistas por rol (features/)</text>
+  <text x="76" y="252" font-size="14" fill="#4a5a54">reservar · mis-citas · agenda · perfil</text>
+  <text x="76" y="274" font-size="14" fill="#4a5a54">admin: servicios, barberos, horarios,</text>
+  <text x="76" y="292" font-size="14" fill="#4a5a54">reportes, usuarios</text>
+  <rect x="60" y="310" width="290" height="80" rx="10" fill="#fff" stroke="#9fb3aa"/>
+  <text x="76" y="338" font-size="16" font-weight="600" fill="#14231d">core/api · core/modelos</text>
+  <text x="76" y="362" font-size="14" fill="#4a5a54">un servicio HTTP por recurso;</text>
+  <text x="76" y="380" font-size="14" fill="#4a5a54">interfaces espejo de los DTO</text>
+  <rect x="60" y="404" width="290" height="80" rx="10" fill="#fff" stroke="#9fb3aa"/>
+  <text x="76" y="432" font-size="16" font-weight="600" fill="#14231d">Guards e interceptor</text>
+  <text x="76" y="456" font-size="14" fill="#4a5a54">navegación por rol (solo UX);</text>
+  <text x="76" y="474" font-size="14" fill="#4a5a54">cabecera X-XSRF-TOKEN</text>
+  <rect x="60" y="498" width="290" height="160" rx="10" fill="#fff7e6" stroke="#d9b36c"/>
+  <text x="76" y="526" font-size="16" font-weight="600" fill="#5c4310">Sin reglas de negocio</text>
+  <text x="76" y="550" font-size="14" fill="#5c4310">Los botones dependen de</text>
+  <text x="76" y="570" font-size="14" fill="#5c4310">ReservaDto.permisos, que calcula</text>
+  <text x="76" y="590" font-size="14" fill="#5c4310">el servidor. Fechas en</text>
+  <text x="76" y="610" font-size="14" fill="#5c4310">America/Lima (pipe fechaLima).</text>
+  <text x="76" y="636" font-size="14" fill="#5c4310">Ocultar ≠ autorizar.</text>
+
+  <!-- Flecha HTTPS -->
+  <line x1="372" y1="400" x2="438" y2="400" stroke="#2d3a35" stroke-width="2.5" marker-end="url(#f)" marker-start="url(#f)"/>
+  <text x="378" y="388" font-size="13" fill="#2d3a35">HTTPS</text>
+  <text x="378" y="424" font-size="13" fill="#2d3a35">JSON</text>
+  <text x="378" y="440" font-size="13" fill="#2d3a35">mismo</text>
+  <text x="378" y="456" font-size="13" fill="#2d3a35">origen</text>
+
+  <!-- Azure App Service -->
+  <rect x="440" y="120" width="790" height="660" rx="14" fill="#eef5f1" stroke="#145C43" stroke-width="2.5"/>
+  <text x="460" y="155" font-size="20" font-weight="700" fill="#145C43">Azure App Service Linux B1 · Java SE 21</text>
+  <text x="460" y="180" font-size="15" fill="#2d4a3e">barberturno.jar (Spring Boot 4.1.1) · sirve la SPA y la API /api/** · HTTPS Only · Health check</text>
+
+  <rect x="460" y="200" width="750" height="86" rx="10" fill="#fff" stroke="#145C43"/>
+  <text x="478" y="228" font-size="17" font-weight="700" fill="#14231d">① Filtros de Spring Security (SecurityFilterChain)</text>
+  <text x="478" y="252" font-size="14" fill="#4a5a54">JWT HS256 en cookie HttpOnly BT_SESION · CSRF (cookie XSRF-TOKEN + cabecera) · rol por ruta y método</text>
+  <text x="478" y="272" font-size="14" fill="#4a5a54">PasswordTemporalFilter · STATELESS · CSP, HSTS, nosniff, frame-ancestors 'none'</text>
+
+  <rect x="460" y="300" width="750" height="86" rx="10" fill="#fff" stroke="#145C43"/>
+  <text x="478" y="328" font-size="17" font-weight="700" fill="#14231d">② Controladores REST — «C» de MVC  (@RestController)</text>
+  <text x="478" y="352" font-size="14" fill="#4a5a54">ReservaController, DisponibilidadController, ServicioController, ReporteController …</text>
+  <text x="478" y="372" font-size="14" fill="#4a5a54">Reciben DTO validados (Bean Validation), delegan en un servicio y devuelven DTO (la «vista» es JSON)</text>
+
+  <rect x="460" y="400" width="750" height="106" rx="10" fill="#fff" stroke="#145C43"/>
+  <text x="478" y="428" font-size="17" font-weight="700" fill="#14231d">③ Servicios de dominio — «M» de MVC  (@Service, @Transactional)</text>
+  <text x="478" y="452" font-size="14" fill="#4a5a54">ReservaService · DisponibilidadService · ReservaAutorizacion (propiedad / asignación → 404)</text>
+  <text x="478" y="472" font-size="14" fill="#4a5a54">Reglas puras: ReglasTemporales, PoliticaTransiciones, CalculadoraFranjas, PoliticaPassword</text>
+  <text x="478" y="492" font-size="14" fill="#4a5a54">AuditoriaService · NotificacionService · Clock inyectado + TiempoNegocio (America/Lima)</text>
+
+  <rect x="460" y="520" width="750" height="86" rx="10" fill="#fff" stroke="#145C43"/>
+  <text x="478" y="548" font-size="17" font-weight="700" fill="#14231d">④ Repositorios Spring Data JPA — patrón DAO</text>
+  <text x="478" y="572" font-size="14" fill="#4a5a54">ReservaRepository, BarberoRepository (bloqueo pesimista FOR NO KEY UPDATE), ReporteRepository …</text>
+  <text x="478" y="592" font-size="14" fill="#4a5a54">Entidades JPA con @Version; Flyway V1 crea el esquema</text>
+
+  <rect x="460" y="620" width="365" height="140" rx="10" fill="#fff" stroke="#9fb3aa"/>
+  <text x="476" y="648" font-size="16" font-weight="700" fill="#14231d">Transversal</text>
+  <text x="476" y="672" font-size="14" fill="#4a5a54">ManejadorErrores → RFC 9457</text>
+  <text x="476" y="692" font-size="14" fill="#4a5a54">(application/problem+json)</text>
+  <text x="476" y="716" font-size="14" fill="#4a5a54">SLF4J → Logback (ECS en prod)</text>
+  <text x="476" y="740" font-size="14" fill="#4a5a54">/actuator/health {"status":"UP"}</text>
+  <rect x="845" y="620" width="365" height="140" rx="10" fill="#fff" stroke="#9fb3aa"/>
+  <text x="861" y="648" font-size="16" font-weight="700" fill="#14231d">Exportación (T-58, rama)</text>
+  <text x="861" y="672" font-size="14" fill="#4a5a54">ReporteExcelService:</text>
+  <text x="861" y="694" font-size="14" fill="#4a5a54">Apache POI · Commons Lang</text>
+  <text x="861" y="716" font-size="14" fill="#4a5a54">Google Guava · Logback</text>
+  <text x="861" y="740" font-size="13" fill="#8a5a00">No desplegada en Azure</text>
+
+  <line x1="835" y1="286" x2="835" y2="298" stroke="#2d3a35" stroke-width="2" marker-end="url(#f)"/>
+  <line x1="835" y1="386" x2="835" y2="398" stroke="#2d3a35" stroke-width="2" marker-end="url(#f)"/>
+  <line x1="835" y1="506" x2="835" y2="518" stroke="#2d3a35" stroke-width="2" marker-end="url(#f)"/>
+
+  <!-- PostgreSQL -->
+  <line x1="1212" y1="563" x2="1298" y2="563" stroke="#2d3a35" stroke-width="2.5" marker-end="url(#f)"/>
+  <text x="1238" y="550" font-size="13" fill="#2d3a35">JDBC</text>
+  <text x="1244" y="586" font-size="13" fill="#2d3a35">TLS</text>
+
+  <rect x="1300" y="440" width="270" height="260" rx="14" fill="#f2f4fb" stroke="#4a5d9a" stroke-width="2.5"/>
+  <text x="1318" y="474" font-size="19" font-weight="700" fill="#1f2d5c">PostgreSQL 18.6</text>
+  <text x="1318" y="498" font-size="14" fill="#38467a">Azure Flexible Server B1ms</text>
+  <text x="1318" y="528" font-size="14" fill="#38467a">8 tablas (Flyway V1)</text>
+  <text x="1318" y="552" font-size="14" fill="#38467a">btree_gist + EXCLUDE:</text>
+  <text x="1318" y="574" font-size="14" fill="#38467a">sin solapes por barbero</text>
+  <text x="1318" y="596" font-size="14" fill="#38467a">y por cliente</text>
+  <text x="1318" y="626" font-size="14" fill="#38467a">rol de aplicación propio</text>
+  <text x="1318" y="674" font-size="14" fill="#38467a">TLS verify-full</text>
+  <text x="1318" y="650" font-size="14" fill="#38467a">copias automáticas 7 días</text>
+
+  <!-- Monitor -->
+  <rect x="1300" y="140" width="270" height="110" rx="14" fill="#fff" stroke="#9fb3aa" stroke-width="2"/>
+  <text x="1318" y="172" font-size="17" font-weight="700" fill="#14231d">UptimeRobot</text>
+  <text x="1318" y="196" font-size="14" fill="#4a5a54">GET /actuator/health</text>
+  <text x="1318" y="218" font-size="14" fill="#4a5a54">cada 5 min (RNF-02 en</text>
+  <text x="1318" y="238" font-size="14" fill="#4a5a54">observación)</text>
+  <line x1="1298" y1="195" x2="1232" y2="195" stroke="#7a8a84" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#g)"/>
+
+  <!-- CI -->
+  <rect x="40" y="820" width="1530" height="130" rx="14" fill="#fafafa" stroke="#c9d3cf" stroke-width="2"/>
+  <text x="60" y="852" font-size="18" font-weight="700" fill="#14231d">Construcción y entrega</text>
+  <text x="60" y="880" font-size="15" fill="#4a5a54">Git (ramas tarea/T-XX → merge --no-ff en main) → GitHub (repositorio público) → GitHub Actions ci.yml: job backend (mvnw verify con PostgreSQL 18)</text>
+  <text x="60" y="904" font-size="15" fill="#4a5a54">y job frontend (lint, Vitest, build) → jar con perfil con-frontend (SPA dentro del jar) → despliegue manual autorizado del jar de d2f3107 en App Service (19/10/2026)</text>
+  <text x="60" y="930" font-size="14" fill="#7a8a84">Fuente: backend/pom.xml, SecurityConfig.java, application-prod.yml, V1__esquema_inicial.sql, .github/workflows/ci.yml, docs/p-03-alojamiento.md §12</text>
+</svg>

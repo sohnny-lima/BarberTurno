@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2d3a35"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a1f1f"/></marker>
+  </defs>
+  <rect width="1600" height="1180" fill="#fff"/>
+  <text x="40" y="50" font-size="30" font-weight="700" fill="#14231d">Secuencia: crear una reserva (POST /api/reservas)</text>
+  <text x="40" y="80" font-size="16" fill="#4a5a54">ReservaService.crear · una transacción READ COMMITTED · orden de bloqueos ① cliente → ② barberos por id → ③ reserva</text>
+  <!-- participantes -->
+  <g font-size="16" font-weight="700" fill="#14231d" text-anchor="middle">
+    <rect x="40" y="110" width="200" height="60" rx="10" fill="#f4f7f5" stroke="#9fb3aa" stroke-width="2"/><text x="140" y="146">Cliente (SPA)</text>
+    <rect x="300" y="110" width="220" height="60" rx="10" fill="#eef5f1" stroke="#145C43" stroke-width="2"/><text x="410" y="137">Spring Security</text><text x="410" y="158" font-size="13" font-weight="400">JWT + CSRF + rol</text>
+    <rect x="580" y="110" width="220" height="60" rx="10" fill="#eef5f1" stroke="#145C43" stroke-width="2"/><text x="690" y="146">ReservaController</text>
+    <rect x="860" y="110" width="220" height="60" rx="10" fill="#eef5f1" stroke="#145C43" stroke-width="2"/><text x="970" y="146">ReservaService</text>
+    <rect x="1120" y="110" width="200" height="60" rx="10" fill="#eef5f1" stroke="#145C43" stroke-width="2"/><text x="1220" y="137">Disponibilidad</text><text x="1220" y="158" font-size="13" font-weight="400">Service</text>
+    <rect x="1370" y="110" width="200" height="60" rx="10" fill="#f2f4fb" stroke="#4a5d9a" stroke-width="2"/><text x="1470" y="137">Repositorios</text><text x="1470" y="158" font-size="13" font-weight="400">→ PostgreSQL</text>
+  </g>
+  <g stroke="#b9c6c1" stroke-width="2" stroke-dasharray="6 6">
+    <line x1="140" y1="170" x2="140" y2="1130"/><line x1="410" y1="170" x2="410" y2="1130"/><line x1="690" y1="170" x2="690" y2="1130"/>
+    <line x1="970" y1="170" x2="970" y2="1130"/><line x1="1220" y1="170" x2="1220" y2="1130"/><line x1="1470" y1="170" x2="1470" y2="1130"/>
+  </g>
+  <rect x="958" y="330" width="24" height="720" fill="#d9ebe2" stroke="#145C43"/>
+  <g font-size="15" fill="#2d3a35" stroke-width="2">
+    <line x1="140" y1="210" x2="406" y2="210" stroke="#2d3a35" marker-end="url(#a)"/><text x="150" y="200">POST {servicioId, barberoId, inicio} + cookie + X-XSRF-TOKEN</text>
+    <line x1="410" y1="260" x2="686" y2="260" stroke="#2d3a35" marker-end="url(#a)"/><text x="420" y="250">token válido, CSRF correcto, rol CLIENTE/ADMIN</text>
+    <text x="150" y="290" fill="#8a1f1f">(sin CSRF → 403; sin sesión → 401)</text>
+    <line x1="690" y1="320" x2="956" y2="320" stroke="#2d3a35" marker-end="url(#a)"/><text x="700" y="310">@Valid CrearReservaDto → crear(dto, actor)</text>
+    <line x1="984" y1="370" x2="1466" y2="370" stroke="#2d3a35" marker-end="url(#a)"/><text x="994" y="360">① SELECT usuario (cliente) … FOR NO KEY UPDATE</text>
+    <line x1="984" y1="420" x2="1466" y2="420" stroke="#2d3a35" marker-end="url(#a)"/><text x="994" y="410">② SELECT barbero WHERE id IN (…) ORDER BY id FOR NO KEY UPDATE</text>
+    <text x="994" y="462">servicio y barbero activos · fin = inicio + duración (ReglasTemporales)</text>
+    <line x1="984" y1="500" x2="1216" y2="500" stroke="#2d3a35" marker-end="url(#a)"/><text x="994" y="490">validarFranja(…)</text>
+    <line x1="1224" y1="540" x2="1466" y2="540" stroke="#2d3a35" marker-end="url(#a)"/><text x="1232" y="530">reservas/bloqueos que cruzan</text>
+    <text x="1232" y="572" font-size="14">jornada, rejilla 10 min, futuro,</text>
+    <text x="1232" y="592" font-size="14">horizonte, bloqueos, solapes</text>
+    <line x1="1216" y1="620" x2="984" y2="620" stroke="#2d3a35" stroke-dasharray="7 5" marker-end="url(#a)"/><text x="1000" y="612">libre / motivo de rechazo</text>
+    <line x1="984" y1="670" x2="1466" y2="670" stroke="#2d3a35" marker-end="url(#a)"/><text x="994" y="660">¿solape del cliente? ¿reservas activas &lt; 3? (RN-04, RN-20)</text>
+  </g>
+  <!-- alt -->
+  <rect x="100" y="700" width="1430" height="400" fill="none" stroke="#7a8a84" stroke-width="2"/>
+  <rect x="100" y="700" width="70" height="30" fill="#7a8a84"/><text x="118" y="721" font-size="16" font-weight="700" fill="#fff">alt</text>
+  <text x="190" y="722" font-size="15" font-weight="700" fill="#8a1f1f">[hay conflicto]</text>
+  <g font-size="15" fill="#2d3a35" stroke-width="2">
+    <line x1="956" y1="760" x2="694" y2="760" stroke="#8a1f1f" marker-end="url(#r)"/><text x="700" y="750" fill="#8a1f1f">NegocioException 409/422 → ROLLBACK</text>
+    <line x1="686" y1="800" x2="144" y2="800" stroke="#8a1f1f" stroke-dasharray="7 5" marker-end="url(#r)"/><text x="160" y="790" fill="#8a1f1f">application/problem+json (FRANJA_NO_DISPONIBLE …); la SPA recarga las franjas</text>
+  </g>
+  <line x1="100" y1="830" x2="1530" y2="830" stroke="#7a8a84" stroke-width="2" stroke-dasharray="10 6"/>
+  <text x="190" y="856" font-size="15" font-weight="700" fill="#145C43">[franja libre]</text>
+  <g font-size="15" fill="#2d3a35" stroke-width="2">
+    <line x1="984" y1="890" x2="1466" y2="890" stroke="#2d3a35" marker-end="url(#a)"/><text x="994" y="880">INSERT reserva (saveAndFlush; EXCLUDE como red de seguridad)</text>
+    <line x1="984" y1="940" x2="1466" y2="940" stroke="#2d3a35" marker-end="url(#a)"/><text x="994" y="930">INSERT auditoria_reserva + notificacion(es)</text>
+    <text x="994" y="980">COMMIT (todo o nada)</text>
+    <line x1="956" y1="1010" x2="694" y2="1010" stroke="#2d3a35" stroke-dasharray="7 5" marker-end="url(#a)"/><text x="700" y="1000">ReservaDto (con permisos)</text>
+    <line x1="686" y1="1060" x2="144" y2="1060" stroke="#2d3a35" stroke-dasharray="7 5" marker-end="url(#a)"/><text x="160" y="1050">201 Created · la cita aparece en Mis citas y en la Agenda del barbero</text>
+  </g>
+  <text x="40" y="1160" font-size="14" fill="#7a8a84">Fuente: ReservaService.java, DisponibilidadService.java, BarberoRepository.java, V1__esquema_inicial.sql; prueba ConcurrenciaReservaIT (10 solicitudes simultáneas → 1 × 201 y 9 × 409)</text>
+</svg>

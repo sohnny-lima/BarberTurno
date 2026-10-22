@@ -1,0 +1,10 @@
+import { createRequire } from 'module'; import http from 'http'; import fs from 'fs'; import path from 'path';
+const require = createRequire('D:/Proyectos/BarberTurno/frontend/package.json');
+process.env.PLAYWRIGHT_BROWSERS_PATH = 'D:/Proyectos/BarberTurno/frontend/tmp/navegadores';
+const { chromium } = require('@playwright/test');
+const pdf = process.argv[2];
+const base = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), 'node_modules', 'pdfjs-dist', 'legacy', 'build');
+const srv = http.createServer((q, r) => { if (q.url === '/doc.pdf') return r.end(fs.readFileSync(pdf)); if (q.url.endsWith('.mjs')) { r.setHeader('Content-Type', 'text/javascript'); return r.end(fs.readFileSync(path.join(base, path.basename(q.url)))); } r.setHeader('Content-Type', 'text/html'); r.end('<html></html>'); }).listen(0);
+const b = await chromium.launch(); const p = await b.newPage(); await p.goto(`http://127.0.0.1:${srv.address().port}/`);
+const t = await p.evaluate(async () => { const pdfjs = await import('/pdf.mjs'); pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs'; const d = await pdfjs.getDocument('/doc.pdf').promise; const o = []; for (let i = 1; i <= d.numPages; i++) { const c = await (await d.getPage(i)).getTextContent(); o.push(`[p${i}] ` + c.items.map((x) => x.str).join(' ')); } return o.join('\n'); });
+fs.writeFileSync(process.argv[3], t); await b.close(); srv.close();

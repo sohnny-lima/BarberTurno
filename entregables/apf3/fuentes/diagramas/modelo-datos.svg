@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1600" height="1060" fill="#fff"/>
+  <text x="40" y="50" font-size="30" font-weight="700" fill="#14231d">Modelo de datos implementado (Flyway V1__esquema_inicial.sql)</text>
+  <text x="40" y="80" font-size="16" fill="#4a5a54">PK clave primaria · FK clave foránea · UK única · instantes en timestamptz (UTC) y presentación en America/Lima</text>
+  <g font-size="14" fill="#2d3a35">
+    <!-- usuario -->
+    <rect x="40" y="110" width="380" height="370" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="40" y="110" width="380" height="38" rx="8" fill="#145C43"/>
+    <text x="56" y="136" font-size="18" font-weight="700" fill="#fff">usuario</text>
+    <text x="56" y="172"><tspan font-weight="700">PK</tspan> id bigint identity</text>
+    <text x="56" y="196">nombre varchar(100)</text>
+    <text x="56" y="220"><tspan font-weight="700">UK</tspan> correo (minúsculas, CHECK)</text>
+    <text x="56" y="244">telefono varchar(9) ^[0-9]{9}$</text>
+    <text x="56" y="268">password_hash (BCrypt)</text>
+    <text x="56" y="292">rol CLIENTE | BARBERO | ADMIN</text>
+    <text x="56" y="316">activo · debe_cambiar_password</text>
+    <text x="56" y="340">token_version (revoca sesiones)</text>
+    <text x="56" y="364">intentos_fallidos · bloqueado_hasta</text>
+    <text x="56" y="388">privacidad_aceptada_en</text>
+    <text x="56" y="412">creado_en · actualizado_en</text>
+    <text x="56" y="446" fill="#7a5a10">CHECK cliente con teléfono y</text>
+    <text x="56" y="466" fill="#7a5a10">consentimiento de privacidad</text>
+    <!-- barbero -->
+    <rect x="600" y="110" width="330" height="200" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="600" y="110" width="330" height="38" rx="8" fill="#145C43"/>
+    <text x="616" y="136" font-size="18" font-weight="700" fill="#fff">barbero</text>
+    <text x="616" y="172"><tspan font-weight="700">PK</tspan> id</text>
+    <text x="616" y="196"><tspan font-weight="700">FK UK</tspan> usuario_id → usuario</text>
+    <text x="616" y="220">especialidad</text>
+    <text x="616" y="244">activo (máx. 10 activos, RN-19)</text>
+    <text x="616" y="268">creado_en · actualizado_en</text>
+    <text x="616" y="296" fill="#7a5a10">fila bloqueada ② en escrituras</text>
+    <!-- servicio -->
+    <rect x="1120" y="110" width="440" height="200" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="1120" y="110" width="440" height="38" rx="8" fill="#145C43"/>
+    <text x="1136" y="136" font-size="18" font-weight="700" fill="#fff">servicio</text>
+    <text x="1136" y="172"><tspan font-weight="700">PK</tspan> id · <tspan font-weight="700">UK</tspan> nombre (sin mayúsculas)</text>
+    <text x="1136" y="196">descripcion varchar(300)</text>
+    <text x="1136" y="220">duracion_min 10–180, múltiplo de 10</text>
+    <text x="1136" y="244">precio numeric(8,2) ≥ 0</text>
+    <text x="1136" y="268">activo · creado_en · actualizado_en</text>
+    <!-- jornada -->
+    <rect x="600" y="390" width="330" height="170" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="600" y="390" width="330" height="38" rx="8" fill="#145C43"/>
+    <text x="616" y="416" font-size="18" font-weight="700" fill="#fff">jornada</text>
+    <text x="616" y="452"><tspan font-weight="700">PK</tspan> id · <tspan font-weight="700">FK</tspan> barbero_id</text>
+    <text x="616" y="476">dia_semana 1–7 (ISO)</text>
+    <text x="616" y="500">hora_inicio &lt; hora_fin</text>
+    <text x="616" y="528" fill="#7a5a10">descanso = hueco entre intervalos</text>
+    <!-- bloqueo -->
+    <rect x="1120" y="390" width="440" height="170" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="1120" y="390" width="440" height="38" rx="8" fill="#145C43"/>
+    <text x="1136" y="416" font-size="18" font-weight="700" fill="#fff">bloqueo</text>
+    <text x="1136" y="452"><tspan font-weight="700">PK</tspan> id · <tspan font-weight="700">FK</tspan> barbero_id · <tspan font-weight="700">FK</tspan> creado_por</text>
+    <text x="1136" y="476">inicio &lt; fin (timestamptz)</text>
+    <text x="1136" y="500">motivo varchar(200)</text>
+    <text x="1136" y="528" fill="#7a5a10">no puede cruzar reservas vigentes</text>
+    <!-- reserva -->
+    <rect x="40" y="580" width="560" height="320" rx="8" fill="#fff" stroke="#145C43" stroke-width="3"/>
+    <rect x="40" y="580" width="560" height="38" rx="8" fill="#0f4a35"/>
+    <text x="56" y="606" font-size="18" font-weight="700" fill="#fff">reserva   (se muestra como BT-&lt;id&gt;)</text>
+    <text x="56" y="642"><tspan font-weight="700">PK</tspan> id · <tspan font-weight="700">FK</tspan> cliente_id · barbero_id · servicio_id · creada_por</text>
+    <text x="56" y="666">inicio · fin (fin − inicio = duracion_ref_min)</text>
+    <text x="56" y="690">precio_ref · duracion_ref_min (copias históricas)</text>
+    <text x="56" y="714">estado PENDIENTE | CONFIRMADA | EN_ATENCION |</text>
+    <text x="56" y="736">           COMPLETADA | CANCELADA | NO_ASISTIO</text>
+    <text x="56" y="760">version (bloqueo optimista @Version)</text>
+    <text x="56" y="794" fill="#8a1f1f" font-weight="700">EXCLUDE USING gist (barbero_id =, tstzrange(inicio, fin, '[)') &amp;&amp;)</text>
+    <text x="56" y="818" fill="#8a1f1f" font-weight="700">EXCLUDE USING gist (cliente_id =, tstzrange(inicio, fin, '[)') &amp;&amp;)</text>
+    <text x="56" y="842" fill="#8a1f1f">… WHERE estado &lt;&gt; 'CANCELADA'  → 23P01 se traduce a 409</text>
+    <text x="56" y="874" fill="#4a5a54">índices (barbero_id, inicio), (cliente_id, inicio), (inicio)</text>
+    <!-- auditoria -->
+    <rect x="700" y="660" width="400" height="250" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="700" y="660" width="400" height="38" rx="8" fill="#145C43"/>
+    <text x="716" y="686" font-size="18" font-weight="700" fill="#fff">auditoria_reserva</text>
+    <text x="716" y="722"><tspan font-weight="700">PK</tspan> id · <tspan font-weight="700">FK</tspan> reserva_id · <tspan font-weight="700">FK</tspan> actor_id</text>
+    <text x="716" y="746">accion · estado_anterior · estado_nuevo</text>
+    <text x="716" y="770">datos_anteriores · datos_nuevos (jsonb)</text>
+    <text x="716" y="794">motivo · excepcional (RN-08)</text>
+    <text x="716" y="818">creado_en</text>
+    <text x="716" y="850" fill="#7a5a10">se inserta en la misma transacción</text>
+    <text x="716" y="870" fill="#7a5a10">que el cambio de la reserva</text>
+    <!-- notificacion -->
+    <rect x="1160" y="660" width="400" height="220" rx="8" fill="#fff" stroke="#145C43" stroke-width="2"/>
+    <rect x="1160" y="660" width="400" height="38" rx="8" fill="#145C43"/>
+    <text x="1176" y="686" font-size="18" font-weight="700" fill="#fff">notificacion</text>
+    <text x="1176" y="722"><tspan font-weight="700">PK</tspan> id · <tspan font-weight="700">FK</tspan> usuario_id · <tspan font-weight="700">FK</tspan> reserva_id</text>
+    <text x="1176" y="746">tipo · mensaje varchar(300)</text>
+    <text x="1176" y="770">leida · creado_en</text>
+    <text x="1176" y="802" fill="#7a5a10">aviso interno al cliente y al</text>
+    <text x="1176" y="822" fill="#7a5a10">barbero (RN-15); sin correo ni SMS</text>
+  </g>
+  <!-- relaciones -->
+  <g stroke="#2d3a35" stroke-width="2" fill="none" font-size="14">
+    <path d="M420 200 H600"/><text x="470" y="190" stroke="none" fill="#2d3a35">1 : 0..1</text>
+    <path d="M765 310 V390"/><text x="775" y="356" stroke="none" fill="#2d3a35">1 : 0..N</text>
+    <path d="M930 260 H1030 V475 H1120"/><text x="1040" y="380" stroke="none" fill="#2d3a35">1 : 0..N</text>
+    <path d="M230 480 V580"/><text x="240" y="536" stroke="none" fill="#2d3a35">cliente 1 : 0..N</text>
+    <path d="M680 310 V340 H520 V580"/><text x="530" y="370" stroke="none" fill="#2d3a35">barbero 1 : 0..N</text>
+    <path d="M1340 310 V350 H1080 V600 H600"/><text x="900" y="592" stroke="none" fill="#2d3a35">servicio 1 : 0..N</text>
+    <path d="M600 760 H700"/><text x="610" y="750" stroke="none" fill="#2d3a35">1 : 0..N</text>
+    <path d="M600 880 H640 V950 H1360 V880"/><text x="900" y="940" stroke="none" fill="#2d3a35">reserva 1 : 0..N avisos</text>
+    <path d="M40 300 H18 V990 H900 V910" stroke-dasharray="7 5"/><text x="40" y="984" stroke="none" fill="#2d3a35">actor (usuario)</text>
+    <path d="M40 420 H28 V1020 H1500 V880" stroke-dasharray="7 5"/><text x="1220" y="1014" stroke="none" fill="#2d3a35">destinatario (usuario)</text>
+  </g>
+</svg>

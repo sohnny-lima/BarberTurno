@@ -1,0 +1,29 @@
+[
+  {
+    "nombre": "az01-ingresar-1440",
+    "url": "https://barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net/ingresar",
+    "estado": 200,
+    "fecha": "2026-10-21T05:36:31.283Z",
+    "hsts": "max-age=31536000 ; includeSubDomains",
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-",
+    "nosniff": "nosniff"
+  },
+  {
+    "nombre": "az02-ingresar-360",
+    "url": "https://barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net/ingresar",
+    "estado": 200,
+    "fecha": "2026-10-21T05:36:35.717Z",
+    "hsts": "max-age=31536000 ; includeSubDomains",
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-",
+    "nosniff": "nosniff"
+  },
+  {
+    "nombre": "az03-health",
+    "url": "https://barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net/actuator/health",
+    "estado": 200,
+    "fecha": "2026-10-21T05:36:38.482Z",
+    "hsts": "max-age=31536000 ; includeSubDomains",
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-",
+    "nosniff": "nosniff"
+  }
+]

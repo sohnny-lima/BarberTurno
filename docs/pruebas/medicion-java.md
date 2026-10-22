@@ -332,3 +332,49 @@ Raíces aún ausentes: ninguna.
 
 Límites léxicos: plantillas TS opacas (incluidas interpolaciones), sin interpolaciones anidadas ni regex TS; SQL sin dollar quoting.
 Se mide el árbol de trabajo; el commit identifica HEAD y no certifica ausencia de cambios locales.
+
+## Medición · 2026-10-22T03:27:22.059Z · commit 12a4185
+
+Node: v24.21.0. Raíces: `backend/src`, `frontend/src`, `frontend/e2e`, `perf`.
+Extensiones contadas: .java, .ts, .html, .scss, .css, .sql.
+LOC físicas sin líneas vacías ni comentarios; las cadenas conservan sus marcadores de comentario.
+Fuera del cálculo: JSON/YAML de configuración, package-lock.json, mvnw*, Markdown, docs, dependencias y generados.
+
+| Lenguaje | Producto | Pruebas | Carga (incluida en pruebas) | Total |
+|---|---:|---:|---:|---:|
+| Java | 4444 | 9607 | 345 | 14051 |
+| TS | 5032 | 8758 | 0 | 13790 |
+| HTML | 2675 | 1 | 0 | 2676 |
+| SCSS | 3142 | 0 | 0 | 3142 |
+| CSS | 38 | 0 | 0 | 38 |
+| SQL | 109 | 0 | 0 | 109 |
+| Total | 15440 | 18366 | 345 | 33806 |
+
+**Java con pruebas:** 41.56 % (Java total ÷ total).
+**Java sin pruebas:** 28.78 % (Java de producto ÷ producto).
+La carga se informa aparte como subconjunto de pruebas y se suma una sola vez al total.
+
+### Exclusiones auditables
+
+- `backend/src/main/resources/application-demo.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-dev.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-prod.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application-test.yml`: Extensión fuera del cálculo.
+- `backend/src/main/resources/application.yml`: Extensión fuera del cálculo.
+- `backend/src/test/resources/static/main-prueba.js`: Extensión fuera del cálculo.
+- `backend/src/test/scripts/verificar-spa-prod.mjs`: Extensión fuera del cálculo.
+- `frontend/src/app/core/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/features/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/layout/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/app/shared/.gitkeep`: Extensión fuera del cálculo.
+- `frontend/src/theme-colors.scss`: Generado explícito: schematic de Angular Material.
+- `frontend/e2e/ejecutar.ps1`: Extensión fuera del cálculo.
+- `perf/ejecutar-carga.ps1`: Extensión fuera del cálculo.
+- `perf/pom.xml`: Extensión fuera del cálculo.
+- `perf/resumir-carga.ps1`: Extensión fuera del cálculo.
+- `perf/target/`: Dependencias, salida, documentación o datos locales.
+
+Raíces aún ausentes: ninguna.
+
+Límites léxicos: plantillas TS opacas (incluidas interpolaciones), sin interpolaciones anidadas ni regex TS; SQL sin dollar quoting.
+Se mide el árbol de trabajo; el commit identifica HEAD y no certifica ausencia de cambios locales.

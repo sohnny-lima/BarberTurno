@@ -39,3 +39,7 @@ pgpass.conf
 
 # Copias de PostgreSQL (el destino habitual está fuera del repositorio)
 *.dump
+
+# Paquetes de entrega académica: se suben al aula, no al repositorio
+entregables/apf3/APF3_BarberTurno_Entrega.zip
+entregables/apf3/codigo/

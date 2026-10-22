@@ -1,0 +1,34 @@
+{
+  "ReportesExcel1440": {
+    "proyecto": "chromium-1440",
+    "versionNavegador": "153.0.8010.12",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "captura": {
+      "ancho": 1440,
+      "alto": 1440
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false,
+    "correos": [],
+    "soloDominioFicticio": true
+  },
+  "ReportesExcel360": {
+    "proyecto": "chromium-360",
+    "versionNavegador": "153.0.8010.12",
+    "viewport": {
+      "width": 360,
+      "height": 800
+    },
+    "captura": {
+      "ancho": 360,
+      "alto": 2706
+    },
+    "violacionesAxe": 0,
+    "desplazamientoHorizontal": false,
+    "correos": [],
+    "soloDominioFicticio": true
+  }
+}

@@ -1,0 +1,11 @@
+import { createRequire } from 'module'; import fs from 'fs';
+const require = createRequire('D:/Proyectos/BarberTurno/frontend/package.json');
+process.env.PLAYWRIGHT_BROWSERS_PATH = 'D:/Proyectos/BarberTurno/frontend/tmp/navegadores';
+const { chromium } = require('@playwright/test');
+const [ent, sal] = process.argv.slice(2);
+const b = await chromium.launch(); const p = await b.newPage();
+await p.setContent(`<img id=i src="data:image/png;base64,${fs.readFileSync(ent).toString('base64')}">`);
+const caja = await p.evaluate(() => { const i = document.getElementById('i'); const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; const x = c.getContext('2d'); x.drawImage(i, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let a = c.width, bb = c.height, r = 0, s = 0; for (let y = 0; y < c.height; y++) for (let xx = 0; xx < c.width; xx++) { const k = (y * c.width + xx) * 4; if (d[k] < 240 || d[k + 1] < 240 || d[k + 2] < 240) { if (xx < a) a = xx; if (xx > r) r = xx; if (y < bb) bb = y; if (y > s) s = y; } } return { x: Math.max(a - 20, 0), y: Math.max(bb - 20, 0), width: r - a + 40, height: s - bb + 40, w: c.width, h: c.height }; });
+await p.setViewportSize({ width: caja.w, height: caja.h });
+await p.addStyleTag({ content: 'body{margin:0}' }); await p.screenshot({ path: sal, clip: { x: caja.x, y: caja.y, width: caja.width, height: caja.height } });
+console.log(caja); await b.close();
