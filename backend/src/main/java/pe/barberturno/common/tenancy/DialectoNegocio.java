@@ -10,7 +10,7 @@ import org.springframework.transaction.TransactionDefinition;
  * Fija RLS en la conexión de Hibernate después de abrir la transacción y antes del primer acceso.
  * Spring 7.0.9 llama a {@code JpaDialect.beginTransaction} desde {@code JpaTransactionManager.doBegin},
  * tanto para los repositorios (incluidos los heredados de solo lectura) como para
- * {@code TransactionTemplate}. Hibernate 7.4 ejecuta {@code Session.doWork} sobre esa misma conexión;
+ * {@code TransactionTemplate}. Hibernate 7.4.5 ejecuta {@code Session.doWork} sobre esa misma conexión;
  * posteriormente Spring la expone a JdbcTemplate. No se interceptan consultas individuales.
  * La propagación REQUIRED reutiliza el ámbito inicial; REQUIRES_NEW abre otro ámbito.
  * @author Sohnny Walter Lima Infanzón
@@ -30,6 +30,8 @@ final class DialectoNegocio extends HibernateJpaDialect {
      * @param definition aislamiento, propagación y opciones resueltas por Spring
      * @return estado que el dialecto estándar necesita para limpiar la transacción
      * @throws SQLException si no puede comenzar la transacción o preparar su conexión
+     * @throws jakarta.persistence.PersistenceException si Hibernate no puede fijar el contexto RLS
+     * @throws IllegalStateException si el proveedor no puede resolver el ámbito de la operación
      */
     @Override
     public Object beginTransaction(EntityManager entityManager, TransactionDefinition definition)

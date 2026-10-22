@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** Reproduce las cinco hojas de la corrida, con sesiones obtenidas por login y PostgreSQL real. */
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false",

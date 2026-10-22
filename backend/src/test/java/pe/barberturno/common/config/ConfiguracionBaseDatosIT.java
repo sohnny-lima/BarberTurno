@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 class ConfiguracionBaseDatosIT {
 
@@ -26,7 +27,7 @@ class ConfiguracionBaseDatosIT {
             assertThat(conexion.getMetaData().getDatabaseProductName()).isEqualTo("PostgreSQL");
             assertThat(conexion.getMetaData().getDatabaseMajorVersion()).isEqualTo(18);
             assertThat(resultado.next()).isTrue();
-            assertThat(resultado.getString(1)).isEqualTo("barberturno_test");
+            assertThat(resultado.getString(1)).isEqualTo("barberturno_v2_test");
         }
     }
 

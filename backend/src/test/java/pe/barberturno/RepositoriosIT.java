@@ -20,7 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -36,6 +36,7 @@ import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
 import static pe.barberturno.support.DatosPrueba.AHORA;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.session_factory.statement_inspector=pe.barberturno.support.SqlPruebas")
 class RepositoriosIT {
 
@@ -49,7 +50,7 @@ class RepositoriosIT {
     @Autowired private NotificacionRepository notificaciones;
     @Autowired private EntityManager entityManager;
     @Autowired private PlatformTransactionManager gestorTransacciones;
-    @Autowired private JdbcTemplate jdbc;
+    @Autowired private JdbcNegocioPruebas jdbc;
 
     private DatosPrueba datos;
     private TransactionTemplate transaccion;
