@@ -49,7 +49,8 @@ abstract class IdentidadPruebaBase extends TenancyPruebaBase {
 
     MockHttpServletRequestBuilder csrf(MockHttpServletRequestBuilder solicitud, Cookie sesion) throws Exception {
         var token = mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
-        return solicitud.cookie(sesion, token).header("X-XSRF-TOKEN", token.getValue());
+        if (sesion != null) solicitud.cookie(sesion);
+        return solicitud.cookie(token).header("X-XSRF-TOKEN", token.getValue());
     }
 
     MockHttpServletRequestBuilder estado(long id, boolean activo) {

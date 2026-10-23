@@ -58,6 +58,7 @@ public class SecurityConfig {
      * Permite transiciones RF-12 solo a BARBERO o ADMIN; el servicio comprueba asignación y RN-12.
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
      * Autoriza el resumen RF-14, su exportación Excel DA-29 y gestión de usuarios RF-19 exclusivamente a ADMIN.
+     * GET/PATCH de fichas admite solo el equivalente ADMIN de PROPIETARIO/ENCARGADO, con ámbito en el servicio.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
@@ -167,6 +168,8 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.POST, "/api/notificaciones/{id}/lectura", "/api/notificaciones/lectura").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/reportes/resumen", "/api/reportes/resumen.xlsx").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/clientes/{id}").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PATCH, "/api/clientes/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.POST, "/api/usuarios/{id}/restablecer-password").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PATCH, "/api/usuarios/{id}/estado").hasRole("ADMIN");
                     permisos.anyRequest().denyAll();

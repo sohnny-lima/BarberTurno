@@ -65,7 +65,8 @@ public class AuthService {
     }
 
     /**
-     * Crea un CLIENTE activo con consentimiento fechado y hash BCrypt; normaliza correo RN-24 y valida RN-25.
+     * Crea cuenta y ficha local activas en una sola transacción, con consentimiento y BCrypt.
+     * Un correo existente se rechaza sin vincular su cuenta ni crear ficha (V2-03).
      * @param datos registro validado
      * @return usuario recién creado
      * @throws NegocioException si el correo existe (CORREO_DUPLICADO) o la contraseña incumple RN-25
@@ -81,6 +82,7 @@ public class AuthService {
         var ahora = clock.instant();
         Usuario usuario = usuarios.saveAndFlush(new Usuario(datos.nombre(), correo, datos.telefono(),
                 passwords.encode(datos.password()), Rol.CLIENTE, ahora, ahora));
+        clientes.saveAndFlush(new pe.barberturno.customers.Cliente(usuario, ahora));
         LOG.info("Registro de usuario id={}.", usuario.getId());
         return usuario;
     }
