@@ -18,7 +18,7 @@ import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 
 /**
- * Gestión RF-19 con identidad compartida, restricciones del encargado y último propietario por negocio.
+ * Gestión RF-19 limitada al ámbito V2-RN-17, con protección de plataforma y último propietario por negocio.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -30,6 +30,7 @@ public class UsuarioAdminService {
     private final Clock clock;
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
+    private final AmbitoUsuarios ambito;
     private final SecureRandom aleatorio = new SecureRandom();
 
     /**
@@ -40,19 +41,23 @@ public class UsuarioAdminService {
      * @param clock reloj inyectado para fechas de modificación
      * @param membresias pertenencias y bloqueo del último propietario
      * @param negocio ámbito explícito del actor
+     * @param ambito límite común de personas gestionables según V2-DA-27
      */
     public UsuarioAdminService(UsuarioRepository usuarios, BarberoRepository barberos,
-            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio) {
+            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
+            AmbitoUsuarios ambito) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.passwords = passwords;
         this.clock = clock;
         this.membresias = membresias;
         this.negocio = negocio;
+        this.ambito = ambito;
     }
 
     /**
-     * Busca por fragmento literal e incluye inactivos; filtra el rol efectivo del negocio.
+     * Busca por fragmento literal e incluye cuentas inactivas dentro del ámbito de V2-DA-27;
+     * filtra el rol efectivo del negocio sin mostrar identidades ajenas ni clientes de otros negocios.
      * El encargado no recibe propietarios ni encargados, aun con membresías revocadas (R2-08).
      * @param q fragmento opcional; blanco equivale a todos
      * @param rol filtro opcional de categoría
@@ -92,7 +97,7 @@ public class UsuarioAdminService {
                 cb.or(cb.like(cb.lower(raiz.get("nombre")), patron, '!'),
                         cb.like(cb.lower(raiz.get("correo")), patron, '!')));
         };
-        return PaginaDto.desde(usuarios.findAll(filtro,
+        return PaginaDto.desde(usuarios.findAll(ambito.filtro().and(filtro),
                 PageRequest.of(pagina, tamano, Sort.by("nombre", "id"))).map(this::dto));
     }
 
@@ -137,7 +142,8 @@ public class UsuarioAdminService {
      * @param activo habilitación solicitada
      * @param actor ADMIN vigente; no puede desactivarse a sí mismo
      * @throws NegocioException si no es ADMIN, fue desactivado, falta usuario, se desactiva a sí mismo
-     * o se intenta eliminar el último propietario activo (CONFLICTO); identidad compartida produce 409
+     * o se intenta eliminar el último propietario activo (CONFLICTO); fuera del ámbito produce 404
+     * y una identidad compartida o de plataforma produce 409 IDENTIDAD_COMPARTIDA
      */
     @Transactional
     public void cambiarEstado(long id, boolean activo, UsuarioAutenticado actor) {
@@ -178,13 +184,15 @@ public class UsuarioAdminService {
                 .filter(Membresia::isActiva).map(Membresia::getRol).orElse(null);
     }
     private void exigirGestionable(Usuario usuario, UsuarioAutenticado actor) {
+        if (!ambito.contiene(usuario)) throw noEncontrado();
         var rol = membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), usuario.getId())
                 .map(Membresia::getRol).orElse(null);
         if (actor.rolNegocio().orElse(null) == RolNegocio.ENCARGADO
                 && (rol == RolNegocio.PROPIETARIO || rol == RolNegocio.ENCARGADO)) throw noEncontrado();
     }
     private void exigirIdentidadLocal(Usuario usuario) {
-        if (membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())) {
+        if (usuario.getRolPlataforma() != RolPlataforma.NINGUNO
+                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())) {
             throw new NegocioException(ErrorCodigo.IDENTIDAD_COMPARTIDA,
                     "La cuenta pertenece también a otro negocio; el cambio lo hace la plataforma");
         }

@@ -88,9 +88,8 @@ class MembresiaIT extends IdentidadPruebaBase {
         assertThat(auth.sesion(usuario.getId()).barberoId()).isNull();
         var admin = propietario("admin-a");
         var listado = gestion.listar("solo-b", null, 0, 20, auth.autenticar(admin.getId(), 0).orElseThrow());
-        assertThat(listado.contenido()).singleElement().satisfies(u -> {
-            assertThat(u.rol()).isNull(); assertThat(u.barberoId()).isNull();
-        });
+        assertThat(listado.contenido()).isEmpty();
+        assertThat(listado.totalElementos()).isZero();
         assertThat(profesionales.listar(true, true)).isEmpty();
         mvc.perform(csrf(post("/api/barberos").contentType("application/json")
                 .content("{\"usuarioId\":" + usuario.getId() + ",\"especialidad\":\"Corte\"}"), sesion(admin))).andExpect(status().isNotFound());

@@ -17,7 +17,7 @@ import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 
 /**
- * Administra personal RF-05 con alta temporal MJ-09, vínculos ADMIN RN-26 y máximo diez activos RN-19.
+ * Administra personal RF-05 del ámbito V2-RN-17 con identidad de plataforma protegida y cupo RN-19.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -30,6 +30,7 @@ public class BarberoService {
     private final Clock clock;
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
+    private final AmbitoUsuarios ambito;
     private final PoliticaPassword politica = new PoliticaPassword();
 
     /**
@@ -41,9 +42,11 @@ public class BarberoService {
      * @param clock reloj para fechas y criterio de futuro
      * @param membresias pertenencias explícitas y comprobación de identidad compartida
      * @param negocio ámbito transitorio actual
+     * @param ambito límite común de identidades gestionables según V2-DA-27
      */
     public BarberoService(BarberoRepository barberos, UsuarioRepository usuarios, ReservaRepository reservas,
-            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio) {
+            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
+            AmbitoUsuarios ambito) {
         this.barberos = barberos;
         this.usuarios = usuarios;
         this.reservas = reservas;
@@ -51,6 +54,7 @@ public class BarberoService {
         this.clock = clock;
         this.membresias = membresias;
         this.negocio = negocio;
+        this.ambito = ambito;
     }
 
     /**
@@ -108,7 +112,7 @@ public class BarberoService {
      * @param datos nombre, teléfono opcional y especialidad validados
      * @return perfil editado con contactos para ADMIN
      * @throws NegocioException si el perfil no existe (NO_ENCONTRADO) o el cambio global afecta a una
-     * identidad compartida (IDENTIDAD_COMPARTIDA)
+     * identidad compartida o de plataforma (IDENTIDAD_COMPARTIDA); fuera del ámbito produce 404
      */
     @Transactional
     public BarberoDto editar(long id, EditarBarberoDto datos) {
@@ -128,12 +132,13 @@ public class BarberoService {
 
     /**
      * Serializa estado con bloqueo global RN-19 y después usuario y perfil; revoca sesiones al desactivar
-     * BARBERO no compartido, conserva acceso de gestores y la identidad compartida V2-RN-16.
+     * BARBERO no compartido, conserva acceso de gestores y las cuentas compartidas o de plataforma.
      * Repetir el mismo estado no revoca otra vez.
      * @param id perfil que se habilita o deshabilita
      * @param activo nuevo estado solicitado
      * @return perfil resultante y cantidad de citas futuras que ocupan franja RN-14
-     * @throws NegocioException si falta perfil (NO_ENCONTRADO) o la reactivación supera RN-19
+     * @throws NegocioException si falta perfil o está fuera del ámbito (NO_ENCONTRADO),
+     * o la reactivación supera RN-19
      */
     @Transactional
     public ResultadoEstadoBarberoDto cambiarEstado(long id, boolean activo) {
@@ -159,12 +164,14 @@ public class BarberoService {
     }
 
     private boolean compartida(Usuario usuario) {
-        return membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow());
+        return usuario.getRolPlataforma() != RolPlataforma.NINGUNO
+                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow());
     }
 
     private Barbero obtenerBloqueado(long id) {
         long usuarioId = barberos.buscarUsuarioId(id).orElseThrow(this::noEncontrado);
-        usuarios.bloquearPorId(usuarioId).orElseThrow(this::noEncontrado);
+        var usuario = usuarios.bloquearPorId(usuarioId).orElseThrow(this::noEncontrado);
+        if (!ambito.contiene(usuario)) throw noEncontrado();
         return barberos.bloquearPorIds(List.of(id)).stream().findFirst().orElseThrow(this::noEncontrado);
     }
 
