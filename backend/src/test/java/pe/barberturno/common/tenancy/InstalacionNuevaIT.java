@@ -8,7 +8,8 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
     void esquemaVacio_instalaLasNueveTablasYPermiteReservaCompletaComoAplicacion() throws Exception {
         var flyway = flyway(null);
         flyway.clean();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+        flyway.migrate();
+        comprobarMigracionCompleta(flyway);
         try (var conexion = conexion(false)) {
             var jdbc = jdbc(conexion);
             assertThat(jdbc.queryForObject("select current_user", String.class)).isEqualTo("barberturno_v2_app");

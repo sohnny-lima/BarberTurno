@@ -3,7 +3,10 @@ package pe.barberturno.common.tenancy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Map;
+import java.util.Arrays;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,12 +14,32 @@ import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.test.annotation.DirtiesContext;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {"spring.datasource.hikari.maximum-pool-size=1", "barberturno.admin.correo=",
         "barberturno.admin.password=", "barberturno.admin.nombre="})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 abstract class MigracionPruebaBase {
     @Autowired Environment entorno;
+    @Autowired ProveedorNegocioActual proveedor;
+
+    MigrationVersion ultimaV1(Flyway flyway) {
+        return Arrays.stream(flyway.info().all()).map(MigrationInfo::getVersion)
+                .filter(v -> v != null && v.compareTo(MigrationVersion.fromVersion("100")) < 0)
+                .max(MigrationVersion::compareTo).orElseThrow();
+    }
+
+    void comprobarMigracionCompleta(Flyway flyway) {
+        var info = flyway.info();
+        var ultima = Arrays.stream(info.all()).map(MigrationInfo::getVersion)
+                .filter(v -> v != null).max(MigrationVersion::compareTo).orElseThrow();
+        assertThat(info.current()).isNotNull();
+        assertThat(info.current().getVersion()).isEqualTo(ultima);
+        assertThat(info.pending()).isEmpty();
+        // Este contexto no importa el proveedor programable: conserva el transitorio de producción.
+        assertThat(proveedor).isNotInstanceOf(ProveedorNegocioProgramable.class);
+        assertThat(proveedor.negocioActual()).hasValue(1L);
+    }
 
     String url() {
         String test = entorno.getRequiredProperty("spring.datasource.url");

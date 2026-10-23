@@ -15,9 +15,13 @@ class ActualizacionV1IT extends MigracionPruebaBase {
 
     @Test
     void datosV1_conservaHuellasIdentidadesYExclusionesYAislaLasRelaciones() throws Exception {
-        var v1 = flyway("1");
-        v1.clean();
-        assertThat(v1.migrate().migrationsExecuted).isEqualTo(1);
+        var completa = flyway(null);
+        completa.clean();
+        var ultimaV1 = ultimaV1(completa);
+        var v1 = flyway(ultimaV1.toString());
+        v1.migrate();
+        assertThat(v1.info().current().getVersion()).isEqualTo(ultimaV1);
+        assertThat(v1.info().pending()).isEmpty();
         DatosNegocioPrueba a;
         Map<String, String> huellas;
         Map<String, Long> maximos = new LinkedHashMap<>();
@@ -49,7 +53,8 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             huellas = huellas(jdbc);
             for (String tabla : TABLAS) maximos.put(tabla, jdbc.queryForObject("select max(id) from " + tabla, Long.class));
         }
-        assertThat(flyway(null).migrate().migrationsExecuted).isEqualTo(1);
+        completa.migrate();
+        comprobarMigracionCompleta(completa);
         long b;
         // Excepción de plataforma de V2-DA-20: solo la fila negocio B, nunca sus datos de negocio.
         try (var propietario = conexion(true); var consulta = propietario.createStatement(); var resultado = consulta.executeQuery("""
