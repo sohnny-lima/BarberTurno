@@ -69,6 +69,12 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             var jdbc = jdbc(aplicacion);
             contexto(aplicacion, 1L);
             assertThat(huellas(jdbc)).isEqualTo(huellas);
+            assertThat(jdbc.queryForObject("select count(*) from cliente", Integer.class))
+                    .isEqualTo(jdbc.queryForObject("select count(*) from usuario where rol='CLIENTE'", Integer.class));
+            assertThat(jdbc.queryForObject("select count(*) from cliente c join usuario u on u.id=c.usuario_id where c.id<>u.id or c.nombre<>u.nombre or c.telefono is distinct from u.telefono or c.activo<>u.activo or c.privacidad_aceptada_en is distinct from u.privacidad_aceptada_en or c.creado_en<>u.creado_en or c.actualizado_en<>u.actualizado_en", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from reserva r join cliente c on c.id=r.cliente_id where c.id<>c.usuario_id", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select nextval(pg_get_serial_sequence('cliente', 'id'))", Long.class))
+                    .isGreaterThan(jdbc.queryForObject("select max(id) from cliente", Long.class));
             assertThat(jdbc.queryForObject("select count(*) from membresia", Integer.class)).isEqualTo(2);
             assertThat(jdbc.queryForObject("select count(*) from membresia m join usuario u on u.id=m.usuario_id where m.negocio_id=1 and m.estado='ACTIVA' and m.rol=case u.rol when 'ADMIN' then 'PROPIETARIO' else 'BARBERO' end and u.rol in ('ADMIN','BARBERO')", Integer.class)).isEqualTo(2);
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
@@ -97,6 +103,12 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                     DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), datosB.barbero(), a.servicio(), "CANCELADA", 0));
             rechazar(aplicacion, "23503", "reserva_servicio_fk", () ->
                     DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), a.barbero(), datosB.servicio(), "CANCELADA", 0));
+            rechazar(aplicacion, "23503", "reserva_cliente_fk", () ->
+                    DatosNegocioPrueba.reservar(jdbc, datosB.ficha(), a.admin(), a.barbero(), a.servicio(), "CANCELADA", 0));
+            rechazar(aplicacion, "23505", "cliente_usuario_uk", () -> jdbc.update("""
+                    INSERT INTO cliente (usuario_id, nombre, creado_en, actualizado_en)
+                    VALUES (?, 'Ficha duplicada', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, a.cliente()));
             rechazar(aplicacion, "23503", "jornada_barbero_fk", () -> jdbc.update("INSERT INTO jornada (barbero_id, dia_semana, hora_inicio, hora_fin) VALUES (?, 1, '09:00', '18:00')", datosB.barbero()));
             rechazar(aplicacion, "23503", "bloqueo_barbero_fk", () -> jdbc.update("""
                     INSERT INTO bloqueo (barbero_id, inicio, fin, motivo, creado_por, creado_en)
@@ -111,6 +123,18 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                     VALUES (?, ?, 'CREAR', 'Prueba', CURRENT_TIMESTAMP)
                     """, a.cliente(), datosB.reserva()));
         }
+    }
+
+    @Test void reservaConCuentaNoCliente_laMigracionFallaSinCorregirEnSilencio() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        flyway(ultimaV1(completa).toString()).migrate();
+        try (var propietario = conexion(true)) {
+            var jdbc = jdbc(propietario);
+            var datos = DatosNegocioPrueba.crear(jdbc, "invalida");
+            jdbc.update("update reserva set cliente_id=? where id=?", datos.admin(), datos.reserva());
+        }
+        assertThatThrownBy(completa::migrate).hasStackTraceContaining("V102: hay reservas cuyo cliente no es una cuenta CLIENTE");
     }
 
     private static Map<String, String> huellas(JdbcTemplate jdbc) {

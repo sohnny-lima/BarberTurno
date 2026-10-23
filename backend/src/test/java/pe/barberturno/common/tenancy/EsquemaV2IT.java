@@ -6,7 +6,7 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
-    static final List<String> TABLAS = List.of("servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion");
+    static final List<String> TABLAS = List.of("servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "cliente");
 
     @Test
     void rolReal_noEsPropietarioNiTienePrivilegiosEspeciales() {
@@ -21,7 +21,7 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void sieteTablas_tienenForcePoliticaCompletaYDefaultCerrado() {
+    void ochoTablas_tienenForcePoliticaCompletaYDefaultCerrado() {
         for (String tabla : TABLAS) {
             assertThat(jdbc.queryForObject("select relrowsecurity and relforcerowsecurity from pg_class where oid=?::regclass", Boolean.class, tabla)).as(tabla).isTrue();
             var politicas = jdbc.queryForList("select cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
@@ -40,9 +40,9 @@ class EsquemaV2IT extends TenancyPruebaBase {
         assertThat(jdbc.queryForObject("select has_schema_privilege(current_user, 'public', 'CREATE')", Boolean.class)).isFalse();
         assertThat(jdbc.queryForObject("select has_schema_privilege(current_user, 'public', 'USAGE')", Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("select has_function_privilege(current_user, 'app_negocio_actual()', 'EXECUTE')", Boolean.class)).isTrue();
-        for (String tabla : java.util.stream.Stream.concat(TABLAS.stream(), java.util.stream.Stream.of("usuario", "negocio", "membresia")).toList()) {
+        for (String tabla : java.util.stream.Stream.concat(TABLAS.stream(), java.util.stream.Stream.of("usuario", "negocio", "membresia", "vinculo_cliente")).toList()) {
             for (String permiso : List.of("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")) {
-                boolean permitido = "SELECT".equals(permiso) || !tabla.equals("negocio") && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
+                boolean permitido = "SELECT".equals(permiso) || !List.of("negocio", "vinculo_cliente").contains(tabla) && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
                         .as("%s %s", tabla, permiso).isEqualTo(permitido);
             }
@@ -63,11 +63,33 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void fkCompuestas_sonLasSeisRelacionesDelPlan() {
+    void fkCompuestas_sonLasSieteRelacionesDelPlan() {
         assertThat(jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2 order by conname
                 """, String.class)).containsExactly("auditoria_reserva_reserva_fk", "bloqueo_barbero_fk",
-                "jornada_barbero_fk", "notificacion_reserva_fk", "reserva_barbero_fk", "reserva_servicio_fk");
+                "jornada_barbero_fk", "notificacion_reserva_fk", "reserva_barbero_fk", "reserva_cliente_fk", "reserva_servicio_fk");
+    }
+
+    @Test void vinculo_soloDisparadorEscribeConClienteForceInclusoActualizacionYBorrado() {
+        assertThat(jdbc.queryForObject("select relrowsecurity or relforcerowsecurity from pg_class where oid='vinculo_cliente'::regclass", Boolean.class)).isFalse();
+        assertThat(jdbc.queryForObject("select prosecdef and proconfig @> ARRAY['search_path=pg_catalog, public'] from pg_proc where oid='mantener_vinculo_cliente()'::regprocedure", Boolean.class)).isTrue();
+        var datos = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "vinculo"));
+        assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente where negocio_id=1 and usuario_id=?", Integer.class, datos.cliente())).isEqualTo(1);
+        for (String sql : List.of("insert into vinculo_cliente values (1, " + datos.cliente() + ")",
+                "update vinculo_cliente set negocio_id=1", "delete from vinculo_cliente")) {
+            assertThatThrownBy(() -> enNegocio(1L, () -> jdbc.update(sql))).isInstanceOf(DataAccessException.class)
+                    .satisfies(error -> assertThat(((org.postgresql.util.PSQLException) ((DataAccessException) error).getMostSpecificCause()).getSQLState()).isEqualTo("42501"));
+        }
+        enNegocio(1L, () -> {
+            jdbc.update("update cliente set nombre='Solo local' where id=?", datos.ficha());
+            assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente", Integer.class)).isEqualTo(1);
+            jdbc.update("delete from notificacion");
+            jdbc.update("delete from auditoria_reserva");
+            jdbc.update("delete from reserva");
+            jdbc.update("delete from cliente where id=?", datos.ficha());
+            assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente", Integer.class)).isZero();
+            return null;
+        });
     }
 
     @Test
