@@ -75,6 +75,7 @@ Por qué este orden: el riesgo técnico mayor (aislamiento con RLS sobre el cód
 | CA-10 | `InstalacionNuevaIT` y `ActualizacionV1IT` en verde: los datos de v1 se conservan (huellas idénticas) y las FK compuestas impiden mezclar negocios (V2-DA-22). |
 | CA-11 | `MigracionesV1InalteradasTest` en verde; sin `outOfOrder`, sin `ignoreMigrationPatterns` y sin editar migraciones (V2-DA-21). |
 | CA-12 | Las suites se ejecutan en serie: nunca dos ejecuciones contra el mismo PostgreSQL a la vez. |
+| CA-13 | Ningún acceso a datos queda vacío en silencio por falta de transacción: repositorios transaccionales y guarda de Hibernate que falla fuera de transacción (V2-DA-23); la prueba de actualización calcula la última migración de v1 y comprueba versiones, no recuentos fijos (V2-DA-21). |
 
 **Revisión:** Claude (criterios, RLS con el rol real, *diff* de pruebas modificadas, repetición de las pruebas nuevas y de `ConcurrenciaReservaIT`, y la suite completa en un *checkpoint*) → Gemini *diff-first* de aislamiento en solo lectura (políticas, roles y permisos, contexto y *pool*, FK, migración y prueba de actualización) → decisión → revisión del responsable.
 
