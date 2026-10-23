@@ -57,7 +57,7 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 9. Informar: qué se hizo, pruebas ejecutadas y su resultado (con la salida si algo falló), desviaciones y la siguiente tarea.
 
 ### 5.1 BarberTurno v2 (rama `v2`; dirección aprobada el 22/10/2026)
-Especificación en `docs/v2/` (empezar por `docs/v2/00-README.md`). **Solo se implementan las tareas que el responsable autoriza una a una** (a 22/10/2026: únicamente V2-01).
+Especificación en `docs/v2/` (empezar por `docs/v2/00-README.md`). **Solo se implementan las tareas que el responsable autoriza una a una** (a 23/10/2026: V2-01 integrada en `v2`; V2-02 autorizada, sin integrar).
 - v2 vive en la rama de integración `v2` (worktree `D:\Proyectos\BarberTurno-v2`); las tareas `V2-NN` usan ramas `tarea/V2-NN-…` desde `v2` y se integran en `v2` **solo cuando el responsable lo autoriza**, **nunca en `main`**. Los pasos 1, 3, 7 y 8 de §5 se leen con `v2` en lugar de `main` y con `docs/v2/10-backlog.md` en lugar de `docs/tareas.md`.
 - El freeze de §5 sigue en `main` (v1 académica, etiqueta `v1.0-apf3`); se levanta solo para las tareas aprobadas de v2.
 - Migraciones de v2 en el rango `V100+`, con la política de V2-DA-21 (sin `outOfOrder` ni editar migraciones); bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`; roles `barberturno_v2` (migraciones) y `barberturno_v2_app` (aplicación, V2-DA-20); puerto 8081; secretos en el `.local/` del worktree.

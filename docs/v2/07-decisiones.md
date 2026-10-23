@@ -131,3 +131,15 @@
 - **Decisión:** (1) las interfaces de repositorio del dominio se anotan con `@Transactional(readOnly = true)`, y los métodos que escriben (`@Modifying`), con `@Transactional`; dentro de un servicio se unen a su transacción (`REQUIRED`). (2) Una **guarda de Hibernate** (por ejemplo, un `StatementInspector`; el mecanismo exacto lo verifica la implementación en Hibernate 7.4) lanza `IllegalStateException` si Hibernate prepara SQL **sin una transacción de Spring activa**: un acceso sin contexto **falla con error**, no devuelve vacío. (3) JDBC directo fuera de transacción queda prohibido en producción (hoy no existe); si se introduce, se añadirá una guarda equivalente en el `DataSource` (deuda anotada para V2-05).
 - **Se mantiene** el fallo cerrado de RLS (`app_negocio_actual()` nula → 0 filas) como **segunda barrera** en la base; la guarda es la primera, en la aplicación.
 - **Alternativas descartadas:** una función de política que lance excepción sin contexto (no se evalúa si la tabla está vacía y rompe los diagnósticos con el propietario); envolver cada llamada en las pruebas (no protege la producción).
+
+---
+*Decisiones V2-DA-24 y V2-DA-25: alcance de V2-02 (23/10/2026). Vigentes.*
+### V2-DA-24 · `membresia` es una tabla de plataforma sin RLS
+- **Decisión:** `membresia` no lleva RLS; sus consultas reciben siempre el `negocio_id` explícito y se prueban con dos negocios.
+- **Por qué:** se lee antes de conocer el negocio (resolución por petición en V2-05, `GET /api/mis-negocios`) y hay que poder saber si una persona tiene relación con **otro** negocio (V2-RN-16) sin exponer cuáles. Con RLS por negocio, ni la aplicación ni una función `SECURITY DEFINER` podrían comprobarlo, porque `FORCE` obliga también al propietario. Es el mismo tratamiento que `usuario` y `negocio`.
+- **Alternativa descartada:** RLS con una segunda política «propias del usuario» (necesita `app.usuario_id` en cada transacción; se reconsiderará en V2-05 si se fija el usuario en el contexto).
+
+### V2-DA-25 · Rol efectivo por negocio y compatibilidad con v1
+- **Decisión:** la autorización del negocio se basa en la membresía activa del negocio actual, revalidada en cada petición; para no reescribir las reglas de v1, `UsuarioAutenticado.rol()` devuelve el rol efectivo con la equivalencia `PROPIETARIO`/`ENCARGADO` → `ADMIN`, `BARBERO` → `BARBERO`, cliente → `CLIENTE`. Las restricciones propias del encargado (R2-08) y de la identidad compartida (V2-RN-16) se aplican además con `rolNegocio`. El *claim* `rol` del JWT y `usuario.rol` dejan de autorizar al personal. `ROLE_ADMIN_PLATAFORMA` es independiente.
+- **Por qué:** cambio mínimo y verificable sobre un código con 1604 pruebas; los permisos finos por rol de negocio llegan con las pantallas y rutas de V2-05/V2-06.
+- **Consecuencia:** el contrato de API no cambia salvo el código nuevo `IDENTIDAD_COMPARTIDA` (409); `UsuarioSesionDto.rol` sigue siendo el rol efectivo.
