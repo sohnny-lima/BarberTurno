@@ -2,15 +2,19 @@ package pe.barberturno.scheduling;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
  * Persistencia de intervalos semanales RN-17; el servicio valida solapes bajo el bloqueo ② del barbero.
+ * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
+ * las escrituras heredadas conservan la transacción de escritura de Spring Data.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@Transactional(readOnly = true)
 public interface JornadaRepository extends JpaRepository<Jornada, Long> {
 
     /**
@@ -25,6 +29,7 @@ public interface JornadaRepository extends JpaRepository<Jornada, Long> {
      * Elimina la semana con una sentencia antes de insertar el reemplazo; requiere el bloqueo ② en el servicio.
      * @param barberoId perfil bloqueado cuya semana se sustituye
      */
+    @Transactional
     @Modifying
     @Query("delete from Jornada j where j.barbero.id = :barberoId")
     void borrarPorBarbero(@Param("barberoId") Long barberoId);

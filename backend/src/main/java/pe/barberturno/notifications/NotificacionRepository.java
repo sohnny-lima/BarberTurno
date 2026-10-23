@@ -4,15 +4,19 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
  * Persistencia de avisos internos RF-16; el servicio debe limitar la lectura al destinatario autenticado.
+ * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
+ * las escrituras heredadas conservan la transacción de escritura de Spring Data.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@Transactional(readOnly = true)
 public interface NotificacionRepository extends JpaRepository<Notificacion, Long> {
     /**
      * Restringe contenido y total al destinatario, con filtro opcional de lectura.
@@ -46,6 +50,7 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
      * @param usuarioId destinatario autenticado
      * @return cantidad de avisos cuya lectura cambió
      */
+    @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update Notificacion n set n.leida = true where n.usuario.id = :usuarioId and n.leida = false")
     int marcarTodasLeidas(@Param("usuarioId") long usuarioId);

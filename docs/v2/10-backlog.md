@@ -83,7 +83,7 @@ Por qué este orden: el riesgo técnico mayor (aislamiento con RLS sobre el cód
 | ID | Estado | Fecha | Commit | Notas |
 |---|---|---|---|---|
 | V2-00 | Aprobada (dirección general) | 22/10/2026 | `620e155`, `03908b0` | Auditoría Codex 075; Gemini g038 con 10 hallazgos aplicados (`00-README.md` §4); ajustes V2-DA-19…22 |
-| V2-01 | Hecha, pendiente de revisión | 22/10/2026 | `c088082`, `46c8a0c` (preparación); `6cf76d4`, `91719ea`, `d017597` (implementación) | Rama `tarea/V2-01-fundacion-aislamiento`; sin merge; cierre documental en el commit que contiene esta fila |
+| V2-01 | En curso (correcciones de revisión, encargo 077) | 23/10/2026 | `c088082`, `46c8a0c` (preparación); `6cf76d4`, `91719ea`, `d017597` (implementación); `7626d97` (cierre 076); `e024373` (V2-DA-23 y CA-13) | Rama `tarea/V2-01-fundacion-aislamiento`; sin merge; correcciones limitadas a V2-DA-23 y CA-13 |
 | V2-02 … V2-17 | Pendiente (no autorizadas) | — | — | — |
 
 **Nota de cierre V2-01 — 22/10/2026 (encargo 076).** Fundación implementada con V100, dos roles, FK compuestas, RLS FORCE en las siete tablas y contexto local por transacción Spring. Sin cambios en entidades, DTO, rutas ni reglas; ningún camino de producción adicional requirió hacerse transaccional. Commits: preparación del coordinador `c088082`, `46c8a0c`; implementación `6cf76d4`; pruebas `91719ea`; adaptación de aserciones/fixtures al rol operativo `d017597`; el commit documental que contiene esta nota cierra README y evidencia. Merge: ninguno, por instrucción expresa. Evidencia completa y CA-1…CA-12: [pruebas/v2-01.md](pruebas/v2-01.md).

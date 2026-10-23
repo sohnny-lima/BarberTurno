@@ -1,6 +1,7 @@
 package pe.barberturno.scheduling;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Collection;
 import jakarta.persistence.LockModeType;
@@ -10,9 +11,12 @@ import org.springframework.data.repository.query.Param;
 
 /**
  * Consulta perfiles de atención y toma el bloqueo ② ordenado de disponibilidad (arquitectura §8).
+ * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
+ * las escrituras heredadas conservan la transacción de escritura de Spring Data.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@Transactional(readOnly = true)
 public interface BarberoRepository extends JpaRepository<Barbero, Long> {
 
     /**
@@ -20,6 +24,7 @@ public interface BarberoRepository extends JpaRepository<Barbero, Long> {
      * Se toma antes de usuario y barbero. La función en FROM evita mapear el tipo PostgreSQL void.
      * @return centinela 1 después de adquirir pg_advisory_xact_lock
      */
+    @Transactional
     @Query(value = "select 1 from pg_advisory_xact_lock(141414)", nativeQuery = true)
     int bloquearLimiteActivos();
 
@@ -59,6 +64,7 @@ public interface BarberoRepository extends JpaRepository<Barbero, Long> {
      * @param ids identificadores no nulos de perfiles; la consulta impone orden ascendente
      * @return resultados con el orden descrito, sin comprobación adicional de permisos
      */
+    @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Barbero b where b.id in :ids order by b.id")
     List<Barbero> bloquearPorIds(@Param("ids") Collection<Long> ids);

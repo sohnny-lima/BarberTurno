@@ -13,6 +13,9 @@ import pe.barberturno.reservations.Reserva;
 
 /**
  * Tres consultas GROUP BY de RF-14 con proyecciones escalares; no materializa entidades ni usa N+1.
+ * Se invoca desde ReporteService dentro de su transacción de solo lectura REPEATABLE_READ:
+ * los tres desgloses comparten fotografía y contexto de negocio. La guarda de Hibernate
+ * rechaza el uso directo de este repositorio fuera de una transacción Spring.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */

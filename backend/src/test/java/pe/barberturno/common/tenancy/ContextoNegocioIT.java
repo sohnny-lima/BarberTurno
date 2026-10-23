@@ -1,10 +1,14 @@
 package pe.barberturno.common.tenancy;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pe.barberturno.catalog.ServicioRepository;
+import pe.barberturno.scheduling.BarberoRepository;
 import static org.assertj.core.api.Assertions.*;
 
 class ContextoNegocioIT extends TenancyPruebaBase {
@@ -13,6 +17,39 @@ class ContextoNegocioIT extends TenancyPruebaBase {
             VALUES ('Corte de contexto', 30, 20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id
             """;
     @Autowired ServicioRepository servicios;
+    @Autowired BarberoRepository barberos;
+    @PersistenceContext EntityManager em;
+
+    @Test
+    void consultaDeclarada_sinTransaccionEnvolventeLeeSoloElNegocioActual() throws Exception {
+        long b = negocioB();
+        enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "b"));
+        enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "a"));
+        proveedor.fijar(1L);
+        assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+        assertThat(barberos.countByActivoTrue()).isEqualTo(1);
+        assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+        proveedor.fijar(null);
+        assertThat(barberos.countByActivoTrue()).isZero();
+    }
+
+    @Test
+    void entityManagerCompartido_sinTransaccionFallaAunqueExistanFilas() {
+        enNegocio(1L, () -> jdbc.queryForObject(INSERTAR, Long.class));
+        assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+        assertThatThrownBy(() -> em.createQuery("select count(s) from Servicio s", Long.class).getSingleResult())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Hibernate requiere una transacción de Spring activa para acceder a datos.");
+    }
+
+    @Test
+    void entityManagerCompartido_conTransaccionLeeLasFilasDelNegocio() {
+        enNegocio(1L, () -> jdbc.queryForObject(INSERTAR, Long.class));
+        assertThat(enNegocio(1L, () -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isTrue();
+            return em.createQuery("select count(s) from Servicio s", Long.class).getSingleResult();
+        })).isEqualTo(1L);
+    }
 
     @Test
     void mismaConexion_dosNegociosNoCompartenFilasNiContexto() throws Exception {

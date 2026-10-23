@@ -4,15 +4,19 @@ import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
  * Consultas del catálogo RF-04 y bloqueo de sus escrituras; respeta el índice servicio_nombre_uk de V1.
+ * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
+ * las escrituras heredadas conservan la transacción de escritura de Spring Data.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@Transactional(readOnly = true)
 public interface ServicioRepository extends JpaRepository<Servicio, Long> {
     /**
      * Lee sin bloqueo; filtra activos salvo permiso para incluir inactivos y ordena por lower(nombre), coherente
@@ -36,6 +40,7 @@ public interface ServicioRepository extends JpaRepository<Servicio, Long> {
      * @param id identificador persistente positivo del recurso, no nulo
      * @return resultado opcional; vacío si no existe el recurso
      */
+    @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Servicio s where s.id = :id")
     Optional<Servicio> bloquearPorId(@Param("id") Long id);

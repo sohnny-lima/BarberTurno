@@ -1,6 +1,7 @@
 package pe.barberturno.reservations;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,9 +17,12 @@ import org.springframework.data.repository.query.Param;
 
 /**
  * Persistencia de reservas: ocupación RN-03/04/20, bloqueo ③ (§8) y consultas paginadas RF-11/13.
+ * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
+ * las escrituras heredadas conservan la transacción de escritura de Spring Data.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@Transactional(readOnly = true)
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
 
     /**
@@ -83,6 +87,7 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
      * @param id identificador persistente positivo del recurso, no nulo
      * @return resultado opcional; vacío si no existe el recurso
      */
+    @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Reserva r where r.id = :id")
     Optional<Reserva> bloquearPorId(@Param("id") Long id);

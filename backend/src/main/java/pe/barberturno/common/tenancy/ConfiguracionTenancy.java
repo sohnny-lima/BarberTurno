@@ -3,7 +3,6 @@ package pe.barberturno.common.tenancy;
 import java.util.OptionalLong;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,7 +41,6 @@ public class ConfiguracionTenancy {
      * @throws IllegalStateException si falta el identificador o no es positivo
      */
     @Bean
-    @ConditionalOnMissingBean(ProveedorNegocioActual.class)
     ProveedorNegocioActual proveedorNegocioActual(Environment entorno) {
         Long id = entorno.getProperty("barberturno.tenancy.negocio-unico-id", Long.class);
         if (id == null || id <= 0) {

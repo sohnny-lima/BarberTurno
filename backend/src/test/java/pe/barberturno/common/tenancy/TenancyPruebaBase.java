@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -74,6 +75,7 @@ abstract class TenancyPruebaBase {
     @TestConfiguration(proxyBeanMethods = false)
     static class Configuracion {
         @Bean
+        @Primary
         ProveedorNegocioProgramable proveedorProgramable() {
             return new ProveedorNegocioProgramable();
         }
