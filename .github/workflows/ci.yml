@@ -23,14 +23,14 @@ jobs:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_DB: barberturno_test
-          POSTGRES_USER: barberturno
+          POSTGRES_DB: postgres
+          POSTGRES_USER: ci_admin
           # Credencial efímera solo para la CI, sin relación con los secretos locales.
           POSTGRES_PASSWORD: barberturno_ci_efimera
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U barberturno -d barberturno_test"
+          --health-cmd "pg_isready -U ci_admin -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -46,15 +46,37 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
+      - name: Preparar los roles y las bases aisladas de v2
+        shell: bash
+        env:
+          PGPASSWORD: barberturno_ci_efimera
+        run: |
+          export BT_DB_PASSWORD=$(openssl rand -hex 32)
+          export BT_FLYWAY_PASSWORD=$(openssl rand -hex 32)
+          echo "::add-mask::$BT_DB_PASSWORD"
+          echo "::add-mask::$BT_FLYWAY_PASSWORD"
+          psql -X -q -v ON_ERROR_STOP=1 -h localhost -U ci_admin -d postgres <<'SQL'
+          \getenv app_password BT_DB_PASSWORD
+          \getenv flyway_password BT_FLYWAY_PASSWORD
+          CREATE ROLE barberturno_v2 LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'flyway_password';
+          CREATE ROLE barberturno_v2_app LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'app_password';
+          CREATE DATABASE barberturno_v2 OWNER barberturno_v2;
+          CREATE DATABASE barberturno_v2_test OWNER barberturno_v2;
+          CREATE DATABASE barberturno_v2_migracion OWNER barberturno_v2;
+          REVOKE ALL ON DATABASE barberturno_v2, barberturno_v2_test, barberturno_v2_migracion FROM PUBLIC;
+          GRANT CONNECT ON DATABASE barberturno_v2, barberturno_v2_test, barberturno_v2_migracion TO barberturno_v2_app;
+          SQL
+          echo "BT_DB_USER=barberturno_v2_app" >> "$GITHUB_ENV"
+          echo "BT_DB_PASSWORD=$BT_DB_PASSWORD" >> "$GITHUB_ENV"
+          echo "BT_FLYWAY_USER=barberturno_v2" >> "$GITHUB_ENV"
+          echo "BT_FLYWAY_PASSWORD=$BT_FLYWAY_PASSWORD" >> "$GITHUB_ENV"
       - name: Verificar el backend con PostgreSQL real
         # pipefail conserva el código de Maven aunque la salida pase por tee.
         shell: bash
         run: ./mvnw -B -ntp verify 2>&1 | tee maven-verify.log
         env:
           SPRING_PROFILES_ACTIVE: test
-          BT_DB_URL: jdbc:postgresql://localhost:5432/barberturno_test
-          BT_DB_USER: barberturno
-          BT_DB_PASSWORD: barberturno_ci_efimera
+          BT_DB_URL: jdbc:postgresql://localhost:5432/barberturno_v2_test
       - name: Resumir los errores de Maven como anotaciones
         # Las anotaciones son públicas en la API; los logs exigen autenticación.
         if: failure()

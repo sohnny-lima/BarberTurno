@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false",
@@ -37,7 +38,7 @@ class DisponibilidadIT {
     private static final LocalDate FECHA = LocalDate.of(2026, 10, 1);
     private static final String PASSWORD = "ClaveDisponible123";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @Autowired BarberoRepository barberos;
     @Autowired JornadaRepository jornadas;
@@ -76,7 +77,7 @@ class DisponibilidadIT {
     @Test void corrida_publicaSinSesion_intervalosCompletosContiguosYDesfaseLima() throws Exception {
         assertThat(bt101.getId()).isEqualTo(101L);
         assertThat(jdbc.queryForObject("select hora_inicio::text from jornada order by id limit 1", String.class)).isEqualTo("09:00:00");
-        assertThat(jornadas.listarPorBarbero(carlos.getId()).getFirst().getHoraInicio()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(jdbc.enTransaccion(() -> jornadas.listarPorBarbero(carlos.getId()).getFirst().getHoraInicio())).isEqualTo(LocalTime.of(9, 0));
         var antes = jdbc.queryForList("select * from reserva order by id");
         var resultado = consultar(peticion(FECHA));
         assertThat(resultado.fecha()).isEqualTo(FECHA);

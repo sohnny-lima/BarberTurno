@@ -11,7 +11,7 @@ import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import pe.barberturno.BarberTurnoApplication;
 import pe.barberturno.common.config.ConfiguracionProduccion;
@@ -34,7 +34,7 @@ class DatosDemoRunnerIT {
                 "--barberturno.reloj-fijo=2026-09-28T09:00:00-05:00", "--BT_DEMO_PASSWORD=" + password);
     }
 
-    private Map<String, List<Map<String, Object>>> instantanea(JdbcTemplate jdbc) {
+    private Map<String, List<Map<String, Object>>> instantanea(JdbcNegocioPruebas jdbc) {
         var resultado = new java.util.LinkedHashMap<String, List<Map<String, Object>>>();
         for (String tabla : List.of("usuario", "barbero", "servicio", "jornada", "bloqueo",
                 "reserva", "auditoria_reserva", "notificacion")) {
@@ -47,7 +47,7 @@ class DatosDemoRunnerIT {
         Map<String, List<Map<String, Object>>> antes;
         // Contexto de preparación: también comprueba la ausencia de contraseña y los rollbacks.
         try (var contexto = arrancar("")) {
-            var jdbc = contexto.getBean(JdbcTemplate.class);
+            var jdbc = contexto.getBean(JdbcNegocioPruebas.class);
             LimpiezaBaseDatos.limpiar(jdbc);
             try {
                 var servicio = contexto.getBean(DatosDemoService.class);
@@ -95,7 +95,7 @@ class DatosDemoRunnerIT {
         // Dos arranques completos: el runner automático encuentra el marcador persistido.
         for (int i = 0; i < 2; i++) {
             try (var contexto = arrancar(PASSWORD)) {
-                var jdbc = contexto.getBean(JdbcTemplate.class);
+                var jdbc = contexto.getBean(JdbcNegocioPruebas.class);
                 try {
                     comprobarEscenario(contexto);
                     assertThat(instantanea(jdbc)).isEqualTo(antes);
@@ -107,7 +107,7 @@ class DatosDemoRunnerIT {
     }
 
     private void comprobarEscenario(ConfigurableApplicationContext contexto) {
-        JdbcTemplate jdbc = contexto.getBean(JdbcTemplate.class);
+        JdbcNegocioPruebas jdbc = contexto.getBean(JdbcNegocioPruebas.class);
         assertThat(contexto.getBean(Clock.class).instant()).isEqualTo(FIJO);
         assertThat(jdbc.queryForObject("select count(*) from usuario", Integer.class)).isEqualTo(6);
         assertThat(jdbc.queryForObject("select count(*) from barbero", Integer.class)).isEqualTo(2);

@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.*;
@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false"})
@@ -35,7 +36,7 @@ class PerfilIT {
     private static final String PASSWORD = "ClavePerfil123";
     private static final String NUEVA = "OtraClave456";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @Autowired UsuarioRepository usuarios;
     @Autowired PasswordEncoder passwords;

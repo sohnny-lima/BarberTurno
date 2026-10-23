@@ -13,7 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.*;
@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false"})
@@ -36,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ServicioIT {
     private static final String PASSWORD = "ClaveCatalogo123";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @MockitoSpyBean ServicioRepository servicios;
     @Autowired UsuarioRepository usuarios;

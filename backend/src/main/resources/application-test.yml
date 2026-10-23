@@ -4,11 +4,13 @@ spring:
       - optional:file:../.local/barberturno.env[.properties]
       - optional:file:./.local/barberturno.env[.properties]
   datasource:
-    url: ${BT_DB_URL:jdbc:postgresql://localhost:5433/barberturno_test}
-    username: ${BT_DB_USER:barberturno}
+    url: ${BT_DB_URL:jdbc:postgresql://localhost:5433/barberturno_v2_test}
+    username: ${BT_DB_USER:barberturno_v2_app}
     password: ${BT_DB_PASSWORD}
 
 barberturno:
+  tenancy:
+    negocio-unico-id: 1
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}

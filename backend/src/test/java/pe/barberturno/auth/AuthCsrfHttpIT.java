@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.test.annotation.DirtiesContext;
 import pe.barberturno.auth.dto.RegistroDto;
 import pe.barberturno.support.LimpiezaBaseDatos;
@@ -39,7 +39,7 @@ class AuthCsrfHttpIT {
              "password":"ClaveHttp123","aceptaPrivacidad":true}
             """;
     @LocalServerPort int puerto;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired AuthService auth;
     @Autowired RelojAjustable reloj;
     private CookieManager cookies;

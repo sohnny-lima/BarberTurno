@@ -13,7 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false"})
@@ -34,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BarberoIT {
     private static final String PASSWORD = "ClavePersonal123";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @Autowired BarberoRepository barberos;
     @Autowired UsuarioRepository usuarios;
@@ -174,13 +175,13 @@ class BarberoIT {
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true))
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.codigo").value("LIMITE_BARBEROS_ACTIVOS"));
         assertThat(usuarios.findByCorreo("nuevo@ejemplo.test")).isEmpty();
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
         assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isFalse();
-        long activo = barberos.listar(false).getFirst().getId();
+        long activo = jdbc.enTransaccion(() -> barberos.listar(false).getFirst().getId());
         escribir("PATCH", activo, admin, Map.of("activo", true)).andExpect(status().isOk());
         escribir("PATCH", activo, admin, Map.of("activo", false)).andExpect(status().isOk());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
     }
 
     @ParameterizedTest @ValueSource(strings = {"altas", "reactivaciones", "mixto"})
@@ -223,7 +224,7 @@ class BarberoIT {
             assertThat(estados.stream().filter(s -> s == 200 || s == 201).count()).isEqualTo(1);
             assertThat(estados.stream().filter(s -> s == 422).count()).isEqualTo(1);
         }
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
         assertThat(usuarios.count()).isEqualTo(barberos.count() + 1);
     }
 

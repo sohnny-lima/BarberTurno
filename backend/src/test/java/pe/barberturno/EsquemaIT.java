@@ -28,6 +28,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @Import(EsquemaIT.RelojFijoConfig.class)
 class EsquemaIT {
@@ -42,7 +43,7 @@ class EsquemaIT {
     private Clock clock;
 
     @Test
-    void migrar_aplicaVersionUnoYCreaLasOchoTablasConBtreeGist() {
+    void migrar_aplicaVersionUnoYCreaLasNueveTablasConBtreeGist() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM flyway_schema_history
@@ -54,7 +55,7 @@ class EsquemaIT {
                 ORDER BY tablename
                 """, String.class)).containsExactly(
                 "auditoria_reserva", "barbero", "bloqueo", "jornada",
-                "notificacion", "reserva", "servicio", "usuario");
+                "negocio", "notificacion", "reserva", "servicio", "usuario");
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist'
                 """, Integer.class)).isEqualTo(1);

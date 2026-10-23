@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc
 class BarberTurnoApplicationIT {

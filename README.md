@@ -4,6 +4,26 @@ Sistema web de reservas y turnos para una barbería de una sede en Huamanga, Per
 
 El repositorio y las bases locales están preparados (T-01). El backend ya arranca, ejecuta sus pruebas y ofrece health y Swagger en desarrollo (T-02). El frontend permite registrarse, ingresar, cambiar la contraseña, editar el perfil y salir, con Material, navegación por rol y protección XSRF (T-12). El ADMIN también gestiona servicios y barberos, con altas, edición, estados y contraseña temporal (T-17).
 
+## BarberTurno v2 en local
+
+Este worktree desarrolla v2 en `tarea/V2-01-fundacion-aislamiento`, desde `v2`. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. V2-01 conserva los contratos de v1 y opera con un negocio único transitorio; `prod` rechaza el arranque hasta disponer del resolutor definitivo.
+
+El responsable prepara el entorno una sola vez desde la raíz con `tools/preparar-entorno-v2.ps1` (PostgreSQL 18.6, puerto 5433). El script crea exclusivamente las bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`, propiedad de `barberturno_v2`, y el rol operativo `barberturno_v2_app`, sin privilegios administrativos ni propiedad. No reutilice bases o credenciales de v1. En este equipo ya está preparado.
+
+Los perfiles `dev` y `test` importan automáticamente `.local/barberturno.env` del worktree. Las claves son `BT_DB_USER`/`BT_DB_PASSWORD` para la aplicación y `BT_FLYWAY_USER`/`BT_FLYWAY_PASSWORD` para migraciones; las variables del proceso prevalecen. No imprima el archivo ni lo versione. Consulte la plantilla sin secretos `tools/barberturno-v2.env.example`.
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot'
+cd backend
+.\mvnw.cmd verify
+# Tras terminar las pruebas, para desarrollo:
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+`dev` usa `http://localhost:8081` y `barberturno_v2`; `test`, `barberturno_v2_test`. Flyway aplica V1 y V100 con el propietario y Hibernate valida con el rol operativo. Las pruebas de instalación y actualización limpian únicamente `barberturno_v2_migracion`, comprobando su nombre antes de hacerlo. Ejecute siempre una sola suite o aplicación contra PostgreSQL a la vez. La suite conserva el negocio único al limpiar los datos de prueba.
+
+La propiedad `barberturno.tenancy.negocio-unico-id=1` existe solo en dev/test; cada transacción fija el contexto RLS de forma local y lo pierde al terminar. No cambie de negocio dentro de una transacción. El frontend y su proxy permanecen fuera del alcance de V2-01. Evidencia y criterios: [V2-01](docs/v2/pruebas/v2-01.md).
+
 ## Entorno
 
 El empaquetado de producción de T-33 genera un único jar con Angular: active Java 21 y Node 24.21.0 con fnm, y ejecute `cd backend` y `mvnw.cmd clean verify -Pcon-frontend` (Linux: `./mvnw clean verify -Pcon-frontend`). El build normal no ejecuta npm. Consulte [la guía de despliegue](docs/despliegue.md) para variables obligatorias de `prod`, base endurecida, proxy TLS, CSP, servicio y monitor de health. Proveedor/TLS (P-03), PostgreSQL local actualizado (T-38) y respaldo/recuperación (T-36) siguen pendientes.

@@ -66,15 +66,15 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 
 ## 5. Entorno de desarrollo aislado
 1. Worktree `D:\Proyectos\BarberTurno-v2` de la rama `v2` (V2-DA-01).
-2. `tools/db-local-v2.sql` (V2-01): roles `barberturno_v2` y `barberturno_v2_app` (SCRAM, contraseñas con `\password`), bases `barberturno_v2` y `barberturno_v2_test` (propietario `barberturno_v2`), permisos por defecto para el rol de la aplicación. Lo ejecuta el responsable con el cliente 18 (`postgres`); idempotente.
-3. Secretos en `D:\Proyectos\BarberTurno-v2\.local\barberturno.env` (los crea el responsable; plantilla `tools/barberturno-v2.env.example` sin valores).
-4. Puertos 8081 (API) y 4201 (`ng serve`); `proxy.conf.json` de v2 apunta a 8081.
+2. `tools/preparar-entorno-v2.ps1` + `tools/db-local-v2.sql` (V2-01): roles `barberturno_v2` y `barberturno_v2_app` (SCRAM; el verificador se calcula en el equipo y la contraseña nunca viaja ni se muestra), bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion` (propietario `barberturno_v2`, `CONNECT` solo para los dos roles). Los permisos sobre tablas los concede la migración `V100` (V2-DA-20). Lo ejecuta el responsable; la única contraseña que teclea es la de `postgres`, en el aviso oculto de `psql`.
+3. Secretos en `D:\Proyectos\BarberTurno-v2\.local\barberturno.env`, escrito por el script (plantilla `tools/barberturno-v2.env.example` sin valores). No reutiliza credenciales de v1 ni de producción.
+4. Puertos 8081 (API) y, cuando el frontend cambie (V2-07), 4201 (`ng serve`) con `proxy.conf.json` hacia 8081.
 5. WhatsApp de desarrollo: número de prueba de Meta y túnel HTTPS temporal para el *webhook* solo durante las pruebas manuales (servicio externo: se pide autorización al llegar a V2-08).
 6. Nunca dos suites contra el PostgreSQL local a la vez (v1 y v2 comparten servidor).
 
 ## 6. Migración futura de v1 a v2 (diseño; **no se ejecuta ahora**)
 ### 6.1 Estrategia: expandir → migrar → contraer
-**Numeración:** las migraciones de v2 usan el rango **`V100` en adelante**. Así, una corrección de v1 en `main` (`V2__…`, `V3__…`, que se integra hacia `v2` con `git merge main`) nunca choca con las de v2, y una base de producción de v1 en cualquier versión menor que 100 se migra a v2 en orden.
+**Numeración:** las migraciones de v2 usan el rango **`V100` en adelante**, para que una corrección de v1 en `main` (`V2__…`, `V3__…`) no choque de nombre con las de v2 y una base de v1 en cualquier versión menor que 100 se migre a v2 en orden. **El rango no basta:** una `Vk` nueva de `main` que llegue a una base v2 que ya aplicó `V100` queda fuera de orden; Flyway la detecta y bloquea el arranque. Cómo se integra está en V2-DA-21 (manifiesto de v1, tarea de integración con pruebas de instalación nueva y de actualización, bases v2 desechables y cierre de `main` a migraciones antes de cualquier base v2 que haya que conservar); `outOfOrder`, editar migraciones aplicadas e `ignoreMigrationPatterns` quedan prohibidos.
 
 | Migración | Contenido | Reversible por |
 |---|---|---|
