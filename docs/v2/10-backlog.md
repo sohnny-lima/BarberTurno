@@ -84,8 +84,9 @@ Por qué este orden: el riesgo técnico mayor (aislamiento con RLS sobre el cód
 |---|---|---|---|---|
 | V2-00 | Aprobada (dirección general) | 22/10/2026 | `620e155`, `03908b0` | Auditoría Codex 075; Gemini g038 con 10 hallazgos aplicados (`00-README.md` §4); ajustes V2-DA-19…22 |
 | V2-01 | **Integrada en `v2`** (merge `03088b3`, autorizada por el responsable); CI 39923701628 **success** | 23/10/2026 | `c088082`, `46c8a0c` (preparación); `6cf76d4`, `91719ea`, `d017597` (implementación); `7626d97` (cierre 076); `e024373` (V2-DA-23 y CA-13); `a097714`, `f919ad1`, `4a04932` (correcciones 077) | Rama `tarea/V2-01-fundacion-aislamiento`; sin merge; cierre documental en el commit que contiene esta fila; CA-1…CA-13 cumplen |
-| V2-02 | **Hecha y revisada** (coordinador + Gemini g041 APROBADO); pendiente de la revisión del responsable, **sin integrar** | 23/10/2026 | `58bded8` (alcance), `dd522da` (bloqueo 078), `96542db` (V2-DA-26), `4bdfec7`, `7387ebe` (implementación y pruebas, 079), `712b87b` (bloqueo 079), `f7b7a08` (V2-DA-27), `d461567`, `4c7a89b`, `ad814e6` (080), `242437e` (Javadoc, coordinador) | Rama `tarea/V2-02-identidad-membresias`; verify 1662/0/0; CB-1…CB-7 y las cinco condiciones cumplen ([evidencia](pruebas/v2-02.md)) |
-| V2-03 … V2-17 | Pendiente (no autorizadas) | — | — | — |
+| V2-02 | **Integrada en `v2`** (merge `ba7f909`, autorizada por el responsable); CI 39997662362 **success** | 23/10/2026 | `58bded8` (alcance), `dd522da` (bloqueo 078), `96542db` (V2-DA-26), `4bdfec7`, `7387ebe` (implementación y pruebas, 079), `712b87b` (bloqueo 079), `f7b7a08` (V2-DA-27), `d461567`, `4c7a89b`, `ad814e6` (080), `242437e` (Javadoc, coordinador) | Rama `tarea/V2-02-identidad-membresias`; verify 1662/0/0; CB-1…CB-7 y las cinco condiciones cumplen ([evidencia](pruebas/v2-02.md)) |
+| V2-03 | En curso (autorizada tras la CI en verde) | 23/10/2026 | — | Rama `tarea/V2-03-fichas-cliente`; alcance en §6 |
+| V2-04 … V2-17 | Pendiente (no autorizadas) | — | — | — |
 
 **Nota de cierre V2-01 — 22/10/2026 (encargo 076).** Fundación implementada con V100, dos roles, FK compuestas, RLS FORCE en las siete tablas y contexto local por transacción Spring. Sin cambios en entidades, DTO, rutas ni reglas; ningún camino de producción adicional requirió hacerse transaccional. Commits: preparación del coordinador `c088082`, `46c8a0c`; implementación `6cf76d4`; pruebas `91719ea`; adaptación de aserciones/fixtures al rol operativo `d017597`; el commit documental que contiene esta nota cierra README y evidencia. Merge: ninguno, por instrucción expresa. Evidencia completa y CA-1…CA-12: [pruebas/v2-01.md](pruebas/v2-01.md).
 
@@ -160,3 +161,57 @@ Se detuvo la única corrida verify por AGENTS §4 (39 clases y 520 casos termina
 | CB-7 | Sin merge en `v2`, sin push, sin tocar `main`, Azure ni las bases existentes. |
 
 **Nota de cierre V2-02 — 23/10/2026 (encargo 080 y cierre del coordinador).** Codex implementó V2-DA-27 (`4c7a89b`: `AmbitoUsuarios`, cuentas de plataforma como identidad compartida; `ad814e6`: fixtures) y la regresión `PlataformaProtegidaIT`; se quedó sin cuota durante su `verify` final (67 clases sin fallos). El coordinador terminó desde ese trabajo: `verify` sobre `ad814e6` → 1662/0/0 con fallo de doclint (7 «no main description»); corrigió solo el Javadoc (`242437e`) y repitió: **1662/0/0, BUILD SUCCESS**. Gemini g041: APROBADO. Límites y controles diferidos: §5.3. No se integra en `v2` ni se publica hasta la revisión del responsable.
+
+## 6. V2-03 · Fichas de cliente: alcance concretado (autorizado el 23/10/2026)
+**Autorización:** con la CI de `v2` en verde tras integrar V2-02, el responsable autoriza V2-03 en su propia rama (`tarea/V2-03-fichas-cliente`, desde `v2`), **sin integrar ni publicar**. Fuera de alcance: resolución del negocio por petición y rutas `/api/n/{slug}` (V2-05), invitaciones y gestión del equipo (V2-06), frontend (V2-07), WhatsApp e IA. **Esta etapa no convierte el sistema en multinegocio completo:** el negocio de cada petición sigue saliendo del proveedor transitorio (V2-DA-19).
+
+### 6.1 Qué entra
+1. **Migración `V102__ficha_cliente.sql`**:
+   - Tabla `cliente` (DDL de `04-arquitectura-datos.md` §3.2, sin `wa_id` ni opt-in, que llegan con WhatsApp): `negocio_id` con el mismo patrón de V100, `usuario_id` (cuenta vinculada), `nombre` y `telefono` **locales** (copia inicial, independientes de la cuenta), `privacidad_aceptada_en`, `activo`, `UNIQUE (negocio_id, id)` y `cliente_usuario_uk UNIQUE (negocio_id, usuario_id)`; **RLS `ENABLE` + `FORCE`** (octava tabla de negocio).
+   - Relleno en el negocio único: una ficha por cada `usuario` con `rol = CLIENTE`, **con el mismo id** (`OVERRIDING SYSTEM VALUE`) y la secuencia de `cliente` ajustada por encima del máximo; el relleno se hace **antes** de activar RLS. La migración **falla** (no corrige en silencio) si alguna reserva apunta a una cuenta que no sea `CLIENTE`.
+   - `reserva.cliente_id` deja de referenciar `usuario` y pasa a la FK compuesta `reserva_cliente_fk (negocio_id, cliente_id) → cliente (negocio_id, id)`; los valores no cambian. `reserva_sin_solape_cliente` (`EXCLUDE`) se conserva con su nombre y pasa a significar «por ficha» (V2-RN-08).
+   - **Índice de plataforma `vinculo_cliente (negocio_id, usuario_id)`** (V2-DA-28): sin RLS y sin datos personales; lo mantiene un disparador de `cliente` (función `SECURITY DEFINER` del propietario, `search_path` fijo); el rol de la aplicación solo tiene `SELECT`.
+   - No se tocan `V1`, `V100` ni `V101`; `usuario.rol` y `usuario_cliente_completo` se conservan (expandir → migrar → contraer).
+2. **Paquete `customers`**: `Cliente` (entidad con métodos de dominio), `ClienteRepository` (tabla de negocio con RLS: hereda `RepositorioTransaccional`; búsquedas por cuenta siempre dentro del negocio actual) y `VinculoClienteRepository` (superficie mínima, V2-DA-26: solo la comprobación booleana «la cuenta tiene ficha en otro negocio»).
+3. **Reservas sobre la ficha**: `ReservaService` (crear y reprogramar) toma el bloqueo **① en la fila `cliente`** (en lugar de `usuario`), comprueba RN-04 y RN-20 por ficha, y la reserva asistida exige una ficha **activa del negocio actual** (si no, 404). El orden ⓪ → ① → ② → ③ no cambia. Avisos y auditoría siguen dirigidos a la cuenta del cliente.
+4. **Contrato de API sin cambios para el frontend** (V2-DA-29): `clienteId` en `POST /api/reservas` y `cliente.id` en `ReservaDto` siguen siendo el **id de la cuenta**; el servidor lo traduce a la ficha del negocio actual. Los permisos de `ReservaDto` comparan la cuenta del actor con la de la ficha.
+5. **Rol efectivo y ámbito**: el rol efectivo `CLIENTE` sale de una **ficha activa en el negocio actual** (ya no de `usuario.rol`); la membresía tiene prioridad. El ámbito de gestión de V2-DA-27 sustituye su punto (b) «clientes de v1 del negocio único» por «cuentas con ficha activa en el negocio».
+6. **Identidad compartida** (V2-RN-16): una cuenta también es compartida si tiene **ficha en otro negocio** (consulta booleana a `vinculo_cliente`). Restablecer, estado y cambios globales sobre ella → 409 `IDENTIDAD_COMPARTIDA`.
+7. **Altas y edición de fichas**:
+   - `POST /api/auth/registro` crea la cuenta **y** su ficha en el negocio actual. Un correo existente sigue dando `CORREO_DUPLICADO`, **sin** crear ficha para esa cuenta.
+   - **Nuevo, solo personal (`PROPIETARIO`/`ENCARGADO`):** `GET /api/clientes/{id}` y `PATCH /api/clientes/{id}` `{nombre, telefono}` sobre el **id de la ficha**; el `PATCH` cambia solo la ficha, nunca la cuenta. Fichas de otro negocio → 404. Con las pruebas de seguridad de siempre (sin CSRF → 403, CSRF incorrecto → 403, rol no autorizado → 403).
+   - `PUT /api/perfil` sigue editando la **cuenta propia** (identidad global, por la propia persona) y no modifica fichas.
+   - `DatosDemoService` crea las fichas de su escenario.
+
+### 6.2 Cómo se acreditan las seis condiciones del responsable
+| # | Condición | Cómo se cumple | Prueba |
+|---|---|---|---|
+| 1 | Una misma cuenta tiene una ficha distinta en cada barbería | `cliente_usuario_uk` por `(negocio, usuario)`; datos locales en la ficha | `FichaClienteIT`: la misma cuenta con fichas en A y B con nombre y teléfono distintos; cada contexto ve solo la suya |
+| 2 | Cada negocio solo consulta y gestiona sus fichas y datos asociados | RLS `FORCE` en `cliente` y en las reservas; FK compuestas; `/api/clientes/{id}` y la gestión de usuarios dentro del ámbito | `FichaClienteIT`: con el contexto de A, `SELECT` de `cliente` y de sus reservas no devuelve nada de B; `GET`/`PATCH` de una ficha de B → 404; `/api/usuarios?rol=CLIENTE` no lista clientes que solo existen en B |
+| 3 | Crear o modificar una ficha no cambia la identidad global, las credenciales ni datos de otra barbería | `PATCH` solo toca la ficha; el registro no reutiliza cuentas existentes; V2-RN-16 con fichas en otro negocio | `FichaClienteIT`: `PATCH` de la ficha deja la huella completa de `usuario` idéntica y la ficha de B intacta; registro con correo existente → 409 sin ficha nueva. `IdentidadCompartidaIT`: restablecer o cambiar el estado de una cuenta con ficha en B → 409 y `usuario` idéntico |
+| 4 | Las reservas quedan vinculadas al cliente del negocio correcto, sin referencias cruzadas | FK compuesta `reserva_cliente_fk`; ① sobre la ficha; asistida exige ficha del negocio | `ReservaFichaIT`: reserva de A con ficha de B → `23503 reserva_cliente_fk` (rol de la aplicación); asistida para una cuenta sin ficha en A → 404; RN-04 y RN-20 por ficha (la misma cuenta puede tener reservas simultáneas en A y B); `ConcurrenciaReservaIT` intacta |
+| 5 | La migración conserva cuentas, reservas, estados e historial y evita fichas duplicadas | Relleno con el mismo id, una ficha por cuenta `CLIENTE`, FK cambiada sin tocar valores | `ActualizacionV1IT`: huellas de las columnas de v1 de `usuario`, `reserva`, `auditoria_reserva` y `notificacion` idénticas; nº de fichas = nº de cuentas `CLIENTE`; `reserva.cliente_id` = `cliente.id` = `usuario.id` de la cuenta; seis estados; secuencias que continúan; segunda ficha de la misma cuenta en el mismo negocio → `23505 cliente_usuario_uk`; `InstalacionNuevaIT` |
+| 6 | Aislamiento con dos negocios, el rol real de la aplicación e identificadores ajenos | Todas las pruebas con `barberturno_v2_app`; ids de fichas, reservas y cuentas de B usados desde A | `FichaClienteIT` y `ReservaFichaIT` (404 o violación de FK con cada id ajeno: ficha, reserva y `clienteId` de cuenta solo presente en B); `EsquemaV2IT` (ocho tablas con RLS `FORCE`; `vinculo_cliente` sin RLS y solo `SELECT` para la aplicación) |
+
+### 6.3 Controles implementados ahora y controles que dependen de tareas posteriores
+| Implementado en V2-03 | Depende de |
+|---|---|
+| Ficha por negocio con RLS, FK compuesta de reservas, ① sobre la ficha, RN-04/RN-20 por ficha | — |
+| Índice `vinculo_cliente` y V2-RN-16 con fichas | — |
+| `GET`/`PATCH /api/clientes/{id}` para el personal | — |
+| — | **V2-05**: que el negocio de cada petición salga de la ruta (`/api/n/{slug}`) y no del proveedor transitorio; registro y alta en la página de un negocio concreto; alta de una **cuenta existente** como cliente de otro negocio por API; `GET /api/mis-negocios` con fichas; 404 entre negocios por ruta |
+| — | **V2-07**: contrato con id de ficha en el frontend (hoy se traduce desde el id de la cuenta); selector de clientes basado en fichas |
+| — | **V2-05/V2-07**: una persona que es a la vez personal y cliente del mismo negocio (R2-01) necesita elegir el papel; hoy la membresía tiene prioridad |
+| — | **V2-06** (personal) y **V2-08/V2-10** (WhatsApp): fichas **sin cuenta** (`wa_id`, creadas por el personal) y su vinculación |
+| — | Aplazado: fusión de fichas |
+
+### 6.4 Criterios de aceptación de V2-03
+| # | Criterio |
+|---|---|
+| CC-1 | `mvnw.cmd verify` en `barberturno_v2_test` con el rol de la aplicación: todo en verde (las 1662 de V2-02 + las nuevas), JaCoCo ≥ 70 % y Javadoc sin avisos; `ConcurrenciaReservaIT` intacta. |
+| CC-2 | Las seis condiciones de §6.2 acreditadas por las pruebas indicadas. |
+| CC-3 | Negocio único idéntico para el frontend: el contrato de API solo **añade** `GET`/`PATCH /api/clientes/{id}`; las pruebas existentes pasan sin debilitar aserciones (se listan las tocadas y por qué). |
+| CC-4 | `V102` probada en instalación nueva y en actualización desde datos de v1 (§6.2 #5); manifiesto de v1 intacto; sin editar migraciones aplicadas. |
+| CC-5 | `vinculo_cliente` solo se escribe por el disparador; la aplicación no puede insertar, modificar ni borrar filas (prueba con el rol real) y su repositorio tiene superficie mínima. |
+| CC-6 | Ningún rol que eluda RLS; propietario solo para Flyway, limpieza, fila `negocio` de B y estado «v1»; suites en serie; solo bases de v2. |
+| CC-7 | Sin merge en `v2`, sin push, sin tocar `main`, Azure ni las bases existentes. |

@@ -159,3 +159,15 @@
   3. Se mantienen V2-RN-16 (persona con membresía activa en otro negocio → 409), R2-08 (encargado) y la regla del último propietario.
 - **Prueba permanente:** el diagnóstico del encargo 079 pasa a ser una prueba de regresión que exige el **rechazo** de cada paso (listado sin la cuenta, restablecimiento y estado → 404 o 409, ningún inicio de sesión con credenciales temporales emitidas por un negocio sobre una cuenta de plataforma), más casos para el personal de otro negocio y para los clientes con un negocio distinto del único.
 - **Requisitos:** V2-RN-03 (separación plataforma/negocio) y V2-RN-16; nueva regla **V2-RN-17**: *un negocio solo ve y gestiona a las personas de su ámbito; nunca modifica una cuenta de plataforma*.
+
+---
+*Decisiones V2-DA-28 y V2-DA-29: alcance de V2-03 (23/10/2026). Vigentes.*
+### V2-DA-28 · Ficha con RLS e índice de plataforma de vínculos mantenido por la base
+- **Decisión:** `cliente` es tabla de negocio con RLS `FORCE` (contiene datos personales por negocio). Para que un negocio sepa —sin ver nada más— si una cuenta tiene ficha en **otro** negocio (V2-RN-16), existe `vinculo_cliente (negocio_id, usuario_id)`, tabla de plataforma sin RLS ni datos personales, mantenida **solo** por un disparador de `cliente` (función `SECURITY DEFINER` del propietario con `search_path` fijo). El rol de la aplicación solo puede leerla y su repositorio expone solo la comprobación booleana.
+- **Por qué:** con RLS en `cliente`, ni la aplicación ni una función del propietario pueden ver fichas de otro negocio (`FORCE` obliga también al propietario). El disparador garantiza que el índice no se desincroniza ni se falsifica desde la aplicación.
+- **Alternativas descartadas:** `cliente` sin RLS (expondría nombres y teléfonos de clientes entre negocios); índice escrito por los servicios (puede desincronizarse); un rol con `BYPASSRLS` para una función (requiere crear roles con superusuario).
+
+### V2-DA-29 · Contrato de reservas con el id de la cuenta durante V2-03
+- **Decisión:** hasta que cambie el frontend (V2-07), `clienteId` (reserva asistida) y `ReservaDto.cliente.id` siguen siendo el id de la **cuenta**; el servidor lo traduce a la ficha activa del negocio actual (sin ficha → 404). Los ids de ficha solo aparecen en `/api/clientes/{id}`.
+- **Por qué:** evita tocar el frontend en esta etapa y mantiene válidos los datos migrados (en v1, ficha y cuenta comparten id; en v2 una cuenta puede tener varias fichas).
+- **Consecuencia:** las fichas sin cuenta (WhatsApp, alta por el personal) no se pueden reservar por la web hasta V2-07, que pasa el contrato a ids de ficha.
