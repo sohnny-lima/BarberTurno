@@ -36,7 +36,7 @@ class DatosDemoRunnerIT {
 
     private Map<String, List<Map<String, Object>>> instantanea(JdbcNegocioPruebas jdbc) {
         var resultado = new java.util.LinkedHashMap<String, List<Map<String, Object>>>();
-        for (String tabla : List.of("usuario", "barbero", "servicio", "jornada", "bloqueo",
+        for (String tabla : List.of("usuario", "membresia", "barbero", "servicio", "jornada", "bloqueo",
                 "reserva", "auditoria_reserva", "notificacion")) {
             resultado.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
         }
@@ -81,7 +81,7 @@ class DatosDemoRunnerIT {
 
                 // Un administrador inicial ya configurado prevalece; no se crea admin-demo.
                 var usuarios = contexto.getBean(UsuarioRepository.class);
-                usuarios.saveAndFlush(new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
+                pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, contexto.getBean(pe.barberturno.platform.MembresiaRepository.class), new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
                         contexto.getBean(PasswordEncoder.class).encode(PASSWORD), Rol.ADMIN, null, FIJO));
                 servicio.cargar(PASSWORD);
                 assertThat(usuarios.findByCorreo("admin-demo@ejemplo.test")).isEmpty();
@@ -116,6 +116,8 @@ class DatosDemoRunnerIT {
         assertThat(jdbc.queryForObject("select count(*) from reserva", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select count(*) from auditoria_reserva", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select count(*) from notificacion", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForList("select rol from membresia where negocio_id=1 and estado='ACTIVA' order by rol", String.class))
+                .containsExactly("BARBERO", "BARBERO", "PROPIETARIO");
         assertThat(jdbc.queryForList("select nombre from usuario where rol='CLIENTE' order by id", String.class))
                 .containsExactly("Cliente de demostración", "Ana", "Luis");
         assertThat(jdbc.queryForList("select especialidad from barbero", String.class)).containsOnly("Corte y barba");

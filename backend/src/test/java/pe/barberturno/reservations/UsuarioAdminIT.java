@@ -27,7 +27,7 @@ class UsuarioAdminIT extends ReservaPruebaBase {
     @Autowired UsuarioAdminService gestion;
     Usuario admin;
     @BeforeEach void administrador() { admin = admin("primero"); }
-    Usuario admin(String nombre) { return usuarios.saveAndFlush(new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
+    Usuario admin(String nombre) { return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
     String estado(long id) { return "/api/usuarios/" + id + "/estado"; }
     String reset(long id) { return "/api/usuarios/" + id + "/restablecer-password"; }
     org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cambio(long id, boolean activo) { return patch(estado(id)).contentType("application/json").content(json.writeValueAsString(Map.of("activo", activo))); }
@@ -60,8 +60,8 @@ class UsuarioAdminIT extends ReservaPruebaBase {
         mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
     }
     @Test void ultimoAdmin_yPropiaCuenta_noSeDesactivan409() throws Exception {
-        mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(usuarios.countByRolAndActivoTrue(Rol.ADMIN)).isEqualTo(1);
-        admin("segundo"); mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(usuarios.countByRolAndActivoTrue(Rol.ADMIN)).isEqualTo(2);
+        mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(membresias.contarPropietariosActivos(1L)).isEqualTo(1);
+        admin("segundo"); mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(membresias.contarPropietariosActivos(1L)).isEqualTo(2);
     }
     @RepeatedTest(10) void dosAdmin_desactivacionCruzada_exactamenteUn200_yQuedaUnoActivo() throws Exception {
         var otro=admin("segundo"); var csrf=mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN"); var cookieUno=sesion(admin); var cookieDos=sesion(otro); var salida=new CyclicBarrier(2);
@@ -70,7 +70,7 @@ class UsuarioAdminIT extends ReservaPruebaBase {
             var dos=hilos.submit(()->{salida.await(10,TimeUnit.SECONDS);return mvc.perform(cambio(admin.getId(),false).cookie(cookieDos,csrf).header("X-XSRF-TOKEN",csrf.getValue())).andReturn().getResponse().getStatus();});
             var resultados=List.of(uno.get(20,TimeUnit.SECONDS),dos.get(20,TimeUnit.SECONDS)); assertThat(resultados.stream().filter(c->c==200)).hasSize(1); assertThat(resultados).allMatch(c->c==200||c==401||c==403||c==409);
         }
-        assertThat(usuarios.countByRolAndActivoTrue(Rol.ADMIN)).isEqualTo(1);
+        assertThat(membresias.contarPropietariosActivos(1L)).isEqualTo(1);
     }
     @ParameterizedTest @ValueSource(strings={"reset","estado"}) void escrituras_sesionValidaSinCsrfOCsrfIncorrecto403(String operacion) throws Exception {
         for(boolean incorrecto:List.of(false,true)) {var p=operacion.equals("reset")?post(reset(cliente.getId())):cambio(cliente.getId(),false);p.cookie(sesion(admin));if(incorrecto)p.cookie(new Cookie("XSRF-TOKEN","valido")).header("X-XSRF-TOKEN","incorrecto");mvc.perform(p).andExpect(status().isForbidden());}

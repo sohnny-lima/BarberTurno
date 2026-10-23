@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class BloqueoIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClaveBloqueo123";
     @Autowired MockMvc mvc;
     @Autowired JdbcNegocioPruebas jdbc;
@@ -60,7 +61,7 @@ class BloqueoIT {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
         hash = passwords.encode(PASSWORD);
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
         actor = usuario("admin", Rol.ADMIN);
         admin = login(actor);
         barbero = guardar("profesional");
@@ -525,7 +526,7 @@ class BloqueoIT {
     }
     private Barbero guardar(String nombre) { return barberos.saveAndFlush(new Barbero(usuario(nombre, Rol.BARBERO), "Cortes", reloj.instant())); }
     private Usuario usuario(String nombre, Rol rol) {
-        return usuarios.saveAndFlush(new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
                 rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private int indice(List<String> sql, String fragmento) {

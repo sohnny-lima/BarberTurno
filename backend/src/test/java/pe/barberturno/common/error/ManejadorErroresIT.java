@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 class ManejadorErroresIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     @Autowired
     private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager gestor;
@@ -46,7 +47,7 @@ class ManejadorErroresIT {
         // Restricciones reales con el rol operativo y el contexto de Spring; sin DDL ni TEMP.
         SQLException error = new TransactionTemplate(gestor).execute(tx -> {
             tx.setRollbackOnly();
-            var datos = new DatosPrueba(usuarios, barberos, servicios);
+            var datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
             var cliente = datos.cliente("cliente");
             var otroCliente = datos.cliente("otro-cliente");
             var barbero = datos.barbero("barbero");

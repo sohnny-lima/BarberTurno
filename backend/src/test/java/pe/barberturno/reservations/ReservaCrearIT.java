@@ -183,7 +183,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
 
     @ParameterizedTest @EnumSource(value = Rol.class, names = {"BARBERO"})
     void rolNoAutorizado_403(Rol rol) throws Exception {
-        var usuario = usuarios.saveAndFlush(new Usuario("Personal ficticio", rol.name().toLowerCase()+"@ejemplo.test",
+        var usuario = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Personal ficticio", rol.name().toLowerCase()+"@ejemplo.test",
                 null, "hash-ficticio", rol, null, reloj.instant()));
         rechazar(usuario, cmd(barbero, "10:00"), 403, "PROHIBIDO");
         assertThatThrownBy(() -> servicioReservas.crear(cmd(barbero, "10:00"), actor(usuario)))

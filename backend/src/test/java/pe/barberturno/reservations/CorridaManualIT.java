@@ -59,13 +59,13 @@ class CorridaManualIT extends ReservaPruebaBase {
         reloj.reiniciar();
         SqlPruebas.limpiar();
         String hash = encoder.encode(PASSWORD);
-        cliente = usuarios.saveAndFlush(new Usuario("Ana", "ana@ejemplo.test", "999000001",
+        cliente = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Ana", "ana@ejemplo.test", "999000001",
                 hash, Rol.CLIENTE, reloj.instant(), reloj.instant()));
-        luis = usuarios.saveAndFlush(new Usuario("Luis", "luis@ejemplo.test", "999000002",
+        luis = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Luis", "luis@ejemplo.test", "999000002",
                 hash, Rol.CLIENTE, reloj.instant(), reloj.instant()));
-        Usuario carlos = usuarios.saveAndFlush(new Usuario("Carlos", "carlos@ejemplo.test", null,
+        Usuario carlos = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Carlos", "carlos@ejemplo.test", null,
                 hash, Rol.BARBERO, null, reloj.instant()));
-        admin = usuarios.saveAndFlush(new Usuario("Administrador", "admin@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Administrador", "admin@ejemplo.test", null,
                 hash, Rol.ADMIN, null, reloj.instant()));
         barbero = barberos.saveAndFlush(new Barbero(carlos, "Corte y barba", reloj.instant()));
         servicio = servicios.saveAndFlush(new Servicio("Corte", "Corte", (short) 30,

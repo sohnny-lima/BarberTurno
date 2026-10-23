@@ -48,6 +48,7 @@
 | V2-RN-14 | Límites de uso (parametrizables por negocio): por conversación, mensajes entrantes por minuto y llamadas al modelo por día; por negocio, presupuesto mensual de IA. Al superarlos, el asistente pasa a menús sin IA o a una persona, nunca falla en silencio. |
 | V2-RN-15 | Una conversación en modo humano no recibe respuestas automáticas salvo el acuse inicial y los mensajes de sistema (p. ej., fuera del horario de atención). |
 | V2-RN-16 | Un negocio no modifica la **identidad global** de una persona (correo, contraseña, nombre de la cuenta, estado de la cuenta) si esa persona tiene membresías o fichas en otro negocio: en ese caso solo actúa sobre lo suyo (revocar la membresía, desactivar el perfil de profesional o la ficha, y el nombre visible local `barbero.nombre_visible`) y el restablecimiento lo hace la plataforma. Desactivar a un profesional **no** desactiva su cuenta global (cambia RN-16 y el comportamiento de v1 en `BarberoService`). *Hallazgo de la auditoría 075, riesgo 4.* |
+| V2-RN-17 | Un negocio solo ve y gestiona a las personas de su ámbito (membresía activa en él; hasta V2-03, los clientes de v1 del negocio único) y **nunca** modifica una cuenta con rol de plataforma, aunque pertenezca a su equipo (V2-DA-27). *Hallazgo del encargo 079.* |
 
 ## 4. Requisitos no funcionales nuevos
 | ID | Requisito | Verificación |

@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class AuthIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String CORREO = "cliente@ejemplo.test";
     private static final String PASSWORD = "ClaveCliente123";
     @Autowired MockMvc mvc;
@@ -380,7 +381,7 @@ class AuthIT {
         Usuario u = crear(Rol.ADMIN, false);
         var barbero = barberos.saveAndFlush(new Barbero(u, "Corte", reloj.instant()));
         Cookie sesion = new Cookie("BT_SESION", jwt.emitir(u));
-        jdbc.update("update usuario set rol='BARBERO' where id=?", u.getId());
+        jdbc.update("update membresia set rol='BARBERO' where negocio_id=1 and usuario_id=?", u.getId());
         mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barberoId").value(barbero.getId()))
                 .andExpect(jsonPath("$.rol").value("BARBERO"));
@@ -393,6 +394,9 @@ class AuthIT {
         assertThat(usuarios.count()).isEqualTo(1);
         Usuario admin = usuarios.findByCorreo("admin@ejemplo.test").orElseThrow();
         assertThat(admin.getRol()).isEqualTo(Rol.ADMIN);
+        assertThat(admin.getRolPlataforma()).isEqualTo(pe.barberturno.platform.RolPlataforma.ADMIN_PLATAFORMA);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, admin.getId()).orElseThrow().getRol())
+                .isEqualTo(pe.barberturno.platform.RolNegocio.PROPIETARIO);
         assertThat(admin.getTelefono()).isNull();
         assertThat(admin.isDebeCambiarPassword()).isFalse();
         assertThat(admin.getPasswordHash()).startsWith("$2a$12$");
@@ -602,7 +606,7 @@ class AuthIT {
         Usuario u = new Usuario("Usuario de prueba", CORREO, rol == Rol.CLIENTE ? "999111222" : null,
                 passwords.encode(PASSWORD), rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant());
         if (temporal) u.cambiarPassword(u.getPasswordHash(), true, reloj.instant());
-        return usuarios.saveAndFlush(u);
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, u);
     }
     private String detalle(ResultActions solicitud) throws Exception {
         var r = solicitud.andExpect(status().isUnauthorized())

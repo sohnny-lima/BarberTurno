@@ -54,7 +54,7 @@ class ReporteExcelIT extends ReservaPruebaBase {
     Barbero otro;
 
     @BeforeEach void escenario() {
-        admin = usuarios.saveAndFlush(new Usuario("Admin ficticio", "excel@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Admin ficticio", "excel@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
         servicio.editar("=Corte ficticio", "Prueba", (short) 30, BigDecimal.TEN, reloj.instant());
         servicios.saveAndFlush(servicio);
