@@ -50,8 +50,16 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                     INSERT INTO servicio (nombre, duracion_min, precio, creado_en, actualizado_en)
                     VALUES ('Barba de v1', 20, 15, '2026-09-28T14:00Z', '2026-09-28T14:00Z')
                     """);
+            jdbc.update("update usuario set activo=false where correo='cliente-dos-v1@ejemplo.test'");
             huellas = huellas(jdbc);
             for (String tabla : TABLAS) maximos.put(tabla, jdbc.queryForObject("select max(id) from " + tabla, Long.class));
+        }
+        flyway("102").migrate();
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L);
+            // Reproduce la pérdida de ámbito del relleno original antes de la corrección aditiva.
+            assertThat(jdbc(aplicacion).queryForObject("select count(*) from usuario u join cliente c on c.usuario_id=u.id where u.correo='cliente-dos-v1@ejemplo.test' and c.activo", Integer.class)).isZero();
+            aplicacion.commit();
         }
         completa.migrate();
         comprobarMigracionCompleta(completa);
@@ -71,7 +79,8 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             assertThat(huellas(jdbc)).isEqualTo(huellas);
             assertThat(jdbc.queryForObject("select count(*) from cliente", Integer.class))
                     .isEqualTo(jdbc.queryForObject("select count(*) from usuario where rol='CLIENTE'", Integer.class));
-            assertThat(jdbc.queryForObject("select count(*) from cliente c join usuario u on u.id=c.usuario_id where c.id<>u.id or c.nombre<>u.nombre or c.telefono is distinct from u.telefono or c.activo<>u.activo or c.privacidad_aceptada_en is distinct from u.privacidad_aceptada_en or c.creado_en<>u.creado_en or c.actualizado_en<>u.actualizado_en", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from cliente c join usuario u on u.id=c.usuario_id where c.id<>u.id or c.nombre<>u.nombre or c.telefono is distinct from u.telefono or not c.activo or c.privacidad_aceptada_en is distinct from u.privacidad_aceptada_en or c.creado_en<>u.creado_en or c.actualizado_en<>u.actualizado_en", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from usuario u join cliente c on c.usuario_id=u.id where u.correo='cliente-dos-v1@ejemplo.test' and not u.activo and c.activo", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("select count(*) from reserva r join cliente c on c.id=r.cliente_id where c.id<>c.usuario_id", Integer.class)).isZero();
             assertThat(jdbc.queryForObject("select nextval(pg_get_serial_sequence('cliente', 'id'))", Long.class))
                     .isGreaterThan(jdbc.queryForObject("select max(id) from cliente", Long.class));

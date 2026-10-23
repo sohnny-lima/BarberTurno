@@ -35,7 +35,8 @@ class ReservaDtoTest {
         when(servicio.getNombre()).thenReturn("Corte ficticio");
         reserva = mock(Reserva.class);
         when(reserva.getId()).thenReturn(100L);
-        when(reserva.getCliente()).thenReturn(new pe.barberturno.customers.Cliente(cliente, inicio));
+        var ficha = new pe.barberturno.customers.Cliente(cliente, inicio);
+        when(reserva.getCliente()).thenReturn(ficha);
         when(reserva.getBarbero()).thenReturn(barbero);
         when(reserva.getServicio()).thenReturn(servicio);
         when(reserva.getInicio()).thenReturn(inicio);

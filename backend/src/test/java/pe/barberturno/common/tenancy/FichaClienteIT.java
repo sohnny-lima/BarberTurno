@@ -12,6 +12,70 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FichaClienteIT extends IdentidadPruebaBase {
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteService fichas;
 
+    @Test void contextoA_noConsultaNiGestionaFichaReservasOCuentaQueSoloExistenEnB() throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var datosB = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "cliente-solo-b"));
+        assertThat(enNegocio(1L, () -> jdbc.queryForObject("select count(*) from cliente where id=?", Integer.class, datosB.ficha()))).isZero();
+        assertThat(enNegocio(1L, () -> jdbc.queryForObject("select count(*) from reserva where id=?", Integer.class, datosB.reserva()))).isZero();
+        mvc.perform(get("/api/clientes/" + datosB.ficha()).cookie(sesion(actor))).andExpect(status().isNotFound());
+        mvc.perform(csrf(editar(datosB.ficha(), "Ajena", "999000002"), sesion(actor))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/usuarios").param("rol", "CLIENTE").cookie(sesion(actor)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(0))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+        mvc.perform(csrf(estado(datosB.cliente(), false), sesion(actor)))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
+    }
+
+    @Test void registro_siLaFichaFallaRevierteTambienLaCuenta() {
+        proveedor.fijar(999999L);
+        try {
+            assertThatThrownBy(() -> auth.registrar(new pe.barberturno.auth.dto.RegistroDto("Cuenta ficticia", "rollback@ejemplo.test",
+                    "999000001", "ClaveFicticia123", true)))
+                    .isInstanceOfSatisfying(org.springframework.dao.DataIntegrityViolationException.class, e -> {
+                        var causa = (org.postgresql.util.PSQLException) e.getMostSpecificCause();
+                        assertThat(causa.getSQLState()).isEqualTo("23503");
+                        assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo("cliente_negocio_fk");
+                    });
+        } finally { proveedor.reiniciar(); }
+        assertThat(usuarios.findByCorreo("rollback@ejemplo.test")).isEmpty();
+        assertThat(clientes.count()).isZero();
+        assertThat(sql.queryForObject("select count(*) from vinculo_cliente", Integer.class)).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"nombreBlanco", "nombreLargo", "telefonoLargo", "telefonoLetras"})
+    void patch_datosInvalidos400_conservaTodaLaFicha(String caso) throws Exception {
+        var actor = propietario("titular");
+        var local = ficha(1L, persona("local", Rol.CLIENTE));
+        var antes = sql.queryForMap("select * from cliente where id=?", local.getId());
+        String nombre = caso.equals("nombreBlanco") ? "  " : caso.equals("nombreLargo") ? "x".repeat(101) : "Válido";
+        String telefono = caso.equals("telefonoLargo") ? "9".repeat(17) : caso.equals("telefonoLetras") ? "abc" : "999000001";
+        mvc.perform(csrf(editar(local.getId(), nombre, telefono), sesion(actor)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
+        assertThat(sql.queryForMap("select * from cliente where id=?", local.getId())).isEqualTo(antes);
+    }
+
+    @Test void sinSesion_getYPatchConCsrfValido401() throws Exception {
+        mvc.perform(get("/api/clientes/1")).andExpect(status().isUnauthorized());
+        mvc.perform(csrf(editar(1L, "Sin sesión", "999000001"), null)).andExpect(status().isUnauthorized());
+    }
+
+    @Test void telefonoOpcional_nombreYTelefonoEnLimiteYFechaDelReloj_soloDatosLocales() throws Exception {
+        var actor = propietario("titular");
+        var persona = persona("local", Rol.CLIENTE);
+        var local = ficha(1L, persona);
+        var antes = huella(persona);
+        reloj.adelantar(java.time.Duration.ofMinutes(1));
+        mvc.perform(csrf(editar(local.getId(), "x".repeat(100), "9".repeat(16)), sesion(actor))).andExpect(status().isOk());
+        mvc.perform(csrf(patch("/api/clientes/" + local.getId()).contentType("application/json")
+                .content("{\"nombre\":\"Sin teléfono\",\"telefono\":null}"), sesion(actor)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.telefono").isEmpty());
+        var actual = clientes.findById(local.getId()).orElseThrow();
+        assertThat(actual.getTelefono()).isNull();
+        assertThat(sql.queryForObject("select actualizado_en from cliente where id=?", java.sql.Timestamp.class, local.getId()).toInstant()).isEqualTo(reloj.instant());
+        assertThat(huella(persona)).isEqualTo(antes);
+    }
+
     @ParameterizedTest @ValueSource(strings = {"PROPIETARIO", "ENCARGADO"})
     void personal_editaSoloSuFicha_usuarioCompletoYOtraFichaPermanecenIdenticos(String rol) throws Exception {
         long b = negocioB();

@@ -17,6 +17,42 @@ class ReservaFichaIT extends IdentidadPruebaBase {
     @Autowired ReservaService reservas;
     @Autowired JornadaRepository jornadas;
 
+    @Test void asistida_traduceCuentaAFichaDistinta_yDtoFiltrosAvisosYDisponibilidadUsanLaCuenta() throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        pertenencia(b, actor, pe.barberturno.platform.RolNegocio.PROPIETARIO);
+        var cuenta = persona("compartida", Rol.CLIENTE);
+        ficha(1L, cuenta);
+        var datosB = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "b"));
+        var local = ficha(b, cuenta);
+        assertThat(local.getId()).isNotEqualTo(cuenta.getId());
+        local.actualizarDatos("Nombre local B", "51999000007", reloj.instant());
+        enNegocio(b, () -> clientes.saveAndFlush(local));
+        proveedor.fijar(b);
+        try {
+            mvc.perform(csrf(post("/api/reservas").contentType("application/json").content("""
+                    {"servicioId":%d,"barberoId":%d,"inicio":"2026-10-01T11:00:00-05:00","clienteId":%d}
+                    """.formatted(datosB.servicio(), datosB.barbero(), cuenta.getId())), sesion(actor)))
+                    .andExpect(status().isCreated()).andExpect(jsonPath("$.cliente.id").value(cuenta.getId()))
+                    .andExpect(jsonPath("$.cliente.nombre").value("Nombre local B"))
+                    .andExpect(jsonPath("$.cliente.telefono").value("51999000007"));
+            long id = sql.queryForObject("select id from reserva where cliente_id=?", Long.class, local.getId());
+            assertThat(sql.queryForObject("select creada_por from reserva where id=?", Long.class, id)).isEqualTo(actor.getId());
+            assertThat(sql.queryForObject("select actor_id from auditoria_reserva where reserva_id=?", Long.class, id)).isEqualTo(actor.getId());
+            assertThat(sql.queryForList("select usuario_id from notificacion where reserva_id=?", Long.class, id))
+                    .containsExactlyInAnyOrder(cuenta.getId(), datosB.admin());
+            mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01")
+                    .param("clienteId", cuenta.getId().toString()).cookie(sesion(actor)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(1))
+                    .andExpect(jsonPath("$.contenido[0].id").value(id));
+            mvc.perform(get("/api/reservas/mias").cookie(sesion(cuenta))).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.contenido[0].permisos.cancelar").value(true))
+                    .andExpect(jsonPath("$.contenido[0].cliente.telefono").doesNotExist());
+            mvc.perform(get("/api/disponibilidad").cookie(sesion(cuenta)).param("servicioId", Long.toString(datosB.servicio()))
+                    .param("fecha", "2026-10-01").param("excluirReservaId", Long.toString(id))).andExpect(status().isOk());
+        } finally { proveedor.reiniciar(); }
+    }
+
     @Test void idsAjenos_deFichaReservaYCuenta_seRechazanComoAplicacion() throws Exception {
         long b = negocioB();
         var actor = propietario("titular");

@@ -73,6 +73,7 @@ class EsquemaV2IT extends TenancyPruebaBase {
     @Test void vinculo_soloDisparadorEscribeConClienteForceInclusoActualizacionYBorrado() {
         assertThat(jdbc.queryForObject("select relrowsecurity or relforcerowsecurity from pg_class where oid='vinculo_cliente'::regclass", Boolean.class)).isFalse();
         assertThat(jdbc.queryForObject("select prosecdef and proconfig @> ARRAY['search_path=pg_catalog, public'] from pg_proc where oid='mantener_vinculo_cliente()'::regprocedure", Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("select has_function_privilege(current_user, 'mantener_vinculo_cliente()', 'EXECUTE')", Boolean.class)).isFalse();
         var datos = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "vinculo"));
         assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente where negocio_id=1 and usuario_id=?", Integer.class, datos.cliente())).isEqualTo(1);
         for (String sql : List.of("insert into vinculo_cliente values (1, " + datos.cliente() + ")",
@@ -86,6 +87,8 @@ class EsquemaV2IT extends TenancyPruebaBase {
             jdbc.update("delete from notificacion");
             jdbc.update("delete from auditoria_reserva");
             jdbc.update("delete from reserva");
+            jdbc.update("update cliente set usuario_id=? where id=?", datos.admin(), datos.ficha());
+            assertThat(jdbc.queryForList("select usuario_id from vinculo_cliente", Long.class)).containsExactly(datos.admin());
             jdbc.update("delete from cliente where id=?", datos.ficha());
             assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente", Integer.class)).isZero();
             return null;

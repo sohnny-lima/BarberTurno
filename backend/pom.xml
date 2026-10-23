@@ -191,6 +191,7 @@
                     <include>pe.barberturno.reservations*</include>
                     <include>pe.barberturno.scheduling*</include>
                     <include>pe.barberturno.common.tenancy*</include>
+                    <include>pe.barberturno.customers*</include>
                   </includes>
                   <limits>
                     <limit>
