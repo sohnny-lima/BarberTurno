@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class DisponibilidadIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final LocalDate FECHA = LocalDate.of(2026, 10, 1);
     private static final String PASSWORD = "ClaveDisponible123";
     @Autowired MockMvc mvc;
@@ -58,7 +59,7 @@ class DisponibilidadIT {
     @BeforeEach void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
         carlos = datos.barbero("carlos");
         cliente = datos.cliente("cliente");
         servicio = datos.servicio();
@@ -204,7 +205,7 @@ class DisponibilidadIT {
     @ParameterizedTest @EnumSource(value = Rol.class, names = {"CLIENTE", "ADMIN"})
     void exclusion_propietarioOAdmin_liberaFranjaYCoincideValidacion(Rol rol) throws Exception {
         Usuario actor = rol == Rol.CLIENTE ? cliente : datos.cliente("admin");
-        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol.name(), passwords.encode(PASSWORD), actor.getId());
+        prepararRol(actor, rol.name());
         var resultado = consultar(peticion(FECHA).param("excluirReservaId", bt101.getId().toString()).cookie(login(actor)));
         assertThat(horas(resultado)).contains("09:40", "09:50", "10:00", "10:10", "10:20");
         for (var f : resultado.franjas()) {
@@ -220,7 +221,7 @@ class DisponibilidadIT {
         if (!caso.equals("anonimo")) {
             var actor = datos.cliente("actor");
             String rol = caso.equals("barbero") ? "BARBERO" : caso.equals("adminInexistente") ? "ADMIN" : "CLIENTE";
-            jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol, passwords.encode(PASSWORD), actor.getId());
+            prepararRol(actor, rol);
             peticion.cookie(login(actor));
         }
         mvc.perform(peticion).andExpect(status().isNotFound())
@@ -476,7 +477,7 @@ class DisponibilidadIT {
 
     private Cookie sesionExclusion(Rol rol) throws Exception {
         Usuario actor = rol == Rol.CLIENTE ? cliente : datos.cliente("admin-referencia");
-        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol.name(), passwords.encode(PASSWORD), actor.getId());
+        prepararRol(actor, rol.name());
         return login(actor);
     }
 
@@ -516,4 +517,8 @@ class DisponibilidadIT {
                         Map.of("correo", actor.getCorreo(), "password", PASSWORD))))
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie("BT_SESION");
     }
-}
+    private void prepararRol(Usuario actor, String rol) {
+        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol, passwords.encode(PASSWORD), actor.getId());
+        if (!rol.equals("CLIENTE")) membresias.save(new pe.barberturno.platform.Membresia(1L, actor.getId(),
+                rol.equals("ADMIN") ? pe.barberturno.platform.RolNegocio.PROPIETARIO : pe.barberturno.platform.RolNegocio.BARBERO, reloj.instant()));
+    }}

@@ -69,6 +69,10 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             var jdbc = jdbc(aplicacion);
             contexto(aplicacion, 1L);
             assertThat(huellas(jdbc)).isEqualTo(huellas);
+            assertThat(jdbc.queryForObject("select count(*) from membresia", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForObject("select count(*) from membresia m join usuario u on u.id=m.usuario_id where m.negocio_id=1 and m.estado='ACTIVA' and m.rol=case u.rol when 'ADMIN' then 'PROPIETARIO' else 'BARBERO' end and u.rol in ('ADMIN','BARBERO')", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
+            IdentidadEsquemaPruebas.comprobar(jdbc, a.cliente());
             for (String tabla : EsquemaV2IT.TABLAS) {
                 assertThat(jdbc.queryForList("select distinct negocio_id from " + tabla, Long.class)).as(tabla).containsExactly(1L);
             }
@@ -112,7 +116,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
     private static Map<String, String> huellas(JdbcTemplate jdbc) {
         var resultado = new LinkedHashMap<String, String>();
         for (String tabla : TABLAS) {
-            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id')::text, ',' order by id)) from " + tabla + " t", String.class));
+            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma')::text, ',' order by id)) from " + tabla + " t", String.class));
         }
         return resultado;
     }

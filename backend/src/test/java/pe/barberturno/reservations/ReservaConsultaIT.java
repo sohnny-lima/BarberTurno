@@ -74,7 +74,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
     }
 
     private Usuario usuario(String nombre, Rol rol) {
-        return usuarios.saveAndFlush(new Usuario(nombre, nombre.toLowerCase(Locale.ROOT) + "@ejemplo.test",
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario(nombre, nombre.toLowerCase(Locale.ROOT) + "@ejemplo.test",
                 null, "hash-ficticio-no-utilizable", rol, null, reloj.instant()));
     }
 
@@ -304,19 +304,25 @@ class ReservaConsultaIT extends ReservaPruebaBase {
                 get("/api/reservas/mias").cookie(sesion(cliente)))) {
             SqlPruebas.limpiar();
             mvc.perform(peticion).andExpect(status().isOk());
-            assertThat(SqlPruebas.sentencias()).hasSizeLessThanOrEqualTo(4);
+            assertThat(SqlPruebas.sentencias().stream().filter(s -> s.contains("from membresia"))).hasSize(1);
+            assertThat(SqlPruebas.sentencias().stream().filter(s -> !s.contains("from membresia")))
+                    .hasSizeLessThanOrEqualTo(4);
         }
         SqlPruebas.limpiar();
         mvc.perform(agenda(admin)).andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(20))
                 .andExpect(jsonPath("$.totalElementos").value(25)).andExpect(jsonPath("$.totalPaginas").value(2));
         var sql = SqlPruebas.sentencias();
-        assertThat(sql).hasSize(4); // Identidad, perfil de sesión, contenido con joins y count separado.
+        assertThat(sql).hasSize(5); // Identidad, membresía, perfil, contenido con joins y count separado.
+        assertThat(sql.stream().filter(s -> s.contains("from membresia"))).hasSize(1);
+        assertThat(sql.stream().filter(s -> !s.contains("from membresia"))).hasSize(4);
         assertThat(sql.stream().filter(s -> s.contains("from reserva") && !s.contains("count("))).singleElement()
                 .satisfies(s -> assertThat(s).contains("join usuario", "join barbero", "join servicio", "offset", "fetch first"));
         assertThat(sql.stream().filter(s -> s.contains("count(") && s.contains("from reserva"))).hasSize(1);
         SqlPruebas.limpiar();
         mvc.perform(detalle(admin, r101.getId())).andExpect(status().isOk());
-        assertThat(SqlPruebas.sentencias()).hasSize(3);
+        assertThat(SqlPruebas.sentencias()).hasSize(4);
+        assertThat(SqlPruebas.sentencias().stream().filter(s -> s.contains("from membresia"))).hasSize(1);
+        assertThat(SqlPruebas.sentencias().stream().filter(s -> !s.contains("from membresia"))).hasSize(3);
     }
 
     @Test void servicioMantieneGuardiasDeRolYLimiteDeFecha() {

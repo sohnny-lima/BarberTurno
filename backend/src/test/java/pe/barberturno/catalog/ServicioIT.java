@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class ServicioIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClaveCatalogo123";
     @Autowired MockMvc mvc;
     @Autowired JdbcNegocioPruebas jdbc;
@@ -252,7 +253,7 @@ class ServicioIT {
     }
 
     @Test void cp08_editarPrecioYDuracionYDesactivar_conservaTodaLaReservaExistente() throws Exception {
-        var fabrica = new DatosPrueba(usuarios, barberos, servicios);
+        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias);
         Usuario cliente = fabrica.cliente("reserva");
         Barbero barbero = fabrica.barbero("reserva");
         Servicio servicio = guardar("Corte");
@@ -326,7 +327,7 @@ class ServicioIT {
         Usuario usuario = new Usuario("Usuario ficticio", correo, rol == Rol.CLIENTE ? "999111222" : null,
                 passwords.encode(PASSWORD), rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant());
         if (temporal) usuario.cambiarPassword(usuario.getPasswordHash(), true, reloj.instant());
-        usuarios.saveAndFlush(usuario);
+        pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, usuario);
         if (rol == Rol.BARBERO) barberos.saveAndFlush(new Barbero(usuario, "Cortes", reloj.instant()));
         var resultado = mvc.perform(conCsrf(post("/api/auth/login"), null).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("correo", correo, "password", PASSWORD))))

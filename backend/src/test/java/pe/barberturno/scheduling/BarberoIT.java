@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class BarberoIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClavePersonal123";
     @Autowired MockMvc mvc;
     @Autowired JdbcNegocioPruebas jdbc;
@@ -63,6 +64,8 @@ class BarberoIT {
                 .andExpect(jsonPath("$.activo").value(true)).andReturn());
         Usuario u = usuarios.findByCorreo("nuevo@ejemplo.test").orElseThrow();
         assertThat(u.getRol()).isEqualTo(Rol.BARBERO);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().getRol())
+                .isEqualTo(pe.barberturno.platform.RolNegocio.BARBERO);
         assertThat(u.isDebeCambiarPassword()).isTrue();
         assertThat(u.getPrivacidadAceptadaEn()).isNull();
         assertThat(u.getPasswordHash()).startsWith("$2a$12$");
@@ -229,7 +232,7 @@ class BarberoIT {
     }
 
     @Test void cp08_reservasFuturasVigentes_contadorCorrectoYFilasIntactas() throws Exception {
-        var fabrica = new DatosPrueba(usuarios, barberos, servicios);
+        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias);
         Usuario cliente = fabrica.cliente("cliente");
         Barbero b = guardar("profesional");
         var servicio = fabrica.servicio();
@@ -305,7 +308,7 @@ class BarberoIT {
     }
 
     @ParameterizedTest @ValueSource(strings = {"CLIENTE", "BARBERO", "ADMIN_INACTIVO", "ADMIN_VINCULADO", "ADMIN_VINCULADO_INACTIVO"})
-    void vincular_usuarioIncompatible_devuelve409(String caso) throws Exception {
+    void vincular_usuarioIncompatible_devuelve404SinMembresiaDeGestionO409SiIncompatible(String caso) throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
         Usuario u = crearUsuario("vinculo", caso.startsWith("ADMIN") ? Rol.ADMIN : Rol.valueOf(caso));
         if (caso.equals("ADMIN_INACTIVO")) { u.desactivar(reloj.instant()); usuarios.saveAndFlush(u); }
@@ -315,8 +318,10 @@ class BarberoIT {
             barberos.saveAndFlush(perfil);
         }
         long cantidad = barberos.count();
+        boolean sinGestion = caso.equals("CLIENTE") || caso.equals("BARBERO");
         escribir("POST", 0, admin, Map.of("usuarioId", u.getId(), "especialidad", "Cortes"))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CONFLICTO"));
+                .andExpect(status().is(sinGestion ? 404 : 409))
+                .andExpect(jsonPath("$.codigo").value(sinGestion ? "NO_ENCONTRADO" : "CONFLICTO"));
         assertThat(barberos.count()).isEqualTo(cantidad);
     }
 
@@ -383,7 +388,7 @@ class BarberoIT {
     }
 
     private Usuario crearUsuario(String identificador, Rol rol) {
-        return usuarios.saveAndFlush(new Usuario(identificador, identificador.toLowerCase(Locale.ROOT) + "@ejemplo.test", "999111222",
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario(identificador, identificador.toLowerCase(Locale.ROOT) + "@ejemplo.test", "999111222",
                 hash, rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private Barbero guardar(String identificador) {

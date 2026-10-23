@@ -40,7 +40,7 @@ class EsquemaV2IT extends TenancyPruebaBase {
         assertThat(jdbc.queryForObject("select has_schema_privilege(current_user, 'public', 'CREATE')", Boolean.class)).isFalse();
         assertThat(jdbc.queryForObject("select has_schema_privilege(current_user, 'public', 'USAGE')", Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("select has_function_privilege(current_user, 'app_negocio_actual()', 'EXECUTE')", Boolean.class)).isTrue();
-        for (String tabla : java.util.stream.Stream.concat(TABLAS.stream(), java.util.stream.Stream.of("usuario", "negocio")).toList()) {
+        for (String tabla : java.util.stream.Stream.concat(TABLAS.stream(), java.util.stream.Stream.of("usuario", "negocio", "membresia")).toList()) {
             for (String permiso : List.of("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")) {
                 boolean permitido = "SELECT".equals(permiso) || !tabla.equals("negocio") && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
@@ -52,6 +52,14 @@ class EsquemaV2IT extends TenancyPruebaBase {
             assertThat(jdbc.queryForObject("select has_sequence_privilege(current_user, ?, 'UPDATE')", Boolean.class, secuencia)).isFalse();
         }
         assertThat(jdbc.queryForObject("select count(*) from pg_default_acl where defaclrole=(select oid from pg_roles where rolname='barberturno_v2')", Integer.class)).isGreaterThanOrEqualTo(3);
+    }
+
+    @Test void membresia_sinRlsPermisosExactosYRestriccionesConNombre() {
+        enNegocio(1L, () -> {
+            var datos = DatosNegocioPrueba.crear(jdbc, "restricciones-membresia");
+            IdentidadEsquemaPruebas.comprobar(jdbc, datos.cliente());
+            return null;
+        });
     }
 
     @Test

@@ -46,7 +46,7 @@ class ReporteIT extends ReservaPruebaBase {
     Servicio barba;
 
     @BeforeEach void escenarioConocido() {
-        admin = usuarios.saveAndFlush(new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
         barbero.getUsuario().actualizarPerfil("Zeta ficticio", null, reloj.instant());
         usuarios.saveAndFlush(barbero.getUsuario());
@@ -223,7 +223,9 @@ class ReporteIT extends ReservaPruebaBase {
             mvc.perform(peticion("/api/reportes/resumen", "2026-10-01", "2026-10-01", servicioId, barberoId))
                     .andExpect(status().isOk());
             var sql = SqlPruebas.sentencias();
-            assertThat(sql).hasSize(5); // Dos revalidaciones preexistentes: usuario y perfil; tres agregaciones.
+            assertThat(sql).hasSize(6); // Usuario, membresía y perfil; las mismas tres agregaciones de v1.
+            assertThat(sql.stream().filter(s -> s.contains("from membresia"))).hasSize(1);
+            assertThat(sql.stream().filter(s -> !s.contains("from membresia"))).hasSize(5);
             assertThat(sql.stream().filter(s -> s.contains("from reserva"))).hasSize(3)
                     .allSatisfy(s -> assertThat(s).contains("count(", "group by").doesNotContain("fetch first"));
         }

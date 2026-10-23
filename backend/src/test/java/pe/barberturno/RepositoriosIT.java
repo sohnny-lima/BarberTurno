@@ -39,6 +39,7 @@ import static pe.barberturno.support.DatosPrueba.AHORA;
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.session_factory.statement_inspector=pe.barberturno.support.SqlPruebas")
 class RepositoriosIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
 
     @Autowired private UsuarioRepository usuarios;
     @Autowired private BarberoRepository barberos;
@@ -59,7 +60,7 @@ class RepositoriosIT {
     void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
         SqlPruebas.limpiar();
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
         transaccion = new TransactionTemplate(gestorTransacciones);
     }
 

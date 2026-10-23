@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class JornadaIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClaveJornada123";
     @Autowired MockMvc mvc;
     @Autowired JdbcNegocioPruebas jdbc;
@@ -58,7 +59,7 @@ class JornadaIT {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
         hash = passwords.encode(PASSWORD);
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
         admin = login(usuario("admin", Rol.ADMIN));
         barbero = guardar("profesional");
         jornadas.saveAndFlush(new Jornada(barbero, (short) 4, LocalTime.of(9, 0), LocalTime.of(18, 0)));
@@ -379,7 +380,7 @@ class JornadaIT {
 
     private Barbero guardar(String nombre) { return barberos.saveAndFlush(new Barbero(usuario(nombre, Rol.BARBERO), "Cortes", reloj.instant())); }
     private Usuario usuario(String nombre, Rol rol) {
-        return usuarios.saveAndFlush(new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
                 rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private Map<String, Object> intervalo(int dia, String inicio, String fin) { return Map.of("diaSemana", dia, "horaInicio", inicio, "horaFin", fin); }
