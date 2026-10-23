@@ -14,6 +14,38 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class IdentidadCompartidaIT extends IdentidadPruebaBase {
     private static final String MENSAJE = "La cuenta pertenece también a otro negocio; el cambio lo hace la plataforma";
 
+    @ParameterizedTest @ValueSource(strings = {"password", "estado", "nombre", "telefono", "perfil"})
+    void fichaEnOtroNegocio_aunInactivaProtegeTodasLasColumnasDeLaCuenta(String operacion) throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var usuario = persona("compartida-por-ficha", Rol.BARBERO);
+        pertenencia(1L, usuario, RolNegocio.BARBERO);
+        var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
+        var fichaB = ficha(b, usuario);
+        fichaB.desactivar(reloj.instant());
+        enNegocio(b, () -> clientes.saveAndFlush(fichaB));
+        var anterior = huella(usuario);
+        var solicitud = switch (operacion) {
+            case "password" -> post("/api/usuarios/" + usuario.getId() + "/restablecer-password");
+            case "estado" -> estado(usuario.getId(), false);
+            case "perfil" -> patch("/api/barberos/" + perfil.getId() + "/estado").contentType("application/json")
+                    .content("{\"activo\":false}");
+            default -> put("/api/barberos/" + perfil.getId()).contentType("application/json")
+                    .content("{\"nombre\":\"" + (operacion.equals("nombre") ? "Nuevo" : usuario.getNombre())
+                            + "\",\"telefono\":\"" + (operacion.equals("telefono") ? "999000002" : usuario.getTelefono())
+                            + "\",\"especialidad\":\"Barba\"}");
+        };
+        if (operacion.equals("perfil")) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk());
+            assertThat(barberos.findById(perfil.getId()).orElseThrow().isActivo()).isFalse();
+        } else {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
+                    .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+        }
+        assertThat(huella(usuario)).isEqualTo(anterior);
+    }
+
     @ParameterizedTest @ValueSource(strings = {"password", "estado", "nombre", "telefono"})
     void identidadCompartida_rechaza409SinModificarNingunaColumnaGlobal(String operacion) throws Exception {
         long b = negocioB();

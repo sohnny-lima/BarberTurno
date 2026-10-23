@@ -39,6 +39,7 @@ import static pe.barberturno.support.DatosPrueba.AHORA;
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.session_factory.statement_inspector=pe.barberturno.support.SqlPruebas")
 class RepositoriosIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
 
     @Autowired private UsuarioRepository usuarios;
@@ -60,7 +61,7 @@ class RepositoriosIT {
     void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
         SqlPruebas.limpiar();
-        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         transaccion = new TransactionTemplate(gestorTransacciones);
     }
 
@@ -88,7 +89,7 @@ class RepositoriosIT {
                     LocalTime.of(9, 0), LocalTime.of(13, 0)));
             Bloqueo bloqueo = bloqueos.saveAndFlush(new Bloqueo(barbero, AHORA.plusSeconds(7200),
                     AHORA.plusSeconds(9000), "Mantenimiento", barbero.getUsuario(), AHORA));
-            Reserva reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+            Reserva reserva = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                     AHORA.plusSeconds(3600), EstadoReserva.CONFIRMADA, barbero.getUsuario(), AHORA));
             Map<String, Object> anterior = Map.of("inicio", "2026-09-28T15:00:00Z",
                     "barberoId", barbero.getId(), "estado", "PENDIENTE");
@@ -138,7 +139,7 @@ class RepositoriosIT {
                     .containsExactly(bloqueo.getId(), barbero.getId(), AHORA.plusSeconds(7200),
                             AHORA.plusSeconds(9000), "Mantenimiento", barbero.getUsuario().getId(), AHORA);
             assertThat(reservas.findById(reserva.getId()).orElseThrow())
-                    .extracting(Reserva::getId, x -> x.getCliente().getId(), x -> x.getBarbero().getId(),
+                    .extracting(Reserva::getId, x -> x.getCliente().getUsuario().getId(), x -> x.getBarbero().getId(),
                             x -> x.getServicio().getId(), Reserva::getInicio, Reserva::getFin,
                             Reserva::getDuracionRefMin, Reserva::getPrecioRef, Reserva::getEstado,
                             x -> x.getCreadaPor().getId(), Reserva::getVersion, Reserva::getCreadoEn,
@@ -219,11 +220,11 @@ class RepositoriosIT {
             assertThat(reservas.buscarSolapamientos(barbero.getId(), AHORA, r.getFin(), r.getId())).isEmpty();
             assertThat(reservas.buscarSolapamientos(barbero.getId(), AHORA, r.getFin(), 0L)).hasSize(ocupa ? 1 : 0);
             // La consulta del cliente no depende del barbero que presta el servicio.
-            assertThat(reservas.buscarSolapamientosCliente(cliente.getId(),
+            assertThat(reservas.buscarSolapamientosCliente(clientes.buscarIdPorUsuario(cliente.getId()).orElseThrow(),
                     AHORA.plusSeconds(600), AHORA.plusSeconds(2400), null)).hasSize(ocupa ? 1 : 0);
-            assertThat(reservas.buscarSolapamientosCliente(cliente.getId(),
+            assertThat(reservas.buscarSolapamientosCliente(clientes.buscarIdPorUsuario(cliente.getId()).orElseThrow(),
                     AHORA.plusSeconds(1800), AHORA.plusSeconds(3600), null)).isEmpty();
-            assertThat(reservas.buscarSolapamientosCliente(cliente.getId(), AHORA, r.getFin(), r.getId())).isEmpty();
+            assertThat(reservas.buscarSolapamientosCliente(clientes.buscarIdPorUsuario(cliente.getId()).orElseThrow(), AHORA, r.getFin(), r.getId())).isEmpty();
         });
     }
 
@@ -241,7 +242,7 @@ class RepositoriosIT {
             }
             reservar(datos.cliente("otro"), datos.barbero("otro"), servicio, AHORA.plusSeconds(3600),
                     EstadoReserva.CONFIRMADA);
-            assertThat(reservas.contarFuturasQueOcupan(cliente.getId(), AHORA)).isEqualTo(5);
+            assertThat(reservas.contarFuturasQueOcupan(clientes.buscarIdPorUsuario(cliente.getId()).orElseThrow(), AHORA)).isEqualTo(5);
         });
     }
 
@@ -441,7 +442,7 @@ class RepositoriosIT {
 
     private Reserva reservar(Usuario cliente, Barbero barbero, Servicio servicio, Instant inicio,
             EstadoReserva estado) {
-        return reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, inicio, estado, cliente, AHORA));
+        return reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, inicio, estado, cliente, AHORA));
     }
 
     private void comprobarEsperaEnPostgres(int pid) {

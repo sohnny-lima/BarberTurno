@@ -23,6 +23,14 @@ public interface ClienteRepository extends RepositorioTransaccional<Cliente, Lon
     Optional<Cliente> findByUsuarioId(long usuarioId);
 
     /**
+     * Traduce la cuenta sin precargar la entidad que deberá revalidarse tras esperar por ①.
+     * @param usuarioId identidad global del contrato web
+     * @return id escalar de la ficha del negocio actual, si existe
+     */
+    @Query("select c.id from Cliente c where c.usuario.id = :usuarioId")
+    Optional<Long> buscarIdPorUsuario(@Param("usuarioId") long usuarioId);
+
+    /**
      * Revalida el papel de cliente en cada petición.
      * @param usuarioId identidad global autenticada
      * @return si tiene una ficha activa en el negocio actual

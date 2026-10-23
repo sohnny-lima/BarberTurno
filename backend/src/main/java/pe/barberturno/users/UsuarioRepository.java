@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * Consulta identidades RN-24 y serializa acceso y cambios; ofrece el bloqueo ① del protocolo de reservas (§8).
+ * Consulta identidades RN-24 y serializa acceso y cambios globales; reservas bloquea su ficha local ①.
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
  * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
@@ -43,8 +43,7 @@ public interface UsuarioRepository extends RepositorioTransaccional<Usuario, Lon
     Optional<Usuario> bloquearPorCorreo(@Param("correo") String correo);
 
     /**
-     * Toma PESSIMISTIC_WRITE: bloqueo ① antes de barberos ② y reserva ③ al crear o reprogramar; serializa
-     * también perfil y contraseña.
+     * Serializa cambios globales de perfil, estado y contraseña; los perfiles profesionales se bloquean después.
      * @param id identificador persistente positivo del recurso, no nulo
      * @return resultado opcional; vacío si no existe el recurso
      */

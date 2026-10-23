@@ -24,6 +24,11 @@ abstract class IdentidadPruebaBase extends TenancyPruebaBase {
     @Autowired JwtService jwt;
     @Autowired UsuarioAdminService gestion;
     @Autowired BarberoService profesionales;
+    @Autowired pe.barberturno.customers.ClienteRepository clientes;
+
+    pe.barberturno.customers.Cliente ficha(long negocioId, Usuario usuario) {
+        return enNegocio(negocioId, () -> clientes.saveAndFlush(new pe.barberturno.customers.Cliente(usuario, reloj.instant())));
+    }
 
     Usuario persona(String alias, Rol legado) {
         return usuarios.saveAndFlush(new Usuario("Persona " + alias, alias + "@ejemplo.test", "999000001",

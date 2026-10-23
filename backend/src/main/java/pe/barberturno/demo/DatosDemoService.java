@@ -21,6 +21,7 @@ import pe.barberturno.scheduling.*;
 import pe.barberturno.users.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
+import pe.barberturno.customers.*;
 
 /**
  * Importa las instantáneas académicas sin modificar reglas, catálogo ajeno ni identidades existentes.
@@ -43,6 +44,7 @@ public class DatosDemoService {
     private final Clock clock;
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
+    private final ClienteRepository clientes;
 
     /**
      * Recibe los repositorios del escenario, los servicios RN-15 y la seguridad del entorno.
@@ -58,11 +60,13 @@ public class DatosDemoService {
      * @param clock reloj inyectado para marcas temporales
      * @param membresias pertenencias del personal del escenario
      * @param negocio negocio único de la carga
+     * @param clientes fichas locales del escenario y bloqueo ①
      */
     public DatosDemoService(UsuarioRepository usuarios, BarberoRepository barberos,
             ServicioRepository servicios, JornadaRepository jornadas, BloqueoRepository bloqueos,
             ReservaRepository reservas, AuditoriaService auditoria, NotificacionService avisos,
-            PasswordEncoder encoder, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio) {
+            PasswordEncoder encoder, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
+            ClienteRepository clientes) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.servicios = servicios;
@@ -75,6 +79,7 @@ public class DatosDemoService {
         this.clock = clock;
         this.membresias = membresias;
         this.negocio = negocio;
+        this.clientes = clientes;
     }
 
     /**
@@ -109,7 +114,9 @@ public class DatosDemoService {
         Barbero b2 = barberos.saveAndFlush(new Barbero(miguel, "Corte y barba", clock.instant()));
         Servicio corte = catalogo("Corte clásico", "Corte y acabado", (short) 30, "25.00");
         Servicio barba = catalogo("Barba", "Perfilado de barba", (short) 20, "20.00");
-        for (Usuario u : List.of(cliente, ana, luis)) usuarios.bloquearPorId(u.getId()).orElseThrow();
+        for (Usuario u : List.of(cliente, ana, luis)) {
+            clientes.bloquearPorId(clientes.buscarIdPorUsuario(u.getId()).orElseThrow()).orElseThrow();
+        }
         barberos.bloquearPorIds(List.of(b1.getId(), b2.getId()));
         for (Barbero b : List.of(b1, b2)) {
             for (short dia = 1; dia <= 6; dia++) {
@@ -133,6 +140,7 @@ public class DatosDemoService {
                 rol == Rol.CLIENTE ? ahora : null, ahora));
         if (rol != Rol.CLIENTE) membresias.save(new Membresia(negocio.negocioActual().orElseThrow(), usuario.getId(),
                 rol == Rol.ADMIN ? RolNegocio.PROPIETARIO : RolNegocio.BARBERO, ahora));
+        else clientes.saveAndFlush(new Cliente(usuario, ahora));
         return usuario;
     }
 
@@ -152,7 +160,7 @@ public class DatosDemoService {
 
     private void importar(Usuario cliente, Barbero barbero, Servicio servicio, String fecha, String hora,
             EstadoReserva estado, String referencia) {
-        Reserva reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+        Reserva reserva = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                 instante(fecha, hora), estado, cliente, clock.instant()));
         auditoria.registrarCambio(reserva, cliente, AccionAuditoria.CREAR, null, null,
                 Map.of("inicio", TiempoNegocio.aLima(reserva.getInicio()).toString(),

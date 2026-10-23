@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class ServicioIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClaveCatalogo123";
     @Autowired MockMvc mvc;
@@ -253,11 +254,11 @@ class ServicioIT {
     }
 
     @Test void cp08_editarPrecioYDuracionYDesactivar_conservaTodaLaReservaExistente() throws Exception {
-        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias);
+        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         Usuario cliente = fabrica.cliente("reserva");
         Barbero barbero = fabrica.barbero("reserva");
         Servicio servicio = guardar("Corte");
-        Reserva reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+        Reserva reserva = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                 reloj.instant().plus(Duration.ofDays(1)), EstadoReserva.PENDIENTE, cliente, reloj.instant()));
         var anterior = jdbc.queryForMap("select * from reserva where id = ?", reserva.getId());
         Cookie sesion = login(Rol.ADMIN, false);
@@ -327,7 +328,7 @@ class ServicioIT {
         Usuario usuario = new Usuario("Usuario ficticio", correo, rol == Rol.CLIENTE ? "999111222" : null,
                 passwords.encode(PASSWORD), rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant());
         if (temporal) usuario.cambiarPassword(usuario.getPasswordHash(), true, reloj.instant());
-        pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, usuario);
+        pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, usuario);
         if (rol == Rol.BARBERO) barberos.saveAndFlush(new Barbero(usuario, "Cortes", reloj.instant()));
         var resultado = mvc.perform(conCsrf(post("/api/auth/login"), null).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("correo", correo, "password", PASSWORD))))

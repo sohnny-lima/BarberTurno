@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class DisponibilidadIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final LocalDate FECHA = LocalDate.of(2026, 10, 1);
     private static final String PASSWORD = "ClaveDisponible123";
@@ -59,7 +60,7 @@ class DisponibilidadIT {
     @BeforeEach void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
-        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         carlos = datos.barbero("carlos");
         cliente = datos.cliente("cliente");
         servicio = datos.servicio();
@@ -321,7 +322,7 @@ class DisponibilidadIT {
                 semana.add(new Jornada(perfil, (short) dia, LocalTime.of(14, 0), LocalTime.of(18, 0)));
             }
             for (int dia = 0; dia < 30; dia++) {
-                citas.add(new Reserva(propietario, perfil, servicio, FECHA.plusDays(dia).atTime(10, 0)
+                citas.add(new Reserva(clientes.findByUsuarioId(propietario.getId()).orElseThrow(), perfil, servicio, FECHA.plusDays(dia).atTime(10, 0)
                         .atZone(TiempoNegocio.ZONA).toInstant(), EstadoReserva.CONFIRMADA, propietario, reloj.instant()));
             }
         }
@@ -507,7 +508,7 @@ class DisponibilidadIT {
                 LocalTime.parse(horas[i]), LocalTime.parse(horas[i + 1])));
     }
     private Reserva reservar(Barbero perfil, Usuario propietario, LocalDate fecha, String hora, EstadoReserva estado) {
-        return reservas.saveAndFlush(new Reserva(propietario, perfil, servicio, instante(fecha, hora),
+        return reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(propietario.getId()).orElseThrow(), perfil, servicio, instante(fecha, hora),
                 estado, propietario, reloj.instant()));
     }
     private Cookie login(Usuario actor) throws Exception {

@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class BarberoIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClavePersonal123";
     @Autowired MockMvc mvc;
@@ -232,7 +233,7 @@ class BarberoIT {
     }
 
     @Test void cp08_reservasFuturasVigentes_contadorCorrectoYFilasIntactas() throws Exception {
-        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias);
+        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         Usuario cliente = fabrica.cliente("cliente");
         Barbero b = guardar("profesional");
         var servicio = fabrica.servicio();
@@ -240,9 +241,9 @@ class BarberoIT {
             EstadoReserva estado = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CANCELADA,
                     EstadoReserva.CONFIRMADA, EstadoReserva.NO_ASISTIO, EstadoReserva.COMPLETADA).get(i);
             var inicio = reloj.instant().plus(Duration.ofDays(i == 2 ? -1 : i + 1));
-            reservas.saveAndFlush(new Reserva(cliente, b, servicio, inicio, estado, cliente, reloj.instant()));
+            reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), b, servicio, inicio, estado, cliente, reloj.instant()));
         }
-        reservas.saveAndFlush(new Reserva(cliente, b, servicio, reloj.instant(), EstadoReserva.EN_ATENCION, cliente, reloj.instant()));
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), b, servicio, reloj.instant(), EstadoReserva.EN_ATENCION, cliente, reloj.instant()));
         var antes = jdbc.queryForList("select * from reserva order by id");
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Nuevo nombre", "especialidad", "Barbas"))
@@ -388,7 +389,7 @@ class BarberoIT {
     }
 
     private Usuario crearUsuario(String identificador, Rol rol) {
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario(identificador, identificador.toLowerCase(Locale.ROOT) + "@ejemplo.test", "999111222",
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario(identificador, identificador.toLowerCase(Locale.ROOT) + "@ejemplo.test", "999111222",
                 hash, rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private Barbero guardar(String identificador) {

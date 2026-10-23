@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class AuthIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String CORREO = "cliente@ejemplo.test";
     private static final String PASSWORD = "ClaveCliente123";
@@ -606,7 +607,7 @@ class AuthIT {
         Usuario u = new Usuario("Usuario de prueba", CORREO, rol == Rol.CLIENTE ? "999111222" : null,
                 passwords.encode(PASSWORD), rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant());
         if (temporal) u.cambiarPassword(u.getPasswordHash(), true, reloj.instant());
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, u);
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, u);
     }
     private String detalle(ResultActions solicitud) throws Exception {
         var r = solicitud.andExpect(status().isUnauthorized())

@@ -15,7 +15,7 @@ public class ReservaAutorizacion {
     public ReservaAutorizacion() { }
 
     /**
-     * Comprueba el usuario asignado, sin confiar en un perfil enviado por el solicitante.
+     * Compara cuentas de la ficha y del profesional, sin confundirlas con ids locales (V2-DA-29).
      * ADMIN conserva acceso global aunque tenga también perfil de barbero.
      * @param actor identidad vigente autenticada
      * @param reserva entidad con propietario y usuario del barbero accesibles
@@ -23,7 +23,7 @@ public class ReservaAutorizacion {
      */
     public boolean puedeVer(UsuarioAutenticado actor, Reserva reserva) {
         return actor.rol() == Rol.ADMIN
-                || actor.rol() == Rol.CLIENTE && actor.id() == reserva.getCliente().getId()
+                || actor.rol() == Rol.CLIENTE && actor.id() == reserva.getCliente().getUsuario().getId()
                 || actor.rol() == Rol.BARBERO && actor.id() == reserva.getBarbero().getUsuario().getId();
     }
     /**

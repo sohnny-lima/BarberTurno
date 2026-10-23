@@ -39,7 +39,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
      * @param id reserva cuya propiedad y asignación inicial se necesitan
      * @return fotografía o vacío si no existe; debe revalidarse después de esperar
      */
-    @Query("select new pe.barberturno.reservations.ReservaLectura(r.cliente.id, r.barbero.id, r.barbero.usuario.id, r.version, r.estado, r.inicio) from Reserva r where r.id = :id")
+    @Query("select new pe.barberturno.reservations.ReservaLectura(r.cliente.id, r.cliente.usuario.id, r.barbero.id, r.barbero.usuario.id, r.version, r.estado, r.inicio) from Reserva r where r.id = :id")
     Optional<ReservaLectura> leerParaReprogramar(@Param("id") long id);
 
 
@@ -51,7 +51,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
      * @return página con cliente, barbero, usuario asignado y servicio disponibles
      */
     @Override
-    @EntityGraph(attributePaths = {"cliente", "barbero.usuario", "servicio"})
+    @EntityGraph(attributePaths = {"cliente.usuario", "barbero.usuario", "servicio"})
     Page<Reserva> findAll(Specification<Reserva> filtros, Pageable pagina);
 
     /**
@@ -59,7 +59,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
      * @param id identidad solicitada
      * @return reserva o vacío; el servicio oculta también los recursos ajenos con 404
      */
-    @EntityGraph(attributePaths = {"cliente", "barbero.usuario", "servicio"})
+    @EntityGraph(attributePaths = {"cliente.usuario", "barbero.usuario", "servicio"})
     @Query("select r from Reserva r where r.id = :id")
     Optional<Reserva> buscarDetalle(@Param("id") long id);
 
@@ -129,7 +129,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
     /**
      * Lee solapes del cliente RN-04 sin bloqueo aun con otros barberos; excluye CANCELADA y ordena por inicio e
      * id. Sustituye excluirId nulo por centinela 0L de V1.
-     * @param clienteId identificador persistente no nulo del cliente
+     * @param clienteId identificador de ficha no nulo; RN-04 se aplica por negocio
      * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
      * nulo
      * @param fin fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo
@@ -143,7 +143,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
     /**
      * Lee solapes semiabiertos del cliente RN-04 sin bloqueo; excluye CANCELADA y la identidad indicada, con 0L
      * para no excluir ninguna; ordena por inicio e id.
-     * @param clienteId identificador persistente no nulo del cliente
+     * @param clienteId identificador de ficha no nulo; RN-04 se aplica por negocio
      * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
      * nulo
      * @param fin fin exclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no nulo
@@ -164,7 +164,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
     /**
      * Cuenta reservas con inicio estrictamente posterior a ahora y estado distinto de CANCELADA para RN-20, sin
      * bloqueo; el servicio toma antes ①.
-     * @param clienteId identificador persistente no nulo del cliente
+     * @param clienteId identificador de ficha no nulo; RN-20 se aplica por negocio
      * @param ahora instante absoluto no nulo de evaluación aportado por Clock
      * @return número de reservas futuras que ocupan franja RN-20
      */
@@ -179,9 +179,9 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
     /**
      * Lee propiedad sin cargar relaciones para autorizar excluirReservaId sin revelar reservas ajenas.
      * @param id identidad de la reserva solicitada
-     * @return propietario o vacío cuando no existe la reserva
+     * @return id de la cuenta propietaria o vacío cuando no existe la reserva
      */
-    @Query("select r.cliente.id from Reserva r where r.id = :id")
+    @Query("select r.cliente.usuario.id from Reserva r where r.id = :id")
     Optional<Long> buscarClienteId(@Param("id") long id);
 
     /**

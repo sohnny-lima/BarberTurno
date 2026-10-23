@@ -32,7 +32,7 @@ public record ReservaDto(long id, String codigo, ClienteDto cliente, RecursoDto 
         BigDecimal precioRef, EstadoReserva estado, int version, PermisosDto permisos) {
     /**
      * Datos mínimos del propietario; omite el teléfono cuando el actor es CLIENTE.
-     * @param id identidad del propietario
+     * @param id identidad de la cuenta propietaria, nunca id de ficha (V2-DA-29)
      * @param nombre nombre visible
      * @param telefono contacto para personal o nulo
      * @author Sohnny Walter Lima Infanzón
@@ -73,7 +73,7 @@ public record ReservaDto(long id, String codigo, ClienteDto cliente, RecursoDto 
     public static ReservaDto desde(Reserva reserva, UsuarioAutenticado actor, Instant ahora,
             ParametrosReserva parametros) {
         boolean admin = actor.rol() == Rol.ADMIN;
-        boolean propietario = actor.rol() == Rol.CLIENTE && actor.id() == reserva.getCliente().getId();
+        boolean propietario = actor.rol() == Rol.CLIENTE && actor.id() == reserva.getCliente().getUsuario().getId();
         boolean asignado = actor.barberoId().filter(reserva.getBarbero().getId()::equals).isPresent();
         var reglas = new ReglasTemporales();
         var politica = new PoliticaTransiciones();
@@ -90,7 +90,7 @@ public record ReservaDto(long id, String codigo, ClienteDto cliente, RecursoDto 
                         reserva.getInicio(), Duration.ofMinutes(parametros.toleranciaInicioMin()),
                         parametros.anticipacionCambioCliente(), null).permitida()).toList();
         return new ReservaDto(reserva.getId(), "BT-" + reserva.getId(),
-                new ClienteDto(reserva.getCliente().getId(), reserva.getCliente().getNombre(),
+                new ClienteDto(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getNombre(),
                         actor.rol() == Rol.CLIENTE ? null : reserva.getCliente().getTelefono()),
                 new RecursoDto(reserva.getBarbero().getId(), reserva.getBarbero().getUsuario().getNombre()),
                 new RecursoDto(reserva.getServicio().getId(), reserva.getServicio().getNombre()),

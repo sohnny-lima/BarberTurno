@@ -19,7 +19,7 @@ public final class ReservaFiltros {
 
     /**
      * Construye predicados sin fetch ni restricciones de estado implícitas; incluye días de Lima completos.
-     * @param clienteId propietario opcional ya autorizado
+     * @param clienteId cuenta propietaria opcional ya autorizada (contrato transitorio V2-DA-29)
      * @param barberoId perfil opcional ya autorizado
      * @param servicioId servicio opcional, incluidos los inactivos
      * @param estado estado opcional; null incluye los seis estados
@@ -31,7 +31,7 @@ public final class ReservaFiltros {
             EstadoReserva estado, LocalDate desde, LocalDate hasta) {
         return (raiz, consulta, cb) -> {
             var condiciones = new ArrayList<Predicate>();
-            if (clienteId != null) condiciones.add(cb.equal(raiz.get("cliente").get("id"), clienteId));
+            if (clienteId != null) condiciones.add(cb.equal(raiz.get("cliente").get("usuario").get("id"), clienteId));
             if (barberoId != null) condiciones.add(cb.equal(raiz.get("barbero").get("id"), barberoId));
             if (servicioId != null) condiciones.add(cb.equal(raiz.get("servicio").get("id"), servicioId));
             if (estado != null) condiciones.add(cb.equal(raiz.get("estado"), estado));

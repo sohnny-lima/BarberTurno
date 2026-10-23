@@ -21,7 +21,7 @@ class MembresiaIT extends IdentidadPruebaBase {
         var datosB = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "membresias"));
         var propio = enNegocio(b, () -> {
             var perfil = barberos.saveAndFlush(new Barbero(persona, "Corte", reloj.instant()));
-            return DatosNegocioPrueba.reservar(jdbc, datosB.cliente(), persona.getId(), perfil.getId(),
+            return DatosNegocioPrueba.reservar(jdbc, datosB.ficha(), persona.getId(), perfil.getId(),
                     datosB.servicio(), "CONFIRMADA", 60);
         });
         Cookie cookie = sesion(persona); // Mismo JWT, incluido su claim ADMIN heredado.
@@ -126,6 +126,7 @@ class MembresiaIT extends IdentidadPruebaBase {
         var encargado = persona("encargado", Rol.BARBERO);
         pertenencia(1L, encargado, RolNegocio.ENCARGADO);
         var cliente = persona("cliente", Rol.CLIENTE);
+        ficha(1L, cliente);
         var barbero = persona("profesional", Rol.ADMIN);
         pertenencia(1L, barbero, RolNegocio.BARBERO);
         var revocado = propietario("titular-revocado");

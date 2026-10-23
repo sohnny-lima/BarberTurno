@@ -81,7 +81,7 @@ class DatosDemoRunnerIT {
 
                 // Un administrador inicial ya configurado prevalece; no se crea admin-demo.
                 var usuarios = contexto.getBean(UsuarioRepository.class);
-                pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, contexto.getBean(pe.barberturno.platform.MembresiaRepository.class), new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
+                pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, contexto.getBean(pe.barberturno.platform.MembresiaRepository.class), contexto.getBean(pe.barberturno.customers.ClienteRepository.class), new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
                         contexto.getBean(PasswordEncoder.class).encode(PASSWORD), Rol.ADMIN, null, FIJO));
                 servicio.cargar(PASSWORD);
                 assertThat(usuarios.findByCorreo("admin-demo@ejemplo.test")).isEmpty();

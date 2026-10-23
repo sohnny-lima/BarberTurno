@@ -19,6 +19,7 @@ import pe.barberturno.scheduling.BarberoRepository;
 import pe.barberturno.users.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
+import pe.barberturno.customers.ClienteRepository;
 
 /**
  * Gestiona RF-01, RF-02 y RF-15 con BCrypt, bloqueo temporal RN-25 y revocación por token_version.
@@ -35,6 +36,7 @@ public class AuthService {
     private final Clock clock;
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
+    private final ClienteRepository clientes;
     private final PoliticaPassword politica = new PoliticaPassword();
     private final String hashFicticio;
 
@@ -47,15 +49,18 @@ public class AuthService {
      * @param clock reloj de negocio
      * @param membresias pertenencias explícitas sin CRUD global
      * @param negocio ámbito transitorio de la petición
+     * @param clientes fichas locales para calcular el papel de cliente en cada petición
      */
     public AuthService(UsuarioRepository usuarios, BarberoRepository barberos,
-            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio) {
+            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
+            ClienteRepository clientes) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.passwords = passwords;
         this.clock = clock;
         this.membresias = membresias;
         this.negocio = negocio;
+        this.clientes = clientes;
         hashFicticio = passwords.encode(UUID.randomUUID().toString());
     }
 
@@ -147,7 +152,7 @@ public class AuthService {
     }
 
     /**
-     * Revalida cuenta, token_version y pertenencia activa; nunca autoriza al personal con usuario.rol o el JWT.
+     * Revalida cuenta, token_version, membresía y ficha activa; usuario.rol y el JWT no conceden roles.
      * @param id identificador del token
      * @param tokenVersion versión firmada
      * @return principal vigente o vacío ante una revocación
@@ -165,8 +170,9 @@ public class AuthService {
                         .filter(Membresia::isActiva).map(Membresia::getRol)
                 : java.util.Optional.<RolNegocio>empty();
         Rol efectivo = rolNegocio.map(RolNegocio::rolEfectivo)
-                .orElse(usuario.getRol() == Rol.CLIENTE ? Rol.CLIENTE : null);
-        return new UsuarioAutenticado(usuario.getId(), efectivo, barberos.buscarIdPorUsuario(usuario.getId()),
+                .orElseGet(() -> ambito.isPresent() && clientes.existsByUsuarioIdAndActivoTrue(usuario.getId()) ? Rol.CLIENTE : null);
+        var perfil = rolNegocio.isPresent() ? barberos.buscarIdPorUsuario(usuario.getId()) : java.util.Optional.<Long>empty();
+        return new UsuarioAutenticado(usuario.getId(), efectivo, perfil,
                 usuario.isDebeCambiarPassword(), usuario.getRolPlataforma(), rolNegocio);
     }
 

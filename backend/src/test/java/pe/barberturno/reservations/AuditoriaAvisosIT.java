@@ -31,7 +31,7 @@ class AuditoriaAvisosIT extends ReservaPruebaBase {
     @Autowired ReservaConsultaService consultas;
 
     private Usuario admin() {
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
     }
     private Usuario usuario(Rol rol) {
@@ -130,7 +130,7 @@ class AuditoriaAvisosIT extends ReservaPruebaBase {
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
     }
     @Test void auditoria_sinHistorialDevuelveListaVacia() throws Exception {
-        var dto = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, instante("10:00"), EstadoReserva.PENDIENTE, cliente, reloj.instant()));
+        var dto = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante("10:00"), EstadoReserva.PENDIENTE, cliente, reloj.instant()));
         mvc.perform(get("/api/reservas/{id}/auditoria", dto.getId()).cookie(sesion(barbero.getUsuario())))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
     }

@@ -189,7 +189,7 @@ class ConcurrenciaReservaIT extends ReservaPruebaBase {
                 insert into reserva (cliente_id,barbero_id,servicio_id,inicio,fin,duracion_ref_min,precio_ref,
                     estado,creada_por,version,creado_en,actualizado_en)
                 values (?,?,?,?,?,30,20.00,'CONFIRMADA',?,0,?,?)
-                """, otro.getId(), barbero.getId(), servicio.getId(),
+                """, clientes.buscarIdPorUsuario(otro.getId()).orElseThrow(), barbero.getId(), servicio.getId(),
                 TiempoNegocio.aLima(instante("10:10")), TiempoNegocio.aLima(instante("10:40")),
                 otro.getId(), TiempoNegocio.aLima(reloj.instant()), TiempoNegocio.aLima(reloj.instant())))
                 .isInstanceOfSatisfying(DataAccessException.class, e -> {

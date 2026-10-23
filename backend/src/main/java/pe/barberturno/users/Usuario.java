@@ -83,7 +83,7 @@ public class Usuario {
      * @param correo correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo
      * @param telefono teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE
      * @param passwordHash hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs
-     * @param rol categoría heredada de v1; solo CLIENTE autoriza sin membresía durante la transición
+     * @param rol categoría heredada de v1 conservada para la migración; no concede permisos en v2
      * @param privacidadAceptadaEn instante absoluto del consentimiento del cliente; puede ser nulo para el
      * personal
      * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como

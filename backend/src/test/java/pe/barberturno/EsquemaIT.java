@@ -43,7 +43,7 @@ class EsquemaIT {
     private Clock clock;
 
     @Test
-    void migrar_aplicaVersionUnoYCreaLasDiezTablasConBtreeGist() {
+    void migrar_aplicaVersionUnoYCreaLasDoceTablasConBtreeGist() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM flyway_schema_history
@@ -54,8 +54,8 @@ class EsquemaIT {
                 WHERE schemaname = 'public' AND tablename <> 'flyway_schema_history'
                 ORDER BY tablename
                 """, String.class)).containsExactly(
-                "auditoria_reserva", "barbero", "bloqueo", "jornada", "membresia",
-                "negocio", "notificacion", "reserva", "servicio", "usuario");
+                "auditoria_reserva", "barbero", "bloqueo", "cliente", "jornada", "membresia",
+                "negocio", "notificacion", "reserva", "servicio", "usuario", "vinculo_cliente");
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist'
                 """, Integer.class)).isEqualTo(1);
@@ -235,12 +235,19 @@ class EsquemaIT {
         }
 
         private long usuario(String correo, String rol, String telefono, Timestamp consentimiento) {
-            return jdbc.queryForObject("""
+            long id = jdbc.queryForObject("""
                     INSERT INTO usuario (nombre, correo, telefono, password_hash, rol,
                         privacidad_aceptada_en, creado_en, actualizado_en)
                     VALUES ('Persona ficticia', ?, ?, 'hash-ficticio-no-utilizable', ?, ?, ?, ?)
                     RETURNING id
                     """, Long.class, correo, telefono, rol, consentimiento, ahora, ahora);
+            if (rol.equals("CLIENTE")) {
+                jdbc.update("""
+                        INSERT INTO cliente (usuario_id, nombre, telefono, privacidad_aceptada_en, creado_en, actualizado_en)
+                        SELECT id, nombre, telefono, privacidad_aceptada_en, creado_en, actualizado_en FROM usuario WHERE id=?
+                        """, id);
+            }
+            return id;
         }
 
         private long barbero(long usuario) {
@@ -263,7 +270,7 @@ class EsquemaIT {
                     INSERT INTO reserva (cliente_id, barbero_id, servicio_id, inicio, fin,
                         duracion_ref_min, precio_ref, estado, creada_por, creado_en, actualizado_en)
                     VALUES (?, ?, ?, ?, ?, ?, 20.00, ?, ?, ?, ?) RETURNING id
-                    """, Long.class, clienteId, barberoId, servicio,
+                    """, Long.class, jdbc.queryForObject("select id from cliente where usuario_id=?", Long.class, clienteId), barberoId, servicio,
                     instante(inicio), instante(fin), duracion, estado, clienteId, ahora, ahora);
         }
 
