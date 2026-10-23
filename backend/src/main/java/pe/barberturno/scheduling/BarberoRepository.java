@@ -1,6 +1,6 @@
 package pe.barberturno.scheduling;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Collection;
@@ -12,12 +12,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Consulta perfiles de atención y toma el bloqueo ② ordenado de disponibilidad (arquitectura §8).
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface BarberoRepository extends JpaRepository<Barbero, Long> {
+public interface BarberoRepository extends RepositorioTransaccional<Barbero, Long> {
 
     /**
      * Serializa altas y cambios de estado RN-19 hasta fin de transacción; clave global 141414 reservada a T-14.

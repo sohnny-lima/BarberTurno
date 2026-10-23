@@ -1,6 +1,6 @@
 package pe.barberturno.scheduling;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
@@ -11,12 +11,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Consulta bloqueos que se cruzan con un intervalo de disponibilidad de un barbero (RF-06 y RF-07).
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface BloqueoRepository extends JpaRepository<Bloqueo, Long> {
+public interface BloqueoRepository extends RepositorioTransaccional<Bloqueo, Long> {
 
     /**
      * Lee solo el perfil para tomar ② antes de cargar y eliminar un bloqueo RN-16.

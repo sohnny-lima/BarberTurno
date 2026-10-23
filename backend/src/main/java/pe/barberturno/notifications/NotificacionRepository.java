@@ -3,7 +3,7 @@ package pe.barberturno.notifications;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,12 +12,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Persistencia de avisos internos RF-16; el servicio debe limitar la lectura al destinatario autenticado.
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface NotificacionRepository extends JpaRepository<Notificacion, Long> {
+public interface NotificacionRepository extends RepositorioTransaccional<Notificacion, Long> {
     /**
      * Restringe contenido y total al destinatario, con filtro opcional de lectura.
      * @param usuarioId identidad autenticada, nunca proporcionada por el cliente HTTP

@@ -1,6 +1,6 @@
 package pe.barberturno.users;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
@@ -11,12 +11,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Consulta identidades RN-24 y serializa acceso y cambios; ofrece el bloqueo ① del protocolo de reservas (§8).
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface UsuarioRepository extends JpaRepository<Usuario, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Usuario> {
+public interface UsuarioRepository extends RepositorioTransaccional<Usuario, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Usuario> {
 
     /**
      * Busca correo ya normalizado RN-24, sin bloqueo ni orden adicional.

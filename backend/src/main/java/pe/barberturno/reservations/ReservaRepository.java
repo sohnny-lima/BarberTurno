@@ -1,6 +1,6 @@
 package pe.barberturno.reservations;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -18,12 +18,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Persistencia de reservas: ocupación RN-03/04/20, bloqueo ③ (§8) y consultas paginadas RF-11/13.
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
+public interface ReservaRepository extends RepositorioTransaccional<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
 
     /**
      * Lee servicio y duración RN-13 sin entidades ni bloqueo para la consulta DA-21.

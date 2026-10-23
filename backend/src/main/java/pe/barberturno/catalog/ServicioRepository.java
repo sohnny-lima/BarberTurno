@@ -3,7 +3,7 @@ package pe.barberturno.catalog;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -12,12 +12,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Consultas del catálogo RF-04 y bloqueo de sus escrituras; respeta el índice servicio_nombre_uk de V1.
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface ServicioRepository extends JpaRepository<Servicio, Long> {
+public interface ServicioRepository extends RepositorioTransaccional<Servicio, Long> {
     /**
      * Lee sin bloqueo; filtra activos salvo permiso para incluir inactivos y ordena por lower(nombre), coherente
      * con servicio_nombre_uk.

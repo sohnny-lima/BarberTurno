@@ -8,6 +8,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pe.barberturno.catalog.ServicioRepository;
+import pe.barberturno.catalog.Servicio;
 import pe.barberturno.scheduling.BarberoRepository;
 import static org.assertj.core.api.Assertions.*;
 
@@ -19,6 +20,18 @@ class ContextoNegocioIT extends TenancyPruebaBase {
     @Autowired ServicioRepository servicios;
     @Autowired BarberoRepository barberos;
     @PersistenceContext EntityManager em;
+
+    @Test
+    void escrituraHeredada_sinTransaccionEnvolventePermiteInsertYDeleteConContexto() {
+        proveedor.fijar(1L);
+        assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+        var servicio = servicios.saveAndFlush(new Servicio("Corte persistido", "Prueba", (short) 30,
+                java.math.BigDecimal.TEN, reloj.instant()));
+        assertThat(servicios.findById(servicio.getId())).isPresent();
+        servicios.deleteAllByIdInBatch(java.util.List.of(servicio.getId()));
+        assertThat(servicios.findById(servicio.getId())).isEmpty();
+        assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+    }
 
     @Test
     void consultaDeclarada_sinTransaccionEnvolventeLeeSoloElNegocioActual() throws Exception {

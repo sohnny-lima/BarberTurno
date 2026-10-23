@@ -1,7 +1,7 @@
 package pe.barberturno.scheduling;
 
 import java.util.List;
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -10,12 +10,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Persistencia de intervalos semanales RN-17; el servicio valida solapes bajo el bloqueo ② del barbero.
  * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
- * las escrituras heredadas conservan la transacción de escritura de Spring Data.
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Transactional(readOnly = true)
-public interface JornadaRepository extends JpaRepository<Jornada, Long> {
+public interface JornadaRepository extends RepositorioTransaccional<Jornada, Long> {
 
     /**
      * Lee la semana completa de un perfil, incluso inactivo, ordenada por día ISO, inicio e id.
