@@ -72,14 +72,29 @@ public class Membresia {
         }
     }
 
-    /** @return identidad persistente de la pertenencia */
+    /**
+     * Identificador de la membresía asignado por la base.
+     * @return identidad persistente de la pertenencia
+     */
     public Long getId() { return id; }
-    /** @return negocio al que pertenece la fila */
+    /**
+     * Negocio en el que la persona tiene este rol.
+     * @return negocio al que pertenece la fila
+     */
     public long getNegocioId() { return negocioId; }
-    /** @return identidad global del miembro */
+    /**
+     * Cuenta global de la persona miembro (V2-DA-03).
+     * @return identidad global del miembro
+     */
     public long getUsuarioId() { return usuarioId; }
-    /** @return permisos asignados en este negocio */
+    /**
+     * Rol de la persona dentro de este negocio; no concede permisos en otros.
+     * @return permisos asignados en este negocio
+     */
     public RolNegocio getRol() { return rol; }
-    /** @return si la pertenencia concede permisos, sujeto al estado de la cuenta */
+    /**
+     * Indica si la membresía está vigente; una membresía revocada no da permisos en la petición siguiente.
+     * @return si la pertenencia concede permisos, sujeto al estado de la cuenta
+     */
     public boolean isActiva() { return "ACTIVA".equals(estado); }
 }

@@ -15,6 +15,9 @@ public enum RolNegocio {
     /** Atención de la agenda asignada. */
     BARBERO;
 
-    /** @return equivalencia de autorización de v1, sin conceder permisos de plataforma */
+    /**
+     * Rol de v1 con el que se autoriza este rol de negocio (V2-DA-25): PROPIETARIO y ENCARGADO equivalen a ADMIN.
+     * @return equivalencia de autorización de v1, sin conceder permisos de plataforma
+     */
     public Rol rolEfectivo() { return this == BARBERO ? Rol.BARBERO : Rol.ADMIN; }
 }

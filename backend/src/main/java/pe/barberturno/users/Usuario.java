@@ -213,7 +213,10 @@ public class Usuario {
         return rol;
     }
 
-    /** @return permisos globales, independientes del rol de cualquier negocio */
+    /**
+     * Rol de la cuenta en la plataforma; no concede permisos dentro de ningún negocio (V2-RN-03).
+     * @return permisos globales, independientes del rol de cualquier negocio
+     */
     public RolPlataforma getRolPlataforma() { return rolPlataforma; }
 
     /** Completa la identidad configurada en el arranque sin otorgarle permisos de negocio. */
