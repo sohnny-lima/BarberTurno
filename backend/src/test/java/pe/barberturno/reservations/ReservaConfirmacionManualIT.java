@@ -59,7 +59,8 @@ class ReservaConfirmacionManualIT extends ReservaPruebaBase {
     }
 
     @Test void asistidaSiempreConfirmada_aunConConfirmacionManual() throws Exception {
-        var admin = usuarios.saveAndFlush(new pe.barberturno.users.Usuario("Administrador ficticio",
+        var admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias,
+                new pe.barberturno.users.Usuario("Administrador ficticio",
                 "admin-manual31@ejemplo.test", null, "hash-ficticio", pe.barberturno.users.Rol.ADMIN, null, reloj.instant()));
         var solicitud = new pe.barberturno.reservations.dto.CrearReservaDto(servicio.getId(), barbero.getId(),
                 pe.barberturno.common.time.TiempoNegocio.aLima(instante("10:00")), cliente.getId());

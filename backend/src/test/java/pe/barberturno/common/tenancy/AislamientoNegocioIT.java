@@ -10,6 +10,7 @@ import pe.barberturno.catalog.ServicioService;
 import pe.barberturno.common.error.*;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.notifications.NotificacionService;
+import pe.barberturno.platform.*;
 import pe.barberturno.reporting.ReporteService;
 import pe.barberturno.reservations.ReservaConsultaService;
 import pe.barberturno.scheduling.*;
@@ -28,12 +29,13 @@ class AislamientoNegocioIT extends TenancyPruebaBase {
     @Autowired MockMvc mvc;
     @Autowired JwtService jwt;
     @Autowired UsuarioRepository usuarios;
+    @Autowired MembresiaRepository membresias;
 
     @Test
     void dosNegocios_homonimosNoSeVenEnLasSieteTablasNiEnServiciosV1() throws Exception {
         long b = negocioB();
-        var datosB = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "b"));
-        var datosA = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "a"));
+        var datosB = crearDatos(b, "b");
+        var datosA = crearDatos(1L, "a");
         // El mismo destinatario global permite detectar una lectura masiva sin ámbito de negocio.
         enNegocio(b, () -> jdbc.update("update notificacion set usuario_id=?", datosA.cliente()));
         enNegocio(1L, () -> {
@@ -69,7 +71,7 @@ class AislamientoNegocioIT extends TenancyPruebaBase {
 
     @Test
     void nombreDuplicado_mantieneEl409PublicoEnElNegocio() throws Exception {
-        enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "a"));
+        crearDatos(1L, "a");
         var admin = usuarios.findByCorreo("admin-a@ejemplo.test").orElseThrow();
         var sesion = new jakarta.servlet.http.Cookie("BT_SESION", jwt.emitir(admin));
         var csrf = mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
@@ -77,5 +79,13 @@ class AislamientoNegocioIT extends TenancyPruebaBase {
                 .contentType("application/json").content("""
                         {"nombre":"CORTE HOMÓNIMO","descripcion":"Prueba","duracionMin":30,"precio":20}
                         """)).andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("NOMBRE_DUPLICADO"));
+    }
+
+    private DatosNegocioPrueba crearDatos(long negocioId, String sufijo) {
+        return enNegocio(negocioId, () -> {
+            var datos = DatosNegocioPrueba.crear(jdbc, sufijo);
+            membresias.save(new Membresia(negocioId, datos.admin(), RolNegocio.PROPIETARIO, reloj.instant()));
+            return datos;
+        });
     }
 }
