@@ -19,6 +19,8 @@ import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.*;
 import pe.barberturno.scheduling.*;
 import pe.barberturno.users.*;
+import pe.barberturno.platform.*;
+import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 
 /**
  * Importa las instantáneas académicas sin modificar reglas, catálogo ajeno ni identidades existentes.
@@ -39,6 +41,8 @@ public class DatosDemoService {
     private final NotificacionService avisos;
     private final PasswordEncoder encoder;
     private final Clock clock;
+    private final MembresiaRepository membresias;
+    private final ProveedorNegocioActual negocio;
 
     /**
      * Recibe los repositorios del escenario, los servicios RN-15 y la seguridad del entorno.
@@ -52,11 +56,13 @@ public class DatosDemoService {
      * @param avisos avisos internos transaccionales RN-15
      * @param encoder BCrypt configurado por la aplicación
      * @param clock reloj inyectado para marcas temporales
+     * @param membresias pertenencias del personal del escenario
+     * @param negocio negocio único de la carga
      */
     public DatosDemoService(UsuarioRepository usuarios, BarberoRepository barberos,
             ServicioRepository servicios, JornadaRepository jornadas, BloqueoRepository bloqueos,
             ReservaRepository reservas, AuditoriaService auditoria, NotificacionService avisos,
-            PasswordEncoder encoder, Clock clock) {
+            PasswordEncoder encoder, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.servicios = servicios;
@@ -67,6 +73,8 @@ public class DatosDemoService {
         this.avisos = avisos;
         this.encoder = encoder;
         this.clock = clock;
+        this.membresias = membresias;
+        this.negocio = negocio;
     }
 
     /**
@@ -93,7 +101,9 @@ public class DatosDemoService {
         Usuario luis = usuario("Luis", "luis", Rol.CLIENTE, hash);
         Usuario carlos = usuario("Carlos", "carlos", Rol.BARBERO, hash);
         Usuario miguel = usuario("Miguel", "miguel", Rol.BARBERO, hash);
-        Usuario admin = usuarios.findAll().stream().filter(u -> u.getRol() == Rol.ADMIN && u.isActivo())
+        Usuario admin = usuarios.findAll().stream().filter(u -> u.isActivo()
+                && membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), u.getId())
+                        .filter(Membresia::isActiva).map(m -> m.getRol() == RolNegocio.PROPIETARIO).orElse(false))
                 .findFirst().orElseGet(() -> usuario("Administrador de demostración", "admin-demo", Rol.ADMIN, hash));
         Barbero b1 = barberos.saveAndFlush(new Barbero(carlos, "Corte y barba", clock.instant()));
         Barbero b2 = barberos.saveAndFlush(new Barbero(miguel, "Corte y barba", clock.instant()));
@@ -118,9 +128,12 @@ public class DatosDemoService {
 
     private Usuario usuario(String nombre, String correo, Rol rol, String hash) {
         Instant ahora = clock.instant();
-        return usuarios.saveAndFlush(new Usuario(nombre, correo + "@ejemplo.test",
+        Usuario usuario = usuarios.saveAndFlush(new Usuario(nombre, correo + "@ejemplo.test",
                 rol == Rol.CLIENTE ? "999000000" : null, hash, rol,
                 rol == Rol.CLIENTE ? ahora : null, ahora));
+        if (rol != Rol.CLIENTE) membresias.save(new Membresia(negocio.negocioActual().orElseThrow(), usuario.getId(),
+                rol == Rol.ADMIN ? RolNegocio.PROPIETARIO : RolNegocio.BARBERO, ahora));
+        return usuario;
     }
 
     private Servicio catalogo(String nombre, String descripcion, short duracion, String precio) {

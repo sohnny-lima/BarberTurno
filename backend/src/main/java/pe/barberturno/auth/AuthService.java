@@ -17,6 +17,8 @@ import pe.barberturno.common.error.ManejadorErrores.ErrorCampo;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.scheduling.BarberoRepository;
 import pe.barberturno.users.*;
+import pe.barberturno.platform.*;
+import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 
 /**
  * Gestiona RF-01, RF-02 y RF-15 con BCrypt, bloqueo temporal RN-25 y revocación por token_version.
@@ -31,6 +33,8 @@ public class AuthService {
     private final BarberoRepository barberos;
     private final PasswordEncoder passwords;
     private final Clock clock;
+    private final MembresiaRepository membresias;
+    private final ProveedorNegocioActual negocio;
     private final PoliticaPassword politica = new PoliticaPassword();
     private final String hashFicticio;
 
@@ -41,13 +45,17 @@ public class AuthService {
      * @param barberos perfiles opcionales
      * @param passwords BCrypt de coste 12
      * @param clock reloj de negocio
+     * @param membresias pertenencias explícitas sin CRUD global
+     * @param negocio ámbito transitorio de la petición
      */
     public AuthService(UsuarioRepository usuarios, BarberoRepository barberos,
-            PasswordEncoder passwords, Clock clock) {
+            PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.passwords = passwords;
         this.clock = clock;
+        this.membresias = membresias;
+        this.negocio = negocio;
         hashFicticio = passwords.encode(UUID.randomUUID().toString());
     }
 
@@ -121,8 +129,9 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public UsuarioSesionDto sesion(Usuario usuario) {
+        var principal = principal(usuario);
         return new UsuarioSesionDto(usuario.getId(), usuario.getNombre(), usuario.getCorreo(),
-                usuario.getRol(), barberos.buscarIdPorUsuario(usuario.getId()).orElse(null),
+                principal.rol(), principal.barberoId().orElse(null),
                 usuario.isDebeCambiarPassword());
     }
 
@@ -138,7 +147,7 @@ public class AuthService {
     }
 
     /**
-     * Revalida usuario activo y claim tv igual a token_version; la revocación invalida inmediatamente la sesión.
+     * Revalida cuenta, token_version y pertenencia activa; nunca autoriza al personal con usuario.rol o el JWT.
      * @param id identificador del token
      * @param tokenVersion versión firmada
      * @return principal vigente o vacío ante una revocación
@@ -146,29 +155,47 @@ public class AuthService {
     @Transactional(readOnly = true)
     public java.util.Optional<UsuarioAutenticado> autenticar(long id, int tokenVersion) {
         return usuarios.findById(id).filter(u -> u.isActivo() && u.getTokenVersion() == tokenVersion)
-                .map(u -> new UsuarioAutenticado(u.getId(), u.getRol(),
-                        barberos.buscarIdPorUsuario(u.getId()), u.isDebeCambiarPassword()));
+                .map(this::principal);
+    }
+
+    private UsuarioAutenticado principal(Usuario usuario) {
+        var ambito = negocio.negocioActual();
+        var rolNegocio = ambito.isPresent()
+                ? membresias.findByNegocioIdAndUsuarioId(ambito.getAsLong(), usuario.getId())
+                        .filter(Membresia::isActiva).map(Membresia::getRol)
+                : java.util.Optional.<RolNegocio>empty();
+        Rol efectivo = rolNegocio.map(RolNegocio::rolEfectivo)
+                .orElse(usuario.getRol() == Rol.CLIENTE ? Rol.CLIENTE : null);
+        return new UsuarioAutenticado(usuario.getId(), efectivo, barberos.buscarIdPorUsuario(usuario.getId()),
+                usuario.isDebeCambiarPassword(), usuario.getRolPlataforma(), rolNegocio);
     }
 
     /**
-     * Crea ADMIN si no existe otro activo y la configuración está completa; sin credenciales predeterminadas
-     * (RN-26).
+     * Crea o completa la cuenta configurada con administración global y propiedad del negocio único.
+     * No habilita cuentas inactivas ni cambia sus credenciales al completar permisos (RN-26).
      * @param correo correo inicial configurado; vacío indica configuración incompleta
      * @param password contraseña inicial configurada; vacía omite la cuenta, nunca se registra
      * @param nombre nombre inicial configurado; vacío omite la cuenta
-     * @throws NegocioException si la contraseña configurada incumple RN-25 (VALIDACION)
+     * @throws NegocioException si hay que crear la cuenta y la contraseña configurada incumple RN-25 (VALIDACION)
      */
     @Transactional
     public void crearAdminInicial(String correo, String password, String nombre) {
-        if (usuarios.existsByRolAndActivoTrue(Rol.ADMIN)) return;
         if (correo.isBlank() || password.isBlank() || nombre.isBlank()) {
             LOG.info("Administrador inicial sin configurar; no se crea ninguna cuenta.");
             return;
         }
-        validarPassword(password);
         var ahora = clock.instant();
-        Usuario admin = usuarios.saveAndFlush(new Usuario(nombre, normalizar(correo), null,
-                passwords.encode(password), Rol.ADMIN, null, ahora));
+        Usuario admin = usuarios.findByCorreo(normalizar(correo)).orElseGet(() -> {
+            validarPassword(password);
+            return usuarios.saveAndFlush(new Usuario(nombre, normalizar(correo), null,
+                    passwords.encode(password), Rol.ADMIN, null, ahora));
+        });
+        admin.habilitarAdministracionPlataforma();
+        long negocioId = negocio.negocioActual().orElseThrow();
+        var propiedad = membresias.findByNegocioIdAndUsuarioId(negocioId, admin.getId())
+                .orElseGet(() -> new Membresia(negocioId, admin.getId(), RolNegocio.PROPIETARIO, ahora));
+        propiedad.acreditarPropietarioInicial(ahora);
+        membresias.save(propiedad);
         LOG.info("Registro de administrador inicial id={}.", admin.getId());
     }
 

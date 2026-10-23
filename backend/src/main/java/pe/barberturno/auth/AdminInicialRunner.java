@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.core.annotation.Order;
 
 /**
- * Inicializa la cuenta ADMIN configurada antes de la demo, sin claves predeterminadas (arquitectura §7.1).
+ * Completa la cuenta configurada como ADMIN_PLATAFORMA y PROPIETARIO del negocio único antes de la demo.
+ * No admite claves predeterminadas (arquitectura §7.1, V2-DA-25).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -37,7 +38,7 @@ public class AdminInicialRunner implements ApplicationRunner {
     }
 
     /**
-     * Solicita la creación idempotente del administrador al arrancar; omite la cuenta si faltan valores
+     * Solicita la creación o acreditación idempotente de la cuenta inicial; omite si faltan valores
      * configurados.
      * @param args argumentos no nulos de arranque proporcionados por Spring
      */

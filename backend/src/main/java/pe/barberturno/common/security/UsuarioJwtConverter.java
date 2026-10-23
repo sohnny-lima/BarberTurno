@@ -1,6 +1,7 @@
 package pe.barberturno.common.security;
 
-import java.util.List;
+import java.util.ArrayList;
+import pe.barberturno.platform.RolPlataforma;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,7 +12,8 @@ import org.springframework.stereotype.Component;
 import pe.barberturno.auth.AuthService;
 
 /**
- * Revalida usuario activo y token_version en la base; construye autoridades con el rol vigente (§7.1).
+ * Revalida cuenta, token_version y membresía por petición; separa la autoridad de plataforma
+ * del rol efectivo del negocio (V2-DA-25).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -26,8 +28,8 @@ public class UsuarioJwtConverter implements Converter<Jwt, AbstractAuthenticatio
     public UsuarioJwtConverter(AuthService auth) { this.auth = auth; }
 
     /**
-     * Verifica sub positivo y tv entero; rechaza identidad ausente, inactiva o revocada y usa rol vigente para
-     * construir ROLE_ (§7.1).
+     * Verifica sub positivo y tv entero; rechaza identidad ausente, inactiva o sesión revocada.
+     * Una membresía revocada no concede autoridad de negocio; ADMIN_PLATAFORMA se incorpora aparte.
      * @param jwt token no nulo con firma y vigencia ya verificadas por el decoder
      * @return principal y autoridades vigentes
      * @throws org.springframework.security.oauth2.server.resource.InvalidBearerTokenException si sub o tv no son
@@ -44,8 +46,12 @@ public class UsuarioJwtConverter implements Converter<Jwt, AbstractAuthenticatio
             }
             var usuario = auth.autenticar(id, version.intValue())
                     .orElseThrow(() -> new InvalidBearerTokenException("Se requiere una sesión válida."));
-            return UsernamePasswordAuthenticationToken.authenticated(usuario, null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + usuario.rol().name())));
+            var autoridades = new ArrayList<SimpleGrantedAuthority>();
+            if (usuario.rol() != null) autoridades.add(new SimpleGrantedAuthority("ROLE_" + usuario.rol().name()));
+            if (usuario.rolPlataforma() == RolPlataforma.ADMIN_PLATAFORMA) {
+                autoridades.add(new SimpleGrantedAuthority("ROLE_ADMIN_PLATAFORMA"));
+            }
+            return UsernamePasswordAuthenticationToken.authenticated(usuario, null, autoridades);
         } catch (IllegalArgumentException | ClassCastException error) {
             throw new InvalidBearerTokenException("Se requiere una sesión válida.");
         }

@@ -52,6 +52,8 @@ public enum ErrorCodigo {
      * Correo ya registrado; respuesta HTTP 409 según catálogo §6.2.
      */
     CORREO_DUPLICADO(409, "Correo ya registrado"),
+    /** Cambio global reservado a la plataforma por pertenencias activas en otros negocios. */
+    IDENTIDAD_COMPARTIDA(409, "Identidad compartida"),
     /**
      * Nombre ya registrado; respuesta HTTP 409 según catálogo §6.2.
      */

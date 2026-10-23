@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Locale;
+import pe.barberturno.platform.RolPlataforma;
 
 /**
  * Identidad y acceso RF-01 a RF-03; conserva correo normalizado RN-24, bloqueo RN-25 y revocación por
@@ -41,6 +42,10 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     @Column(name = "rol", nullable = false, length = 10)
     private Rol rol;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rol_plataforma", nullable = false, length = 16)
+    private RolPlataforma rolPlataforma = RolPlataforma.NINGUNO;
 
     @Column(name = "activo", nullable = false)
     private boolean activo;
@@ -78,7 +83,7 @@ public class Usuario {
      * @param correo correo de acceso único sin distinguir mayúsculas; normalizado según RN-24, no nulo
      * @param telefono teléfono de nueve dígitos; puede ser nulo para el personal, obligatorio para CLIENTE
      * @param passwordHash hash BCrypt persistido en password_hash; nunca se expone por la API ni en logs
-     * @param rol rol persistido que determina los permisos del servidor; no nulo
+     * @param rol categoría heredada de v1; solo CLIENTE autoriza sin membresía durante la transición
      * @param privacidadAceptadaEn instante absoluto del consentimiento del cliente; puede ser nulo para el
      * personal
      * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
@@ -203,10 +208,16 @@ public class Usuario {
         return passwordHash;
     }
 
-    /** {@return rol persistido que determina los permisos del servidor; no nulo} */
+    /** {@return categoría heredada; no autoriza al personal en v2} */
     public Rol getRol() {
         return rol;
     }
+
+    /** @return permisos globales, independientes del rol de cualquier negocio */
+    public RolPlataforma getRolPlataforma() { return rolPlataforma; }
+
+    /** Completa la identidad configurada en el arranque sin otorgarle permisos de negocio. */
+    public void habilitarAdministracionPlataforma() { rolPlataforma = RolPlataforma.ADMIN_PLATAFORMA; }
 
     /** {@return estado de habilitación lógica; false conserva la fila histórica según RN-16} */
     public boolean isActivo() {
