@@ -61,6 +61,8 @@ public class SecurityConfig {
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
      * Autoriza el resumen RF-14, su exportación Excel DA-29 y gestión de usuarios RF-19 exclusivamente a ADMIN.
      * GET/PATCH de fichas admite solo el equivalente ADMIN de PROPIETARIO/ENCARGADO, con ámbito en el servicio.
+     * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
+     * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).

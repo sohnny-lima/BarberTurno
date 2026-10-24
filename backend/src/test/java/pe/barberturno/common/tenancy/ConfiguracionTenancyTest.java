@@ -24,6 +24,10 @@ class ConfiguracionTenancyTest {
     @Test void prodSinAlias_noImponeNegocio() {
         contexto.withPropertyValues("spring.profiles.active=prod").run(c -> assertThat(c).hasNotFailed());
     }
+    @Test void propiedadRetirada_noActivaUnProveedorTransitorio() {
+        contexto.withPropertyValues("barberturno.tenancy.negocio-unico-id=1")
+                .run(c -> assertThat(c.getBean(ProveedorNegocioActual.class).negocioActual()).isEmpty());
+    }
     @Test void aliasSinPerfilLocal_falla() {
         contexto.withPropertyValues("spring.profiles.active=otro", "barberturno.tenancy.alias-legado.slug=barberturno")
                 .run(c -> assertThat(c).hasFailed());

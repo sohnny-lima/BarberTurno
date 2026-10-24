@@ -57,6 +57,8 @@ public class AuthController {
     /**
      * GET /api/auth/sesion: CLIENTE, BARBERO y ADMIN reciben su identidad; sin sesión devuelve 401
      * NO_AUTENTICADO. La cadena emite XSRF-TOKEN si falta, también sin sesión, y conserva el token existente (DA-26).
+     * La identidad se revalida sin contexto de negocio. Solo la proyección compatible consulta el alias
+     * con un ejecutor explícito, fuera de esa transacción; sin alias, el rol de negocio es null.
      * @return representación pública resultante de la operación
      */
     @GetMapping("/sesion")

@@ -42,7 +42,7 @@ public class DatosDemoRunner implements ApplicationRunner {
     /**
      * Omite la carga sin contraseña y registra solo un aviso sin valores de configuración.
      * @param args argumentos del arranque proporcionados por Spring
-     * @throws IllegalStateException si la contraseña o el catálogo impiden importar el escenario
+     * @throws IllegalStateException si no existe el negocio configurado o la contraseña o el catálogo impiden la carga
      */
     @Override
     public void run(ApplicationArguments args) {

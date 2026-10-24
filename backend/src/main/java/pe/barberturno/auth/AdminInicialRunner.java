@@ -48,6 +48,7 @@ public class AdminInicialRunner implements ApplicationRunner {
      * Solicita la creación o acreditación idempotente de la cuenta inicial; omite si faltan valores
      * configurados.
      * @param args argumentos no nulos de arranque proporcionados por Spring
+     * @throws IllegalStateException si la cuenta está configurada pero su negocio explícito no existe
      */
     @Override
     public void run(ApplicationArguments args) {

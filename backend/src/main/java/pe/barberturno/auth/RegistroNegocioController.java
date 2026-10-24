@@ -28,6 +28,7 @@ public class RegistroNegocioController {
      * @param peticion solicitud que ya superó CSRF
      * @param respuesta salida que recibe la sesión y el token CSRF nuevo
      * @return identidad creada con estado 201
+     * @throws pe.barberturno.common.error.NegocioException si el correo ya existe o la contraseña incumple RN-25
      */
     @PostMapping("/api/registro")
     public ResponseEntity<UsuarioSesionDto> registrar(@Valid @RequestBody RegistroDto datos,
