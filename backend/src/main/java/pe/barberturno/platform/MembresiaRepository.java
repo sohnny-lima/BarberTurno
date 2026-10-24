@@ -14,6 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public interface MembresiaRepository extends Repository<Membresia, Long> {
     /**
+     * Lee exclusivamente las pertenencias activas de la cuenta autenticada (V2-DA-26, V2-05).
+     * @param usuarioId identidad del principal, nunca un parámetro del navegador
+     * @return pertenencias propias vigentes para construir mis-negocios
+     */
+    @Query("select m from Membresia m where m.usuarioId = :usuarioId and m.estado = 'ACTIVA'")
+    java.util.List<Membresia> listarPropiasActivas(@Param("usuarioId") long usuarioId);
+
+    /**
      * Busca la pertenencia sin mezclar negocios; puede estar revocada.
      * @param negocioId ámbito explícito de consulta
      * @param usuarioId identidad global buscada

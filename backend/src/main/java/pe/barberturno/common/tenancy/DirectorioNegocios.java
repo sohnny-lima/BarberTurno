@@ -34,4 +34,16 @@ public class DirectorioNegocios {
                 .setParameter("slug", slug).getResultList();
         return filas.isEmpty() ? OptionalLong.empty() : OptionalLong.of(((Number) filas.getFirst()).longValue());
     }
+
+    /**
+     * Proyecta los datos públicos de los negocios ya acreditados como propios por los repositorios.
+     * @param ids identificadores derivados de pertenencias o fichas propias, nunca del cuerpo HTTP
+     * @return filas id, slug y nombre, sin datos de configuración ni personales
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<Object[]> describir(java.util.Set<Long> ids) {
+        if (ids.isEmpty()) return java.util.List.of();
+        return entidades.createNativeQuery("select id, slug, nombre from negocio where id in (:ids)", Object[].class)
+                .setParameter("ids", ids).getResultList();
+    }
 }

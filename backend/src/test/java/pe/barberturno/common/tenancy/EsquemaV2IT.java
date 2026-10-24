@@ -6,6 +6,23 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
+    @Test void v106_estadoDeFichaSincronizadoYAplicacionSoloLeeElIndice() throws Exception {
+        long b = negocioB();
+        for (long id : new long[]{1L, b}) {
+            enNegocio(id, () -> {
+                var datos = DatosNegocioPrueba.crear(jdbc, "v106-" + id);
+                assertThat(jdbc.queryForObject("select activo from vinculo_cliente where negocio_id=? and usuario_id=?", Boolean.class, id, datos.cliente())).isTrue();
+                for (boolean activo : new boolean[]{false, true}) {
+                    jdbc.update("update cliente set activo=? where id=?", activo, datos.ficha());
+                    assertThat(jdbc.queryForObject("select activo from vinculo_cliente where negocio_id=? and usuario_id=?", Boolean.class, id, datos.cliente())).isEqualTo(activo);
+                }
+                return null;
+            });
+        }
+        assertThat(jdbc.queryForMap("select data_type, is_nullable from information_schema.columns where table_name='vinculo_cliente' and column_name='activo'"))
+                .containsEntry("data_type", "boolean").containsEntry("is_nullable", "NO");
+        assertThat(jdbc.queryForObject("select has_column_privilege(current_user,'vinculo_cliente','activo','UPDATE')", Boolean.class)).isFalse();
+    }
     @Test void mismaCuenta_perfilesEnDosNegociosYDuplicadoLocalRechazado() throws Exception {
         long b = negocioB();
         var a = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "perfil-a"));

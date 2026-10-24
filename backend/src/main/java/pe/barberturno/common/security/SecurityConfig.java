@@ -143,9 +143,11 @@ public class SecurityConfig {
                     if (swaggerHabilitado) {
                         permisos.requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }
-                    permisos.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login",
+                    permisos.requestMatchers(HttpMethod.POST, "/api/registro", "/api/auth/registro", "/api/auth/login",
                             "/api/auth/logout").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/clientes/alta").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/perfil").authenticated();
