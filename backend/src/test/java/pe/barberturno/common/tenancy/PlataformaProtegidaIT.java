@@ -108,7 +108,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         mvc.perform(get("/api/usuarios").cookie(cookie).param("q", cliente.getCorreo()).param("rol", "CLIENTE"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId()));
         proveedor.fijar(b);
-        try { exigirAjena(cliente, cookie); }
+        try { exigirAjena(cliente, cookie, "/api/n/negocio-b"); }
         finally { proveedor.reiniciar(); }
         mvc.perform(csrf(estado(cliente.getId(), false), cookie)).andExpect(status().isOk());
         assertThat(usuarios.findById(cliente.getId()).orElseThrow().isActivo()).isFalse();
@@ -174,11 +174,13 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         return usuarios.saveAndFlush(usuario);
     }
 
-    private void exigirAjena(Usuario usuario, Cookie cookie) throws Exception {
+    private void exigirAjena(Usuario usuario, Cookie cookie) throws Exception { exigirAjena(usuario, cookie, "/api"); }
+
+    private void exigirAjena(Usuario usuario, Cookie cookie, String raiz) throws Exception {
         var anterior = huella(usuario);
         for (String rol : List.of("", "ADMIN", "BARBERO", "CLIENTE")) {
-            var completa = get("/api/usuarios").cookie(cookie);
-            var solicitud = get("/api/usuarios").cookie(cookie).param("q", usuario.getCorreo());
+            var completa = get(raiz + "/usuarios").cookie(cookie);
+            var solicitud = get(raiz + "/usuarios").cookie(cookie).param("q", usuario.getCorreo());
             if (!rol.isEmpty()) {
                 solicitud.param("rol", rol);
                 completa.param("rol", rol);
@@ -189,11 +191,11 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
                     .andExpect(jsonPath("$.contenido.length()").value(0))
                     .andExpect(jsonPath("$.totalElementos").value(0));
         }
-        mvc.perform(csrf(post("/api/usuarios/" + usuario.getId() + "/restablecer-password"), cookie))
+        mvc.perform(csrf(post(raiz + "/usuarios/" + usuario.getId() + "/restablecer-password"), cookie))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"))
                 .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
         assertThat(huella(usuario)).isEqualTo(anterior);
-        mvc.perform(csrf(estado(usuario.getId(), false), cookie)).andExpect(status().isNotFound())
+        mvc.perform(csrf(patch(raiz + "/usuarios/" + usuario.getId() + "/estado").contentType("application/json").content("{\"activo\":false}"), cookie)).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
         assertThat(huella(usuario)).isEqualTo(anterior);
     }

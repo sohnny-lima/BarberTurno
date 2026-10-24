@@ -20,15 +20,22 @@ import org.springframework.stereotype.Component;
 public class DatosDemoRunner implements ApplicationRunner {
     private static final Logger LOG = LoggerFactory.getLogger(DatosDemoRunner.class);
     private final DatosDemoService datos;
+    private final pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor;
+    private final String slug;
     private final String password;
 
     /**
      * Recibe la carga transaccional y la contraseña externa, sin claves predeterminadas.
+     * @param ejecutor delimita el negocio antes de abrir la carga transaccional
+     * @param slug negocio de demostración configurado explícitamente
      * @param datos servicio que importa el escenario completo
      * @param password valor externo BT_DEMO_PASSWORD; vacío omite toda la carga
      */
-    public DatosDemoRunner(DatosDemoService datos, @Value("${BT_DEMO_PASSWORD:}") String password) {
+    public DatosDemoRunner(DatosDemoService datos, pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor,
+            @Value("${barberturno.demo.negocio-slug:}") String slug, @Value("${BT_DEMO_PASSWORD:}") String password) {
         this.datos = datos;
+        this.ejecutor = ejecutor;
+        this.slug = slug;
         this.password = password;
     }
 
@@ -43,6 +50,6 @@ public class DatosDemoRunner implements ApplicationRunner {
             LOG.warn("Falta BT_DEMO_PASSWORD: se omiten los datos y los usuarios de demostración.");
             return;
         }
-        datos.cargar(password);
+        ejecutor.ejecutar(slug, () -> { datos.cargar(password); return null; });
     }
 }

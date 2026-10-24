@@ -190,7 +190,8 @@ class DisponibilidadIT {
         assertThat(resultado.franjas()).filteredOn(f -> f.inicio().toLocalTime().equals(LocalTime.of(10, 0)))
                 .singleElement().satisfies(f -> assertThat(f.barberoIds()).containsExactly(miguel.getId()));
         assertThat(resultado.franjas()).noneMatch(f -> f.barberoIds().contains(inactivo.getId()));
-        var sql = SqlPruebas.sentencias();
+        assertThat(SqlPruebas.sentencias().stream().filter(s -> s.startsWith("select id from negocio where slug="))).hasSize(1);
+        var sql = SqlPruebas.sentencias().stream().filter(s -> !s.startsWith("select id from negocio where slug=")).toList();
         for (String tabla : List.of("servicio", "barbero", "jornada", "bloqueo", "reserva")) {
             assertThat(sql.stream().filter(s -> s.contains(" from " + tabla + " ")).count()).as(tabla).isEqualTo(1);
         }

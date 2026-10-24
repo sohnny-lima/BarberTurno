@@ -29,14 +29,14 @@ class MembresiaIT extends IdentidadPruebaBase {
         assertThat(auth.autenticar(persona.getId(), 0).orElseThrow().rolNegocio()).contains(RolNegocio.PROPIETARIO);
         proveedor.fijar(b);
         try {
-            mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isForbidden());
-            mvc.perform(get("/api/reservas").cookie(cookie).param("desde", "2026-10-01").param("hasta", "2026-10-01"))
+            mvc.perform(get("/api/n/negocio-b/usuarios").cookie(cookie)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/n/negocio-b/reservas").cookie(cookie).param("desde", "2026-10-01").param("hasta", "2026-10-01"))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(1))
                     .andExpect(jsonPath("$.contenido[0].id").value(propio))
                     .andExpect(jsonPath("$.contenido[0].permisos.cancelar").value(false))
                     .andExpect(jsonPath("$.contenido[0].permisos.reprogramar").value(false));
-            mvc.perform(get("/api/reservas/" + propio).cookie(cookie)).andExpect(status().isOk());
-            mvc.perform(get("/api/reservas/" + datosB.reserva()).cookie(cookie)).andExpect(status().isNotFound());
+            mvc.perform(get("/api/n/negocio-b/reservas/" + propio).cookie(cookie)).andExpect(status().isOk());
+            mvc.perform(get("/api/n/negocio-b/reservas/" + datosB.reserva()).cookie(cookie)).andExpect(status().isNotFound());
             assertThat(auth.autenticar(persona.getId(), 0).orElseThrow().rolNegocio()).contains(RolNegocio.BARBERO);
         } finally { proveedor.reiniciar(); }
     }

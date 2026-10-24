@@ -21,6 +21,8 @@ import org.springframework.security.web.authentication.session.NullAuthenticated
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import pe.barberturno.common.error.ErrorCodigo;
+import pe.barberturno.common.tenancy.*;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 /**
  * Autenticación JWT por cookie, CSRF SPA estable durante la sesión (DA-26) y permisos de rutas implementadas.
@@ -62,6 +64,8 @@ public class SecurityConfig {
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
+     * @param contexto holder del negocio de cada petición
+     * @param directorio resolución transaccional del slug antes de autenticar
      * @param entorno perfiles activos usados para imponer HSTS también detrás del proxy en prod
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
@@ -75,6 +79,7 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, Environment entorno, UsuarioJwtConverter converter,
+            ContextoNegocio contexto, DirectorioNegocios directorio,
             RespuestaSeguridad respuestas, CookieSesion cookies, CookieCsrfTokenRepository csrf,
             @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsHabilitada,
             @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerHabilitado) throws Exception {
@@ -125,6 +130,7 @@ public class SecurityConfig {
                         .bearerTokenResolver(new CookieBearerTokenResolver())
                         .authenticationEntryPoint(entryPoint).accessDeniedHandler(denegado)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas, entorno), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
                 .authorizeHttpRequests(permisos -> {
@@ -139,7 +145,7 @@ public class SecurityConfig {
                     }
                     permisos.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login",
                             "/api/auth/logout").permitAll();
-                    permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/perfil").authenticated();

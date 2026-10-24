@@ -1,6 +1,5 @@
 package pe.barberturno.common.tenancy;
 
-import java.util.OptionalLong;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -10,7 +9,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 
 /**
- * Conecta el ámbito transitorio de V2-01 con todas las transacciones JPA de Spring.
+ * Conecta el ámbito de cada petición con todas las transacciones JPA de Spring.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
@@ -21,32 +20,19 @@ public class ConfiguracionTenancy {
     }
 
     /**
-     * Impide usar la fundación transitoria como un despliegue de producción.
+     * Impide habilitar compatibilidad local fuera de dev, test o demo, especialmente en prod.
      * @param entorno perfiles y propiedades del arranque
      * @return validación anterior a cualquier conexión
      */
     @Bean
     static BeanFactoryPostProcessor impedirProduccion(Environment entorno) {
         return fabrica -> {
-            if (entorno.acceptsProfiles(Profiles.of("prod"))) {
-                throw new IllegalStateException("V2-01 no admite el perfil prod; falta el resolutor de negocio.");
+            if (entorno.containsProperty("barberturno.tenancy.alias-legado.slug")
+                    && (entorno.acceptsProfiles(Profiles.of("prod"))
+                    || !entorno.acceptsProfiles(Profiles.of("dev", "test", "demo")))) {
+                throw new IllegalStateException("El alias legado solo admite dev/test/demo sin prod.");
             }
         };
-    }
-
-    /**
-     * Mantiene un único negocio hasta que V2-05 introduzca la resolución por petición.
-     * @param entorno configuración local de dev o test
-     * @return proveedor inmutable del identificador obligatorio
-     * @throws IllegalStateException si falta el identificador o no es positivo
-     */
-    @Bean
-    ProveedorNegocioActual proveedorNegocioActual(Environment entorno) {
-        Long id = entorno.getProperty("barberturno.tenancy.negocio-unico-id", Long.class);
-        if (id == null || id <= 0) {
-            throw new IllegalStateException("Se requiere barberturno.tenancy.negocio-unico-id positivo.");
-        }
-        return () -> OptionalLong.of(id);
     }
 
     /**

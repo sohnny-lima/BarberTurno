@@ -8,7 +8,7 @@ import pe.barberturno.support.RelojAjustable;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(properties = {"barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
-        "barberturno.seguridad.cookie-secure=false", "barberturno.tenancy.negocio-unico-id=2"})
+        "barberturno.seguridad.cookie-secure=false", "pruebas.negocio-id=2", "barberturno.tenancy.alias-legado.slug=manual-b"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
