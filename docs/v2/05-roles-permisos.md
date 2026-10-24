@@ -72,7 +72,7 @@ Leyenda: ✔ permitido · **P** solo lo propio (la ficha de cliente del actor) �
 
 ## 3. Cómo se implementa (resumen; detalle en `04-arquitectura-datos.md` §4)
 1. `SecurityFilterChain`: autenticación (JWT en cookie, CSRF, como v1) y reglas **gruesas** por prefijo de ruta (`/api/plataforma/**` exige `ADMIN_PLATAFORMA`; `/api/n/**` exige autenticación salvo las lecturas públicas).
-2. `ResolutorNegocio` (filtro tras la autenticación): `slug` → `negocio` activo; con el actor, carga su membresía y su ficha de cliente en ese negocio y construye `ContextoNegocio {negocioId, rolNegocio?, clienteId?, barberoId?}`. Si el actor no pertenece y la ruta no es pública → 404.
+2. `ResolutorNegocio` (filtro **antes** de la autenticación, tras el cortafuegos; V2-DA-33/36): rechaza rutas `/api/**` codificadas (400), resuelve el `slug` de la ruta (404 si no existe) y fija el negocio de la petición. Después, la autenticación revalida la membresía y la ficha del actor **en ese negocio** y construye el rol efectivo; sin rol en una operación protegida → 403 (V2-DA-34); recurso de otro negocio → 404. *(Actualizado el 24/10/2026.)*
 3. Transacción: al empezar, `set_config('app.negocio_id', negocioId, true)`; **RLS** filtra y valida cada fila del negocio (segunda barrera).
 4. Servicios: comprobaciones por rol del negocio y por propiedad o asignación (evolución de `ReservaAutorizacion`).
 5. `ReservaDto.permisos` lo sigue calculando el servidor con el rol del negocio (DA-15).

@@ -195,7 +195,7 @@
 
 ### V2-DA-33 · Resolución del negocio por ruta con un único camino de autorización y alias legado explícito
 - **Decisión:** un filtro dentro de la cadena de Spring Security resuelve `/api/n/{slug}` (404 si no existe), fija el negocio en un contexto de petición que se limpia siempre y presenta la petición al resto de la cadena como `/api/{resto}`, de modo que las reglas de `SecurityConfig`, CSRF y los controladores existentes se aplican una sola vez y por igual. Las rutas sin prefijo son un **alias legado** de un negocio fijado por configuración (solo en `dev`/`test`/`demo`) para no tocar el frontend hasta V2-07. Se retira el proveedor transitorio de V2-01; las tareas sin petición usan un ejecutor con `slug` explícito.
-- **Por qué:** duplicar 45 reglas y 9 controladores para el prefijo abriría dos caminos de autorización que podrían divergir; el envoltorio conserva uno. El cortafuegos de Spring Security normaliza la ruta antes de resolverla.
+- **Por qué:** duplicar 45 reglas y 9 controladores para el prefijo abriría dos caminos de autorización que podrían divergir; el envoltorio conserva uno. El cortafuegos de Spring Security (`StrictHttpFirewall`) **rechaza** las rutas ambiguas (barras dobles, segmentos `.`/`..`, `;`, barras invertidas o codificadas) antes de que el filtro las resuelva; no las normaliza (precisado por V2-DA-36).
 - **Alternativas descartadas:** mapear todos los controladores a `/api/n/{slug}/…` (duplica reglas y rehace las 1744 pruebas); negocio en una cabecera o en el JWT (V2-DA-04); cambiar ya el frontend (V2-07).
 
 ### V2-DA-34 · 403 para un actor sin rol en un negocio existente; 404 para recursos de otro negocio
