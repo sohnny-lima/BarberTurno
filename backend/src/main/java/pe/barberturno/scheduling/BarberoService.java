@@ -16,6 +16,7 @@ import pe.barberturno.users.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 import pe.barberturno.customers.VinculoClienteRepository;
+import pe.barberturno.common.config.ReglasNegocioService;
 
 /**
  * Administra personal RF-05 del ámbito V2-RN-17 con identidad de plataforma protegida y cupo RN-19.
@@ -33,11 +34,12 @@ public class BarberoService {
     private final ProveedorNegocioActual negocio;
     private final AmbitoUsuarios ambito;
     private final VinculoClienteRepository vinculos;
+    private final ReglasNegocioService reglasNegocio;
     private final PoliticaPassword politica = new PoliticaPassword();
 
     /**
      * Inyecta persistencia, BCrypt y Clock para cambios atómicos de cuenta y perfil.
-     * @param barberos perfiles y bloqueo global RN-19
+     * @param barberos perfiles y bloqueo por negocio RN-19
      * @param usuarios identidades y bloqueo de cuenta
      * @param reservas agenda para informar citas futuras
      * @param passwords BCrypt de coste 12
@@ -46,10 +48,11 @@ public class BarberoService {
      * @param negocio ámbito transitorio actual
      * @param ambito límite común de identidades gestionables según V2-DA-27
      * @param vinculos protección de identidad global cuando hay fichas en otros negocios
+     * @param reglasNegocio lectura transaccional del cupo local RN-19
      */
     public BarberoService(BarberoRepository barberos, UsuarioRepository usuarios, ReservaRepository reservas,
             PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
-            AmbitoUsuarios ambito, VinculoClienteRepository vinculos) {
+            AmbitoUsuarios ambito, VinculoClienteRepository vinculos, ReglasNegocioService reglasNegocio) {
         this.barberos = barberos;
         this.usuarios = usuarios;
         this.reservas = reservas;
@@ -59,6 +62,7 @@ public class BarberoService {
         this.negocio = negocio;
         this.ambito = ambito;
         this.vinculos = vinculos;
+        this.reglasNegocio = reglasNegocio;
     }
 
     /**
@@ -83,7 +87,7 @@ public class BarberoService {
     @Transactional
     public BarberoDto crear(CrearBarberoDto datos) {
         validarVariante(datos);
-        barberos.bloquearLimiteActivos();
+        barberos.bloquearLimiteActivos(negocio.negocioActual().orElseThrow());
         comprobarLimite();
         Usuario usuario;
         var ahora = clock.instant();
@@ -135,7 +139,7 @@ public class BarberoService {
     }
 
     /**
-     * Serializa estado con bloqueo global RN-19 y después usuario y perfil; revoca sesiones al desactivar
+     * Serializa estado con bloqueo por negocio RN-19 y después usuario y perfil; revoca sesiones al desactivar
      * BARBERO no compartido, conserva acceso de gestores y las cuentas compartidas o de plataforma.
      * Repetir el mismo estado no revoca otra vez.
      * @param id perfil que se habilita o deshabilita
@@ -146,7 +150,7 @@ public class BarberoService {
      */
     @Transactional
     public ResultadoEstadoBarberoDto cambiarEstado(long id, boolean activo) {
-        barberos.bloquearLimiteActivos();
+        barberos.bloquearLimiteActivos(negocio.negocioActual().orElseThrow());
         Barbero barbero = obtenerBloqueado(id);
         boolean cambiaCuenta = membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(),
                 barbero.getUsuario().getId()).filter(Membresia::isActiva)
@@ -181,9 +185,10 @@ public class BarberoService {
     }
 
     private void comprobarLimite() {
-        if (barberos.countByActivoTrue() >= 10) {
+        int limite = reglasNegocio.limiteBarberosActivos();
+        if (barberos.countByActivoTrue() >= limite) {
             throw new NegocioException(ErrorCodigo.LIMITE_BARBEROS_ACTIVOS,
-                    "Solo puede haber diez barberos activos.");
+                    "Solo puede haber " + limite + " barberos activos en este negocio.");
         }
     }
 

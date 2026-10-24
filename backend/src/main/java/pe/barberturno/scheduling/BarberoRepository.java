@@ -20,16 +20,17 @@ import org.springframework.data.repository.query.Param;
 public interface BarberoRepository extends RepositorioTransaccional<Barbero, Long> {
 
     /**
-     * Serializa altas y cambios de estado RN-19 hasta fin de transacción; clave global 141414 reservada a T-14.
+     * Serializa altas y cambios de estado RN-19 del negocio hasta fin de transacción (V2-DA-30).
      * Se toma antes de usuario y barbero. La función en FROM evita mapear el tipo PostgreSQL void.
-     * @return centinela 1 después de adquirir pg_advisory_xact_lock
+     * @param negocioId ámbito que cabe en int4 según negocio_id_rango
+     * @return centinela 1 después de adquirir pg_advisory_xact_lock de dos claves
      */
     @Transactional
-    @Query(value = "select 1 from pg_advisory_xact_lock(141414)", nativeQuery = true)
-    int bloquearLimiteActivos();
+    @Query(value = "select 1 from pg_advisory_xact_lock(141414, cast(:negocioId as integer))", nativeQuery = true)
+    int bloquearLimiteActivos(@Param("negocioId") long negocioId);
 
     /**
-     * Cuenta perfiles habilitados después del bloqueo global RN-19, sin depender del rol vinculado.
+     * Cuenta perfiles habilitados del contexto RLS después del bloqueo RN-19, sin depender del rol vinculado.
      * @return cantidad actual de perfiles activos
      */
     long countByActivoTrue();
