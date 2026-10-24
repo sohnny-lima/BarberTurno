@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.audit.AuditoriaRepository;
 import pe.barberturno.audit.dto.AuditoriaDto;
-import pe.barberturno.common.config.ParametrosReserva;
 import pe.barberturno.common.config.ReglasNegocioService;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.error.NegocioException;
