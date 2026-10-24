@@ -212,3 +212,15 @@
 - **Problema (hallazgo H-085-01 de Codex, reproducido y válido):** `ResolutorNegocio` clasificaba la ruta (global, de negocio o alias) comparando `getRequestURI()` **sin decodificar**, mientras Spring MVC enruta por segmentos **decodificados**. `GET /api/n/a/%70erfil` llegaba a `/api/perfil` dentro de un negocio (200 en lugar de 404), y `/api/%70erfil` se habría tomado como ruta de negocio del alias. La autorización de `SecurityConfig` no se eludía (sus *matchers* usan la ruta decodificada), pero la frontera entre identidad global y negocio sí.
 - **Decisión:** (1) toda petición a `/api/**` cuya ruta (sin la consulta) contenga una secuencia `%` se rechaza con **400 `VALIDACION`** antes de clasificarla: ninguna ruta de la API necesita codificación (slugs `[a-z0-9-]`, ids numéricos, tramos fijos), así que la forma cruda y la decodificada coinciden siempre. (2) La clasificación y el envoltorio usan **la misma representación decodificada** que Spring MVC (`ServletRequestPathUtils`/`UrlPathHelper`), como segunda barrera. (3) Se conservan las protecciones del cortafuegos de Spring Security (barras dobles, segmentos `.`/`..`, `;`, barras invertidas y barras codificadas).
 - **Pruebas:** batería de variantes para las rutas prefijadas y las del alias (letras codificadas en cualquier tramo, `slug` codificado, `%2F`, `%2E`, `//`, `/./`, `/../`, `;…`, mayúsculas, barra final, barra invertida): cada una termina en 400 o 404 y **ninguna** ejecuta un controlador con una clasificación distinta de la de su forma decodificada. La regresión de H-085-01 pasa a exigir el rechazo.
+
+---
+*Decisiones V2-DA-37 y V2-DA-38: alcance de V2-06 (24/10/2026). Vigentes. V2-DA-38 concreta R2-04 de `05-roles-permisos.md`.*
+
+### V2-DA-37 · La revocación de una membresía guarda su motivo y solo se deshace por la misma vía
+- **Decisión:** toda revocación registra su motivo (`PERFIL_DESACTIVADO`, `SALIDA`, `DECISION_GESTOR`, `PLATAFORMA`). Reactivar un perfil profesional solo deshace la revocación `PERFIL_DESACTIVADO`. Una revocación por cualquier otro motivo solo la deshace una invitación nueva aceptada. El arranque (`AdminInicialRunner`) crea la membresía inicial si falta, pero nunca reactiva una revocada.
+- **Por qué:** cierra la deuda de V2-04 antes de que existan las revocaciones nuevas de V2-06, y un segundo camino detectado en la revisión (el arranque reactivaba la membresía inicial).
+- **Alternativa descartada:** un estado `SUSPENDIDA` aparte para la desactivación del perfil (duplica los estados; el motivo es más simple de consultar y probar).
+
+### V2-DA-38 · Efectos de un negocio suspendido
+- **Decisión:** un negocio `SUSPENDIDO` es invisible en sus rutas públicas (404), su personal conserva las lecturas y toda escritura de negocio da 409 `NEGOCIO_SUSPENDIDO`. Las invitaciones no se pueden aceptar y solo la plataforma lo reactiva. Se impone en la resolución del negocio, de modo que ningún controlador lo elude.
+- **Por qué:** concreta R2-04 («no acepta reservas… su personal conserva el acceso de lectura») con un comportamiento uniforme y comprobable.

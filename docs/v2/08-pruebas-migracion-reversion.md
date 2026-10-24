@@ -86,7 +86,10 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 | `V105__perfil_por_negocio.sql` (V2-04) | Sustituye la unicidad heredada de v1 `barbero_usuario_id_key UNIQUE (usuario_id)` por `barbero_usuario_uk UNIQUE (negocio_id, usuario_id)`: la misma cuenta puede tener un perfil profesional en cada negocio, nunca dos en el mismo (V2-DA-32) | Restaurar la copia previa |
 | `V106__vinculo_cliente_activo.sql` (V2-05) | `vinculo_cliente.activo` rellenado desde cada ficha y mantenido por el disparador de `V102`, redefinido con `CREATE OR REPLACE` sin editar `V102` (V2-DA-35) | Restaurar la copia previa |
 | `V107__indices_negocio.sql` (V2-05) | Índices que empiezan por `negocio_id` para los accesos por negocio | Eliminar los índices |
-| `V108+` (equipo, WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
+| `V108__motivo_revocacion.sql` (V2-06.1) | `membresia.motivo_revocacion` y su coherencia con el estado; relleno `PERFIL_DESACTIVADO` para las revocaciones de V2-04 | Restaurar la copia previa |
+| `V109__auditoria_plataforma.sql` (V2-06.2) | Tabla de plataforma de auditoría de operaciones de plataforma | Eliminar la tabla |
+| `V110__invitacion.sql` (V2-06.3) | Tabla `invitacion` | Eliminar la tabla |
+| `V111+` (WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
 | `V1xx__contraer.sql` (tras el corte) | Eliminar `usuario.rol`, `usuario_cliente_completo` y las rutas antiguas | Solo después de un periodo estable |
 
 ### 6.2 Verificación de la migración (V2-CP-10)
