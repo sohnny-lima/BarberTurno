@@ -6,6 +6,8 @@ El repositorio y las bases locales están preparados (T-01). El backend ya arran
 
 ## BarberTurno v2 en local
 
+**V2-05 bloqueada por H-085-01:** una ruta global codificada puede evitar el rechazo del prefijo de negocio. Pasos 1–4 implementados; no se ha completado verify ni el cierre. Véase [la evidencia y la regresión](docs/v2/pruebas/v2-05.md). Sin integración ni publicación.
+
 Este worktree desarrolla V2-05 en `tarea/V2-05-negocio-por-peticion`, desde `v2`. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. V2 sigue pendiente de gestión, interfaz y validación de conjunto; no está preparada para desplegarse.
 
 El responsable prepara el entorno una sola vez desde la raíz con `tools/preparar-entorno-v2.ps1` (PostgreSQL 18.6, puerto 5433). El script crea exclusivamente las bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`, propiedad de `barberturno_v2`, y el rol operativo `barberturno_v2_app`, sin privilegios administrativos ni propiedad. No reutilice bases o credenciales de v1. En este equipo ya está preparado.

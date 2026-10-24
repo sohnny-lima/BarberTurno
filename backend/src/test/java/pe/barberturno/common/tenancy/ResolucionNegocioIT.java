@@ -6,6 +6,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class ResolucionNegocioIT extends PeticionNegocioPruebaBase {
+    @Test void identidadConSegmentosCodificados_tampocoPuedeEjecutarseBajoUnNegocio() throws Exception {
+        var cookie = sesion(personal("codificada", "a", RolNegocio.PROPIETARIO));
+        for (String ruta : new String[]{"/api/n/a/%70erfil", "/api/n/a/%61uth/sesion", "/api/n/a/%6dis-negocios"}) {
+            mvc.perform(get(java.net.URI.create(ruta)).cookie(cookie)).andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
+        }
+    }
     @Test void cuerpoConsultaYCabecera_noSeleccionanElNegocioDeUnaEscritura() throws Exception {
         servicio("a"); servicio("b");
         var cookie = sesion(personal("gestor-cuerpo", "a", RolNegocio.PROPIETARIO));
