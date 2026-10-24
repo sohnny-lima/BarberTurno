@@ -101,7 +101,7 @@ public class DatosDemoService {
         if (!new PoliticaPassword().validar(password).isEmpty()) {
             throw new IllegalStateException("BT_DEMO_PASSWORD debe cumplir RN-25.");
         }
-        if (barberos.countByActivoTrue() + 2 > reglasNegocio.limiteBarberosActivos()) {
+        if (barberos.countByActivoTrue(negocio.negocioActual().orElseThrow()) + 2 > reglasNegocio.limiteBarberosActivos()) {
             throw new IllegalStateException("La demo necesita cupo para dos barberos activos.");
         }
         String hash = encoder.encode(password);
@@ -149,7 +149,7 @@ public class DatosDemoService {
     }
 
     private Servicio catalogo(String nombre, String descripcion, short duracion, String precio) {
-        Servicio existente = servicios.buscarPorNombre(nombre).orElse(null);
+        Servicio existente = servicios.buscarPorNombre(negocio.negocioActual().orElseThrow(), nombre).orElse(null);
         if (existente == null) {
             return servicios.saveAndFlush(new Servicio(nombre, descripcion, duracion,
                     new BigDecimal(precio), clock.instant()));

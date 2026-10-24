@@ -26,6 +26,7 @@ import pe.barberturno.users.Rol;
  */
 @Service
 public class DisponibilidadService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ServicioRepository servicios;
     private final BarberoRepository barberos;
     private final JornadaRepository jornadas;
@@ -38,6 +39,7 @@ public class DisponibilidadService {
 
     /**
      * Recibe persistencia, parámetros y reloj sin modificar la agenda.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param servicios catálogo de duración y estado RN-06
      * @param barberos perfiles y estado RN-06
      * @param jornadas intervalos del día ISO
@@ -49,7 +51,8 @@ public class DisponibilidadService {
      */
     public DisponibilidadService(ServicioRepository servicios, BarberoRepository barberos,
             JornadaRepository jornadas, BloqueoRepository bloqueos, ReservaRepository reservas,
-            Clock clock, ReglasNegocioService reglasNegocio, UsuarioActual actual) {
+            Clock clock, ReglasNegocioService reglasNegocio, UsuarioActual actual, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.servicios = servicios;
         this.barberos = barberos;
         this.jornadas = jornadas;
@@ -88,7 +91,7 @@ public class DisponibilidadService {
                 "El servicio está inactivo.");
         int duracion = referencia.map(r -> (int) r.duracionRefMin()).orElse((int) servicio.getDuracionMin());
         List<Barbero> perfiles = barberoId.map(id -> List.of(barberoActivo(id)))
-                .orElseGet(barberos::findByActivoTrueOrderByIdAsc);
+                .orElseGet(() -> barberos.findByActivoTrueOrderByIdAsc(negocio.negocioActual().orElseThrow()));
         Instant ahora = clock.instant();
         Instant limite = limiteHorizonte(ahora, parametros);
         if (fueraDeHorizonte(fecha, ahora, parametros) || perfiles.isEmpty()) {

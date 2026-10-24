@@ -14,17 +14,20 @@ import pe.barberturno.users.UsuarioRepository;
  */
 @Service
 public class ClienteAltaService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ClienteRepository clientes;
     private final UsuarioRepository usuarios;
     private final Clock reloj;
 
     /**
      * Recibe la persistencia local y el bloqueo de la cuenta para serializar dos altas propias.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param clientes fichas sometidas a RLS FORCE
      * @param usuarios identidades globales; solo se bloquea la del principal
      * @param reloj fecha de creación de la ficha
      */
-    public ClienteAltaService(ClienteRepository clientes, UsuarioRepository usuarios, Clock reloj) {
+    public ClienteAltaService(ClienteRepository clientes, UsuarioRepository usuarios, Clock reloj, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.clientes = clientes; this.usuarios = usuarios; this.reloj = reloj;
     }
 
@@ -38,7 +41,7 @@ public class ClienteAltaService {
     public ClienteDto alta(long usuarioId) {
         var usuario = usuarios.bloquearPorId(usuarioId).orElseThrow(() ->
                 new NegocioException(ErrorCodigo.NO_AUTENTICADO, "Se requiere una sesión válida."));
-        if (clientes.findByUsuarioId(usuarioId).isPresent()) {
+        if (clientes.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), usuarioId).isPresent()) {
             throw new NegocioException(ErrorCodigo.CONFLICTO, "Ya tiene una ficha en este negocio.");
         }
         return ClienteDto.desde(clientes.saveAndFlush(new Cliente(usuario, reloj.instant())));

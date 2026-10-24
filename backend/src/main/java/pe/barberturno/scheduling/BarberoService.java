@@ -43,7 +43,7 @@ public class BarberoService {
      * @param passwords BCrypt de coste 12
      * @param clock reloj para fechas y criterio de futuro
      * @param membresias pertenencias explícitas y comprobación de identidad compartida
-     * @param negocio ámbito transitorio actual
+     * @param negocio ámbito resuelto de la petición actual
      * @param ambito límite común de identidades gestionables según V2-DA-27
      * @param reglasNegocio lectura transaccional del cupo local RN-19
      */
@@ -69,7 +69,7 @@ public class BarberoService {
      */
     @Transactional(readOnly = true)
     public List<BarberoDto> listar(boolean incluirInactivos, boolean admin) {
-        return barberos.listar(incluirInactivos && admin).stream().map(b -> BarberoDto.desde(b, admin)).toList();
+        return barberos.listar(negocio.negocioActual().orElseThrow(), incluirInactivos && admin).stream().map(b -> BarberoDto.desde(b, admin)).toList();
     }
 
     /**
@@ -170,7 +170,7 @@ public class BarberoService {
 
     private void comprobarLimite() {
         int limite = reglasNegocio.limiteBarberosActivos();
-        if (barberos.countByActivoTrue() >= limite) {
+        if (barberos.countByActivoTrue(negocio.negocioActual().orElseThrow()) >= limite) {
             throw new NegocioException(ErrorCodigo.LIMITE_BARBEROS_ACTIVOS,
                     "Solo puede haber " + limite + " barberos activos en este negocio.");
         }

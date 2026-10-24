@@ -33,6 +33,7 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
             IdentidadEsquemaPruebas.comprobar(jdbc, datos.cliente());
             VinculoActivoEsquemaPruebas.comprobar(jdbc, datos.cliente());
+            IndicesNegocioEsquemaPruebas.comprobar(jdbc);
             assertThat(datos.reserva()).isEqualTo(100);
             for (String tabla : EsquemaV2IT.TABLAS) {
                 assertThat(jdbc.queryForObject("select count(*) from " + tabla + " where negocio_id=1", Integer.class)).as(tabla).isEqualTo(1);

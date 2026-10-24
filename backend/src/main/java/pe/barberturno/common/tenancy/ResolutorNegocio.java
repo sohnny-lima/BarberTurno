@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.util.OptionalLong;
 import org.springframework.core.env.Environment;
@@ -18,6 +19,7 @@ import pe.barberturno.common.security.RespuestaSeguridad;
  * La cadena única de SecurityConfig ve los mismos getters que MVC 7.0. Se recalcula también RequestPath,
  * que FilterChainProxy puede haber cacheado antes; se restaura al salir. El reset del firewall no
  * altera los getters del envoltorio exterior. CSRF y DA-22 reciben así la misma ruta que el controlador.
+ * La respuesta conserva el prefijo en Location para que el URI canónico de una reserva no salte al alias.
  * No es un bean Filter: solo se registra dentro de Spring Security, nunca en el contenedor.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
@@ -60,6 +62,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
         try {
             String ruta = request.getRequestURI().substring(request.getContextPath().length());
             HttpServletRequest efectiva = request;
+            HttpServletResponse salida = response;
             OptionalLong id = OptionalLong.empty();
             if (ruta.equals("/api/n") || ruta.startsWith("/api/n/")) {
                 String[] partes = ruta.split("/", 5);
@@ -70,13 +73,14 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 id = directorio.buscar(partes[3]);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
                 efectiva = new PeticionNegocio(request, "/api/" + partes[4]);
+                salida = new RespuestaNegocio(response, request.getContextPath() + "/api/n/" + partes[3] + "/");
             } else if (ruta.startsWith("/api/") && !esGlobal(ruta)) {
                 id = directorio.buscar(alias);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
             }
             contexto.fijar(id);
             ServletRequestPathUtils.parseAndCache(efectiva);
-            chain.doFilter(efectiva, response);
+            chain.doFilter(efectiva, salida);
         } finally {
             contexto.limpiar();
             ServletRequestPathUtils.setParsedRequestPath(anterior, request);
@@ -100,5 +104,16 @@ public class ResolutorNegocio extends OncePerRequestFilter {
         @Override public String getRequestURI() { return getContextPath() + ruta; }
         @Override public String getServletPath() { return ruta; }
         @Override public String getPathInfo() { return null; }
+    }
+
+    private static final class RespuestaNegocio extends HttpServletResponseWrapper {
+        private final String prefijo;
+        RespuestaNegocio(HttpServletResponse response, String prefijo) { super(response); this.prefijo = prefijo; }
+        private String localizar(String nombre, String valor) {
+            return nombre.equalsIgnoreCase("Location") && valor != null && valor.startsWith("/api/")
+                    ? prefijo + valor.substring("/api/".length()) : valor;
+        }
+        @Override public void setHeader(String nombre, String valor) { super.setHeader(nombre, localizar(nombre, valor)); }
+        @Override public void addHeader(String nombre, String valor) { super.addHeader(nombre, localizar(nombre, valor)); }
     }
 }

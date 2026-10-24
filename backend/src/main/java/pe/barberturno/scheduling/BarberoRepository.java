@@ -31,17 +31,20 @@ public interface BarberoRepository extends RepositorioTransaccional<Barbero, Lon
 
     /**
      * Cuenta perfiles habilitados del contexto RLS después del bloqueo RN-19, sin depender del rol vinculado.
+     * @param negocioId ámbito explícito del conteo, adicional a RLS
      * @return cantidad actual de perfiles activos
      */
-    long countByActivoTrue();
+    @Query("select count(b) from Barbero b where b.negocioId = :negocioId and b.activo = true")
+    long countByActivoTrue(@Param("negocioId") long negocioId);
 
     /**
      * Carga perfiles y usuarios para la proyección RF-05, ordenados por nombre sin distinguir mayúsculas e id.
      * @param incluirInactivos permiso concedido solo a ADMIN por el controlador
+     * @param negocioId ámbito explícito de los perfiles, adicional a RLS
      * @return perfiles ordenados con usuario disponible
      */
-    @Query("select b from Barbero b join fetch b.usuario u where :incluirInactivos = true or b.activo = true order by lower(b.nombreVisible), b.id")
-    List<Barbero> listar(@Param("incluirInactivos") boolean incluirInactivos);
+    @Query("select b from Barbero b join fetch b.usuario u where b.negocioId = :negocioId and (:incluirInactivos = true or b.activo = true) order by lower(b.nombreVisible), b.id")
+    List<Barbero> listar(@Param("negocioId") long negocioId, @Param("incluirInactivos") boolean incluirInactivos);
 
     /**
      * Obtiene solo la identidad vinculada para bloquear usuario antes que perfil, sin cargar entidades obsoletas.
@@ -72,7 +75,9 @@ public interface BarberoRepository extends RepositorioTransaccional<Barbero, Lon
 
     /**
      * Selecciona perfiles habilitados RF-21 sin cargar cuentas ni datos personales.
+     * @param negocioId ámbito explícito de la disponibilidad pública
      * @return perfiles activos ordenados por identidad
      */
-    List<Barbero> findByActivoTrueOrderByIdAsc();
+    @Query("select b from Barbero b where b.negocioId = :negocioId and b.activo = true order by b.id")
+    List<Barbero> findByActivoTrueOrderByIdAsc(@Param("negocioId") long negocioId);
 }

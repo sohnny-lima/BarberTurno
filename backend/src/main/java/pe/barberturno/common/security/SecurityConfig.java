@@ -132,6 +132,7 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
                 .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas, entorno), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new RolNegocioFilter(contexto, respuestas), PasswordTemporalFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
                 .authorizeHttpRequests(permisos -> {
                     permisos.requestMatchers(SpaForwardFilter::esRecursoPublico).permitAll();

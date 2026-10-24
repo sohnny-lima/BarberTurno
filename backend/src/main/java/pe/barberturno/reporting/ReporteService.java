@@ -27,6 +27,7 @@ import pe.barberturno.reporting.dto.ConteoReporteDto;
 @Service
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class ReporteService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ReporteRepository reportes;
     private final ReporteExcelService excel;
     private final ServicioRepository servicios;
@@ -34,13 +35,15 @@ public class ReporteService {
 
     /**
      * Delega los conteos a proyecciones agregadas sin cargar reservas.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param reportes persistencia escalar de los tres desgloses
      * @param excel serialización OOXML con comprobación de la invariante RF-14
      * @param servicios catálogo para resolver el filtro cuando no hay reservas
      * @param barberos perfiles para resolver el filtro cuando no hay reservas
      */
     public ReporteService(ReporteRepository reportes, ReporteExcelService excel,
-            ServicioRepository servicios, BarberoRepository barberos) {
+            ServicioRepository servicios, BarberoRepository barberos, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.reportes = reportes;
         this.excel = excel;
         this.servicios = servicios;
@@ -63,7 +66,7 @@ public class ReporteService {
             throw new NegocioException(ErrorCodigo.PROHIBIDO, "No tiene permiso para consultar reportes.");
         }
         ReservaFiltros.validarRango(desde, hasta, true);
-        var filtros = ReservaFiltros.criterio(null, barberoId, servicioId, null, desde, hasta);
+        var filtros = ReservaFiltros.criterio(negocio.negocioActual().orElseThrow(), null, barberoId, servicioId, null, desde, hasta);
         var estados = new EnumMap<EstadoReserva, Long>(EstadoReserva.class);
         for (var estado : EstadoReserva.values()) estados.put(estado, 0L);
         estados.putAll(reportes.porEstado(filtros));

@@ -48,7 +48,7 @@ public class AuthService {
      * @param passwords BCrypt de coste 12
      * @param clock reloj de negocio
      * @param membresias pertenencias explícitas sin CRUD global
-     * @param negocio ámbito transitorio de la petición
+     * @param negocio ámbito resuelto por la ruta o por un ejecutor explícito
      * @param clientes fichas locales para calcular el papel de cliente en cada petición
      */
     public AuthService(UsuarioRepository usuarios, BarberoRepository barberos,

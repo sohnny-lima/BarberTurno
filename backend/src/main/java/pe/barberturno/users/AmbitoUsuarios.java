@@ -42,7 +42,7 @@ public class AmbitoUsuarios {
             var ficha = consulta.subquery(Long.class);
             var c = ficha.from(Cliente.class);
             ficha.select(c.get("usuario").get("id")).where(cb.equal(c.get("usuario").get("id"), raiz.get("id")),
-                    cb.isTrue(c.get("activo")));
+                    cb.equal(c.get("negocioId"), negocioId), cb.isTrue(c.get("activo")));
             return cb.or(cb.exists(local), cb.exists(ficha));
         };
     }

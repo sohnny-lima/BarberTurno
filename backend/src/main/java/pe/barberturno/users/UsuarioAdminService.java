@@ -97,7 +97,7 @@ public class UsuarioAdminService {
             var fichas = consulta.subquery(Long.class);
             var c = fichas.from(Cliente.class);
             fichas.select(c.get("usuario").get("id")).where(cb.equal(c.get("usuario").get("id"), raiz.get("id")),
-                    cb.isTrue(c.get("activo")));
+                    cb.equal(c.get("negocioId"), negocio.negocioActual().orElseThrow()), cb.isTrue(c.get("activo")));
             var rolFiltro = rol == null ? cb.conjunction() : switch (rol) {
                 case ADMIN -> gestor;
                 case BARBERO -> cb.and(cb.exists(personal), cb.not(gestor));

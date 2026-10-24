@@ -92,6 +92,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
             IdentidadEsquemaPruebas.comprobar(jdbc, a.cliente());
             VinculoActivoEsquemaPruebas.comprobar(jdbc, a.cliente());
+            IndicesNegocioEsquemaPruebas.comprobar(jdbc);
             for (String tabla : EsquemaV2IT.TABLAS) {
                 assertThat(jdbc.queryForList("select distinct negocio_id from " + tabla, Long.class)).as(tabla).containsExactly(1L);
             }

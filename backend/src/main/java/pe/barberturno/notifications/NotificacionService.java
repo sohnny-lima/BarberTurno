@@ -21,15 +21,18 @@ import pe.barberturno.users.Usuario;
  */
 @Service
 public class NotificacionService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final NotificacionRepository notificaciones;
     private final Clock clock;
 
     /**
      * Recibe persistencia y reloj, sin canal externo de envío.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param notificaciones repositorio de avisos internos
      * @param clock reloj inyectado del servidor
      */
-    public NotificacionService(NotificacionRepository notificaciones, Clock clock) {
+    public NotificacionService(NotificacionRepository notificaciones, Clock clock, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.notificaciones = notificaciones;
         this.clock = clock;
     }
@@ -49,7 +52,7 @@ public class NotificacionService {
             throw new NegocioException(ErrorCodigo.VALIDACION,
                     "La página debe ser al menos 0 y el tamaño debe estar entre 1 y 100.");
         }
-        var resultado = notificaciones.listarPropias(actor.id(), soloNoLeidas,
+        var resultado = notificaciones.listarPropias(negocio.negocioActual().orElseThrow(), actor.id(), soloNoLeidas,
                 PageRequest.of(pagina, tamano, Sort.by(Sort.Direction.DESC, "creadoEn", "id")));
         return PaginaDto.desde(resultado.map(NotificacionDto::desde));
     }
@@ -61,7 +64,7 @@ public class NotificacionService {
      */
     @Transactional(readOnly = true)
     public ConteoNotificacionesDto conteo(UsuarioAutenticado actor) {
-        return new ConteoNotificacionesDto(notificaciones.contarNoLeidas(actor.id()));
+        return new ConteoNotificacionesDto(notificaciones.contarNoLeidas(negocio.negocioActual().orElseThrow(), actor.id()));
     }
 
     /**
@@ -83,7 +86,7 @@ public class NotificacionService {
      */
     @Transactional
     public void marcarTodasLeidas(UsuarioAutenticado actor) {
-        notificaciones.marcarTodasLeidas(actor.id());
+        notificaciones.marcarTodasLeidas(negocio.negocioActual().orElseThrow(), actor.id());
     }
 
     /**

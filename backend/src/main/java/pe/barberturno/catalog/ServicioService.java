@@ -16,15 +16,18 @@ import pe.barberturno.common.error.NegocioException;
  */
 @Service
 public class ServicioService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ServicioRepository servicios;
     private final Clock clock;
 
     /**
      * Inyecta catálogo y Clock para fechar cambios RF-04 sin depender del reloj global.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param servicios catálogo persistido
      * @param clock reloj para creación y actualización
      */
-    public ServicioService(ServicioRepository servicios, Clock clock) {
+    public ServicioService(ServicioRepository servicios, Clock clock, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.servicios = servicios;
         this.clock = clock;
     }
@@ -36,7 +39,7 @@ public class ServicioService {
      */
     @Transactional(readOnly = true)
     public List<ServicioDto> listar(boolean incluirInactivos) {
-        return servicios.listar(incluirInactivos).stream().map(ServicioDto::desde).toList();
+        return servicios.listar(negocio.negocioActual().orElseThrow(), incluirInactivos).stream().map(ServicioDto::desde).toList();
     }
 
     /**
@@ -96,7 +99,7 @@ public class ServicioService {
     }
 
     private void comprobarNombre(String nombre, Long id) {
-        servicios.buscarPorNombre(nombre).filter(s -> !s.getId().equals(id)).ifPresent(s -> {
+        servicios.buscarPorNombre(negocio.negocioActual().orElseThrow(), nombre).filter(s -> !s.getId().equals(id)).ifPresent(s -> {
             throw new NegocioException(ErrorCodigo.NOMBRE_DUPLICADO, "Ya existe un servicio con ese nombre.");
         });
         // saveAndFlush hace visible una colisión concurrente al manejador de servicio_nombre_uk.

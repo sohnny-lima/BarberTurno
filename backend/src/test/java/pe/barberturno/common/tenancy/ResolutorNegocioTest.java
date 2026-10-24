@@ -2,6 +2,8 @@ package pe.barberturno.common.tenancy;
 
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.*;
 import org.springframework.web.util.ServletRequestPathUtils;
@@ -19,17 +21,32 @@ class ResolutorNegocioTest {
         return new ResolutorNegocio(contexto, directorio, new RespuestaSeguridad(new JsonMapper()), entorno);
     }
 
-    @Test void prefijo_recalculaLosTresGettersYRequestPath_yLimpiaInclusoConError() {
-        var request = new MockHttpServletRequest("GET", "/api/n/a/servicios");
+    @Test void prefijo_localizaLocation_yConservaLasDemasCabeceras() throws Exception {
+        when(directorio.buscar("a")).thenReturn(OptionalLong.of(2));
+        var respuesta = new MockHttpServletResponse();
+        filtro().doFilter(new MockHttpServletRequest("POST", "/api/n/a/reservas"), respuesta, (req, res) -> {
+            var salida = (jakarta.servlet.http.HttpServletResponse) res;
+            salida.setHeader("Location", "/api/reservas/1");
+            salida.addHeader("Set-Cookie", "ficticia=sin-secreto");
+        });
+        assertThat(respuesta.getHeader("Location")).isEqualTo("/api/n/a/reservas/1");
+        assertThat(respuesta.getHeader("Set-Cookie")).isEqualTo("ficticia=sin-secreto");
+        assertThat(contexto.delimitado()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"", "/barberturno"})
+    void prefijo_recalculaLosTresGettersYRequestPath_yLimpiaInclusoConError(String contextPath) {
+        var request = new MockHttpServletRequest("GET", contextPath + "/api/n/a/servicios");
+        request.setContextPath(contextPath);
         request.setServletPath("/api/n/a/servicios");
         var previo = ServletRequestPathUtils.parseAndCache(request);
         when(directorio.buscar("a")).thenReturn(OptionalLong.of(2));
         assertThatThrownBy(() -> filtro().doFilter(request, new MockHttpServletResponse(), (req, res) -> {
             var efectiva = (jakarta.servlet.http.HttpServletRequest) req;
-            assertThat(efectiva.getRequestURI()).isEqualTo("/api/servicios");
+            assertThat(efectiva.getRequestURI()).isEqualTo(contextPath + "/api/servicios");
             assertThat(efectiva.getServletPath()).isEqualTo("/api/servicios");
             assertThat(efectiva.getPathInfo()).isNull();
-            assertThat(ServletRequestPathUtils.getParsedRequestPath(efectiva).value()).isEqualTo("/api/servicios");
+            assertThat(ServletRequestPathUtils.getParsedRequestPath(efectiva).pathWithinApplication().value()).isEqualTo("/api/servicios");
             assertThat(contexto.negocioActual()).hasValue(2);
             throw new IllegalStateException("Fallo simulado");
         })).isInstanceOf(IllegalStateException.class).hasMessage("Fallo simulado");

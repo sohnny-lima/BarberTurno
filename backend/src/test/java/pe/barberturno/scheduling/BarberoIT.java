@@ -194,15 +194,15 @@ class BarberoIT {
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true))
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.codigo").value("LIMITE_BARBEROS_ACTIVOS"));
         assertThat(usuarios.findByCorreo("nuevo@ejemplo.test")).isEmpty();
-        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
+        assertThat(jdbc.<Long>enTransaccion(() -> barberos.countByActivoTrue(1L))).isEqualTo(10);
         assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isTrue();
         assertThat(barberos.findById(inactivo.getId()).orElseThrow().isActivo()).isFalse();
         assertThat(jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId())).isEqualTo(cuentaAntes);
-        long activo = jdbc.enTransaccion(() -> barberos.listar(false).getFirst().getId());
+        long activo = jdbc.enTransaccion(() -> barberos.listar(1L, false).getFirst().getId());
         escribir("PATCH", activo, admin, Map.of("activo", true)).andExpect(status().isOk());
         escribir("PATCH", activo, admin, Map.of("activo", false)).andExpect(status().isOk());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
-        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
+        assertThat(jdbc.<Long>enTransaccion(() -> barberos.countByActivoTrue(1L))).isEqualTo(10);
         assertThat(jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId())).isEqualTo(cuentaAntes);
     }
 
@@ -246,7 +246,7 @@ class BarberoIT {
             assertThat(estados.stream().filter(s -> s == 200 || s == 201).count()).isEqualTo(1);
             assertThat(estados.stream().filter(s -> s == 422).count()).isEqualTo(1);
         }
-        assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
+        assertThat(jdbc.<Long>enTransaccion(() -> barberos.countByActivoTrue(1L))).isEqualTo(10);
         assertThat(usuarios.count()).isEqualTo(barberos.count() + 1);
     }
 

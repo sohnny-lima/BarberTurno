@@ -27,6 +27,10 @@ public class Barbero {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Solo lectura: el INSERT conserva DEFAULT app_negocio_actual() y RLS WITH CHECK.
+    @jakarta.persistence.Column(name = "negocio_id", insertable = false, updatable = false, nullable = false)
+    private Long negocioId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
