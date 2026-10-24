@@ -86,8 +86,9 @@ Por qué este orden: el riesgo técnico mayor (aislamiento con RLS sobre el cód
 | V2-01 | **Integrada en `v2`** (merge `03088b3`, autorizada por el responsable); CI 39923701628 **success** | 23/10/2026 | `c088082`, `46c8a0c` (preparación); `6cf76d4`, `91719ea`, `d017597` (implementación); `7626d97` (cierre 076); `e024373` (V2-DA-23 y CA-13); `a097714`, `f919ad1`, `4a04932` (correcciones 077) | Rama `tarea/V2-01-fundacion-aislamiento`; sin merge; cierre documental en el commit que contiene esta fila; CA-1…CA-13 cumplen |
 | V2-02 | **Integrada en `v2`** (merge `ba7f909`, autorizada por el responsable); CI 39997662362 **success** | 23/10/2026 | `58bded8` (alcance), `dd522da` (bloqueo 078), `96542db` (V2-DA-26), `4bdfec7`, `7387ebe` (implementación y pruebas, 079), `712b87b` (bloqueo 079), `f7b7a08` (V2-DA-27), `d461567`, `4c7a89b`, `ad814e6` (080), `242437e` (Javadoc, coordinador) | Rama `tarea/V2-02-identidad-membresias`; verify 1662/0/0; CB-1…CB-7 y las cinco condiciones cumplen ([evidencia](pruebas/v2-02.md)) |
 | V2-03 | **Integrada en `v2`** (merge `497ac37`, autorizada por el responsable); CI 40078178860 **success** | 23/10/2026 | `9610550` (alcance), `fc53e11`, `b62cb39`, `2faf951`, `6a12c25`; cierre documental en el commit que contiene esta fila | Rama `tarea/V2-03-fichas-cliente`; verify 1694/0/0; CC-1…CC-7 y seis condiciones acreditadas; sin merge/push; [evidencia](pruebas/v2-03.md) |
-| V2-04 | **Hecha y revisada** (coordinador + Gemini g043 APROBADO); pendiente de la revisión del responsable, **sin integrar ni publicar** | 24/10/2026 | `28d6d1f` (alcance), `1f090a3` (paso 1), `c012fba` (bloqueo 082), `86eae63` (V2-DA-32), `85c9f10` (1b), `f4be479` (2), `592c8d4` (3), `2570e4c` (4), `01efa2d` (5); cierre en el commit que contiene esta fila | Rama `tarea/V2-04-reglas-negocio`; verify 1744/0/0, Javadoc sin avisos y cobertura conforme; CD-1…CD-6 y las cinco condiciones acreditadas; sin merge/push; [evidencia](pruebas/v2-04.md) |
-| V2-05 … V2-17 | Pendiente (no autorizadas) | — | — | — |
+| V2-04 | **Integrada en `v2`** (merge `fa8a05c`, autorizada por el responsable); CI 40095961161 **success** | 24/10/2026 | `28d6d1f` (alcance), `1f090a3` (paso 1), `c012fba` (bloqueo 082), `86eae63` (V2-DA-32), `85c9f10` (1b), `f4be479` (2), `592c8d4` (3), `2570e4c` (4), `01efa2d` (5); cierre en el commit que contiene esta fila | Rama `tarea/V2-04-reglas-negocio`; verify 1744/0/0, Javadoc sin avisos y cobertura conforme; CD-1…CD-6 y las cinco condiciones acreditadas; sin merge/push; [evidencia](pruebas/v2-04.md) |
+| V2-05 | En curso (autorizada tras la CI en verde) | 24/10/2026 | — | Rama `tarea/V2-05-negocio-por-peticion`; alcance en §8 |
+| V2-06 … V2-17 | Pendiente (no autorizadas) | — | — | — |
 
 **Nota de cierre V2-04 — 24/10/2026 (encargo 083, reanudación de 082).** Hecha, pendiente de revisión; sin integración. Se conserva V104 (`1f090a3`) y el diagnóstico del bloqueo (`c012fba`); el arquitecto lo resuelve en V2-DA-32 (`86eae63`). Pasos de 083: V105 y unicidad local `85c9f10`; reglas transaccionales desde negocio `f4be479`; cupo y advisory de dos claves `592c8d4`; edición/baja locales y membresía BARBERO `2570e4c`; aceptación y adaptación final de fixtures `01efa2d`; este commit documental cierra la verificación (hash propio en el informe, asunto `docs(v2): cerrar reglas por negocio con verificación completa [V2-04]`). Merge: ninguno.
 
@@ -291,3 +292,65 @@ Desviaciones/decisiones menores: esquema parcial conservado y probado, fábrica 
 - Gemini **g043 APROBADO** (aislamiento de reglas, cupo concurrente, perfil local, desactivación, migraciones y pruebas).
 - **Deuda asignada a V2-06:** para poder reactivar un perfil cuya membresía `BARBERO` se revocó al desactivarlo, `BarberoService` admite un perfil inactivo con esa membresía revocada en el negocio aunque quede fuera del ámbito. Hoy es seguro (es la única vía de revocación; Gemini lo confirma), pero cuando V2-06 añada otras revocaciones (salida del negocio, revocación por el propietario), reactivar el perfil no debe devolver un acceso retirado por otra causa.
 - Siguen diferidos los controles de §7.3; **el sistema aún no es multinegocio completo** (proveedor transitorio hasta V2-05).
+
+## 8. V2-05 · Resolución del negocio por petición: alcance concretado (autorizado el 24/10/2026)
+**Autorización:** con la CI de `v2` en verde tras integrar V2-04, el responsable autoriza V2-05 en su propia rama (`tarea/V2-05-negocio-por-peticion`, desde `v2`), **sin integrar ni publicar**. Fuera de alcance: endpoints de plataforma, invitaciones, gestión del equipo y configuración del negocio (V2-06), frontend (V2-07), WhatsApp e IA. **Completar V2-05 no hace el sistema apto para producción**: faltan la gestión (V2-06), la interfaz (V2-07) y una validación de conjunto (V2-17).
+
+### 8.1 Rutas: global, de negocio y alias legado
+| Clase | Rutas | Negocio |
+|---|---|---|
+| **Identidad global** (nunca bajo `/api/n/`) | `GET /api/auth/sesion`, `POST /api/auth/login`, `POST /api/auth/logout`, `PUT /api/auth/password`, `GET`/`PUT /api/perfil`, **`GET /api/mis-negocios`** (nueva) | Ninguno: el proveedor devuelve vacío y cualquier acceso a tablas de negocio falla cerrado |
+| **De negocio** | `/api/n/{slug}/` + `servicios`, `barberos` (con `jornadas` y `bloqueos`), `bloqueos`, `disponibilidad`, `reservas`, `notificaciones`, `reportes`, `usuarios`, `clientes`, **`GET /api/n/{slug}/sesion`** (rol en ese negocio), **`POST /api/n/{slug}/registro`** (cuenta + ficha en ese negocio) y **`POST /api/n/{slug}/clientes/alta`** (ficha para la cuenta autenticada, la alta de cuenta existente diferida de V2-03) | El de la ruta, resuelto en el servidor |
+| **Alias legado** (solo `dev`, `test` y `demo`) | Las mismas rutas de negocio **sin** prefijo (`/api/servicios`, `/api/reservas`…) y `POST /api/auth/registro` | El negocio fijado **explícitamente** por `barberturno.tenancy.alias-legado.slug`; sin esa propiedad, las rutas sin prefijo dan 404 |
+
+- `/api/n/{slug}/auth/**`, `/api/n/{slug}/perfil` y `/api/n/{slug}/mis-negocios` → 404: las operaciones de identidad no se ejecutan dentro de un negocio.
+- `GET /api/auth/sesion` devuelve la identidad global y `rol` = el rol efectivo en el negocio del alias legado si está activo (para que el frontend actual siga funcionando), o `null` si no. El rol de un negocio concreto se consulta en `GET /api/n/{slug}/sesion`.
+
+### 8.2 Mecanismo (V2-DA-33)
+1. **`ResolutorNegocio`**: filtro dentro de la cadena de Spring Security (después del cortafuegos `StrictHttpFirewall`, antes de la autenticación). Para `/api/n/{slug}/{resto}`: valida el formato del `slug`, busca el negocio por `slug` (tabla de plataforma) y, si no existe, responde **404 `NO_ENCONTRADO`** sin seguir. Si existe, guarda su id en el contexto de la petición y **envuelve** la petición para que el resto de la cadena y los controladores vean `/api/{resto}` (`getRequestURI`, `getServletPath` y `getPathInfo` coherentes). Así las reglas de `SecurityConfig`, CSRF y los controladores se aplican **sin duplicarse**: es el mismo camino que el alias.
+2. **Alias legado**: la petición sin prefijo recibe el negocio del alias por el mismo filtro y la misma autorización. No es un atajo: un usuario sin rol en el negocio del alias recibe lo mismo que en `/api/n/{slug-del-alias}/…`. Con el perfil `prod` y la propiedad del alias, la aplicación no arranca.
+3. **Contexto de la petición**: holder por petición, fijado por el filtro y **limpiado en `finally`** (también ante excepciones); `ProveedorNegocioActual` de producción lee ese holder. **Se retira** el proveedor transitorio de V2-01 (`barberturno.tenancy.negocio-unico-id`): no queda ningún negocio por defecto. Sin negocio en la petición → `OptionalLong.empty()` → `set_config` vacío → RLS no devuelve filas y la guarda de V2-DA-23 sigue activa.
+4. **Tareas sin petición** (`AdminInicialRunner`, `DatosDemoRunner`): `EjecutorEnNegocio.ejecutar(slug, acción)` explícito, con el `slug` de su configuración (`barberturno.tenancy.negocio-inicial-slug`, `barberturno.demo.negocio-slug`); si el negocio no existe, fallan con error (no eligen otro).
+5. **Autorización** (R2-03 precisado, V2-DA-34): negocio inexistente → 404; actor autenticado **sin rol** en ese negocio en una operación protegida → **403 `PROHIBIDO`** (el negocio es público por su página); recurso concreto de otro negocio → **404** (RLS + filtros explícitos). La membresía y la ficha se revalidan en cada petición con el negocio de la ruta (la revalidación de V2-02 ya usa el proveedor). Un `negocioId` enviado en el cuerpo, la consulta o una cabecera **nunca** se usa para elegir el negocio.
+6. **Filtros explícitos e índices**: las consultas **G** de la auditoría (`03-auditoria-impacto.md` §3) reciben el negocio explícito además de RLS: catálogo y barberos (`listar`, `buscarPorNombre`, `countByActivoTrue`, `findByActivoTrueOrderByIdAsc`), `ReservaFiltros` (listado, totales y reportes), avisos (lista, contador y «marcar todas»), las búsquedas de `ClienteService` y la subconsulta de fichas de `AmbitoUsuarios`. **`V106__indices_negocio.sql`**: índices que empiezan por `negocio_id` para esos accesos (reserva por barbero, por cliente y por inicio; servicio y barbero por activo; avisos por usuario; jornada, bloqueo y auditoría por su padre). Sin editar migraciones anteriores.
+7. **Cachés**: no hay cachés de aplicación ni caché de segundo nivel de Hibernate; una prueba lo comprueba (si alguna vez se añade una caché con datos de negocio, su clave debe incluir el negocio). La resolución `slug → id` no se cachea.
+8. **`GET /api/mis-negocios`**: membresías activas y fichas activas de la cuenta autenticada `[{slug, nombre, rol}]`. Lee `membresia` y `vinculo_cliente` con una operación «propias de la cuenta autenticada», añadida a la lista blanca de V2-DA-26 con ese motivo.
+
+### 8.3 Cómo se acreditan las condiciones del responsable
+| Condición | Prueba |
+|---|---|
+| Negocio por `/api/n/{slug}`; un identificador del navegador no concede permisos | `ResolucionNegocioIT`: `negocioId` falso en cuerpo, consulta y cabecera no cambia el negocio; un `slug` ajeno sin rol → 403; inexistente o mal formado → 404 |
+| Autorización por membresía vigente y rol en ese negocio; acceso público conservado | `RutasNegocioIT`: la matriz de permisos (rol × operación) con el prefijo para PROPIETARIO, ENCARGADO, BARBERO, CLIENTE y público; catálogo, barberos y disponibilidad públicos por negocio |
+| Identidad global separada de las operaciones de cada barbería | `RutasNegocioIT`: `/api/n/{slug}/auth/**` y `/perfil` → 404; `/api/auth/password` y `/api/perfil` no dependen del negocio |
+| Sin negocio por defecto ni vuelta al proveedor transitorio | `ResolucionNegocioIT`: sin prefijo y sin alias → 404; rutas globales sin acceso a datos de negocio; la propiedad transitoria ya no existe y la aplicación no la usa; `prod` con alias → no arranca |
+| Aislamiento de consultas, escrituras, relaciones y cachés | `AccesoCruzadoIT`: ids de servicio, barbero, jornada, bloqueo, reserva, ficha, aviso y usuario de B usados en lecturas y escrituras bajo `/api/n/a/…` → 404 o violación de FK, sin efectos en B; prueba de ausencia de cachés |
+| Contexto durante toda la transacción y limpieza al terminar, también con errores y reutilización de conexiones | `ContextoPeticionIT`: pool de 1 conexión; petición a A que falla a mitad y petición siguiente a B en la misma conexión → solo datos de B; peticiones concurrentes de A y B (≥ 20 repeticiones) sin cruces; el holder vacío al terminar cada petición |
+| Índices y filtros explícitos | `EsquemaV2IT` (índices de `V106`); pruebas que ejecutan las consultas **G** con RLS y comprueban el predicado explícito (inspector SQL) |
+| La misma cuenta alternando entre dos barberías con roles distintos | `RutasNegocioIT`: PROPIETARIO en A y BARBERO en B con la misma sesión, alternando peticiones `/api/n/a/…` y `/api/n/b/…` |
+| Membresías revocadas, negocios inexistentes y peticiones sin contexto | `ResolucionNegocioIT` |
+| Conservación de los recorridos existentes | Toda la suite de v1 pasa por el alias legado; un recorrido completo (registro → reserva → agenda → transición → reporte) se repite con `/api/n/{slug}` |
+
+### 8.4 Compatibilidad durante la transición
+- El **frontend actual no cambia**: usa el alias legado (`dev`/`test`/`demo`) contra el negocio único. Las pruebas E2E existentes siguen siendo válidas en local.
+- El alias es configuración explícita, con la misma autorización que la ruta prefijada; **no existe en `prod`** (v2 no se despliega hasta V2-17).
+- **V2-07** migra el frontend a `/api/n/{slug}` y **retira el alias**; hasta entonces queda registrado como deuda.
+
+### 8.5 Controles diferidos (no se adelantan)
+| Control | Tarea |
+|---|---|
+| Comportamiento de un negocio `SUSPENDIDO` (solo lectura para el personal) y su gestión | V2-06 |
+| **Reactivar un perfil profesional no debe devolver una membresía revocada por otro motivo** (deuda de V2-04) | **V2-06**, antes de introducir nuevas revocaciones |
+| Configuración del negocio por el propietario, invitaciones, equipo y plataforma | V2-06 |
+| Frontend con `/api/n/{slug}`, selector de negocio, limpieza del estado al cambiar y retirada del alias | V2-07 |
+| Persona que es personal y cliente del mismo negocio (elegir papel) | V2-07 |
+
+### 8.6 Criterios de aceptación de V2-05
+| # | Criterio |
+|---|---|
+| CE-1 | `mvnw.cmd verify` en `barberturno_v2_test` con el rol de la aplicación: todo en verde (las 1744 de V2-04 + las nuevas), JaCoCo ≥ 70 % y Javadoc sin avisos; `ConcurrenciaReservaIT` intacta. |
+| CE-2 | Las condiciones y pruebas de §8.3 acreditadas. |
+| CE-3 | Compatibilidad de §8.4: la suite existente pasa por el alias sin debilitar aserciones; el frontend no cambia; el alias no existe en `prod`. |
+| CE-4 | Ningún negocio por defecto: la propiedad transitoria y su proveedor desaparecen; ningún camino elige negocio a partir de datos del navegador. |
+| CE-5 | `V106` probada en instalación nueva y en actualización; sin editar migraciones aplicadas. |
+| CE-6 | Ningún rol que eluda RLS; propietario solo en las excepciones de V2-DA-20; suites en serie; solo bases de v2. |
+| CE-7 | Sin merge en `v2`, sin push, sin tocar `main`, Azure ni los entregables académicos. |

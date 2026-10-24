@@ -189,3 +189,15 @@
 - **Problema (bloqueo de Codex en el encargo 082, reproducido y válido):** `barbero` conserva de v1 `barbero_usuario_id_key UNIQUE (usuario_id)`, que impide que la misma cuenta tenga perfil profesional en dos negocios (`23505` con el rol de la aplicación). El DDL de `04-arquitectura-datos.md` §3.2 ya preveía sustituirla, pero ninguna tarea lo incluía; sin ello, las condiciones 4 y 5 de V2-04 no se pueden demostrar.
 - **Decisión:** migración aditiva `V105__perfil_por_negocio.sql` que elimina `barbero_usuario_id_key` y crea `barbero_usuario_uk UNIQUE (negocio_id, usuario_id)`. Las búsquedas de perfil por cuenta siguen bajo RLS (devuelven el perfil del negocio actual). Un segundo perfil de la misma cuenta en el mismo negocio sigue rechazándose.
 - **Por qué una migración nueva:** `V104` ya está aplicada en la base de pruebas; V2-DA-21 prohíbe editar migraciones aplicadas.
+
+---
+*Decisiones V2-DA-33 y V2-DA-34: alcance de V2-05 (24/10/2026). Vigentes. V2-DA-34 precisa R2-03 de `05-roles-permisos.md`.*
+
+### V2-DA-33 · Resolución del negocio por ruta con un único camino de autorización y alias legado explícito
+- **Decisión:** un filtro dentro de la cadena de Spring Security resuelve `/api/n/{slug}` (404 si no existe), fija el negocio en un contexto de petición que se limpia siempre y presenta la petición al resto de la cadena como `/api/{resto}`, de modo que las reglas de `SecurityConfig`, CSRF y los controladores existentes se aplican una sola vez y por igual. Las rutas sin prefijo son un **alias legado** de un negocio fijado por configuración (solo en `dev`/`test`/`demo`) para no tocar el frontend hasta V2-07. Se retira el proveedor transitorio de V2-01; las tareas sin petición usan un ejecutor con `slug` explícito.
+- **Por qué:** duplicar 45 reglas y 9 controladores para el prefijo abriría dos caminos de autorización que podrían divergir; el envoltorio conserva uno. El cortafuegos de Spring Security normaliza la ruta antes de resolverla.
+- **Alternativas descartadas:** mapear todos los controladores a `/api/n/{slug}/…` (duplica reglas y rehace las 1744 pruebas); negocio en una cabecera o en el JWT (V2-DA-04); cambiar ya el frontend (V2-07).
+
+### V2-DA-34 · 403 para un actor sin rol en un negocio existente; 404 para recursos de otro negocio
+- **Decisión:** precisa R2-03. El negocio existe públicamente (su página), así que un actor autenticado sin rol en él recibe **403 `PROHIBIDO`** en las operaciones protegidas. Un recurso concreto de otro negocio (reserva, ficha, aviso, perfil…) sigue dando **404**, y un negocio inexistente, **404**.
+- **Por qué:** coherente con el comportamiento de v1 por rol y sin revelar recursos ajenos; el 404 por recurso lo garantizan RLS y los filtros explícitos.
