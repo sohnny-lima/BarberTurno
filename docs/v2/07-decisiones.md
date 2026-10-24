@@ -201,3 +201,9 @@
 ### V2-DA-34 · 403 para un actor sin rol en un negocio existente; 404 para recursos de otro negocio
 - **Decisión:** precisa R2-03. El negocio existe públicamente (su página), así que un actor autenticado sin rol en él recibe **403 `PROHIBIDO`** en las operaciones protegidas. Un recurso concreto de otro negocio (reserva, ficha, aviso, perfil…) sigue dando **404**, y un negocio inexistente, **404**.
 - **Por qué:** coherente con el comportamiento de v1 por rol y sin revelar recursos ajenos; el 404 por recurso lo garantizan RLS y los filtros explícitos.
+
+### V2-DA-35 · El índice de vínculos refleja si la ficha está activa (24/10/2026)
+- **Problema (bloqueo de Codex en el encargo 084, reproducido y válido):** `GET /api/mis-negocios` debe listar las fichas **activas** de la cuenta en todos sus negocios, pero `vinculo_cliente` (V2-DA-28) solo guarda `(negocio_id, usuario_id)` y no cambia al desactivar una ficha; y la RLS de `cliente` impide consultar su estado sin el contexto de cada negocio.
+- **Decisión:** migración `V106__vinculo_cliente_activo.sql`: `vinculo_cliente.activo boolean NOT NULL`, rellenado desde `cliente` (con el contexto de cada negocio, V2-DA-19) y mantenido por el **mismo disparador** (`CREATE OR REPLACE FUNCTION` en la migración nueva, sin editar `V102`), que ahora copia `NEW.activo` en cada inserción y actualización. `mis-negocios` lee `vinculo_cliente` (`usuario_id` = cuenta autenticada, `activo`) junto con `membresia` y `negocio`, sin abrir la RLS de `cliente`. El estado activo no es un dato personal; la aplicación sigue con solo `SELECT` sobre el índice.
+- **Alternativa descartada:** recorrer cada negocio de la cuenta con su contexto y consultar `cliente` (una transacción por negocio, más compleja y más lenta).
+- **Consecuencia:** los índices de §8.2.6 pasan a `V107__indices_negocio.sql`.
