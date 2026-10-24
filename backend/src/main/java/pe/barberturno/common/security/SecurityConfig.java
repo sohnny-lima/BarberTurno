@@ -13,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
@@ -36,6 +37,19 @@ public class SecurityConfig {
      * Spring crea esta configuración al arrancar el contexto para registrar la cadena de filtros.
      */
     public SecurityConfig() {
+    }
+
+    /**
+     * Conserva el cortafuegos estricto y expresa sus rechazos como el resto de errores de la API.
+     * Las barras, puntos o porcentajes codificados pueden rechazarse antes de ResolutorNegocio.
+     * @param respuestas escritor común de ProblemDetail sin trazas ni detalles del cortafuegos
+     * @return personalización del error, sin relajar ninguna protección del cortafuegos
+     */
+    @Bean
+    public WebSecurityCustomizer erroresDeRuta(RespuestaSeguridad respuestas) {
+        return web -> web.requestRejectedHandler((request, response, excepcion) ->
+                respuestas.escribir(request, response, ErrorCodigo.VALIDACION,
+                        "La ruta de la petición no es válida."));
     }
 
     /**

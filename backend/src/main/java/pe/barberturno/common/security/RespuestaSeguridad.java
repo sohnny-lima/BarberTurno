@@ -6,6 +6,7 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import org.springframework.http.ProblemDetail;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.json.JsonMapper;
 import pe.barberturno.common.error.ErrorCodigo;
 
@@ -26,7 +27,8 @@ public class RespuestaSeguridad {
 
     /**
      * Escribe estado HTTP y application/problem+json sin trazas ni secretos; añade código estable y URI de
-     * petición (MJ-18).
+     * petición (MJ-18). Escapa la instancia si el cortafuegos recibe una URI inválida, por ejemplo una
+     * barra invertida o un porcentaje incompleto, para que el propio error no provoque otra excepción.
      * @param request petición HTTP actual no nula
      * @param response respuesta HTTP no nula que recibe el resultado
      * @param codigo código estable no nulo del catálogo §6.2
@@ -38,7 +40,13 @@ public class RespuestaSeguridad {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(codigo.estado(), detalle);
         problema.setType(URI.create("about:blank"));
         problema.setTitle(codigo.titulo());
-        problema.setInstance(URI.create(request.getRequestURI()));
+        URI instancia;
+        try {
+            instancia = URI.create(request.getRequestURI());
+        } catch (IllegalArgumentException invalida) {
+            instancia = UriComponentsBuilder.fromPath(request.getRequestURI()).build().encode().toUri();
+        }
+        problema.setInstance(instancia);
         problema.setProperty("codigo", codigo.name());
         response.setStatus(codigo.estado().value());
         response.setContentType("application/problem+json");
