@@ -8,6 +8,15 @@ import static org.assertj.core.api.Assertions.*;
 class EsquemaV2IT extends TenancyPruebaBase {
     static final List<String> TABLAS = List.of("servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "cliente");
 
+    @Test void reglasLocales_columnasYValoresInicialesDeV104() {
+        assertThat(jdbc.queryForMap("select data_type, is_nullable, column_default from information_schema.columns where table_name='negocio' and column_name='tolerancia_inicio_min'"))
+                .containsEntry("data_type", "smallint").containsEntry("is_nullable", "NO").containsEntry("column_default", "15");
+        assertThat(jdbc.queryForMap("select is_nullable, character_maximum_length from information_schema.columns where table_name='barbero' and column_name='nombre_visible'"))
+                .containsEntry("is_nullable", "NO").containsEntry("character_maximum_length", 100);
+        assertThat(jdbc.queryForMap("select is_nullable, character_maximum_length from information_schema.columns where table_name='barbero' and column_name='telefono_contacto'"))
+                .containsEntry("is_nullable", "YES").containsEntry("character_maximum_length", 16);
+    }
+
     @Test
     void rolReal_noEsPropietarioNiTienePrivilegiosEspeciales() {
         assertThat(jdbc.queryForObject("select current_user", String.class)).isEqualTo("barberturno_v2_app");

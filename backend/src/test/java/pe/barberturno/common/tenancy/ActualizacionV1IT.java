@@ -77,6 +77,9 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             var jdbc = jdbc(aplicacion);
             contexto(aplicacion, 1L);
             assertThat(huellas(jdbc)).isEqualTo(huellas);
+            assertThat(jdbc.queryForObject("select tolerancia_inicio_min from negocio where id=1", Integer.class)).isEqualTo(15);
+            assertThat(jdbc.queryForObject("select count(*) from barbero b join usuario u on u.id=b.usuario_id where b.nombre_visible is distinct from u.nombre or b.telefono_contacto is distinct from u.telefono", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from barbero", Integer.class)).isEqualTo(2);
             assertThat(jdbc.queryForObject("select count(*) from cliente", Integer.class))
                     .isEqualTo(jdbc.queryForObject("select count(*) from usuario where rol='CLIENTE'", Integer.class));
             assertThat(jdbc.queryForObject("select count(*) from cliente c join usuario u on u.id=c.usuario_id where c.id<>u.id or c.nombre<>u.nombre or c.telefono is distinct from u.telefono or not c.activo or c.privacidad_aceptada_en is distinct from u.privacidad_aceptada_en or c.creado_en<>u.creado_en or c.actualizado_en<>u.actualizado_en", Integer.class)).isZero();
@@ -149,7 +152,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
     private static Map<String, String> huellas(JdbcTemplate jdbc) {
         var resultado = new LinkedHashMap<String, String>();
         for (String tabla : TABLAS) {
-            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma')::text, ',' order by id)) from " + tabla + " t", String.class));
+            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto')::text, ',' order by id)) from " + tabla + " t", String.class));
         }
         return resultado;
     }

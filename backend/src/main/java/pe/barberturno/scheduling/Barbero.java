@@ -14,9 +14,10 @@ import java.util.Objects;
 import pe.barberturno.users.Usuario;
 
 /**
- * Perfil de atención vinculado a una cuenta del personal (RN-26); su estado controla disponibilidad según RN-06.
+ * Perfil de atención de un negocio vinculado a una cuenta del personal (RN-26).
+ * Copia inicialmente nombre y teléfono de la cuenta a los datos locales; su estado controla RN-06.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 2.0
  */
 @Entity
 @Table(name = "barbero")
@@ -29,6 +30,12 @@ public class Barbero {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
+
+    @Column(name = "nombre_visible", nullable = false, length = 100)
+    private String nombreVisible;
+
+    @Column(name = "telefono_contacto", length = 16)
+    private String telefonoContacto;
 
     @Column(name = "especialidad", nullable = false, length = 100)
     private String especialidad;
@@ -49,17 +56,19 @@ public class Barbero {
     }
 
     /**
-     * Crea barbero vinculado a un usuario.
+     * Crea un perfil y copia nombre y teléfono de la cuenta como datos iniciales del negocio.
      * @param usuario cuenta vinculada por usuario_id; no nula; el perfil de barbero también puede pertenecer a
      * ADMIN
      * @param especialidad texto descriptivo de hasta 100 caracteres; no restringe los servicios que puede
      * atender (C-12)
      * @param creadoEn instante absoluto de creación, aportado por el Clock del servicio y persistido como
      * timestamptz; no nulo
-     * @throws NullPointerException si falta un dato obligatorio.
+     * @throws NullPointerException si faltan cuenta, nombre inicial, especialidad o instante de creación
      */
     public Barbero(Usuario usuario, String especialidad, Instant creadoEn) {
         this.usuario = Objects.requireNonNull(usuario, "usuario");
+        this.nombreVisible = Objects.requireNonNull(usuario.getNombre(), "nombreVisible");
+        this.telefonoContacto = usuario.getTelefono();
         this.especialidad = Objects.requireNonNull(especialidad, "especialidad");
         this.activo = true;
         this.creadoEn = Objects.requireNonNull(creadoEn, "creadoEn");

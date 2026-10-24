@@ -26,6 +26,10 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
             }
             contexto(conexion, 1L);
             var datos = DatosNegocioPrueba.crear(jdbc, "instalacion");
+            assertThat(jdbc.queryForObject("select tolerancia_inicio_min from negocio where id=1", Integer.class)).isEqualTo(15);
+            assertThat(jdbc.queryForObject("select nombre_visible from barbero where id=?", String.class, datos.barbero())).isEqualTo("Profesional ficticio");
+            assertThat(jdbc.queryForMap("select is_nullable, character_maximum_length from information_schema.columns where table_name='barbero' and column_name='nombre_visible'"))
+                    .containsEntry("is_nullable", "NO").containsEntry("character_maximum_length", 100);
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
             IdentidadEsquemaPruebas.comprobar(jdbc, datos.cliente());
             assertThat(datos.reserva()).isEqualTo(100);
