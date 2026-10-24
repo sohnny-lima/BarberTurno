@@ -184,3 +184,8 @@
 - **Decisión:** `barbero.nombre_visible`, `telefono_contacto` y `especialidad` son datos del negocio y el negocio nunca escribe la cuenta. Desactivar el perfil no toca `usuario` (ni `activo` ni `token_version`); revoca la membresía `BARBERO` de ese negocio, si existe, y reactivarlo la restablece. Las membresías de gestión y las de otros negocios no cambian.
 - **Por qué:** en v1, desactivar a un barbero bloqueaba su cuenta, que era de una sola barbería. En v2, la cuenta puede trabajar en otros negocios (V2-RN-16): el efecto local equivalente es quitarle el acceso a ese negocio, con efecto inmediato gracias a la revalidación por petición.
 - **Consecuencia:** el 409 `IDENTIDAD_COMPARTIDA` al editar el perfil desaparece; se mantiene en el restablecimiento de contraseña y en el estado de la cuenta.
+
+### V2-DA-32 · Un perfil profesional por cuenta y negocio (24/10/2026)
+- **Problema (bloqueo de Codex en el encargo 082, reproducido y válido):** `barbero` conserva de v1 `barbero_usuario_id_key UNIQUE (usuario_id)`, que impide que la misma cuenta tenga perfil profesional en dos negocios (`23505` con el rol de la aplicación). El DDL de `04-arquitectura-datos.md` §3.2 ya preveía sustituirla, pero ninguna tarea lo incluía; sin ello, las condiciones 4 y 5 de V2-04 no se pueden demostrar.
+- **Decisión:** migración aditiva `V105__perfil_por_negocio.sql` que elimina `barbero_usuario_id_key` y crea `barbero_usuario_uk UNIQUE (negocio_id, usuario_id)`. Las búsquedas de perfil por cuenta siguen bajo RLS (devuelven el perfil del negocio actual). Un segundo perfil de la misma cuenta en el mismo negocio sigue rechazándose.
+- **Por qué una migración nueva:** `V104` ya está aplicada en la base de pruebas; V2-DA-21 prohíbe editar migraciones aplicadas.
