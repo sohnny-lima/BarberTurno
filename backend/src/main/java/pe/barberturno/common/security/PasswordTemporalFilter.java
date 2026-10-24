@@ -38,6 +38,7 @@ public class PasswordTemporalFilter extends OncePerRequestFilter {
         String ruta = request.getServletPath();
         if (ruta.isEmpty()) ruta = request.getRequestURI().substring(request.getContextPath().length());
         boolean permitida = SpaForwardFilter.esRecursoPublico(request) || ruta.startsWith("/api/auth/")
+                || ("POST".equals(request.getMethod()) && ruta.equals("/api/registro"))
                 || ("GET".equals(request.getMethod()) && "/api/perfil".equals(ruta));
         if (!permitida && autenticacion != null
                 && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario

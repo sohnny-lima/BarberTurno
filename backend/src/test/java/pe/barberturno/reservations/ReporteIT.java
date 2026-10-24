@@ -226,7 +226,8 @@ class ReporteIT extends ReservaPruebaBase {
             SqlPruebas.limpiar();
             mvc.perform(peticion("/api/reportes/resumen", "2026-10-01", "2026-10-01", servicioId, barberoId))
                     .andExpect(status().isOk());
-            var sql = SqlPruebas.sentencias();
+            assertThat(SqlPruebas.sentencias().stream().filter(s -> s.startsWith("select id from negocio where slug="))).hasSize(1);
+            var sql = SqlPruebas.sentencias().stream().filter(s -> !s.startsWith("select id from negocio where slug=")).toList();
             assertThat(sql).hasSize(6); // Usuario, membresía y perfil; las mismas tres agregaciones de v1.
             assertThat(sql.stream().filter(s -> s.contains("from membresia"))).hasSize(1);
             assertThat(sql.stream().filter(s -> !s.contains("from membresia"))).hasSize(5);

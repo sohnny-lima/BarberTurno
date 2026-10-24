@@ -27,7 +27,8 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
         // La autenticación pública permite sustituir o borrar una cookie caducada o revocada.
         String ruta = request.getRequestURI().substring(request.getContextPath().length());
         if ("POST".equals(request.getMethod()) && ("/api/auth/logout".equals(ruta)
-                || "/api/auth/login".equals(ruta) || "/api/auth/registro".equals(ruta))) return null;
+                || "/api/auth/login".equals(ruta) || "/api/auth/registro".equals(ruta)
+                || "/api/registro".equals(ruta))) return null;
         if (request.getCookies() == null) return null;
         String token = null;
         for (var cookie : request.getCookies()) {

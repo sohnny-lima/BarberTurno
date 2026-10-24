@@ -8,7 +8,8 @@ import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.customers.dto.*;
 
 /**
- * API local de fichas, solo para PROPIETARIO/ENCARGADO; PATCH exige sesión y CSRF.
+ * Consulta y edición de fichas para PROPIETARIO/ENCARGADO y alta propia para cualquier cuenta.
+ * Todas las escrituras exigen sesión y CSRF.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
@@ -16,12 +17,24 @@ import pe.barberturno.customers.dto.*;
 @RequestMapping("/api/clientes")
 public class ClienteController {
     private final ClienteService clientes;
+    private final ClienteAltaService altas;
 
     /**
      * Delega persistencia y autorización del ámbito al servicio Java.
      * @param clientes operaciones transaccionales sobre fichas
+     * @param altas creación de la ficha propia, disponible para toda cuenta autenticada
      */
-    public ClienteController(ClienteService clientes) { this.clientes = clientes; }
+    public ClienteController(ClienteService clientes, ClienteAltaService altas) { this.clientes = clientes; this.altas = altas; }
+
+    /**
+     * Da de alta exclusivamente a la cuenta autenticada, con CSRF y sin aceptar ids del cuerpo.
+     * @param actor identidad revalidada, con cualquier rol local o sin relación previa
+     * @return ficha propia y estado 201
+     * @throws NegocioException CONFLICTO si la cuenta ya tiene una ficha en este negocio
+     */
+    @PostMapping("/alta")
+    @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    public ClienteDto alta(@AuthenticationPrincipal UsuarioAutenticado actor) { return altas.alta(actor.id()); }
 
     /**
      * GET de una ficha por su id local, con 404 uniforme para ids ajenos o inexistentes.

@@ -75,7 +75,6 @@ abstract class TenancyPruebaBase {
     @TestConfiguration(proxyBeanMethods = false)
     static class Configuracion {
         @Bean
-        @Primary
         ProveedorNegocioProgramable proveedorProgramable() {
             return new ProveedorNegocioProgramable();
         }

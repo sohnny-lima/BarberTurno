@@ -30,7 +30,7 @@ class ReservaFichaIT extends IdentidadPruebaBase {
         enNegocio(b, () -> clientes.saveAndFlush(local));
         proveedor.fijar(b);
         try {
-            mvc.perform(csrf(post("/api/reservas").contentType("application/json").content("""
+            mvc.perform(csrf(post("/api/n/negocio-b/reservas").contentType("application/json").content("""
                     {"servicioId":%d,"barberoId":%d,"inicio":"2026-10-01T11:00:00-05:00","clienteId":%d}
                     """.formatted(datosB.servicio(), datosB.barbero(), cuenta.getId())), sesion(actor)))
                     .andExpect(status().isCreated()).andExpect(jsonPath("$.cliente.id").value(cuenta.getId()))
@@ -41,14 +41,14 @@ class ReservaFichaIT extends IdentidadPruebaBase {
             assertThat(sql.queryForObject("select actor_id from auditoria_reserva where reserva_id=?", Long.class, id)).isEqualTo(actor.getId());
             assertThat(sql.queryForList("select usuario_id from notificacion where reserva_id=?", Long.class, id))
                     .containsExactlyInAnyOrder(cuenta.getId(), datosB.admin());
-            mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01")
+            mvc.perform(get("/api/n/negocio-b/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01")
                     .param("clienteId", cuenta.getId().toString()).cookie(sesion(actor)))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(1))
                     .andExpect(jsonPath("$.contenido[0].id").value(id));
-            mvc.perform(get("/api/reservas/mias").cookie(sesion(cuenta))).andExpect(status().isOk())
+            mvc.perform(get("/api/n/negocio-b/reservas/mias").cookie(sesion(cuenta))).andExpect(status().isOk())
                     .andExpect(jsonPath("$.contenido[0].permisos.cancelar").value(true))
                     .andExpect(jsonPath("$.contenido[0].cliente.telefono").doesNotExist());
-            mvc.perform(get("/api/disponibilidad").cookie(sesion(cuenta)).param("servicioId", Long.toString(datosB.servicio()))
+            mvc.perform(get("/api/n/negocio-b/disponibilidad").cookie(sesion(cuenta)).param("servicioId", Long.toString(datosB.servicio()))
                     .param("fecha", "2026-10-01").param("excluirReservaId", Long.toString(id))).andExpect(status().isOk());
         } finally { proveedor.reiniciar(); }
     }
@@ -106,9 +106,9 @@ class ReservaFichaIT extends IdentidadPruebaBase {
             assertThat(citaB.cliente().id()).isEqualTo(cuenta.getId());
             assertThat(citaB.permisos().cancelar()).isTrue();
             reservas.crear(cmd(datosB, "13:00", null), actorB);
-            mvc.perform(get("/api/reservas/mias").cookie(sesion(cuenta))).andExpect(status().isOk())
+            mvc.perform(get("/api/n/negocio-b/reservas/mias").cookie(sesion(cuenta))).andExpect(status().isOk())
                     .andExpect(jsonPath("$.contenido.length()").value(2));
-            mvc.perform(get("/api/reservas/" + citaA.id()).cookie(sesion(cuenta))).andExpect(status().isNotFound());
+            mvc.perform(get("/api/n/negocio-b/reservas/" + citaA.id()).cookie(sesion(cuenta))).andExpect(status().isNotFound());
             var movida = reservas.reprogramar(citaB.id(), new ReprogramarReservaDto(
                     TiempoNegocio.aLima(Instant.parse("2026-10-01T19:00:00Z")), null, citaB.version(), null), actorB);
             assertThat(movida.cliente().id()).isEqualTo(cuenta.getId());

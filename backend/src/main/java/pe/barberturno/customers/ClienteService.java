@@ -15,15 +15,18 @@ import pe.barberturno.platform.RolNegocio;
  */
 @Service
 public class ClienteService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ClienteRepository clientes;
     private final Clock reloj;
 
     /**
      * Recibe persistencia con RLS y el reloj para fechar la edición local.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param clientes fichas del negocio de cada transacción
      * @param reloj fuente de instantes del servicio
      */
-    public ClienteService(ClienteRepository clientes, Clock reloj) {
+    public ClienteService(ClienteRepository clientes, Clock reloj, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.clientes = clientes;
         this.reloj = reloj;
     }
@@ -38,7 +41,7 @@ public class ClienteService {
     @Transactional(readOnly = true)
     public ClienteDto obtener(long id, UsuarioAutenticado actor) {
         exigirGestion(actor);
-        return ClienteDto.desde(clientes.findById(id).orElseThrow(this::noEncontrado));
+        return ClienteDto.desde(clientes.findByNegocioIdAndId(negocio.negocioActual().orElseThrow(), id).orElseThrow(this::noEncontrado));
     }
 
     /**
@@ -52,7 +55,7 @@ public class ClienteService {
     @Transactional
     public ClienteDto editar(long id, EditarClienteDto datos, UsuarioAutenticado actor) {
         exigirGestion(actor);
-        var cliente = clientes.bloquearPorId(id).orElseThrow(this::noEncontrado);
+        var cliente = clientes.bloquearEnNegocio(negocio.negocioActual().orElseThrow(), id).orElseThrow(this::noEncontrado);
         cliente.actualizarDatos(datos.nombre(), datos.telefono(), reloj.instant());
         return ClienteDto.desde(clientes.saveAndFlush(cliente));
     }

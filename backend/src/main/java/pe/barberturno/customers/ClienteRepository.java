@@ -16,6 +16,32 @@ import pe.barberturno.common.tenancy.RepositorioTransaccional;
 @Transactional(readOnly = true)
 public interface ClienteRepository extends RepositorioTransaccional<Cliente, Long> {
     /**
+     * Obtiene una ficha con el negocio explícito además de RLS.
+     * @param negocioId ámbito resuelto por el servidor
+     * @param id identificador de ficha solicitado
+     * @return ficha local o vacío para ids ajenos
+     */
+    Optional<Cliente> findByNegocioIdAndId(long negocioId, long id);
+
+    /**
+     * Busca la ficha propia antes del alta, sin mezclar las de la misma cuenta en otros negocios.
+     * @param negocioId ámbito resuelto por el servidor
+     * @param usuarioId identidad de la sesión
+     * @return ficha propia, incluso inactiva
+     */
+    Optional<Cliente> findByNegocioIdAndUsuarioId(long negocioId, long usuarioId);
+
+    /**
+     * Bloquea la ficha local para su edición por personal autorizado.
+     * @param negocioId ámbito resuelto por el servidor
+     * @param id identificador de ficha solicitado
+     * @return ficha bloqueada o vacío si no pertenece al negocio
+     */
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Cliente c where c.negocioId = :negocioId and c.id = :id")
+    Optional<Cliente> bloquearEnNegocio(@Param("negocioId") long negocioId, @Param("id") long id);
+    /**
      * Traduce el id de cuenta del contrato web a su ficha local.
      * @param usuarioId identidad global buscada
      * @return ficha visible, si existe

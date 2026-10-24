@@ -22,18 +22,20 @@ public interface ServicioRepository extends RepositorioTransaccional<Servicio, L
      * Lee sin bloqueo; filtra activos salvo permiso para incluir inactivos y ordena por lower(nombre), coherente
      * con servicio_nombre_uk.
      * @param incluirInactivos true incluye inactivos; el controlador autoriza solo a ADMIN
+     * @param negocioId ámbito resuelto por el servidor, adicional a RLS
      * @return resultados con el orden descrito, sin comprobación adicional de permisos
      */
-    @Query("select s from Servicio s where :incluirInactivos = true or s.activo = true order by lower(s.nombre)")
-    List<Servicio> listar(@Param("incluirInactivos") boolean incluirInactivos);
+    @Query("select s from Servicio s where s.negocioId = :negocioId and (:incluirInactivos = true or s.activo = true) order by lower(s.nombre)")
+    List<Servicio> listar(@Param("negocioId") long negocioId, @Param("incluirInactivos") boolean incluirInactivos);
 
     /**
      * Busca sin bloqueo por lower, igual que servicio_nombre_uk; PostgreSQL garantiza unicidad concurrente.
      * @param nombre nombre visible no nulo; DTO o servicio valida longitud y formato
+     * @param negocioId ámbito resuelto por el servidor, adicional a RLS
      * @return resultado opcional; vacío si no existe el recurso
      */
-    @Query("select s from Servicio s where lower(s.nombre) = lower(:nombre)")
-    Optional<Servicio> buscarPorNombre(@Param("nombre") String nombre);
+    @Query("select s from Servicio s where s.negocioId = :negocioId and lower(s.nombre) = lower(:nombre)")
+    Optional<Servicio> buscarPorNombre(@Param("negocioId") long negocioId, @Param("nombre") String nombre);
 
     /**
      * Toma PESSIMISTIC_WRITE hasta fin de transacción para serializar edición y estado del servicio.

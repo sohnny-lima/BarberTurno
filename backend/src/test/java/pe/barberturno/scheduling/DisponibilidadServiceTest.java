@@ -22,7 +22,7 @@ class DisponibilidadServiceTest {
         var servicio = new DisponibilidadService(servicios, mock(BarberoRepository.class),
                 mock(JornadaRepository.class), mock(BloqueoRepository.class), reservas,
                 Clock.fixed(Instant.parse("2026-09-28T14:00:00Z"), ZoneOffset.UTC),
-                mock(pe.barberturno.common.config.ReglasNegocioService.class), actual);
+                mock(pe.barberturno.common.config.ReglasNegocioService.class), actual, () -> java.util.OptionalLong.of(1));
         assertThatThrownBy(() -> servicio.consultarFranjas(1, Optional.empty(), LocalDate.of(2026, 10, 1),
                 Optional.of(100L))).isSameAs(error);
         verifyNoInteractions(reservas, servicios);

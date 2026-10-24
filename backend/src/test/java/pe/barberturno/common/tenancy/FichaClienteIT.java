@@ -219,8 +219,8 @@ class FichaClienteIT extends IdentidadPruebaBase {
         mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("CLIENTE"));
         proveedor.fijar(b);
         try {
-            mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
-            mvc.perform(get("/api/reservas/mias").cookie(cookie)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/n/negocio-b/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
+            mvc.perform(get("/api/n/negocio-b/reservas/mias").cookie(cookie)).andExpect(status().isForbidden());
         } finally { proveedor.reiniciar(); }
         pertenencia(1L, persona, RolNegocio.BARBERO);
         mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("BARBERO"));

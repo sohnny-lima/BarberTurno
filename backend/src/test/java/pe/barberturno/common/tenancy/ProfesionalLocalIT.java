@@ -98,7 +98,7 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
         assertThat(membresias.findByNegocioIdAndUsuarioId(1L, e.usuario().getId()).orElseThrow().isActiva()).isFalse();
         mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isForbidden());
         proveedor.fijar(e.b());
-        try { mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk()); }
+        try { mvc.perform(get("/api/n/negocio-b/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk()); }
         finally { proveedor.reiniciar(); }
         var membresiaRevocada = sql.queryForMap("select * from membresia where negocio_id=1 and usuario_id=?", e.usuario().getId());
         mvc.perform(csrf(estadoPerfil(e.a().barbero(), false), sesion(e.gestor()))).andExpect(status().isOk());

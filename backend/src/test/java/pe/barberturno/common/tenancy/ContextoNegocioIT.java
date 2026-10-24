@@ -40,10 +40,10 @@ class ContextoNegocioIT extends TenancyPruebaBase {
         enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "a"));
         proveedor.fijar(1L);
         assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
-        assertThat(barberos.countByActivoTrue()).isEqualTo(1);
+        assertThat(barberos.countByActivoTrue(1L)).isEqualTo(1);
         assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
         proveedor.fijar(null);
-        assertThat(barberos.countByActivoTrue()).isZero();
+        assertThat(barberos.countByActivoTrue(1L)).isZero();
     }
 
     @Test

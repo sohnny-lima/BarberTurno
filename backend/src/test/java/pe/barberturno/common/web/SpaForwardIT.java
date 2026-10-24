@@ -80,10 +80,19 @@ class SpaForwardIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/%61pi/perfil", "/%61pi/usuarios", "/%61ctuator/env", "/v3/%61pi-docs"})
+    @ValueSource(strings = {"/%61ctuator/env", "/v3/%61pi-docs"})
     void consultarPrefijoCodificado_noEludeLaAutorizacion(String ruta) throws Exception {
         mvc.perform(get(URI.create(ruta)).accept("text/html"))
                 .andExpect(status().isUnauthorized())
+                .andExpect(result -> assertThat(result.getResponse().getForwardedUrl()).isNull());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/%61pi/perfil", "/%61pi/usuarios"})
+    void consultarApiCodificada_rechazaPorDa36SinReenvioAngular(String ruta) throws Exception {
+        mvc.perform(get(URI.create(ruta)).accept("text/html"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"))
+                .andExpect(result -> assertThat(result.getHandler()).isNull())
                 .andExpect(result -> assertThat(result.getResponse().getForwardedUrl()).isNull());
     }
 

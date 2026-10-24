@@ -20,7 +20,9 @@ logging:
 
 barberturno:
   tenancy:
-    negocio-unico-id: 1
+    alias-legado:
+      slug: barberturno
+    negocio-inicial-slug: barberturno
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}

@@ -16,22 +16,29 @@ import org.springframework.core.annotation.Order;
 @Order(0)
 public class AdminInicialRunner implements ApplicationRunner {
     private final AuthService auth;
+    private final pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor;
+    private final String slug;
     private final String correo;
     private final String password;
     private final String nombre;
 
     /**
      * Recibe servicio y configuración externa de la cuenta inicial, sin incluir sus valores en logs.
+     * @param ejecutor delimita el negocio antes de la transacción de alta
+     * @param slug negocio inicial configurado explícitamente
      * @param auth servicio no nulo de identidad y revalidación
      * @param correo correo inicial configurado; vacío indica configuración incompleta
      * @param password contraseña inicial configurada; vacía omite la cuenta, nunca se registra
      * @param nombre nombre inicial configurado; vacío omite la cuenta
      */
-    public AdminInicialRunner(AuthService auth,
+    public AdminInicialRunner(AuthService auth, pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor,
+            @Value("${barberturno.tenancy.negocio-inicial-slug:}") String slug,
             @Value("${barberturno.admin.correo:}") String correo,
             @Value("${barberturno.admin.password:}") String password,
             @Value("${barberturno.admin.nombre:}") String nombre) {
         this.auth = auth;
+        this.ejecutor = ejecutor;
+        this.slug = slug;
         this.correo = correo;
         this.password = password;
         this.nombre = nombre;
@@ -41,9 +48,11 @@ public class AdminInicialRunner implements ApplicationRunner {
      * Solicita la creación o acreditación idempotente de la cuenta inicial; omite si faltan valores
      * configurados.
      * @param args argumentos no nulos de arranque proporcionados por Spring
+     * @throws IllegalStateException si la cuenta está configurada pero su negocio explícito no existe
      */
     @Override
     public void run(ApplicationArguments args) {
-        auth.crearAdminInicial(correo, password, nombre);
+        if (correo.isBlank() || password.isBlank() || nombre.isBlank()) return;
+        ejecutor.ejecutar(slug, () -> { auth.crearAdminInicial(correo, password, nombre); return null; });
     }
 }

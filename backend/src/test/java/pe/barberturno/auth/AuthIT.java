@@ -388,8 +388,10 @@ class AuthIT {
                 .andExpect(jsonPath("$.rol").value("BARBERO"));
     }
 
+    @Autowired pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor;
+
     @Test void adminInicial_runnerIdempotente_creaUnaVezSinTelefonoNiPasswordTemporal() {
-        var runner = new AdminInicialRunner(auth, "ADMIN@EJEMPLO.TEST", "ClaveAdmin123", "Admin de prueba");
+        var runner = new AdminInicialRunner(auth, ejecutor, "barberturno", "ADMIN@EJEMPLO.TEST", "ClaveAdmin123", "Admin de prueba");
         runner.run(new DefaultApplicationArguments());
         runner.run(new DefaultApplicationArguments());
         assertThat(usuarios.count()).isEqualTo(1);
@@ -405,7 +407,7 @@ class AuthIT {
     }
 
     @Test void adminInicial_configuracionIncompleta_noCreaUsuario() {
-        new AdminInicialRunner(auth, "", "", "").run(new DefaultApplicationArguments());
+        new AdminInicialRunner(auth, ejecutor, "barberturno", "", "", "").run(new DefaultApplicationArguments());
         assertThat(usuarios.count()).isZero();
     }
 
@@ -456,7 +458,7 @@ class AuthIT {
         Cookie admin = null;
         if (!causa.equals("cambio")) {
             // El inicializador de T-10 crea el ADMIN; ninguna promoción por SQL.
-            new AdminInicialRunner(auth, "admin-recuperacion@ejemplo.test", "ClaveAdmin123", "Admin ficticio")
+            new AdminInicialRunner(auth, ejecutor, "barberturno", "admin-recuperacion@ejemplo.test", "ClaveAdmin123", "Admin ficticio")
                     .run(new DefaultApplicationArguments());
             admin = cookieSesion(login("admin-recuperacion@ejemplo.test", "ClaveAdmin123")
                     .andExpect(status().isOk()).andReturn());

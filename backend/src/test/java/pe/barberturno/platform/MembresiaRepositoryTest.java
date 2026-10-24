@@ -22,6 +22,12 @@ class MembresiaRepositoryTest {
             if (metodo.getName().equals("save")) {
                 assertThat(metodo.getParameterTypes()).containsExactly(Membresia.class);
                 assertThat(metodo.getReturnType()).isEqualTo(Membresia.class);
+            } else if (metodo.getName().equals("listarPropiasActivas")) {
+                assertThat(metodo.getParameterTypes()).containsExactly(long.class);
+                assertThat(metodo.getParameters()).extracting(java.lang.reflect.Parameter::getName).containsExactly("usuarioId");
+                assertThat(metodo.getReturnType()).isEqualTo(java.util.List.class);
+                assertThat(metodo.getAnnotation(org.springframework.data.jpa.repository.Query.class).value())
+                        .contains("m.usuarioId = :usuarioId", "m.estado = 'ACTIVA'");
             } else {
                 assertThat(Arrays.stream(metodo.getParameters()).anyMatch(p -> p.getName().equals("negocioId")))
                         .as(metodo.toString()).isTrue();

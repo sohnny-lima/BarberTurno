@@ -16,6 +16,10 @@ import pe.barberturno.users.Usuario;
 public class Cliente {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Solo lectura: el INSERT conserva DEFAULT app_negocio_actual() y RLS WITH CHECK.
+    @jakarta.persistence.Column(name = "negocio_id", insertable = false, updatable = false, nullable = false)
+    private Long negocioId;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "usuario_id", updatable = false)
     private Usuario usuario;
     @Column(nullable = false, length = 100)

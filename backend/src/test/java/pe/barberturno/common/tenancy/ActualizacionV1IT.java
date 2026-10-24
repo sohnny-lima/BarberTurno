@@ -91,6 +91,8 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             assertThat(jdbc.queryForObject("select count(*) from membresia m join usuario u on u.id=m.usuario_id where m.negocio_id=1 and m.estado='ACTIVA' and m.rol=case u.rol when 'ADMIN' then 'PROPIETARIO' else 'BARBERO' end and u.rol in ('ADMIN','BARBERO')", Integer.class)).isEqualTo(2);
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
             IdentidadEsquemaPruebas.comprobar(jdbc, a.cliente());
+            VinculoActivoEsquemaPruebas.comprobar(jdbc, a.cliente());
+            IndicesNegocioEsquemaPruebas.comprobar(jdbc);
             for (String tabla : EsquemaV2IT.TABLAS) {
                 assertThat(jdbc.queryForList("select distinct negocio_id from " + tabla, Long.class)).as(tabla).containsExactly(1L);
             }
@@ -150,6 +152,37 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             jdbc.update("update reserva set cliente_id=? where id=?", datos.admin(), datos.reserva());
         }
         assertThatThrownBy(completa::migrate).hasStackTraceContaining("V102: hay reservas cuyo cliente no es una cuenta CLIENTE");
+    }
+
+    @Test void v106_rellenaFichasActivasEInactivasDeCadaNegocioSinEludirForce() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        flyway("105").migrate();
+        long b;
+        try (var propietario = conexion(true)) {
+            b = jdbc(propietario).queryForObject("insert into negocio(slug,nombre,creado_en,actualizado_en) values ('b','Ficticio B',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id", Long.class);
+        }
+        long[] cuentas = new long[2];
+        long[] ambitos = {1L, b};
+        try (var aplicacion = conexion(false)) {
+            for (int i = 0; i < ambitos.length; i++) {
+                contexto(aplicacion, ambitos[i]);
+                var datos = DatosNegocioPrueba.crear(jdbc(aplicacion), "pre-v106-" + i);
+                cuentas[i] = datos.cliente();
+                jdbc(aplicacion).update("update cliente set activo=? where id=?", i == 0, datos.ficha());
+                aplicacion.commit();
+            }
+        }
+        completa.migrate();
+        comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            for (int i = 0; i < ambitos.length; i++) {
+                contexto(aplicacion, ambitos[i]);
+                assertThat(jdbc(aplicacion).queryForObject("select activo from vinculo_cliente where negocio_id=? and usuario_id=?", Boolean.class, ambitos[i], cuentas[i])).isEqualTo(i == 0);
+                VinculoActivoEsquemaPruebas.comprobar(jdbc(aplicacion), cuentas[i]);
+                aplicacion.commit();
+            }
+        }
     }
 
     private static Map<String, String> huellas(JdbcTemplate jdbc) {

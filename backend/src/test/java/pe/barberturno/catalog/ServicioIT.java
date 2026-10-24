@@ -192,7 +192,7 @@ class ServicioIT {
         Cookie sesion = login(Rol.ADMIN, false);
         // Simula la carrera: la comprobación aún no ve el nombre que ya protege el índice.
         // La escritura y la excepción de PostgreSQL son reales; no se simula el error.
-        doReturn(Optional.empty()).when(servicios).buscarPorNombre("cOrTe");
+        doReturn(Optional.empty()).when(servicios).buscarPorNombre(1L, "cOrTe");
         escribir(metodo, otro.getId(), sesion, datos("cOrTe", 30, "15.00"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("NOMBRE_DUPLICADO"))
                 .andExpect(jsonPath("$.detail").value("Nombre ya registrado."));

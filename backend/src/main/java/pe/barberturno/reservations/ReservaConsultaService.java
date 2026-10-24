@@ -25,6 +25,7 @@ import pe.barberturno.users.Rol;
 @Service
 @Transactional(readOnly = true)
 public class ReservaConsultaService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ReservaRepository reservas;
     private final AuditoriaRepository auditorias;
     private final ReservaAutorizacion autorizacion;
@@ -33,6 +34,7 @@ public class ReservaConsultaService {
 
     /**
      * Mantiene accesibles las relaciones durante autorización y proyección, con reloj inyectado.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param reservas persistencia paginada con carga de relaciones y conteo separados
      * @param autorizacion política única para recursos concretos
      * @param reloj fuente del instante de evaluación de permisos
@@ -40,7 +42,8 @@ public class ReservaConsultaService {
      * @param auditorias historial RF-17 con carga de actores
      */
     public ReservaConsultaService(ReservaRepository reservas, ReservaAutorizacion autorizacion,
-            Clock reloj, ReglasNegocioService reglasNegocio, AuditoriaRepository auditorias) {
+            Clock reloj, ReglasNegocioService reglasNegocio, AuditoriaRepository auditorias, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.reservas = reservas;
         this.auditorias = auditorias;
         this.autorizacion = autorizacion;
@@ -127,7 +130,7 @@ public class ReservaConsultaService {
             throw new NegocioException(ErrorCodigo.VALIDACION,
                     "La página debe ser al menos 0 y el tamaño debe estar entre 1 y 100.");
         }
-        var filtros = ReservaFiltros.criterio(clienteId, barberoId, servicioId, estado, desde, hasta);
+        var filtros = ReservaFiltros.criterio(negocio.negocioActual().orElseThrow(), clienteId, barberoId, servicioId, estado, desde, hasta);
         var resultado = reservas.findAll(filtros, PageRequest.of(pagina, tamano, Sort.by("inicio", "id")));
         var ahora = reloj.instant();
         var parametros = reglasNegocio.reservas();

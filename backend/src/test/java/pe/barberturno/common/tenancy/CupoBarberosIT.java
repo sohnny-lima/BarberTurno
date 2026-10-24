@@ -34,7 +34,7 @@ class CupoBarberosIT extends IdentidadPruebaBase {
             assertThat(codigos).containsExactlyInAnyOrder("OK", "LIMITE_BARBEROS_ACTIVOS", "LIMITE_BARBEROS_ACTIVOS");
         }
         assertThat(conexiones).hasSize(3);
-        assertThat(enNegocio(1L, barberos::countByActivoTrue)).isEqualTo(10);
+        assertThat(this.<Long>enNegocio(1L, () -> barberos.countByActivoTrue(1L))).isEqualTo(10);
     }
 
     @Test void limitesDistintos_elNegocioLlenoNoConsumeElCupoDelOtro() throws Exception {
@@ -54,8 +54,8 @@ class CupoBarberosIT extends IdentidadPruebaBase {
             return null;
         });
         enNegocio(1L, () -> profesionales.crear(alta(cuentaA)));
-        assertThat(enNegocio(b, barberos::countByActivoTrue)).isEqualTo(2);
-        assertThat(enNegocio(1L, barberos::countByActivoTrue)).isEqualTo(10);
+        assertThat(this.<Long>enNegocio(b, () -> barberos.countByActivoTrue(b))).isEqualTo(2);
+        assertThat(this.<Long>enNegocio(1L, () -> barberos.countByActivoTrue(1L))).isEqualTo(10);
     }
 
     @Test void bloqueoDeDosClaves_altaEnBTerminaMientrasASigueBloqueado() throws Exception {

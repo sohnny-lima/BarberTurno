@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Pruebas RF-16/17 y CP-18 con PostgreSQL, sesión real y reloj determinista. */
 @SpringBootTest(properties = {"barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
-        "barberturno.seguridad.cookie-secure=false", "barberturno.tenancy.negocio-unico-id=2",
+        "barberturno.seguridad.cookie-secure=false", "pruebas.negocio-id=2", "barberturno.tenancy.alias-legado.slug=manual-b",
         "spring.jpa.properties.hibernate.session_factory.statement_inspector=pe.barberturno.support.SqlPruebas"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
