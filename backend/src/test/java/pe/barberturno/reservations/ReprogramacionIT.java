@@ -55,7 +55,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
     }
 
     private Usuario admin() {
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
     }
 
@@ -149,7 +149,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
         avisos(cliente.getId(), barbero.getUsuario().getId());
         var sql = SqlPruebas.sentencias().stream().filter(s -> s.contains("for no key update")).toList();
         assertThat(sql).hasSize(3);
-        assertThat(sql.get(0)).contains("from usuario");
+        assertThat(sql.get(0)).contains("from cliente");
         assertThat(sql.get(1)).contains("from barbero", "order by");
         assertThat(sql.get(2)).contains("from reserva");
     }

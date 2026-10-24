@@ -27,7 +27,7 @@ class UsuarioAdminIT extends ReservaPruebaBase {
     @Autowired UsuarioAdminService gestion;
     Usuario admin;
     @BeforeEach void administrador() { admin = admin("primero"); }
-    Usuario admin(String nombre) { return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
+    Usuario admin(String nombre) { return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
     String estado(long id) { return "/api/usuarios/" + id + "/estado"; }
     String reset(long id) { return "/api/usuarios/" + id + "/restablecer-password"; }
     org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cambio(long id, boolean activo) { return patch(estado(id)).contentType("application/json").content(json.writeValueAsString(Map.of("activo", activo))); }

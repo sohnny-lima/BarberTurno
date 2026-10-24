@@ -3,7 +3,7 @@ package pe.barberturno.common.tenancy;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Escenario SQL completo reutilizado en aislamiento y en la actualización desde v1. */
-record DatosNegocioPrueba(long cliente, long admin, long barbero, long servicio, long reserva) {
+record DatosNegocioPrueba(long cliente, long admin, long barbero, long servicio, long reserva, long ficha) {
     static DatosNegocioPrueba crear(JdbcTemplate jdbc, String sufijo) {
         long cliente = jdbc.queryForObject("""
                 INSERT INTO usuario (nombre, correo, telefono, password_hash, rol, privacidad_aceptada_en,
@@ -28,8 +28,15 @@ record DatosNegocioPrueba(long cliente, long admin, long barbero, long servicio,
                 INSERT INTO bloqueo (barbero_id, inicio, fin, motivo, creado_por, creado_en)
                 VALUES (?, '2026-10-01T17:00-05:00', '2026-10-01T17:30-05:00', 'Prueba', ?, '2026-09-28T14:00Z')
                 """, barbero, admin);
-        long reserva = reservar(jdbc, cliente, admin, barbero, servicio, "CONFIRMADA", 0);
-        return new DatosNegocioPrueba(cliente, admin, barbero, servicio, reserva);
+        long ficha = cliente;
+        if (jdbc.queryForObject("select to_regclass('public.cliente') is not null", Boolean.class)) {
+            ficha = jdbc.queryForObject("""
+                    INSERT INTO cliente (usuario_id, nombre, telefono, privacidad_aceptada_en, creado_en, actualizado_en)
+                    SELECT id, nombre, telefono, privacidad_aceptada_en, creado_en, actualizado_en FROM usuario WHERE id=? RETURNING id
+                    """, Long.class, cliente);
+        }
+        long reserva = reservar(jdbc, ficha, admin, barbero, servicio, "CONFIRMADA", 0);
+        return new DatosNegocioPrueba(cliente, admin, barbero, servicio, reserva, ficha);
     }
 
     static long reservar(JdbcTemplate jdbc, long cliente, long admin, long barbero, long servicio, String estado, int minutos) {
@@ -44,10 +51,12 @@ record DatosNegocioPrueba(long cliente, long admin, long barbero, long servicio,
                 INSERT INTO auditoria_reserva (reserva_id, actor_id, accion, estado_nuevo, datos_nuevos, creado_en)
                 VALUES (?, ?, 'CREAR', ?, '{}', '2026-09-28T14:00Z')
                 """, reserva, admin, estado);
+        long cuenta = jdbc.queryForObject("select to_regclass('public.cliente') is not null", Boolean.class)
+                ? jdbc.queryForObject("select usuario_id from cliente where id=?", Long.class, cliente) : cliente;
         jdbc.update("""
                 INSERT INTO notificacion (usuario_id, reserva_id, tipo, mensaje, creado_en)
                 VALUES (?, ?, 'CREAR', 'Aviso de prueba', '2026-09-28T14:00Z')
-                """, cliente, reserva);
+                """, cuenta, reserva);
         return reserva;
     }
 }

@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class PerfilIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String CORREO = "perfil@ejemplo.test";
     private static final String PASSWORD = "ClavePerfil123";
@@ -328,7 +329,7 @@ class PerfilIT {
         Usuario usuario = new Usuario("Usuario de prueba", CORREO, rol == Rol.CLIENTE ? "999111222" : null,
                 passwords.encode(PASSWORD), rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant());
         if (temporal) usuario.cambiarPassword(usuario.getPasswordHash(), true, reloj.instant());
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, usuario);
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, usuario);
     }
     private Usuario vigente() { return usuarios.findByCorreo(CORREO).orElseThrow(); }
     private Cookie sesion(Usuario usuario) { return new Cookie("BT_SESION", jwt.emitir(usuario)); }

@@ -37,9 +37,10 @@ class DatosDemoRunnerIT {
     private Map<String, List<Map<String, Object>>> instantanea(JdbcNegocioPruebas jdbc) {
         var resultado = new java.util.LinkedHashMap<String, List<Map<String, Object>>>();
         for (String tabla : List.of("usuario", "membresia", "barbero", "servicio", "jornada", "bloqueo",
-                "reserva", "auditoria_reserva", "notificacion")) {
+                "reserva", "auditoria_reserva", "notificacion", "cliente")) {
             resultado.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
         }
+        resultado.put("vinculo_cliente", jdbc.queryForList("select * from vinculo_cliente order by negocio_id, usuario_id"));
         return resultado;
     }
 
@@ -81,7 +82,7 @@ class DatosDemoRunnerIT {
 
                 // Un administrador inicial ya configurado prevalece; no se crea admin-demo.
                 var usuarios = contexto.getBean(UsuarioRepository.class);
-                pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, contexto.getBean(pe.barberturno.platform.MembresiaRepository.class), new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
+                pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, contexto.getBean(pe.barberturno.platform.MembresiaRepository.class), contexto.getBean(pe.barberturno.customers.ClienteRepository.class), new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
                         contexto.getBean(PasswordEncoder.class).encode(PASSWORD), Rol.ADMIN, null, FIJO));
                 servicio.cargar(PASSWORD);
                 assertThat(usuarios.findByCorreo("admin-demo@ejemplo.test")).isEmpty();
@@ -110,6 +111,9 @@ class DatosDemoRunnerIT {
         JdbcNegocioPruebas jdbc = contexto.getBean(JdbcNegocioPruebas.class);
         assertThat(contexto.getBean(Clock.class).instant()).isEqualTo(FIJO);
         assertThat(jdbc.queryForObject("select count(*) from usuario", Integer.class)).isEqualTo(6);
+        assertThat(jdbc.queryForObject("select count(*) from cliente", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select count(*) from reserva r join cliente c on c.id=r.cliente_id join usuario u on u.id=c.usuario_id where u.rol='CLIENTE'", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select count(*) from barbero", Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject("select count(*) from jornada", Integer.class)).isEqualTo(24);
         assertThat(jdbc.queryForObject("select count(*) from bloqueo", Integer.class)).isOne();

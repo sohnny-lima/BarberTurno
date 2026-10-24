@@ -46,7 +46,7 @@ class ReporteIT extends ReservaPruebaBase {
     Servicio barba;
 
     @BeforeEach void escenarioConocido() {
-        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
         barbero.getUsuario().actualizarPerfil("Zeta ficticio", null, reloj.instant());
         usuarios.saveAndFlush(barbero.getUsuario());
@@ -66,7 +66,7 @@ class ReporteIT extends ReservaPruebaBase {
 
     private void insertar(String fecha, String hora, Barbero perfil, Servicio contratado, EstadoReserva estado) {
         var inicio = TiempoNegocio.inicioDelDia(LocalDate.parse(fecha)).plusSeconds(LocalTime.parse(hora).toSecondOfDay());
-        reservas.saveAndFlush(new Reserva(cliente, perfil, contratado, inicio, estado, cliente, reloj.instant()));
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), perfil, contratado, inicio, estado, cliente, reloj.instant()));
     }
 
     private MockHttpServletRequestBuilder peticion(String ruta, String desde, String hasta, Long servicioId, Long barberoId) {

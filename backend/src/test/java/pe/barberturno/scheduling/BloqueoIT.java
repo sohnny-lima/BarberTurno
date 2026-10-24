@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class BloqueoIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClaveBloqueo123";
     @Autowired MockMvc mvc;
@@ -61,7 +62,7 @@ class BloqueoIT {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
         hash = passwords.encode(PASSWORD);
-        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         actor = usuario("admin", Rol.ADMIN);
         admin = login(actor);
         barbero = guardar("profesional");
@@ -433,7 +434,7 @@ class BloqueoIT {
         try (var ejecutor = Executors.newFixedThreadPool(2)) {
             Future<?> reserva = ejecutor.submit(() -> new TransactionTemplate(transacciones).executeWithoutResult(tx -> {
                 barberos.bloquearPorIds(List.of(barbero.getId()));
-                idReserva.set(reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+                idReserva.set(reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                         Instant.parse("2026-10-01T21:00:00Z"), EstadoReserva.CONFIRMADA, cliente, reloj.instant())).getId());
                 insertada.countDown(); esperar(liberar);
             }));
@@ -518,7 +519,7 @@ class BloqueoIT {
     private Reserva reservar(Barbero perfil, String inicio, EstadoReserva estado) {
         Usuario cliente = datos.cliente("reserva-" + reservas.count());
         var servicio = servicios.findAll().stream().findFirst().orElseGet(datos::servicio);
-        return reservas.saveAndFlush(new Reserva(cliente, perfil, servicio, Instant.parse(inicio), estado, cliente, reloj.instant()));
+        return reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), perfil, servicio, Instant.parse(inicio), estado, cliente, reloj.instant()));
     }
     private Bloqueo guardarBloqueo(Barbero perfil, String inicio, String fin) {
         return bloqueos.saveAndFlush(new Bloqueo(perfil, OffsetDateTime.parse(inicio).toInstant(),
@@ -526,7 +527,7 @@ class BloqueoIT {
     }
     private Barbero guardar(String nombre) { return barberos.saveAndFlush(new Barbero(usuario(nombre, Rol.BARBERO), "Cortes", reloj.instant())); }
     private Usuario usuario(String nombre, Rol rol) {
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
                 rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private int indice(List<String> sql, String fragmento) {

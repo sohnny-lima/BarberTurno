@@ -54,14 +54,14 @@ class ReporteExcelIT extends ReservaPruebaBase {
     Barbero otro;
 
     @BeforeEach void escenario() {
-        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Admin ficticio", "excel@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Admin ficticio", "excel@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
         servicio.editar("=Corte ficticio", "Prueba", (short) 30, BigDecimal.TEN, reloj.instant());
         servicios.saveAndFlush(servicio);
         segundo = servicios.saveAndFlush(new Servicio("Barba ficticia", "Prueba", (short) 20, BigDecimal.TEN, reloj.instant()));
         otro = datos.barbero("otro");
         for (int i = 0; i < 6; i++) {
-            reservas.saveAndFlush(new Reserva(cliente, i % 2 == 0 ? barbero : otro,
+            reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), i % 2 == 0 ? barbero : otro,
                     i % 3 == 0 ? segundo : servicio, instante(String.format("%02d:00", 9 + i)), EstadoReserva.values()[i], cliente, reloj.instant()));
         }
     }

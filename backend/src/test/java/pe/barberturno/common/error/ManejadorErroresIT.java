@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 class ManejadorErroresIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     @Autowired
     private JdbcTemplate jdbc;
@@ -47,13 +48,13 @@ class ManejadorErroresIT {
         // Restricciones reales con el rol operativo y el contexto de Spring; sin DDL ni TEMP.
         SQLException error = new TransactionTemplate(gestor).execute(tx -> {
             tx.setRollbackOnly();
-            var datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
+            var datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
             var cliente = datos.cliente("cliente");
             var otroCliente = datos.cliente("otro-cliente");
             var barbero = datos.barbero("barbero");
             var otroBarbero = datos.barbero("otro-barbero");
             var servicio = datos.servicio();
-            var reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, DatosPrueba.AHORA,
+            var reserva = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, DatosPrueba.AHORA,
                     EstadoReserva.CONFIRMADA, cliente, DatosPrueba.AHORA));
             return jdbc.execute((ConnectionCallback<SQLException>) conexion -> {
                 try (var sentencia = conexion.createStatement()) {
@@ -64,8 +65,8 @@ class ManejadorErroresIT {
                                 creada_por, creado_en, actualizado_en FROM reserva WHERE id=%d
                             """;
                     String sql = switch (caso) {
-                        case "barbero" -> copiarReserva.formatted(otroCliente.getId(), barbero.getId(), reserva.getId());
-                        case "cliente" -> copiarReserva.formatted(cliente.getId(), otroBarbero.getId(), reserva.getId());
+                        case "barbero" -> copiarReserva.formatted(clientes.buscarIdPorUsuario(otroCliente.getId()).orElseThrow(), barbero.getId(), reserva.getId());
+                        case "cliente" -> copiarReserva.formatted(clientes.buscarIdPorUsuario(cliente.getId()).orElseThrow(), otroBarbero.getId(), reserva.getId());
                         case "correo" -> """
                                 INSERT INTO usuario (nombre, correo, telefono, password_hash, rol, privacidad_aceptada_en, creado_en, actualizado_en)
                                 SELECT nombre, correo, telefono, password_hash, rol, privacidad_aceptada_en, creado_en, actualizado_en

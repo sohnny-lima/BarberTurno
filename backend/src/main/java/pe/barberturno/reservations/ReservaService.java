@@ -15,6 +15,7 @@ import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.scheduling.*;
 import pe.barberturno.users.*;
+import pe.barberturno.customers.ClienteRepository;
 
 /**
  * Creación RF-08, reprogramación RF-09, cancelación RF-10 y transiciones RF-12.
@@ -26,6 +27,7 @@ import pe.barberturno.users.*;
 public class ReservaService {
     private final ReservaRepository reservas;
     private final UsuarioRepository usuarios;
+    private final ClienteRepository clientes;
     private final BarberoRepository barberos;
     private final ServicioRepository servicios;
     private final DisponibilidadService disponibilidad;
@@ -38,7 +40,8 @@ public class ReservaService {
     /**
      * Recibe colaboradores de creación, reprogramación, cancelación y transiciones atómicas.
      * @param reservas persistencia y consultas RN-04/20
-     * @param usuarios bloqueo ① del cliente
+     * @param usuarios identidades globales para creador, auditoría y avisos
+     * @param clientes fichas y bloqueo ① por negocio (V2-RN-08)
      * @param barberos bloqueo ② de agenda
      * @param servicios catálogo y referencias RN-13
      * @param disponibilidad validador común RN-05
@@ -48,11 +51,12 @@ public class ReservaService {
      * @param parametros límite, confirmación y anticipación RN-07/20/21
      * @param autorizacion política única de visibilidad por propietario, asignación o ADMIN
      */
-    public ReservaService(ReservaRepository reservas, UsuarioRepository usuarios, BarberoRepository barberos,
+    public ReservaService(ReservaRepository reservas, UsuarioRepository usuarios, ClienteRepository clientes, BarberoRepository barberos,
             ServicioRepository servicios, DisponibilidadService disponibilidad, AuditoriaService auditoria,
             NotificacionService notificaciones, Clock clock, ParametrosReserva parametros, ReservaAutorizacion autorizacion) {
         this.reservas = reservas;
         this.usuarios = usuarios;
+        this.clientes = clientes;
         this.barberos = barberos;
         this.servicios = servicios;
         this.disponibilidad = disponibilidad;
@@ -84,9 +88,11 @@ public class ReservaService {
         }
         // Solo existencia antes de esperar: no precargar entidades que quedarían obsoletas en el contexto JPA.
         if (!servicios.existsById(cmd.servicioId()) || !barberos.existsById(cmd.barberoId())) throw noEncontrado();
-        var cliente = usuarios.bloquearPorId(asistida ? cmd.clienteId() : actor.id()).orElseThrow(this::noEncontrado); // ①
-        if (cliente.getRol() != Rol.CLIENTE) throw noEncontrado();
-        if (!cliente.isActivo()) {
+        long cuentaId = asistida ? cmd.clienteId() : actor.id();
+        long fichaId = clientes.buscarIdPorUsuario(cuentaId).orElseThrow(this::noEncontrado);
+        var cliente = clientes.bloquearPorId(fichaId).orElseThrow(this::noEncontrado); // ①
+        if (!cliente.isActivo()) throw noEncontrado();
+        if (!cliente.getUsuario().isActivo()) {
             throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO, "El cliente está inactivo.");
         }
         var perfiles = barberos.bloquearPorIds(List.of(cmd.barberoId())); // ②
@@ -111,7 +117,7 @@ public class ReservaService {
                     "Ha alcanzado el límite de reservas futuras.");
         }
         EstadoReserva estado = !asistida && parametros.confirmacionManual() ? EstadoReserva.PENDIENTE : EstadoReserva.CONFIRMADA;
-        var creador = asistida ? usuarios.getReferenceById(actor.id()) : cliente;
+        var creador = asistida ? usuarios.getReferenceById(actor.id()) : cliente.getUsuario();
         var reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, inicio, estado, creador, ahora));
         auditoria.registrarCambio(reserva, creador, AccionAuditoria.CREAR, null, null,
                 Map.of("inicio", TiempoNegocio.aLima(inicio).toString(), "fin", TiempoNegocio.aLima(fin).toString(),
@@ -121,7 +127,7 @@ public class ReservaService {
                 + " con " + barbero.getUsuario().getNombre() + ", "
                 + TiempoNegocio.aLima(inicio).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
-        notificaciones.notificar(cliente, reserva, AccionAuditoria.CREAR, mensaje);
+        notificaciones.notificar(cliente.getUsuario(), reserva, AccionAuditoria.CREAR, mensaje);
         if (barbero.getUsuario().getId() != actor.id()) {
             notificaciones.notificar(barbero.getUsuario(), reserva, AccionAuditoria.CREAR, mensaje);
         }
@@ -178,7 +184,7 @@ public class ReservaService {
                 + TiempoNegocio.aLima(reserva.getInicio()).format(
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
-        notificaciones.notificar(reserva.getCliente(), reserva, AccionAuditoria.CANCELAR, mensaje);
+        notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, AccionAuditoria.CANCELAR, mensaje);
         var asignado = reserva.getBarbero().getUsuario();
         if (asignado.getId() != actor.id()) {
             notificaciones.notificar(asignado, reserva, AccionAuditoria.CANCELAR, mensaje);
@@ -202,13 +208,13 @@ public class ReservaService {
     @Transactional
     public ReservaDto reprogramar(long id, ReprogramarReservaDto cmd, UsuarioAutenticado actor) {
         var lectura = reservas.leerParaReprogramar(id).orElseThrow(this::noEncontrado);
-        if (!autorizacion.puedeVer(actor, lectura.clienteId(), lectura.asignadoId())) throw noEncontrado();
+        if (!autorizacion.puedeVer(actor, lectura.usuarioId(), lectura.asignadoId())) throw noEncontrado();
         if (actor.rol() != Rol.ADMIN && actor.rol() != Rol.CLIENTE) {
             throw new NegocioException(ErrorCodigo.PROHIBIDO, "Su rol no permite reprogramar reservas.");
         }
         validarReprogramacion(cmd, actor, lectura.version(), lectura.estado(), lectura.inicio(), clock.instant());
         long nuevoId = cmd.barberoId() == null ? lectura.barberoId() : cmd.barberoId();
-        usuarios.bloquearPorId(lectura.clienteId()).orElseThrow(this::noEncontrado); // ①
+        clientes.bloquearPorId(lectura.clienteId()).orElseThrow(this::noEncontrado); // ①
         var ids = new TreeSet<Long>(List.of(lectura.barberoId(), nuevoId));
         var perfiles = barberos.bloquearPorIds(ids); // ②, únicos y ascendentes
         if (perfiles.size() != ids.size()) throw noEncontrado();
@@ -240,7 +246,7 @@ public class ReservaService {
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima), con " + nuevo.getUsuario().getNombre() + ".";
         var destinatarios = new LinkedHashMap<Long, Usuario>();
-        destinatarios.put(reserva.getCliente().getId(), reserva.getCliente());
+        destinatarios.put(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getUsuario());
         for (var usuario : List.of(anterior, nuevo.getUsuario())) {
             if (usuario.getId() != actor.id()) destinatarios.put(usuario.getId(), usuario);
         }
@@ -299,7 +305,7 @@ public class ReservaService {
                 + ", " + TiempoNegocio.aLima(reserva.getInicio()).format(
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
-        notificaciones.notificar(reserva.getCliente(), reserva, accion, mensaje);
+        notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, accion, mensaje);
         var asignado = reserva.getBarbero().getUsuario();
         if (accion == AccionAuditoria.CONFIRMAR && asignado.getId() != actor.id()) {
             notificaciones.notificar(asignado, reserva, accion, mensaje);

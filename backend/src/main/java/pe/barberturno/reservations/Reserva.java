@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import pe.barberturno.users.Usuario;
+import pe.barberturno.customers.Cliente;
 import pe.barberturno.catalog.Servicio;
 import pe.barberturno.scheduling.Barbero;
 
@@ -35,7 +36,7 @@ public class Reserva {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
-    private Usuario cliente;
+    private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barbero_id", nullable = false)
@@ -84,7 +85,7 @@ public class Reserva {
     /**
      * Crea una reserva RN-02 y copia precio y duración del servicio (RN-13); calcula fin exclusivo RN-01. El
      * servicio decide estado RN-21 y comprueba disponibilidad, permisos y política antes de persistir.
-     * @param cliente usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02)
+     * @param cliente ficha del negocio, enlazada por cliente_id; no nula (RN-02, V2-RN-08)
      * @param barbero perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo
      * @param servicio servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13
      * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
@@ -95,7 +96,7 @@ public class Reserva {
      * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
-    public Reserva(Usuario cliente, Barbero barbero, Servicio servicio, Instant inicio, EstadoReserva estado, Usuario creadaPor, Instant creadoEn) {
+    public Reserva(Cliente cliente, Barbero barbero, Servicio servicio, Instant inicio, EstadoReserva estado, Usuario creadaPor, Instant creadoEn) {
         this.cliente = Objects.requireNonNull(cliente, "cliente");
         this.barbero = Objects.requireNonNull(barbero, "barbero");
         this.servicio = Objects.requireNonNull(servicio, "servicio");
@@ -150,8 +151,8 @@ public class Reserva {
         return id;
     }
 
-    /** {@return usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02)} */
-    public Usuario getCliente() {
+    /** {@return ficha propietaria del negocio; su cuenta recibe avisos y autoriza al actor web} */
+    public Cliente getCliente() {
         return cliente;
     }
 

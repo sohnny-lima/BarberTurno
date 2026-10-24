@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class ReservaAsistidaIT extends ReservaPruebaBase {
     Usuario admin;
-    @BeforeEach void administrador() { admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("ADMIN ficticio", "admin31@ejemplo.test", null, "hash-ficticio", Rol.ADMIN, null, reloj.instant())); }
+    @BeforeEach void administrador() { admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("ADMIN ficticio", "admin31@ejemplo.test", null, "hash-ficticio", Rol.ADMIN, null, reloj.instant())); }
     CrearReservaDto asistida(Usuario u, String hora) { return new CrearReservaDto(servicio.getId(), barbero.getId(), TiempoNegocio.aLima(instante(hora)), u.getId()); }
     @Test void cp19_ocupada409_libre201_conActorAdminYAvisos() throws Exception {
         crearHttp(datos.cliente("otro"), cmd(barbero, "10:00"));

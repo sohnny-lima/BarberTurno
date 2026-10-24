@@ -15,6 +15,7 @@ import pe.barberturno.scheduling.dto.*;
 import pe.barberturno.users.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
+import pe.barberturno.customers.VinculoClienteRepository;
 
 /**
  * Administra personal RF-05 del ámbito V2-RN-17 con identidad de plataforma protegida y cupo RN-19.
@@ -31,6 +32,7 @@ public class BarberoService {
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
     private final AmbitoUsuarios ambito;
+    private final VinculoClienteRepository vinculos;
     private final PoliticaPassword politica = new PoliticaPassword();
 
     /**
@@ -43,10 +45,11 @@ public class BarberoService {
      * @param membresias pertenencias explícitas y comprobación de identidad compartida
      * @param negocio ámbito transitorio actual
      * @param ambito límite común de identidades gestionables según V2-DA-27
+     * @param vinculos protección de identidad global cuando hay fichas en otros negocios
      */
     public BarberoService(BarberoRepository barberos, UsuarioRepository usuarios, ReservaRepository reservas,
             PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
-            AmbitoUsuarios ambito) {
+            AmbitoUsuarios ambito, VinculoClienteRepository vinculos) {
         this.barberos = barberos;
         this.usuarios = usuarios;
         this.reservas = reservas;
@@ -55,6 +58,7 @@ public class BarberoService {
         this.membresias = membresias;
         this.negocio = negocio;
         this.ambito = ambito;
+        this.vinculos = vinculos;
     }
 
     /**
@@ -165,7 +169,8 @@ public class BarberoService {
 
     private boolean compartida(Usuario usuario) {
         return usuario.getRolPlataforma() != RolPlataforma.NINGUNO
-                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow());
+                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())
+                || vinculos.existeEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow());
     }
 
     private Barbero obtenerBloqueado(long id) {

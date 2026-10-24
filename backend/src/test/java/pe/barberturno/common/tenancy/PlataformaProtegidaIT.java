@@ -89,11 +89,12 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
                 .andExpect(status().isNotFound());
     }
 
-    @Test void clienteV1_soloVisibleYGestionableEnNegocioUnico() throws Exception {
+    @Test void cuentaConFichaActiva_soloVisibleYGestionableEnSuNegocio() throws Exception {
         long b = negocioB();
         var actor = propietario("titular");
         pertenencia(b, actor, RolNegocio.PROPIETARIO);
         var cliente = persona("cliente-legado", Rol.CLIENTE);
+        ficha(1L, cliente);
         var cookie = sesion(actor);
         mvc.perform(get("/api/usuarios").cookie(cookie).param("q", cliente.getCorreo()).param("rol", "CLIENTE"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId()));
@@ -102,6 +103,29 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         finally { proveedor.reiniciar(); }
         mvc.perform(csrf(estado(cliente.getId(), false), cookie)).andExpect(status().isOk());
         assertThat(usuarios.findById(cliente.getId()).orElseThrow().isActivo()).isFalse();
+    }
+
+    @Test void fichaActivaEnB_noDaAmbitoEnA_yFichaLocalInactivaTampoco() throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var cliente = persona("cliente-solo-b", Rol.CLIENTE);
+        ficha(b, cliente);
+        exigirAjena(cliente, sesion(actor));
+        var local = ficha(1L, cliente);
+        local.desactivar(reloj.instant()); clientes.saveAndFlush(local);
+        exigirAjena(cliente, sesion(actor));
+    }
+
+    @Test void plataformaConFichaLocal_sinMembresias_sigueProtegidaContraCambiosGlobales() throws Exception {
+        var actor = propietario("titular");
+        var plataforma = plataforma("plataforma-cliente", Rol.CLIENTE);
+        ficha(1L, plataforma);
+        var anterior = huella(plataforma);
+        mvc.perform(csrf(post("/api/usuarios/" + plataforma.getId() + "/restablecer-password"), sesion(actor)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
+                .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+        mvc.perform(csrf(estado(plataforma.getId(), false), sesion(actor))).andExpect(status().isConflict());
+        assertThat(huella(plataforma)).isEqualTo(anterior);
     }
 
     @Test void clienteConMembresiaRevocadaEnOtroNegocio_noEsClienteHeredadoDelUnico() throws Exception {

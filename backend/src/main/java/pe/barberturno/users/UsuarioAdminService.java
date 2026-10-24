@@ -16,6 +16,7 @@ import pe.barberturno.scheduling.BarberoRepository;
 import pe.barberturno.users.dto.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
+import pe.barberturno.customers.*;
 
 /**
  * Gestión RF-19 limitada al ámbito V2-RN-17, con protección de plataforma y último propietario por negocio.
@@ -31,6 +32,8 @@ public class UsuarioAdminService {
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
     private final AmbitoUsuarios ambito;
+    private final ClienteRepository clientes;
+    private final VinculoClienteRepository vinculos;
     private final SecureRandom aleatorio = new SecureRandom();
 
     /**
@@ -42,10 +45,12 @@ public class UsuarioAdminService {
      * @param membresias pertenencias y bloqueo del último propietario
      * @param negocio ámbito explícito del actor
      * @param ambito límite común de personas gestionables según V2-DA-27
+     * @param clientes fichas activas para la proyección del rol CLIENTE
+     * @param vinculos comprobación booleana de identidad compartida por fichas
      */
     public UsuarioAdminService(UsuarioRepository usuarios, BarberoRepository barberos,
             PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
-            AmbitoUsuarios ambito) {
+            AmbitoUsuarios ambito, ClienteRepository clientes, VinculoClienteRepository vinculos) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.passwords = passwords;
@@ -53,6 +58,8 @@ public class UsuarioAdminService {
         this.membresias = membresias;
         this.negocio = negocio;
         this.ambito = ambito;
+        this.clientes = clientes;
+        this.vinculos = vinculos;
     }
 
     /**
@@ -87,10 +94,14 @@ public class UsuarioAdminService {
             personal.select(p.get("usuarioId")).where(cb.equal(p.get("negocioId"), negocio.negocioActual().orElseThrow()),
                     cb.equal(p.get("estado"), "ACTIVA"), cb.equal(p.get("usuarioId"), raiz.get("id")));
             var gestor = cb.and(gestorProtegido, cb.exists(personal));
+            var fichas = consulta.subquery(Long.class);
+            var c = fichas.from(Cliente.class);
+            fichas.select(c.get("usuario").get("id")).where(cb.equal(c.get("usuario").get("id"), raiz.get("id")),
+                    cb.isTrue(c.get("activo")));
             var rolFiltro = rol == null ? cb.conjunction() : switch (rol) {
                 case ADMIN -> gestor;
                 case BARBERO -> cb.and(cb.exists(personal), cb.not(gestor));
-                case CLIENTE -> cb.and(cb.not(cb.exists(personal)), cb.equal(raiz.get("rol"), Rol.CLIENTE));
+                case CLIENTE -> cb.and(cb.not(cb.exists(personal)), cb.exists(fichas));
             };
             return cb.and(rolFiltro,
                 actor.rolNegocio().orElse(null) == RolNegocio.ENCARGADO ? cb.not(gestorProtegido) : cb.conjunction(),
@@ -176,7 +187,7 @@ public class UsuarioAdminService {
     private UsuarioAdminDto dto(Usuario u) {
         var rol = rolNegocio(u.getId());
         return new UsuarioAdminDto(u.getId(), u.getNombre(), u.getCorreo(), u.getTelefono(),
-                rol == null ? (u.getRol() == Rol.CLIENTE ? Rol.CLIENTE : null) : rol.rolEfectivo(),
+                rol == null ? (clientes.existsByUsuarioIdAndActivoTrue(u.getId()) ? Rol.CLIENTE : null) : rol.rolEfectivo(),
                 u.isActivo(), u.isDebeCambiarPassword(), barberos.buscarIdPorUsuario(u.getId()).orElse(null));
     }
     private RolNegocio rolNegocio(long usuarioId) {
@@ -192,7 +203,8 @@ public class UsuarioAdminService {
     }
     private void exigirIdentidadLocal(Usuario usuario) {
         if (usuario.getRolPlataforma() != RolPlataforma.NINGUNO
-                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())) {
+                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())
+                || vinculos.existeEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())) {
             throw new NegocioException(ErrorCodigo.IDENTIDAD_COMPARTIDA,
                     "La cuenta pertenece también a otro negocio; el cambio lo hace la plataforma");
         }

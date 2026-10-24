@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 abstract class ReservaPruebaBase {
+    @Autowired pe.barberturno.customers.ClienteRepository clientes;
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     @Autowired MockMvc mvc;
     @Autowired JdbcNegocioPruebas jdbc;
@@ -42,7 +43,7 @@ abstract class ReservaPruebaBase {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
         SqlPruebas.limpiar();
-        datos = new DatosPrueba(usuarios, barberos, servicios, membresias);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         cliente = datos.cliente("cliente");
         barbero = perfil("uno");
         servicio = datos.servicio();

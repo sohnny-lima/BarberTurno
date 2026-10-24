@@ -24,6 +24,11 @@ abstract class IdentidadPruebaBase extends TenancyPruebaBase {
     @Autowired JwtService jwt;
     @Autowired UsuarioAdminService gestion;
     @Autowired BarberoService profesionales;
+    @Autowired pe.barberturno.customers.ClienteRepository clientes;
+
+    pe.barberturno.customers.Cliente ficha(long negocioId, Usuario usuario) {
+        return enNegocio(negocioId, () -> clientes.saveAndFlush(new pe.barberturno.customers.Cliente(usuario, reloj.instant())));
+    }
 
     Usuario persona(String alias, Rol legado) {
         return usuarios.saveAndFlush(new Usuario("Persona " + alias, alias + "@ejemplo.test", "999000001",
@@ -44,7 +49,8 @@ abstract class IdentidadPruebaBase extends TenancyPruebaBase {
 
     MockHttpServletRequestBuilder csrf(MockHttpServletRequestBuilder solicitud, Cookie sesion) throws Exception {
         var token = mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
-        return solicitud.cookie(sesion, token).header("X-XSRF-TOKEN", token.getValue());
+        if (sesion != null) solicitud.cookie(sesion);
+        return solicitud.cookie(token).header("X-XSRF-TOKEN", token.getValue());
     }
 
     MockHttpServletRequestBuilder estado(long id, boolean activo) {

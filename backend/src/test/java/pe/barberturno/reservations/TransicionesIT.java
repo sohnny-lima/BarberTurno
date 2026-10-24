@@ -44,13 +44,13 @@ class TransicionesIT extends ReservaPruebaBase {
     @Autowired PlatformTransactionManager transacciones;
 
     private Usuario admin() {
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
     }
 
     // Fixture de estados iniciales: reutiliza el contexto sin cambiar la confirmación del producto.
     private ReservaDto reserva(EstadoReserva estado, String hora) throws Exception {
-        var entidad = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, instante(hora),
+        var entidad = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante(hora),
                 estado, cliente, reloj.instant()));
         return json.readValue(mvc.perform(get("/api/reservas/{id}", entidad.getId()).cookie(sesion(barbero.getUsuario())))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), ReservaDto.class);

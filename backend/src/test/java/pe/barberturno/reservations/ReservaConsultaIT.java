@@ -74,14 +74,14 @@ class ReservaConsultaIT extends ReservaPruebaBase {
     }
 
     private Usuario usuario(String nombre, Rol rol) {
-        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, new Usuario(nombre, nombre.toLowerCase(Locale.ROOT) + "@ejemplo.test",
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario(nombre, nombre.toLowerCase(Locale.ROOT) + "@ejemplo.test",
                 null, "hash-ficticio-no-utilizable", rol, null, reloj.instant()));
     }
 
     private Reserva insertar(Usuario propietario, Barbero perfil, Servicio contratado,
             String fecha, String hora, EstadoReserva estado) {
         var inicio = TiempoNegocio.inicioDelDia(LocalDate.parse(fecha)).plusSeconds(LocalTime.parse(hora).toSecondOfDay());
-        return reservas.saveAndFlush(new Reserva(propietario, perfil, contratado, inicio, estado, propietario, reloj.instant()));
+        return reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(propietario.getId()).orElseThrow(), perfil, contratado, inicio, estado, propietario, reloj.instant()));
     }
 
     private MockHttpServletRequestBuilder agenda(Usuario actor) {
