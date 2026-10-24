@@ -104,11 +104,14 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             for (String tabla : EsquemaV2IT.TABLAS) assertThat(jdbc.queryForObject("select count(*) from " + tabla, Integer.class)).as(tabla).isZero();
             contexto(aplicacion, b);
             datosB = DatosNegocioPrueba.crear(jdbc, "b");
+            jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Perfil local B', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a.admin());
+            assertThat(jdbc.queryForObject("select count(*) from barbero where usuario_id=?", Integer.class, a.admin())).isEqualTo(1);
             aplicacion.commit();
             contexto(aplicacion, 1L);
             assertThat(huellas(jdbc).entrySet()).containsAll(huellas.entrySet().stream().filter(e -> !e.getKey().equals("usuario")).toList());
             aplicacion.rollback();
 
+            rechazar(aplicacion, "23505", "barbero_usuario_uk", () -> jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Duplicado A', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a.admin()));
             rechazar(aplicacion, "23P01", "reserva_sin_solape_barbero", () ->
                     DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), a.barbero(), a.servicio(), "CONFIRMADA", 0));
             rechazar(aplicacion, "23503", "reserva_barbero_fk", () ->

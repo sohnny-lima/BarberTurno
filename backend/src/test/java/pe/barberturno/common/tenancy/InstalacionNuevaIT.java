@@ -38,6 +38,22 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
             }
             conexion.commit();
             assertThat(jdbc.queryForObject("select count(*) from reserva", Integer.class)).isZero();
+            long b;
+            try (var propietario = conexion(true)) {
+                b = jdbc(propietario).queryForObject("insert into negocio (slug, nombre, creado_en, actualizado_en) values ('perfil-b', 'Negocio B ficticio', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) returning id", Long.class);
+            }
+            contexto(conexion, b);
+            jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Perfil B', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", datos.admin());
+            assertThat(jdbc.queryForObject("select count(*) from barbero where usuario_id=?", Integer.class, datos.admin())).isEqualTo(1);
+            conexion.commit();
+            contexto(conexion, 1L);
+            assertThatThrownBy(() -> jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Duplicado A', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", datos.admin()))
+                    .isInstanceOf(org.springframework.dao.DataAccessException.class).satisfies(error -> {
+                        var causa = (org.postgresql.util.PSQLException) ((org.springframework.dao.DataAccessException) error).getMostSpecificCause();
+                        assertThat(causa.getSQLState()).isEqualTo("23505");
+                        assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo("barbero_usuario_uk");
+                    });
+            conexion.rollback();
         }
     }
 }
