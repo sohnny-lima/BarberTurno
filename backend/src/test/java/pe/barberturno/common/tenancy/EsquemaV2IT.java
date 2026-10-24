@@ -6,7 +6,36 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
+    @Test void mismaCuenta_perfilesEnDosNegociosYDuplicadoLocalRechazado() throws Exception {
+        long b = negocioB();
+        var a = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "perfil-a"));
+        enNegocio(b, () -> {
+            jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Perfil B', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a.admin());
+            assertThat(jdbc.queryForList("select nombre_visible from barbero where usuario_id=?", String.class, a.admin())).containsExactly("Perfil B");
+            return null;
+        });
+        enNegocio(1L, () -> {
+            assertThat(jdbc.queryForList("select nombre_visible from barbero where usuario_id=?", String.class, a.admin())).containsExactly("Profesional ficticio");
+            return null;
+        });
+        assertThatThrownBy(() -> enNegocio(b, () -> jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Duplicado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a.admin())))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> {
+                    var causa = (org.postgresql.util.PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
+                    assertThat(causa.getSQLState()).isEqualTo("23505");
+                    assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo("barbero_usuario_uk");
+                });
+    }
+
     static final List<String> TABLAS = List.of("servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "cliente");
+
+    @Test void reglasLocales_columnasYValoresInicialesDeV104() {
+        assertThat(jdbc.queryForMap("select data_type, is_nullable, column_default from information_schema.columns where table_name='negocio' and column_name='tolerancia_inicio_min'"))
+                .containsEntry("data_type", "smallint").containsEntry("is_nullable", "NO").containsEntry("column_default", "15");
+        assertThat(jdbc.queryForMap("select is_nullable, character_maximum_length from information_schema.columns where table_name='barbero' and column_name='nombre_visible'"))
+                .containsEntry("is_nullable", "NO").containsEntry("character_maximum_length", 100);
+        assertThat(jdbc.queryForMap("select is_nullable, character_maximum_length from information_schema.columns where table_name='barbero' and column_name='telefono_contacto'"))
+                .containsEntry("is_nullable", "YES").containsEntry("character_maximum_length", 16);
+    }
 
     @Test
     void rolReal_noEsPropietarioNiTienePrivilegiosEspeciales() {

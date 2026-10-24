@@ -252,9 +252,9 @@ class EsquemaIT {
 
         private long barbero(long usuario) {
             return jdbc.queryForObject("""
-                    INSERT INTO barbero (usuario_id, creado_en, actualizado_en)
-                    VALUES (?, ?, ?) RETURNING id
-                    """, Long.class, usuario, ahora, ahora);
+                    INSERT INTO barbero (usuario_id, nombre_visible, telefono_contacto, creado_en, actualizado_en)
+                    SELECT id, nombre, telefono, ?, ? FROM usuario WHERE id=? RETURNING id
+                    """, Long.class, ahora, ahora, usuario);
         }
 
         private long servicio(String nombre, int duracion) {

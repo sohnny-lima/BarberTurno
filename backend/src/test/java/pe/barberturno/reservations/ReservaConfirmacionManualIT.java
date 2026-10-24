@@ -8,11 +8,11 @@ import pe.barberturno.support.RelojAjustable;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(properties = {"barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
-        "barberturno.seguridad.cookie-secure=false", "barberturno.reservas.confirmacion-manual=true"})
+        "barberturno.seguridad.cookie-secure=false", "barberturno.tenancy.negocio-unico-id=2"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
-class ReservaConfirmacionManualIT extends ReservaPruebaBase {
+class ReservaConfirmacionManualIT extends ReservaManualPruebaBase {
     @Test void confirmacionManual_pendienteOcupaFranjaYPuedeCancelarSinReprogramar() throws Exception {
         var dto = crearHttp(cliente, cmd(barbero, "10:00"));
         assertThat(dto.estado()).isEqualTo(EstadoReserva.PENDIENTE);
@@ -61,7 +61,7 @@ class ReservaConfirmacionManualIT extends ReservaPruebaBase {
     @Test void asistidaSiempreConfirmada_aunConConfirmacionManual() throws Exception {
         var admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes,
                 new pe.barberturno.users.Usuario("Administrador ficticio",
-                "admin-manual31@ejemplo.test", null, "hash-ficticio", pe.barberturno.users.Rol.ADMIN, null, reloj.instant()));
+                "admin-manual31@ejemplo.test", null, "hash-ficticio", pe.barberturno.users.Rol.ADMIN, null, reloj.instant()), 2L);
         var solicitud = new pe.barberturno.reservations.dto.CrearReservaDto(servicio.getId(), barbero.getId(),
                 pe.barberturno.common.time.TiempoNegocio.aLima(instante("10:00")), cliente.getId());
         assertThat(crearHttp(admin, solicitud).estado()).isEqualTo(EstadoReserva.CONFIRMADA);

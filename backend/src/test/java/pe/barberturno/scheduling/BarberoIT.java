@@ -89,40 +89,52 @@ class BarberoIT {
         mvc.perform(get("/api/barberos").cookie(nueva)).andExpect(status().isOk());
     }
 
-    @Test void editar_desactivarYReactivar_conservaCuentaEHistorialYRevocaSesion() throws Exception {
+    @Test void editar_desactivarYReactivar_conservaCuentaEHistorialYRevocaSoloMembresia() throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
         Barbero b = guardar("profesional");
         Usuario u = usuarios.findByCorreo("profesional@ejemplo.test").orElseThrow();
         Cookie anterior = login(u);
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", u.getId());
+        var fechaCuentaAntes = usuarios.findById(u.getId()).orElseThrow().getActualizadoEn();
         reloj.adelantar(Duration.ofMinutes(1));
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Nombre editado", "telefono", "987654321", "especialidad", "Barba"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.nombre").value("Nombre editado"))
                 .andExpect(jsonPath("$.especialidad").value("Barba"));
         Usuario editado = usuarios.findById(u.getId()).orElseThrow();
-        assertThat(editado.getNombre()).isEqualTo("Nombre editado");
-        assertThat(editado.getTelefono()).isEqualTo("987654321");
+        assertThat(editado.getNombre()).isEqualTo(u.getNombre());
+        assertThat(editado.getTelefono()).isEqualTo(u.getTelefono());
+        assertThat(barberos.findById(b.getId()).orElseThrow().getNombreVisible()).isEqualTo("Nombre editado");
+        assertThat(barberos.findById(b.getId()).orElseThrow().getTelefonoContacto()).isEqualTo("987654321");
         assertThat(editado.getCorreo()).isEqualTo(u.getCorreo());
-        assertThat(editado.getActualizadoEn()).isEqualTo(reloj.instant());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
+        assertThat(editado.getActualizadoEn()).isEqualTo(fechaCuentaAntes);
         assertThat(barberos.findById(b.getId()).orElseThrow().getActualizadoEn()).isEqualTo(reloj.instant());
         escribir("PATCH", b.getId(), admin, Map.of("activo", false)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barbero.activo").value(false))
                 .andExpect(jsonPath("$.reservasFuturasVigentes").value(0));
         Usuario inactivo = usuarios.findById(u.getId()).orElseThrow();
-        assertThat(inactivo.isActivo()).isFalse();
-        assertThat(inactivo.getTokenVersion()).isEqualTo(u.getTokenVersion() + 1);
-        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
-        solicitarLogin(u.getCorreo(), PASSWORD).andExpect(status().isUnauthorized());
+        assertThat(inactivo.isActivo()).isTrue();
+        assertThat(inactivo.getTokenVersion()).isEqualTo(u.getTokenVersion());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().isActiva()).isFalse();
+        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
+        mvc.perform(get("/api/reservas").cookie(anterior)).andExpect(status().isForbidden());
+        solicitarLogin(u.getCorreo(), PASSWORD).andExpect(status().isOk());
+        cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", u.getId());
         mvc.perform(get("/api/barberos")).andExpect(jsonPath("$.length()").value(0));
         escribir("PATCH", b.getId(), admin, Map.of("activo", false)).andExpect(status().isOk());
         assertThat(usuarios.findById(u.getId()).orElseThrow().getTokenVersion()).isEqualTo(inactivo.getTokenVersion());
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Perfil inactivo", "especialidad", "Cortes"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.activo").value(false));
-        assertThat(usuarios.findById(u.getId()).orElseThrow().getTelefono()).isNull();
+        assertThat(usuarios.findById(u.getId()).orElseThrow().getTelefono()).isEqualTo(u.getTelefono());
+        assertThat(barberos.findById(b.getId()).orElseThrow().getTelefonoContacto()).isNull();
         escribir("PATCH", b.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
         assertThat(usuarios.findById(u.getId()).orElseThrow().isActivo()).isTrue();
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().isActiva()).isTrue();
         Cookie restaurada = login(u);
         mvc.perform(get("/api/auth/sesion").cookie(restaurada)).andExpect(status().isOk());
-        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isOk());
         assertThat(barberos.count()).isEqualTo(1);
         assertThat(usuarios.count()).isEqualTo(2);
     }
@@ -130,6 +142,7 @@ class BarberoIT {
     @Test void vincular_adminSesionExistente_muestraPerfilYConservaAccesoAlDesactivar() throws Exception {
         Usuario admin = crearUsuario("admin", Rol.ADMIN);
         Cookie sesion = login(admin);
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", admin.getId());
         long id = id(escribir("POST", 0, sesion, Map.of("usuarioId", admin.getId(), "especialidad", "Cortes"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.nombre").value(admin.getNombre())).andReturn());
         assertThat(usuarios.count()).isEqualTo(1);
@@ -139,6 +152,7 @@ class BarberoIT {
         Usuario conservado = usuarios.findById(admin.getId()).orElseThrow();
         assertThat(conservado.isActivo()).isTrue();
         assertThat(conservado.getTokenVersion()).isEqualTo(admin.getTokenVersion());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", admin.getId())).isEqualTo(cuentaAntes);
         mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barberoId").value(id));
         login(admin);
@@ -172,6 +186,7 @@ class BarberoIT {
     @Test void limite_onceActivos_rechazaAltaYReactivacionPeroPermiteRepetirActivo() throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
         Barbero inactivo = guardar("inactivo");
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", false)).andExpect(status().isOk());
         for (int i = 0; i < 10; i++) guardar("activo" + i);
         escribir("POST", 0, admin, datos("Nuevo ficticio", "nuevo@ejemplo.test"))
@@ -180,12 +195,15 @@ class BarberoIT {
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.codigo").value("LIMITE_BARBEROS_ACTIVOS"));
         assertThat(usuarios.findByCorreo("nuevo@ejemplo.test")).isEmpty();
         assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
-        assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isFalse();
+        assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isTrue();
+        assertThat(barberos.findById(inactivo.getId()).orElseThrow().isActivo()).isFalse();
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId())).isEqualTo(cuentaAntes);
         long activo = jdbc.enTransaccion(() -> barberos.listar(false).getFirst().getId());
         escribir("PATCH", activo, admin, Map.of("activo", true)).andExpect(status().isOk());
         escribir("PATCH", activo, admin, Map.of("activo", false)).andExpect(status().isOk());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
         assertThat(jdbc.enTransaccion(barberos::countByActivoTrue)).isEqualTo(10);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId())).isEqualTo(cuentaAntes);
     }
 
     @ParameterizedTest @ValueSource(strings = {"altas", "reactivaciones", "mixto"})
@@ -246,12 +264,14 @@ class BarberoIT {
         reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), b, servicio, reloj.instant(), EstadoReserva.EN_ATENCION, cliente, reloj.instant()));
         var antes = jdbc.queryForList("select * from reserva order by id");
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", b.getUsuario().getId());
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Nuevo nombre", "especialidad", "Barbas"))
                 .andExpect(status().isOk());
         for (boolean activo : List.of(false, true)) {
             escribir("PATCH", b.getId(), admin, Map.of("activo", activo)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.reservasFuturasVigentes").value(3));
             assertThat(jdbc.queryForList("select * from reserva order by id")).isEqualTo(antes);
+            assertThat(jdbc.queryForMap("select * from usuario where id=?", b.getUsuario().getId())).isEqualTo(cuentaAntes);
         }
     }
 

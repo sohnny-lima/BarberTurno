@@ -15,10 +15,10 @@ import pe.barberturno.scheduling.dto.*;
 import pe.barberturno.users.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
-import pe.barberturno.customers.VinculoClienteRepository;
+import pe.barberturno.common.config.ReglasNegocioService;
 
 /**
- * Administra personal RF-05 del ámbito V2-RN-17 con identidad de plataforma protegida y cupo RN-19.
+ * Administra perfiles locales RF-05 sin cambiar identidades globales, con membresías y cupo RN-19.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -32,12 +32,12 @@ public class BarberoService {
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
     private final AmbitoUsuarios ambito;
-    private final VinculoClienteRepository vinculos;
+    private final ReglasNegocioService reglasNegocio;
     private final PoliticaPassword politica = new PoliticaPassword();
 
     /**
-     * Inyecta persistencia, BCrypt y Clock para cambios atómicos de cuenta y perfil.
-     * @param barberos perfiles y bloqueo global RN-19
+     * Inyecta persistencia, BCrypt y Clock para altas y cambios atómicos del perfil local.
+     * @param barberos perfiles y bloqueo por negocio RN-19
      * @param usuarios identidades y bloqueo de cuenta
      * @param reservas agenda para informar citas futuras
      * @param passwords BCrypt de coste 12
@@ -45,11 +45,11 @@ public class BarberoService {
      * @param membresias pertenencias explícitas y comprobación de identidad compartida
      * @param negocio ámbito transitorio actual
      * @param ambito límite común de identidades gestionables según V2-DA-27
-     * @param vinculos protección de identidad global cuando hay fichas en otros negocios
+     * @param reglasNegocio lectura transaccional del cupo local RN-19
      */
     public BarberoService(BarberoRepository barberos, UsuarioRepository usuarios, ReservaRepository reservas,
             PasswordEncoder passwords, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
-            AmbitoUsuarios ambito, VinculoClienteRepository vinculos) {
+            AmbitoUsuarios ambito, ReglasNegocioService reglasNegocio) {
         this.barberos = barberos;
         this.usuarios = usuarios;
         this.reservas = reservas;
@@ -58,7 +58,7 @@ public class BarberoService {
         this.membresias = membresias;
         this.negocio = negocio;
         this.ambito = ambito;
-        this.vinculos = vinculos;
+        this.reglasNegocio = reglasNegocio;
     }
 
     /**
@@ -83,7 +83,7 @@ public class BarberoService {
     @Transactional
     public BarberoDto crear(CrearBarberoDto datos) {
         validarVariante(datos);
-        barberos.bloquearLimiteActivos();
+        barberos.bloquearLimiteActivos(negocio.negocioActual().orElseThrow());
         comprobarLimite();
         Usuario usuario;
         var ahora = clock.instant();
@@ -111,33 +111,23 @@ public class BarberoService {
     }
 
     /**
-     * Bloquea usuario antes que perfil y edita identidad y especialidad sin cambiar correo, acceso ni reservas.
+     * Bloquea usuario antes que perfil y edita solo nombre, contacto y especialidad locales (V2-DA-31).
      * @param id perfil persistido
      * @param datos nombre, teléfono opcional y especialidad validados
      * @return perfil editado con contactos para ADMIN
-     * @throws NegocioException si el perfil no existe (NO_ENCONTRADO) o el cambio global afecta a una
-     * identidad compartida o de plataforma (IDENTIDAD_COMPARTIDA); fuera del ámbito produce 404
+     * @throws NegocioException si el perfil no existe o está fuera del ámbito (NO_ENCONTRADO)
      */
     @Transactional
     public BarberoDto editar(long id, EditarBarberoDto datos) {
         Barbero barbero = obtenerBloqueado(id);
-        var usuario = barbero.getUsuario();
-        boolean cambiaIdentidad = !java.util.Objects.equals(usuario.getNombre(), datos.nombre())
-                || !java.util.Objects.equals(usuario.getTelefono(), datos.telefono());
-        if (cambiaIdentidad && compartida(usuario)) {
-            throw new NegocioException(ErrorCodigo.IDENTIDAD_COMPARTIDA,
-                    "La cuenta pertenece también a otro negocio; el cambio lo hace la plataforma");
-        }
-        var ahora = clock.instant();
-        if (cambiaIdentidad) usuario.actualizarPerfil(datos.nombre(), datos.telefono(), ahora);
-        barbero.editarEspecialidad(datos.especialidad(), ahora);
+        barbero.editarPerfil(datos.nombre(), datos.telefono(), datos.especialidad(), clock.instant());
         return BarberoDto.desde(barberos.saveAndFlush(barbero), true);
     }
 
     /**
-     * Serializa estado con bloqueo global RN-19 y después usuario y perfil; revoca sesiones al desactivar
-     * BARBERO no compartido, conserva acceso de gestores y las cuentas compartidas o de plataforma.
-     * Repetir el mismo estado no revoca otra vez.
+     * Serializa estado con bloqueo por negocio RN-19 y después usuario y perfil; revoca o restablece
+     * únicamente la membresía BARBERO local. Conserva la cuenta, sus sesiones y los demás roles y negocios.
+     * Repetir el mismo estado no vuelve a modificar la membresía.
      * @param id perfil que se habilita o deshabilita
      * @param activo nuevo estado solicitado
      * @return perfil resultante y cantidad de citas futuras que ocupan franja RN-14
@@ -146,20 +136,19 @@ public class BarberoService {
      */
     @Transactional
     public ResultadoEstadoBarberoDto cambiarEstado(long id, boolean activo) {
-        barberos.bloquearLimiteActivos();
+        barberos.bloquearLimiteActivos(negocio.negocioActual().orElseThrow());
         Barbero barbero = obtenerBloqueado(id);
-        boolean cambiaCuenta = membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(),
-                barbero.getUsuario().getId()).filter(Membresia::isActiva)
-                .map(m -> m.getRol() == RolNegocio.BARBERO).orElse(false) && !compartida(barbero.getUsuario());
+        var membresiaLocal = membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(),
+                barbero.getUsuario().getId()).filter(m -> m.getRol() == RolNegocio.BARBERO);
         var ahora = clock.instant();
         if (barbero.isActivo() != activo) {
             if (activo) {
                 comprobarLimite();
                 barbero.activar(ahora);
-                if (cambiaCuenta) barbero.getUsuario().activar(ahora);
+                membresiaLocal.filter(m -> !m.isActiva()).ifPresent(m -> m.restablecer(ahora));
             } else {
                 barbero.desactivar(ahora);
-                if (cambiaCuenta) barbero.getUsuario().desactivar(ahora);
+                membresiaLocal.filter(Membresia::isActiva).ifPresent(m -> m.revocar(ahora));
             }
         }
         barberos.saveAndFlush(barbero);
@@ -167,23 +156,23 @@ public class BarberoService {
                 reservas.contarFuturasVigentes(id, ahora));
     }
 
-    private boolean compartida(Usuario usuario) {
-        return usuario.getRolPlataforma() != RolPlataforma.NINGUNO
-                || membresias.existeActivaEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow())
-                || vinculos.existeEnOtroNegocio(usuario.getId(), negocio.negocioActual().orElseThrow());
-    }
-
     private Barbero obtenerBloqueado(long id) {
         long usuarioId = barberos.buscarUsuarioId(id).orElseThrow(this::noEncontrado);
         var usuario = usuarios.bloquearPorId(usuarioId).orElseThrow(this::noEncontrado);
-        if (!ambito.contiene(usuario)) throw noEncontrado();
-        return barberos.bloquearPorIds(List.of(id)).stream().findFirst().orElseThrow(this::noEncontrado);
+        var barbero = barberos.bloquearPorIds(List.of(id)).stream().findFirst().orElseThrow(this::noEncontrado);
+        // La baja local revoca BARBERO: el gestor debe poder editar y reactivar ese perfil inactivo.
+        boolean perfilDesactivado = !barbero.isActivo() && membresias
+                .findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), usuarioId)
+                .filter(m -> m.getRol() == RolNegocio.BARBERO).isPresent();
+        if (!ambito.contiene(usuario) && !perfilDesactivado) throw noEncontrado();
+        return barbero;
     }
 
     private void comprobarLimite() {
-        if (barberos.countByActivoTrue() >= 10) {
+        int limite = reglasNegocio.limiteBarberosActivos();
+        if (barberos.countByActivoTrue() >= limite) {
             throw new NegocioException(ErrorCodigo.LIMITE_BARBEROS_ACTIVOS,
-                    "Solo puede haber diez barberos activos.");
+                    "Solo puede haber " + limite + " barberos activos en este negocio.");
         }
     }
 

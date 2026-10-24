@@ -23,6 +23,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(RelojAjustable.Configuracion.class)
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class UsuarioAdminIT extends ReservaPruebaBase {
+    @Test void perfilProfesionalLocal_noCambiaLaCuentaGestionadaPorUsuarios() throws Exception {
+        var antes = jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId());
+        mvc.perform(conCsrf(put("/api/barberos/" + barbero.getId()).contentType("application/json")
+                .content("{\"nombre\":\"Nombre profesional local\",\"telefono\":\"999000009\",\"especialidad\":\"Barba\"}"), sesion(admin)))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(antes);
+        for (boolean activo : List.of(false, true)) {
+            mvc.perform(conCsrf(patch("/api/barberos/" + barbero.getId() + "/estado").contentType("application/json")
+                    .content("{\"activo\":" + activo + "}"), sesion(admin))).andExpect(status().isOk());
+            assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(antes);
+        }
+        // La operación explícita sobre la cuenta conserva su efecto global y revoca su JWT.
+        mvc.perform(conCsrf(cambio(barbero.getUsuario().getId(), false), sesion(admin))).andExpect(status().isOk());
+        var cuenta = usuarios.findById(barbero.getUsuario().getId()).orElseThrow();
+        assertThat(cuenta.isActivo()).isFalse();
+        assertThat(cuenta.getTokenVersion()).isEqualTo(barbero.getUsuario().getTokenVersion() + 1);
+    }
     @Autowired PasswordEncoder passwords;
     @Autowired UsuarioAdminService gestion;
     Usuario admin;

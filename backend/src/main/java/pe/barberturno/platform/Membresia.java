@@ -58,6 +58,17 @@ public class Membresia {
     }
 
     /**
+     * Restablece los permisos del mismo rol al reactivar el perfil profesional local (V2-DA-31).
+     * El servicio limita esta operación a la pertenencia BARBERO del negocio actual.
+     * @param ahora instante del cambio aportado por el reloj
+     * @throws NullPointerException si falta el instante
+     */
+    public void restablecer(Instant ahora) {
+        actualizadoEn = Objects.requireNonNull(ahora);
+        estado = "ACTIVA";
+    }
+
+    /**
      * Completa la propiedad acreditada por la configuración inicial de confianza, sin duplicar filas.
      * Solo el arranque de la cuenta BT_ADMIN usa esta operación; no es gestión de equipo por API.
      * @param ahora instante del arranque aportado por el reloj

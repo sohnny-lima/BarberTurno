@@ -22,17 +22,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Pruebas RF-16/17 y CP-18 con PostgreSQL, sesión real y reloj determinista. */
 @SpringBootTest(properties = {"barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
-        "barberturno.seguridad.cookie-secure=false", "barberturno.reservas.confirmacion-manual=true",
+        "barberturno.seguridad.cookie-secure=false", "barberturno.tenancy.negocio-unico-id=2",
         "spring.jpa.properties.hibernate.session_factory.statement_inspector=pe.barberturno.support.SqlPruebas"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class AuditoriaAvisosIT extends ReservaPruebaBase {
+class AuditoriaAvisosIT extends ReservaManualPruebaBase {
     @Autowired ReservaConsultaService consultas;
 
     private Usuario admin() {
         return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
-                "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
+                "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()), 2L);
     }
     private Usuario usuario(Rol rol) {
         return switch (rol) { case CLIENTE -> cliente; case BARBERO -> barbero.getUsuario(); case ADMIN -> admin(); };

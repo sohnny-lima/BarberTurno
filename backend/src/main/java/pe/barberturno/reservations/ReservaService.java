@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.audit.*;
 import pe.barberturno.catalog.ServicioRepository;
 import pe.barberturno.common.config.ParametrosReserva;
+import pe.barberturno.common.config.ReglasNegocioService;
 import pe.barberturno.common.error.*;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.common.time.TiempoNegocio;
@@ -34,7 +35,7 @@ public class ReservaService {
     private final AuditoriaService auditoria;
     private final NotificacionService notificaciones;
     private final Clock clock;
-    private final ParametrosReserva parametros;
+    private final ReglasNegocioService reglasNegocio;
     private final ReservaAutorizacion autorizacion;
 
     /**
@@ -48,12 +49,12 @@ public class ReservaService {
      * @param auditoria escritura del historial RN-15
      * @param notificaciones escritura de avisos RN-15
      * @param clock reloj inyectado del servidor
-     * @param parametros límite, confirmación y anticipación RN-07/20/21
+     * @param reglasNegocio lectura transaccional del límite, confirmación y anticipación RN-07/20/21
      * @param autorizacion política única de visibilidad por propietario, asignación o ADMIN
      */
     public ReservaService(ReservaRepository reservas, UsuarioRepository usuarios, ClienteRepository clientes, BarberoRepository barberos,
             ServicioRepository servicios, DisponibilidadService disponibilidad, AuditoriaService auditoria,
-            NotificacionService notificaciones, Clock clock, ParametrosReserva parametros, ReservaAutorizacion autorizacion) {
+            NotificacionService notificaciones, Clock clock, ReglasNegocioService reglasNegocio, ReservaAutorizacion autorizacion) {
         this.reservas = reservas;
         this.usuarios = usuarios;
         this.clientes = clientes;
@@ -63,7 +64,7 @@ public class ReservaService {
         this.auditoria = auditoria;
         this.notificaciones = notificaciones;
         this.clock = clock;
-        this.parametros = parametros;
+        this.reglasNegocio = reglasNegocio;
         this.autorizacion = autorizacion;
     }
 
@@ -79,6 +80,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaDto crear(CrearReservaDto cmd, UsuarioAutenticado actor) {
+        var parametros = reglasNegocio.reservas();
         boolean asistida = actor.rol() == Rol.ADMIN;
         if (!asistida && (actor.rol() != Rol.CLIENTE || cmd.clienteId() != null)) {
             throw new NegocioException(ErrorCodigo.PROHIBIDO, "Solo puede reservar para usted.");
@@ -124,7 +126,7 @@ public class ReservaService {
                         "barberoId", barbero.getId(), "servicioId", servicio.getId(), "estado", estado.name()),
                 null, false);
         String mensaje = "Reserva BT-" + reserva.getId() + " creada: " + servicio.getNombre()
-                + " con " + barbero.getUsuario().getNombre() + ", "
+                + " con " + barbero.getNombreVisible() + ", "
                 + TiempoNegocio.aLima(inicio).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
         notificaciones.notificar(cliente.getUsuario(), reserva, AccionAuditoria.CREAR, mensaje);
@@ -148,6 +150,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaDto cancelar(long id, CancelarReservaDto cmd, UsuarioAutenticado actor) {
+        var parametros = reglasNegocio.reservas();
         var reserva = reservas.bloquearPorId(id).orElseThrow(this::noEncontrado); // ③, sin precarga
         if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
         boolean admin = actor.rol() == Rol.ADMIN;
@@ -207,12 +210,13 @@ public class ReservaService {
      */
     @Transactional
     public ReservaDto reprogramar(long id, ReprogramarReservaDto cmd, UsuarioAutenticado actor) {
+        var parametros = reglasNegocio.reservas();
         var lectura = reservas.leerParaReprogramar(id).orElseThrow(this::noEncontrado);
         if (!autorizacion.puedeVer(actor, lectura.usuarioId(), lectura.asignadoId())) throw noEncontrado();
         if (actor.rol() != Rol.ADMIN && actor.rol() != Rol.CLIENTE) {
             throw new NegocioException(ErrorCodigo.PROHIBIDO, "Su rol no permite reprogramar reservas.");
         }
-        validarReprogramacion(cmd, actor, lectura.version(), lectura.estado(), lectura.inicio(), clock.instant());
+        validarReprogramacion(cmd, actor, lectura.version(), lectura.estado(), lectura.inicio(), clock.instant(), parametros);
         long nuevoId = cmd.barberoId() == null ? lectura.barberoId() : cmd.barberoId();
         clientes.bloquearPorId(lectura.clienteId()).orElseThrow(this::noEncontrado); // ①
         var ids = new TreeSet<Long>(List.of(lectura.barberoId(), nuevoId));
@@ -221,7 +225,7 @@ public class ReservaService {
         var reserva = reservas.bloquearPorId(id).orElseThrow(this::noEncontrado); // ③, sin entidad precargada
         Instant ahora = clock.instant();
         boolean excepcional = validarReprogramacion(cmd, actor, reserva.getVersion(),
-                reserva.getEstado(), reserva.getInicio(), ahora);
+                reserva.getEstado(), reserva.getInicio(), ahora, parametros);
         var nuevo = perfiles.stream().filter(b -> b.getId() == nuevoId).findFirst().orElseThrow(this::noEncontrado);
         if (!nuevo.isActivo()) {
             throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO, "El barbero de destino está inactivo.");
@@ -244,7 +248,7 @@ public class ReservaService {
         String mensaje = "Reserva BT-" + id + " reprogramada: "
                 + TiempoNegocio.aLima(inicio).format(
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
-                + " (hora de Lima), con " + nuevo.getUsuario().getNombre() + ".";
+                + " (hora de Lima), con " + nuevo.getNombreVisible() + ".";
         var destinatarios = new LinkedHashMap<Long, Usuario>();
         destinatarios.put(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getUsuario());
         for (var usuario : List.of(anterior, nuevo.getUsuario())) {
@@ -268,6 +272,7 @@ public class ReservaService {
      */
     @Transactional
     public ReservaDto transicionar(long id, TransicionarReservaDto cmd, UsuarioAutenticado actor) {
+        var parametros = reglasNegocio.reservas();
         var reserva = reservas.bloquearPorId(id).orElseThrow(this::noEncontrado); // ③, sin precarga
         if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
         if (cmd.estado() == null || cmd.estado() == EstadoReserva.PENDIENTE || cmd.estado() == EstadoReserva.CANCELADA) {
@@ -314,7 +319,7 @@ public class ReservaService {
     }
 
     private boolean validarReprogramacion(ReprogramarReservaDto cmd, UsuarioAutenticado actor,
-            int version, EstadoReserva estado, Instant inicio, Instant ahora) {
+            int version, EstadoReserva estado, Instant inicio, Instant ahora, ParametrosReserva parametros) {
         if (cmd.version() != version) {
             throw new NegocioException(ErrorCodigo.VERSION_DESACTUALIZADA, "La reserva cambió. Actualice sus datos.");
         }

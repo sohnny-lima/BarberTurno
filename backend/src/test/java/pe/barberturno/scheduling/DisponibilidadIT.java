@@ -194,7 +194,8 @@ class DisponibilidadIT {
         for (String tabla : List.of("servicio", "barbero", "jornada", "bloqueo", "reserva")) {
             assertThat(sql.stream().filter(s -> s.contains(" from " + tabla + " ")).count()).as(tabla).isEqualTo(1);
         }
-        assertThat(sql).hasSize(5).noneMatch(s -> s.contains("for no key update") || s.startsWith("insert") || s.startsWith("update"));
+        assertThat(sql.stream().filter(s -> s.contains("from negocio ")).count()).isEqualTo(1);
+        assertThat(sql).hasSize(6).noneMatch(s -> s.contains("for no key update") || s.startsWith("insert") || s.startsWith("update"));
     }
 
     @Test void consulta_sinJornadaOSinPerfiles_disponibilidadVacia() throws Exception {

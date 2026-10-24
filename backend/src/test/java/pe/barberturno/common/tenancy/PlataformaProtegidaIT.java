@@ -32,7 +32,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
     }
 
     @ParameterizedTest @ValueSource(strings = {"password", "estado", "nombre", "telefono"})
-    void plataformaPropietaria_otroPropietarioRecibe409_yNingunaColumnaGlobalCambia(String operacion) throws Exception {
+    void plataformaPropietaria_global409YPerfilLocal200_yNingunaColumnaGlobalCambia(String operacion) throws Exception {
         var actor = propietario("titular");
         var plataforma = plataforma("plataforma-titular", Rol.ADMIN);
         pertenencia(1L, plataforma, RolNegocio.PROPIETARIO);
@@ -46,11 +46,20 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
             default -> editar(perfil.getId(), operacion.equals("nombre") ? "Nombre cambiado" : plataforma.getNombre(),
                     operacion.equals("telefono") ? "999000002" : plataforma.getTelefono());
         };
-        mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
-                .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+        boolean global = operacion.equals("password") || operacion.equals("estado");
+        if (global) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
+                    .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+        } else {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+            var local = barberos.findById(perfil.getId()).orElseThrow();
+            assertThat(local.getNombreVisible()).isEqualTo(operacion.equals("nombre") ? "Nombre cambiado" : plataforma.getNombre());
+            assertThat(local.getTelefonoContacto()).isEqualTo(operacion.equals("telefono") ? "999000002" : plataforma.getTelefono());
+        }
         assertThat(huella(plataforma)).isEqualTo(anterior);
-        assertThat(barberos.findById(perfil.getId()).orElseThrow().getEspecialidad()).isEqualTo("Corte");
+        assertThat(barberos.findById(perfil.getId()).orElseThrow().getEspecialidad()).isEqualTo(global ? "Corte" : "Barba");
     }
 
     @ParameterizedTest @EnumSource(RolNegocio.class)

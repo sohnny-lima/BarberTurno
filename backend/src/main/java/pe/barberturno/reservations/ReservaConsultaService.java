@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.audit.AuditoriaRepository;
 import pe.barberturno.audit.dto.AuditoriaDto;
-import pe.barberturno.common.config.ParametrosReserva;
+import pe.barberturno.common.config.ReglasNegocioService;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.error.NegocioException;
 import pe.barberturno.common.security.UsuarioAutenticado;
@@ -29,23 +29,23 @@ public class ReservaConsultaService {
     private final AuditoriaRepository auditorias;
     private final ReservaAutorizacion autorizacion;
     private final Clock reloj;
-    private final ParametrosReserva parametros;
+    private final ReglasNegocioService reglasNegocio;
 
     /**
      * Mantiene accesibles las relaciones durante autorización y proyección, con reloj inyectado.
      * @param reservas persistencia paginada con carga de relaciones y conteo separados
      * @param autorizacion política única para recursos concretos
      * @param reloj fuente del instante de evaluación de permisos
-     * @param parametros ventanas RN-07/12 utilizadas por el DTO
+     * @param reglasNegocio ventanas RN-07/12 leídas del negocio dentro de la transacción
      * @param auditorias historial RF-17 con carga de actores
      */
     public ReservaConsultaService(ReservaRepository reservas, ReservaAutorizacion autorizacion,
-            Clock reloj, ParametrosReserva parametros, AuditoriaRepository auditorias) {
+            Clock reloj, ReglasNegocioService reglasNegocio, AuditoriaRepository auditorias) {
         this.reservas = reservas;
         this.auditorias = auditorias;
         this.autorizacion = autorizacion;
         this.reloj = reloj;
-        this.parametros = parametros;
+        this.reglasNegocio = reglasNegocio;
     }
 
     /**
@@ -104,7 +104,7 @@ public class ReservaConsultaService {
     public ReservaDto detalle(UsuarioAutenticado actor, long id) {
         var reserva = reservas.buscarDetalle(id).orElseThrow(ReservaConsultaService::noEncontrado);
         if (!autorizacion.puedeVer(actor, reserva)) throw noEncontrado();
-        return ReservaDto.desde(reserva, actor, reloj.instant(), parametros);
+        return ReservaDto.desde(reserva, actor, reloj.instant(), reglasNegocio.reservas());
     }
 
     /**
@@ -130,6 +130,7 @@ public class ReservaConsultaService {
         var filtros = ReservaFiltros.criterio(clienteId, barberoId, servicioId, estado, desde, hasta);
         var resultado = reservas.findAll(filtros, PageRequest.of(pagina, tamano, Sort.by("inicio", "id")));
         var ahora = reloj.instant();
+        var parametros = reglasNegocio.reservas();
         return PaginaDto.desde(resultado.map(r -> ReservaDto.desde(r, actor, ahora, parametros)));
     }
 

@@ -80,9 +80,11 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 |---|---|---|
 | `V100__negocio_y_rls.sql` (V2-01) | `negocio` + negocio único (`slug` por *placeholder* de Flyway); `negocio_id` con relleno en todas las tablas; `UNIQUE (negocio_id, id)`; FK compuestas; unicidades por negocio; RLS; permisos del rol de la aplicación | Restaurar la copia previa (§7) |
 | `V101__identidad_membresias.sql` (V2-02) | `rol_plataforma`; `membresia` desde `usuario.rol` (`ADMIN` → `PROPIETARIO`; `BARBERO` → `BARBERO`); el `BT_ADMIN_*` → `ADMIN_PLATAFORMA`; `usuario.rol` **se conserva** | ídem |
-| `V102__ficha_cliente.sql` (V2-03) | `cliente` desde `usuario` con rol `CLIENTE`, **con el mismo id** (`OVERRIDING SYSTEM VALUE` y ajuste de la secuencia); `reserva.cliente_id` pasa a referenciar `cliente`; `barbero.nombre_visible` desde `usuario.nombre` | ídem |
+| `V102__ficha_cliente.sql` (V2-03) | `cliente` desde `usuario` con rol `CLIENTE`, **con el mismo id** (`OVERRIDING SYSTEM VALUE` y ajuste de la secuencia); `reserva.cliente_id` pasa a referenciar `cliente` | ídem |
 | `V103__ambito_clientes_migrados.sql` (V2-03) | Corrige el relleno de `V102` sin editarla: las fichas migradas de cuentas inactivas quedan activas en el negocio (la cuenta sigue inactiva), para conservar la gestión y la reactivación de v1 | ídem |
-| `V104+` (equipo, WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
+| `V104__reglas_negocio.sql` (V2-04) | Añade `negocio.tolerancia_inicio_min` (15), `barbero.nombre_visible` y `telefono_contacto`; rellena los datos locales desde la cuenta fijando el contexto de cada negocio bajo RLS FORCE. Instalación nueva y actualización comprobadas con huellas de v1 idénticas. El bloqueo de unicidad del encargo 082 se resuelve mediante V105, sin editar V104 ([evidencia](pruebas/v2-04.md)) | Restaurar la copia previa (§7) |
+| `V105__perfil_por_negocio.sql` (V2-04) | Sustituye la unicidad heredada de v1 `barbero_usuario_id_key UNIQUE (usuario_id)` por `barbero_usuario_uk UNIQUE (negocio_id, usuario_id)`: la misma cuenta puede tener un perfil profesional en cada negocio, nunca dos en el mismo (V2-DA-32) | Restaurar la copia previa |
+| `V106+` (equipo, WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
 | `V1xx__contraer.sql` (tras el corte) | Eliminar `usuario.rol`, `usuario_cliente_completo` y las rutas antiguas | Solo después de un periodo estable |
 
 ### 6.2 Verificación de la migración (V2-CP-10)

@@ -22,6 +22,7 @@ import pe.barberturno.users.*;
 import pe.barberturno.platform.*;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 import pe.barberturno.customers.*;
+import pe.barberturno.common.config.ReglasNegocioService;
 
 /**
  * Importa las instantáneas académicas sin modificar reglas, catálogo ajeno ni identidades existentes.
@@ -45,11 +46,12 @@ public class DatosDemoService {
     private final MembresiaRepository membresias;
     private final ProveedorNegocioActual negocio;
     private final ClienteRepository clientes;
+    private final ReglasNegocioService reglasNegocio;
 
     /**
      * Recibe los repositorios del escenario, los servicios RN-15 y la seguridad del entorno.
      * @param usuarios persistencia de identidades y marcador cliente@ejemplo.test
-     * @param barberos persistencia y bloqueo global de cupo RN-19
+     * @param barberos persistencia y bloqueo por negocio de cupo RN-19
      * @param servicios catálogo con instantáneas de duración y precio
      * @param jornadas intervalos semanales de atención
      * @param bloqueos excepciones de disponibilidad
@@ -61,12 +63,13 @@ public class DatosDemoService {
      * @param membresias pertenencias del personal del escenario
      * @param negocio negocio único de la carga
      * @param clientes fichas locales del escenario y bloqueo ①
+     * @param reglasNegocio cupo leído del negocio de la carga
      */
     public DatosDemoService(UsuarioRepository usuarios, BarberoRepository barberos,
             ServicioRepository servicios, JornadaRepository jornadas, BloqueoRepository bloqueos,
             ReservaRepository reservas, AuditoriaService auditoria, NotificacionService avisos,
             PasswordEncoder encoder, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
-            ClienteRepository clientes) {
+            ClienteRepository clientes, ReglasNegocioService reglasNegocio) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.servicios = servicios;
@@ -80,11 +83,12 @@ public class DatosDemoService {
         this.membresias = membresias;
         this.negocio = negocio;
         this.clientes = clientes;
+        this.reglasNegocio = reglasNegocio;
     }
 
     /**
      * Importa BT-100…BT-104 y K1 una vez; omite si ya existe el primer cliente demo.
-     * Usa el bloqueo global de altas y luego clientes ① y barberos ② antes de disponibilidad.
+     * Usa el bloqueo de altas del negocio y luego clientes ① y barberos ② antes de disponibilidad.
      * Las fechas originales se conservan incluso históricas: son datos iniciales, no reservas nuevas.
      * @param password contraseña externa válida según RN-25 para todas las cuentas demo
      * @throws IllegalStateException si la clave es inválida, falta cupo o el catálogo existente difiere
@@ -92,12 +96,12 @@ public class DatosDemoService {
      */
     @Transactional
     public void cargar(String password) {
-        barberos.bloquearLimiteActivos();
+        barberos.bloquearLimiteActivos(negocio.negocioActual().orElseThrow());
         if (usuarios.findByCorreo("cliente@ejemplo.test").isPresent()) return;
         if (!new PoliticaPassword().validar(password).isEmpty()) {
             throw new IllegalStateException("BT_DEMO_PASSWORD debe cumplir RN-25.");
         }
-        if (barberos.countByActivoTrue() + 2 > 10) {
+        if (barberos.countByActivoTrue() + 2 > reglasNegocio.limiteBarberosActivos()) {
             throw new IllegalStateException("La demo necesita cupo para dos barberos activos.");
         }
         String hash = encoder.encode(password);

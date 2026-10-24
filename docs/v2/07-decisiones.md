@@ -171,3 +171,21 @@
 - **Decisión:** hasta que cambie el frontend (V2-07), `clienteId` (reserva asistida) y `ReservaDto.cliente.id` siguen siendo el id de la **cuenta**; el servidor lo traduce a la ficha activa del negocio actual (sin ficha → 404). Los ids de ficha solo aparecen en `/api/clientes/{id}`.
 - **Por qué:** evita tocar el frontend en esta etapa y mantiene válidos los datos migrados (en v1, ficha y cuenta comparten id; en v2 una cuenta puede tener varias fichas).
 - **Consecuencia:** las fichas sin cuenta (WhatsApp, alta por el personal) no se pueden reservar por la web hasta V2-07, que pasa el contrato a ids de ficha.
+
+---
+*Decisiones V2-DA-30 y V2-DA-31: alcance de V2-04 (24/10/2026). Vigentes.*
+
+### V2-DA-30 · Parámetros de reserva leídos del negocio en cada transacción
+- **Decisión:** las reglas parametrizables (RN-07, RN-12, RN-20, RN-21 y el horizonte) se leen de la fila `negocio` del negocio actual al usarlas, dentro de la transacción. La rejilla sigue global. Los valores iniciales de las columnas son los de v1, y una prueba compara la fila con `application.yml`.
+- **Por qué:** una sola fuente por negocio y sin cachés que invalidar: la lectura es por clave primaria. Mantiene el comportamiento del negocio único.
+- **Alternativa descartada:** una caché por negocio (habría que invalidarla cuando exista la edición por API en V2-06).
+
+### V2-DA-31 · El perfil profesional es local; desactivarlo revoca solo la membresía `BARBERO` del negocio
+- **Decisión:** `barbero.nombre_visible`, `telefono_contacto` y `especialidad` son datos del negocio y el negocio nunca escribe la cuenta. Desactivar el perfil no toca `usuario` (ni `activo` ni `token_version`); revoca la membresía `BARBERO` de ese negocio, si existe, y reactivarlo la restablece. Las membresías de gestión y las de otros negocios no cambian.
+- **Por qué:** en v1, desactivar a un barbero bloqueaba su cuenta, que era de una sola barbería. En v2, la cuenta puede trabajar en otros negocios (V2-RN-16): el efecto local equivalente es quitarle el acceso a ese negocio, con efecto inmediato gracias a la revalidación por petición.
+- **Consecuencia:** el 409 `IDENTIDAD_COMPARTIDA` al editar el perfil desaparece; se mantiene en el restablecimiento de contraseña y en el estado de la cuenta.
+
+### V2-DA-32 · Un perfil profesional por cuenta y negocio (24/10/2026)
+- **Problema (bloqueo de Codex en el encargo 082, reproducido y válido):** `barbero` conserva de v1 `barbero_usuario_id_key UNIQUE (usuario_id)`, que impide que la misma cuenta tenga perfil profesional en dos negocios (`23505` con el rol de la aplicación). El DDL de `04-arquitectura-datos.md` §3.2 ya preveía sustituirla, pero ninguna tarea lo incluía; sin ello, las condiciones 4 y 5 de V2-04 no se pueden demostrar.
+- **Decisión:** migración aditiva `V105__perfil_por_negocio.sql` que elimina `barbero_usuario_id_key` y crea `barbero_usuario_uk UNIQUE (negocio_id, usuario_id)`. Las búsquedas de perfil por cuenta siguen bajo RLS (devuelven el perfil del negocio actual). Un segundo perfil de la misma cuenta en el mismo negocio sigue rechazándose.
+- **Por qué una migración nueva:** `V104` ya está aplicada en la base de pruebas; V2-DA-21 prohíbe editar migraciones aplicadas.

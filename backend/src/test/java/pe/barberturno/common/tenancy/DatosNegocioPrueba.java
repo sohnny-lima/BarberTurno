@@ -15,7 +15,12 @@ record DatosNegocioPrueba(long cliente, long admin, long barbero, long servicio,
                 VALUES ('Profesional ficticio', ?, 'hash-ficticio', 'ADMIN',
                     '2026-09-28T14:00Z', '2026-09-28T14:00Z') RETURNING id
                 """, Long.class, "admin-" + sufijo + "@ejemplo.test");
-        long barbero = jdbc.queryForObject("""
+        boolean perfilLocal = jdbc.queryForObject("select count(*)>0 from information_schema.columns where table_name='barbero' and column_name='nombre_visible'", Boolean.class);
+        long barbero = perfilLocal ? jdbc.queryForObject("""
+                INSERT INTO barbero (usuario_id, nombre_visible, telefono_contacto, creado_en, actualizado_en)
+                SELECT id, nombre, telefono, '2026-09-28T14:00Z', '2026-09-28T14:00Z'
+                FROM usuario WHERE id=? RETURNING id
+                """, Long.class, admin) : jdbc.queryForObject("""
                 INSERT INTO barbero (usuario_id, creado_en, actualizado_en)
                 VALUES (?, '2026-09-28T14:00Z', '2026-09-28T14:00Z') RETURNING id
                 """, Long.class, admin);

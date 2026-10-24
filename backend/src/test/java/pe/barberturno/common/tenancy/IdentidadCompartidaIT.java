@@ -38,6 +38,13 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         if (operacion.equals("perfil")) {
             mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk());
             assertThat(barberos.findById(perfil.getId()).orElseThrow().isActivo()).isFalse();
+        } else if (operacion.equals("nombre") || operacion.equals("telefono")) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+            var local = barberos.findById(perfil.getId()).orElseThrow();
+            assertThat(local.getNombreVisible()).isEqualTo(operacion.equals("nombre") ? "Nuevo" : usuario.getNombre());
+            assertThat(local.getTelefonoContacto()).isEqualTo(operacion.equals("telefono") ? "999000002" : usuario.getTelefono());
+            assertThat(local.getEspecialidad()).isEqualTo("Barba");
         } else {
             mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
                     .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
@@ -47,7 +54,7 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
     }
 
     @ParameterizedTest @ValueSource(strings = {"password", "estado", "nombre", "telefono"})
-    void identidadCompartida_rechaza409SinModificarNingunaColumnaGlobal(String operacion) throws Exception {
+    void identidadCompartida_cambiosGlobales409YEdicionLocal200_sinModificarLaCuenta(String operacion) throws Exception {
         long b = negocioB();
         var actor = propietario("titular");
         var usuario = persona("compartida", Rol.BARBERO);
@@ -63,11 +70,19 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
                             + "\",\"telefono\":\"" + (operacion.equals("telefono") ? "999000002" : usuario.getTelefono())
                             + "\",\"especialidad\":\"Barba\"}");
         };
-        mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
-                .andExpect(jsonPath("$.detail").value(MENSAJE));
+        boolean global = operacion.equals("password") || operacion.equals("estado");
+        if (global) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
+                    .andExpect(jsonPath("$.detail").value(MENSAJE));
+        } else {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk());
+            var local = barberos.findById(perfil.getId()).orElseThrow();
+            assertThat(local.getNombreVisible()).isEqualTo(operacion.equals("nombre") ? "Nombre nuevo" : usuario.getNombre());
+            assertThat(local.getTelefonoContacto()).isEqualTo(operacion.equals("telefono") ? "999000002" : usuario.getTelefono());
+        }
         assertThat(huella(usuario)).isEqualTo(anterior);
-        assertThat(barberos.findById(perfil.getId()).orElseThrow().getEspecialidad()).isEqualTo("Corte");
+        assertThat(barberos.findById(perfil.getId()).orElseThrow().getEspecialidad()).isEqualTo(global ? "Corte" : "Barba");
     }
 
     @Test void perfilCompartido_desactivacionYReactivacionSoloLocales_especialidadEditable() throws Exception {
@@ -102,13 +117,18 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         mvc.perform(csrf(post("/api/usuarios/" + usuario.getId() + "/restablecer-password"), cookie)).andExpect(status().isOk());
         mvc.perform(csrf(estado(usuario.getId(), false), cookie)).andExpect(status().isOk());
         mvc.perform(csrf(estado(usuario.getId(), true), cookie)).andExpect(status().isOk());
+        var cuentaAntes = huella(usuario);
         mvc.perform(csrf(put("/api/barberos/" + perfil.getId()).contentType("application/json")
                 .content("{\"nombre\":\"Nuevo nombre\",\"telefono\":\"999000002\",\"especialidad\":\"Barba\"}"), cookie))
                 .andExpect(status().isOk());
-        assertThat(usuarios.findById(usuario.getId()).orElseThrow().getNombre()).isEqualTo("Nuevo nombre");
+        assertThat(usuarios.findById(usuario.getId()).orElseThrow().getNombre()).isEqualTo(usuario.getNombre());
+        assertThat(barberos.findById(perfil.getId()).orElseThrow().getNombreVisible()).isEqualTo("Nuevo nombre");
+        assertThat(huella(usuario)).isEqualTo(cuentaAntes);
         mvc.perform(csrf(patch("/api/barberos/" + perfil.getId() + "/estado").contentType("application/json")
                 .content("{\"activo\":false}"), cookie)).andExpect(status().isOk());
-        assertThat(usuarios.findById(usuario.getId()).orElseThrow().isActivo()).isFalse();
+        assertThat(usuarios.findById(usuario.getId()).orElseThrow().isActivo()).isTrue();
+        assertThat(huella(usuario)).isEqualTo(cuentaAntes);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, usuario.getId()).orElseThrow().isActiva()).isFalse();
     }
 
     @Test void pertenenciaRevocadaEnOtroNegocio_noHaceCompartidaALaPersona() throws Exception {

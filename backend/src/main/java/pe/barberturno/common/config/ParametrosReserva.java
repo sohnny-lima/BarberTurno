@@ -8,7 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Parámetros externos de reserva; las políticas puras reciben sus valores por parámetro.
+ * Instantánea validada de reglas locales; las políticas puras reciben estos valores por parámetro.
+ * No se registra como bean global: ReglasNegocioService la construye desde la fila del negocio.
  * @param anticipacionCambioCliente mínimo no negativo para cambios del cliente
  * @param horizonteDias días positivos de horizonte
  * @param rejillaMin paso positivo de disponibilidad

@@ -48,11 +48,15 @@ class ReporteIT extends ReservaPruebaBase {
     @BeforeEach void escenarioConocido() {
         admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
-        barbero.getUsuario().actualizarPerfil("Zeta ficticio", null, reloj.instant());
-        usuarios.saveAndFlush(barbero.getUsuario());
+        var cuentaZeta = jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId());
+        barbero.editarPerfil("Zeta ficticio", null, barbero.getEspecialidad(), reloj.instant());
+        barberos.saveAndFlush(barbero);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(cuentaZeta);
         alfa = datos.barbero("alfa");
-        alfa.getUsuario().actualizarPerfil("Alfa ficticio", null, reloj.instant());
-        usuarios.saveAndFlush(alfa.getUsuario());
+        var cuentaAlfa = jdbc.queryForMap("select * from usuario where id=?", alfa.getUsuario().getId());
+        alfa.editarPerfil("Alfa ficticio", null, alfa.getEspecialidad(), reloj.instant());
+        barberos.saveAndFlush(alfa);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", alfa.getUsuario().getId())).isEqualTo(cuentaAlfa);
         barba = servicios.saveAndFlush(new Servicio("Barba ficticia", "Prueba", (short) 20,
                 BigDecimal.TEN, reloj.instant()));
         var horas = List.of("00:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "23:30");

@@ -46,11 +46,15 @@ class ReservaConsultaIT extends ReservaPruebaBase {
         reloj.adelantar(Duration.ofHours(70)); // 01/10/2026 07:00 Lima, tres horas antes de R101.
         cliente.actualizarPerfil("Ana demo", "999000001", reloj.instant());
         usuarios.saveAndFlush(cliente);
-        barbero.getUsuario().actualizarPerfil("Carlos", null, reloj.instant());
-        usuarios.saveAndFlush(barbero.getUsuario());
+        var cuentaCarlos = jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId());
+        barbero.editarPerfil("Carlos", null, barbero.getEspecialidad(), reloj.instant());
+        barberos.saveAndFlush(barbero);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(cuentaCarlos);
         miguel = perfil("miguel");
-        miguel.getUsuario().actualizarPerfil("Miguel", null, reloj.instant());
-        usuarios.saveAndFlush(miguel.getUsuario());
+        var cuentaMiguel = jdbc.queryForMap("select * from usuario where id=?", miguel.getUsuario().getId());
+        miguel.editarPerfil("Miguel", null, miguel.getEspecialidad(), reloj.instant());
+        barberos.saveAndFlush(miguel);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", miguel.getUsuario().getId())).isEqualTo(cuentaMiguel);
         luis = datos.cliente("luis");
         luis.actualizarPerfil("Luis demo", "999000002", reloj.instant());
         usuarios.saveAndFlush(luis);
@@ -291,7 +295,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
     }
 
-    @Test void pagina20SinNMasUno_conteoSeparadoYCuatroSelectHttp() throws Exception {
+    @Test void pagina20SinNMasUno_conteoSeparadoYUnaLecturaConstanteDeReglas() throws Exception {
         // Relaciones distintas para que la caché de primer nivel no oculte N+1.
         for (int i = 0; i < 21; i++) {
             var propietario = datos.cliente("pagina" + i);
@@ -305,24 +309,27 @@ class ReservaConsultaIT extends ReservaPruebaBase {
             SqlPruebas.limpiar();
             mvc.perform(peticion).andExpect(status().isOk());
             assertThat(SqlPruebas.sentencias().stream().filter(s -> s.contains("from membresia"))).hasSize(1);
-            assertThat(SqlPruebas.sentencias().stream().filter(s -> !s.contains("from membresia")))
+            assertThat(SqlPruebas.sentencias().stream().filter(s -> s.contains("from negocio"))).hasSize(1);
+            assertThat(SqlPruebas.sentencias().stream().filter(s -> !s.contains("from membresia") && !s.contains("from negocio")))
                     .hasSizeLessThanOrEqualTo(4);
         }
         SqlPruebas.limpiar();
         mvc.perform(agenda(admin)).andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(20))
                 .andExpect(jsonPath("$.totalElementos").value(25)).andExpect(jsonPath("$.totalPaginas").value(2));
         var sql = SqlPruebas.sentencias();
-        assertThat(sql).hasSize(5); // Identidad, membresía, perfil, contenido con joins y count separado.
+        assertThat(sql).hasSize(6); // Identidad, membresía, perfil, contenido, count separado y reglas locales.
         assertThat(sql.stream().filter(s -> s.contains("from membresia"))).hasSize(1);
-        assertThat(sql.stream().filter(s -> !s.contains("from membresia"))).hasSize(4);
+        assertThat(sql.stream().filter(s -> s.contains("from negocio"))).hasSize(1);
+        assertThat(sql.stream().filter(s -> !s.contains("from membresia") && !s.contains("from negocio"))).hasSize(4);
         assertThat(sql.stream().filter(s -> s.contains("from reserva") && !s.contains("count("))).singleElement()
                 .satisfies(s -> assertThat(s).contains("join usuario", "join barbero", "join servicio", "offset", "fetch first"));
         assertThat(sql.stream().filter(s -> s.contains("count(") && s.contains("from reserva"))).hasSize(1);
         SqlPruebas.limpiar();
         mvc.perform(detalle(admin, r101.getId())).andExpect(status().isOk());
-        assertThat(SqlPruebas.sentencias()).hasSize(4);
+        assertThat(SqlPruebas.sentencias()).hasSize(5);
         assertThat(SqlPruebas.sentencias().stream().filter(s -> s.contains("from membresia"))).hasSize(1);
-        assertThat(SqlPruebas.sentencias().stream().filter(s -> !s.contains("from membresia"))).hasSize(3);
+        assertThat(SqlPruebas.sentencias().stream().filter(s -> s.contains("from negocio"))).hasSize(1);
+        assertThat(SqlPruebas.sentencias().stream().filter(s -> !s.contains("from membresia") && !s.contains("from negocio"))).hasSize(3);
     }
 
     @Test void servicioMantieneGuardiasDeRolYLimiteDeFecha() {

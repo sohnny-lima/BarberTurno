@@ -4,12 +4,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registra y valida los parámetros externos al arrancar la aplicación.
+ * Registra y valida la rejilla global; las demás reglas se leen del negocio en cada transacción.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(ParametrosReserva.class)
+@EnableConfigurationProperties(RejillaReserva.class)
 public class ConfiguracionReservas {
 
     /**
