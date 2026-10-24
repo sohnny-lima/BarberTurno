@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import pe.barberturno.scheduling.Barbero;
 
 /**
- * Proyección RF-05; obtiene el nombre del usuario y omite contactos salvo para ADMIN.
+ * Proyección RF-05 de datos locales; omite contactos salvo para ADMIN.
  * @param id identificador del perfil
- * @param nombre nombre visible del usuario vinculado
+ * @param nombre nombre visible del profesional en este negocio
  * @param especialidad descripción profesional
  * @param activo habilitación de nuevas reservas
  * @param correo correo solo para ADMIN; nulo y omitido para los demás actores
@@ -25,7 +25,7 @@ public record BarberoDto(Long id, String nombre, String especialidad, boolean ac
      */
     public static BarberoDto desde(Barbero barbero, boolean admin) {
         var usuario = barbero.getUsuario();
-        return new BarberoDto(barbero.getId(), usuario.getNombre(), barbero.getEspecialidad(),
-                barbero.isActivo(), admin ? usuario.getCorreo() : null, admin ? usuario.getTelefono() : null);
+        return new BarberoDto(barbero.getId(), barbero.getNombreVisible(), barbero.getEspecialidad(),
+                barbero.isActivo(), admin ? usuario.getCorreo() : null, admin ? barbero.getTelefonoContacto() : null);
     }
 }

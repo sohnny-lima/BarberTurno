@@ -126,7 +126,7 @@ public class ReservaService {
                         "barberoId", barbero.getId(), "servicioId", servicio.getId(), "estado", estado.name()),
                 null, false);
         String mensaje = "Reserva BT-" + reserva.getId() + " creada: " + servicio.getNombre()
-                + " con " + barbero.getUsuario().getNombre() + ", "
+                + " con " + barbero.getNombreVisible() + ", "
                 + TiempoNegocio.aLima(inicio).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
         notificaciones.notificar(cliente.getUsuario(), reserva, AccionAuditoria.CREAR, mensaje);
@@ -248,7 +248,7 @@ public class ReservaService {
         String mensaje = "Reserva BT-" + id + " reprogramada: "
                 + TiempoNegocio.aLima(inicio).format(
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
-                + " (hora de Lima), con " + nuevo.getUsuario().getNombre() + ".";
+                + " (hora de Lima), con " + nuevo.getNombreVisible() + ".";
         var destinatarios = new LinkedHashMap<Long, Usuario>();
         destinatarios.put(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getUsuario());
         for (var usuario : List.of(anterior, nuevo.getUsuario())) {

@@ -92,7 +92,7 @@ public record ReservaDto(long id, String codigo, ClienteDto cliente, RecursoDto 
         return new ReservaDto(reserva.getId(), "BT-" + reserva.getId(),
                 new ClienteDto(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getNombre(),
                         actor.rol() == Rol.CLIENTE ? null : reserva.getCliente().getTelefono()),
-                new RecursoDto(reserva.getBarbero().getId(), reserva.getBarbero().getUsuario().getNombre()),
+                new RecursoDto(reserva.getBarbero().getId(), reserva.getBarbero().getNombreVisible()),
                 new RecursoDto(reserva.getServicio().getId(), reserva.getServicio().getNombre()),
                 TiempoNegocio.aLima(reserva.getInicio()), TiempoNegocio.aLima(reserva.getFin()),
                 reserva.getDuracionRefMin(), reserva.getPrecioRef().setScale(2), reserva.getEstado(),

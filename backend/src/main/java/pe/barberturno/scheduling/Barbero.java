@@ -106,6 +106,26 @@ public class Barbero {
         this.actualizadoEn = Objects.requireNonNull(actualizadoEn, "actualizadoEn");
     }
 
+    /**
+     * Edita los datos profesionales del negocio sin modificar la identidad global (V2-DA-31).
+     * @param nombreVisible nombre local validado, de hasta 100 caracteres
+     * @param telefonoContacto teléfono local opcional
+     * @param especialidad descripción profesional de hasta 100 caracteres
+     * @param actualizadoEn instante del cambio aportado por el reloj
+     * @throws NullPointerException si falta nombre, especialidad o instante
+     */
+    public void editarPerfil(String nombreVisible, String telefonoContacto, String especialidad, Instant actualizadoEn) {
+        this.nombreVisible = Objects.requireNonNull(nombreVisible, "nombreVisible");
+        this.telefonoContacto = telefonoContacto;
+        editarEspecialidad(especialidad, actualizadoEn);
+    }
+
+    /** {@return nombre que presenta este negocio, independiente de la cuenta global} */
+    public String getNombreVisible() { return nombreVisible; }
+
+    /** {@return contacto local opcional, independiente del teléfono de la cuenta} */
+    public String getTelefonoContacto() { return telefonoContacto; }
+
     /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;

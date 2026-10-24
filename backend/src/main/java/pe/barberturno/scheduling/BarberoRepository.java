@@ -40,7 +40,7 @@ public interface BarberoRepository extends RepositorioTransaccional<Barbero, Lon
      * @param incluirInactivos permiso concedido solo a ADMIN por el controlador
      * @return perfiles ordenados con usuario disponible
      */
-    @Query("select b from Barbero b join fetch b.usuario u where :incluirInactivos = true or b.activo = true order by lower(u.nombre), b.id")
+    @Query("select b from Barbero b join fetch b.usuario u where :incluirInactivos = true or b.activo = true order by lower(b.nombreVisible), b.id")
     List<Barbero> listar(@Param("incluirInactivos") boolean incluirInactivos);
 
     /**

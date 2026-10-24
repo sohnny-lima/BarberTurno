@@ -92,7 +92,7 @@ public class ReporteService {
                 .orElseGet(() -> servicios.findById(servicioId).map(Servicio::getNombre).orElse("Sin coincidencias"));
         String profesional = barberoId == null ? "Todos" : resumen.porBarbero().stream()
                 .filter(g -> g.id() == barberoId).map(ConteoReporteDto::nombre).findFirst()
-                .orElseGet(() -> barberos.findById(barberoId).map(b -> b.getUsuario().getNombre()).orElse("Sin coincidencias"));
+                .orElseGet(() -> barberos.findById(barberoId).map(pe.barberturno.scheduling.Barbero::getNombreVisible).orElse("Sin coincidencias"));
         return excel.generar(actor.id(), resumen, desde, hasta, servicio, profesional);
     }
 }

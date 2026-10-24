@@ -57,7 +57,7 @@ public class ReporteRepository {
     }
 
     /**
-     * Agrupa por perfil y nombre del usuario del barbero, sin cargar relaciones LAZY.
+     * Agrupa por perfil y nombre visible local del profesional, sin cargar relaciones LAZY.
      * @param filtros criterio compartido con el historial, sin fetch
      * @return conteos por total descendente y nombre ascendente, sin grupos vacíos
      */
@@ -71,7 +71,7 @@ public class ReporteRepository {
         var raiz = consulta.from(Reserva.class);
         var recurso = raiz.join(profesional ? "barbero" : "servicio");
         var id = recurso.<Long>get("id");
-        var nombre = (profesional ? recurso.join("usuario") : recurso).<String>get("nombre");
+        var nombre = recurso.<String>get(profesional ? "nombreVisible" : "nombre");
         var total = cb.count(raiz);
         consulta.multiselect(id, nombre, total).where(filtros.toPredicate(raiz, consulta, cb))
                 .groupBy(id, nombre).orderBy(cb.desc(total), cb.asc(nombre), cb.asc(id));
