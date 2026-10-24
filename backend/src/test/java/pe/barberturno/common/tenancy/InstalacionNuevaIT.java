@@ -32,6 +32,7 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
                     .containsEntry("is_nullable", "NO").containsEntry("character_maximum_length", 100);
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
             IdentidadEsquemaPruebas.comprobar(jdbc, datos.cliente());
+            MotivoRevocacionEsquemaPruebas.comprobar(jdbc, datos.cliente());
             VinculoActivoEsquemaPruebas.comprobar(jdbc, datos.cliente());
             IndicesNegocioEsquemaPruebas.comprobar(jdbc);
             assertThat(datos.reserva()).isEqualTo(100);

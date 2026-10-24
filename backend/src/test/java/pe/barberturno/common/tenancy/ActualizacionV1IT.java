@@ -91,6 +91,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             assertThat(jdbc.queryForObject("select count(*) from membresia m join usuario u on u.id=m.usuario_id where m.negocio_id=1 and m.estado='ACTIVA' and m.rol=case u.rol when 'ADMIN' then 'PROPIETARIO' else 'BARBERO' end and u.rol in ('ADMIN','BARBERO')", Integer.class)).isEqualTo(2);
             assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
             IdentidadEsquemaPruebas.comprobar(jdbc, a.cliente());
+            MotivoRevocacionEsquemaPruebas.comprobar(jdbc, a.cliente());
             VinculoActivoEsquemaPruebas.comprobar(jdbc, a.cliente());
             IndicesNegocioEsquemaPruebas.comprobar(jdbc);
             for (String tabla : EsquemaV2IT.TABLAS) {
@@ -180,6 +181,50 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                 contexto(aplicacion, ambitos[i]);
                 assertThat(jdbc(aplicacion).queryForObject("select activo from vinculo_cliente where negocio_id=? and usuario_id=?", Boolean.class, ambitos[i], cuentas[i])).isEqualTo(i == 0);
                 VinculoActivoEsquemaPruebas.comprobar(jdbc(aplicacion), cuentas[i]);
+                aplicacion.commit();
+            }
+        }
+    }
+
+    @Test void v108_rellenaLasBajasDePerfilDeV204SinCambiarCuentaNiMembresiasActivas() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        flyway("107").migrate();
+        long b;
+        try (var propietario = conexion(true)) {
+            b = jdbc(propietario).queryForObject("insert into negocio(slug,nombre,creado_en,actualizado_en) values ('b','Ficticio B',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id", Long.class);
+        }
+        long[] negocios = {1L, b};
+        long[] cuentas = new long[2];
+        var huellas = new java.util.ArrayList<Map<String, Object>>();
+        var membresias = new java.util.ArrayList<List<Map<String, Object>>>();
+        try (var aplicacion = conexion(false)) {
+            var jdbc = jdbc(aplicacion);
+            for (int i = 0; i < negocios.length; i++) {
+                contexto(aplicacion, negocios[i]);
+                var datos = DatosNegocioPrueba.crear(jdbc, "pre-v108-" + i);
+                cuentas[i] = datos.admin();
+                jdbc.update("insert into membresia(negocio_id,usuario_id,rol,creado_en,actualizado_en) values (?,?,'BARBERO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", negocios[i], cuentas[i]);
+                // Estado exacto de V2-04: baja del perfil y de su membresía; identidad intacta.
+                jdbc.update("update barbero set activo=false where id=?", datos.barbero());
+                jdbc.update("update membresia set estado='REVOCADA' where negocio_id=? and usuario_id=?", negocios[i], cuentas[i]);
+                jdbc.update("insert into membresia(negocio_id,usuario_id,rol,creado_en,actualizado_en) values (?,?,'PROPIETARIO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", negocios[i], datos.cliente());
+                huellas.add(jdbc.queryForMap("select * from usuario where id=?", cuentas[i]));
+                membresias.add(jdbc.queryForList("select * from membresia where negocio_id=? order by id", negocios[i]));
+                aplicacion.commit();
+            }
+        }
+        completa.migrate();
+        comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            var jdbc = jdbc(aplicacion);
+            for (int i = 0; i < negocios.length; i++) {
+                contexto(aplicacion, negocios[i]);
+                assertThat(jdbc.queryForMap("select * from usuario where id=?", cuentas[i])).isEqualTo(huellas.get(i));
+                assertThat(jdbc.queryForObject("select motivo_revocacion from membresia where negocio_id=? and usuario_id=?", String.class, negocios[i], cuentas[i])).isEqualTo("PERFIL_DESACTIVADO");
+                assertThat(jdbc.queryForObject("select count(*) from membresia where negocio_id=? and estado='ACTIVA' and motivo_revocacion is null", Integer.class, negocios[i])).isEqualTo(1);
+                assertThat(jdbc.queryForList("select id,negocio_id,usuario_id,rol,estado,creado_en,actualizado_en from membresia where negocio_id=? order by id", negocios[i])).isEqualTo(membresias.get(i));
+                assertThat(jdbc.queryForObject("select activo from barbero where usuario_id=?", Boolean.class, cuentas[i])).isFalse();
                 aplicacion.commit();
             }
         }
