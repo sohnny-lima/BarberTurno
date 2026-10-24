@@ -126,7 +126,8 @@ public class BarberoService {
 
     /**
      * Serializa estado con bloqueo por negocio RN-19 y después usuario y perfil; revoca o restablece
-     * únicamente la membresía BARBERO local. Conserva la cuenta, sus sesiones y los demás roles y negocios.
+     * únicamente la membresía BARBERO local revocada por PERFIL_DESACTIVADO (V2-DA-37).
+     * Conserva la cuenta, sus sesiones y los demás roles y negocios.
      * Repetir el mismo estado no vuelve a modificar la membresía.
      * @param id perfil que se habilita o deshabilita
      * @param activo nuevo estado solicitado
@@ -145,10 +146,11 @@ public class BarberoService {
             if (activo) {
                 comprobarLimite();
                 barbero.activar(ahora);
-                membresiaLocal.filter(m -> !m.isActiva()).ifPresent(m -> m.restablecer(ahora));
+                membresiaLocal.ifPresent(m -> m.restablecerTrasReactivarPerfil(ahora));
             } else {
                 barbero.desactivar(ahora);
-                membresiaLocal.filter(Membresia::isActiva).ifPresent(m -> m.revocar(ahora));
+                membresiaLocal.filter(Membresia::isActiva)
+                        .ifPresent(m -> m.revocar(MotivoRevocacion.PERFIL_DESACTIVADO, ahora));
             }
         }
         barberos.saveAndFlush(barbero);
@@ -163,7 +165,8 @@ public class BarberoService {
         // La baja local revoca BARBERO: el gestor debe poder editar y reactivar ese perfil inactivo.
         boolean perfilDesactivado = !barbero.isActivo() && membresias
                 .findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), usuarioId)
-                .filter(m -> m.getRol() == RolNegocio.BARBERO).isPresent();
+                .filter(m -> m.getRol() == RolNegocio.BARBERO && !m.isActiva()
+                        && m.getMotivoRevocacion() == MotivoRevocacion.PERFIL_DESACTIVADO).isPresent();
         if (!ambito.contiene(usuario) && !perfilDesactivado) throw noEncontrado();
         return barbero;
     }

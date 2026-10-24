@@ -29,7 +29,7 @@ class ResolucionNegocioIT extends PeticionNegocioPruebaBase {
         var cookie = sesion(cuenta);
         mvc.perform(get("/api/n/a/usuarios").cookie(cookie)).andExpect(status().isOk());
         var miembro = membresias.findByNegocioIdAndUsuarioId(a, cuenta.getId()).orElseThrow();
-        miembro.revocar(reloj.instant()); membresias.save(miembro);
+        miembro.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(miembro);
         mvc.perform(get("/api/n/a/sesion").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
         mvc.perform(get("/api/n/a/usuarios").cookie(cookie)).andExpect(status().isForbidden());
         mvc.perform(csrf(post("/api/n/a/servicios").contentType("application/json").content("{}"), cookie))

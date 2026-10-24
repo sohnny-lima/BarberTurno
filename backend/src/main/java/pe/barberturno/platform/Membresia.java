@@ -22,6 +22,8 @@ public class Membresia {
     private RolNegocio rol;
     @Column(nullable = false, length = 10)
     private String estado;
+    @Enumerated(EnumType.STRING) @Column(name = "motivo_revocacion", length = 20)
+    private MotivoRevocacion motivoRevocacion;
     @Column(name = "creado_en", nullable = false, updatable = false)
     private Instant creadoEn;
     @Column(name = "actualizado_en", nullable = false)
@@ -49,34 +51,58 @@ public class Membresia {
 
     /**
      * Revoca los permisos sin borrar la pertenencia histórica ni modificar el JWT.
+     * @param motivo causa que limita las vías posteriores de restablecimiento
      * @param ahora instante del cambio aportado por el reloj
-     * @throws NullPointerException si falta el instante
+     * @throws NullPointerException si falta el motivo o el instante
      */
-    public void revocar(Instant ahora) {
-        actualizadoEn = Objects.requireNonNull(ahora);
+    public void revocar(MotivoRevocacion motivo, Instant ahora) {
+        Objects.requireNonNull(motivo);
+        Objects.requireNonNull(ahora);
+        motivoRevocacion = motivo;
+        actualizadoEn = ahora;
         estado = "REVOCADA";
     }
 
     /**
-     * Restablece los permisos del mismo rol al reactivar el perfil profesional local (V2-DA-31).
-     * El servicio limita esta operación a la pertenencia BARBERO del negocio actual.
+     * Deshace exclusivamente la baja del perfil; otras causas conservan estado, motivo e instante.
+     * El servicio limita esta operación a la pertenencia BARBERO del negocio actual (V2-DA-37).
      * @param ahora instante del cambio aportado por el reloj
      * @throws NullPointerException si falta el instante
      */
-    public void restablecer(Instant ahora) {
-        actualizadoEn = Objects.requireNonNull(ahora);
-        estado = "ACTIVA";
+    public void restablecerTrasReactivarPerfil(Instant ahora) {
+        Objects.requireNonNull(ahora);
+        if (!isActiva() && motivoRevocacion == MotivoRevocacion.PERFIL_DESACTIVADO) {
+            restablecerPorInvitacion(rol, ahora);
+        }
     }
 
     /**
-     * Completa la propiedad acreditada por la configuración inicial de confianza, sin duplicar filas.
+     * Restablece una pertenencia revocada con el rol acreditado por una invitación aceptada.
+     * El futuro servicio de invitaciones validará token, correo y negocio antes de invocarlo.
+     * @param rolInvitado permisos acreditados por la invitación, nunca por el cuerpo del aceptante
+     * @param ahora instante de aceptación aportado por el reloj
+     * @throws NullPointerException si falta rol o instante
+     * @throws IllegalStateException si la pertenencia ya está activa
+     */
+    public void restablecerPorInvitacion(RolNegocio rolInvitado, Instant ahora) {
+        Objects.requireNonNull(rolInvitado);
+        Objects.requireNonNull(ahora);
+        if (isActiva()) throw new IllegalStateException("La membresía ya está activa.");
+        rol = rolInvitado;
+        estado = "ACTIVA";
+        motivoRevocacion = null;
+        actualizadoEn = ahora;
+    }
+
+    /**
+     * Completa la propiedad inicial solo si está activa; una baja nunca se deshace en el arranque.
      * Solo el arranque de la cuenta BT_ADMIN usa esta operación; no es gestión de equipo por API.
      * @param ahora instante del arranque aportado por el reloj
      * @throws NullPointerException si falta el instante
      */
     public void acreditarPropietarioInicial(Instant ahora) {
         Objects.requireNonNull(ahora);
-        if (rol != RolNegocio.PROPIETARIO || !isActiva()) {
+        if (isActiva() && rol != RolNegocio.PROPIETARIO) {
             rol = RolNegocio.PROPIETARIO;
             estado = "ACTIVA";
             actualizadoEn = ahora;
@@ -108,4 +134,10 @@ public class Membresia {
      * @return si la pertenencia concede permisos, sujeto al estado de la cuenta
      */
     public boolean isActiva() { return "ACTIVA".equals(estado); }
+
+    /**
+     * Expone la causa de una baja para limitar la reactivación del perfil profesional.
+     * @return causa de la revocación, o null si está activa
+     */
+    public MotivoRevocacion getMotivoRevocacion() { return motivoRevocacion; }
 }

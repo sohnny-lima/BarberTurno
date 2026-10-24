@@ -281,7 +281,7 @@ class RutasNegocioIT extends PeticionNegocioPruebaBase {
                 .andExpect(jsonPath("$[1].slug").value("b")).andExpect(jsonPath("$[1].rol").value("CLIENTE"));
         en("b", () -> jdbc.update("update cliente set activo=false where usuario_id=?", cuenta.getId()));
         var miembro = membresias.findByNegocioIdAndUsuarioId(a, cuenta.getId()).orElseThrow();
-        miembro.revocar(reloj.instant()); membresias.save(miembro);
+        miembro.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(miembro);
         mvc.perform(get("/api/mis-negocios").cookie(sesion(cuenta)))
                 .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].rol").value("CLIENTE"));
         en("a", () -> jdbc.update("update cliente set activo=false where usuario_id=?", cuenta.getId()));
