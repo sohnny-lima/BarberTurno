@@ -82,6 +82,7 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 | `V101__identidad_membresias.sql` (V2-02) | `rol_plataforma`; `membresia` desde `usuario.rol` (`ADMIN` → `PROPIETARIO`; `BARBERO` → `BARBERO`); el `BT_ADMIN_*` → `ADMIN_PLATAFORMA`; `usuario.rol` **se conserva** | ídem |
 | `V102__ficha_cliente.sql` (V2-03) | `cliente` desde `usuario` con rol `CLIENTE`, **con el mismo id** (`OVERRIDING SYSTEM VALUE` y ajuste de la secuencia); `reserva.cliente_id` pasa a referenciar `cliente`; `barbero.nombre_visible` desde `usuario.nombre` | ídem |
 | `V103__ambito_clientes_migrados.sql` (V2-03) | Corrige el relleno de `V102` sin editarla: las fichas migradas de cuentas inactivas quedan activas en el negocio (la cuenta sigue inactiva), para conservar la gestión y la reactivación de v1 | ídem |
+| `V104__reglas_negocio.sql` (V2-04, paso 1; tarea bloqueada) | Añade `negocio.tolerancia_inicio_min` (15), `barbero.nombre_visible` y `telefono_contacto`; rellena los datos locales desde la cuenta fijando el contexto de cada negocio bajo RLS FORCE. Instalación nueva y actualización comprobadas; conserva la unicidad global de usuario_id, bloqueo documentado en la evidencia V2-04 | Restaurar la copia previa (§7) |
 | `V104+` (equipo, WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
 | `V1xx__contraer.sql` (tras el corte) | Eliminar `usuario.rol`, `usuario_cliente_completo` y las rutas antiguas | Solo después de un periodo estable |
 
