@@ -24,6 +24,8 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.support.*;
+import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.scheduling.Jornada;
 import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -240,8 +242,13 @@ class TransicionesIT extends ReservaPruebaBase {
     }
 
     @Test void adminConPerfilAsignado_noRecibeAvisoPropio() throws Exception {
-        var dto = reserva(EstadoReserva.PENDIENTE, "10:00"); var admin = admin();
-        jdbc.update("update barbero set usuario_id=? where id=?", admin.getId(), barbero.getId());
+        var admin = admin();
+        // El perfil nace con su cuenta definitiva; nunca se reasigna una agenda (V2-DA-39).
+        barbero = barberos.saveAndFlush(new Barbero(admin, "Cortes", reloj.instant()));
+        for (short dia = 1; dia <= 7; dia++) {
+            jornadas.saveAndFlush(new Jornada(barbero, dia, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        var dto = reserva(EstadoReserva.PENDIENTE, "10:00");
         leer(transicionar(dto, EstadoReserva.CONFIRMADA, admin));
         assertThat(jdbc.queryForList("select usuario_id from notificacion", Long.class)).containsExactly(cliente.getId());
     }
