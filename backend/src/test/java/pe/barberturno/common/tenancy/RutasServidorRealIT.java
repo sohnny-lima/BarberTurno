@@ -180,7 +180,9 @@ class RutasServidorRealIT {
                 "/api/servicios\\perfil", "/api/n/a/servicios%5Cperfil", "/api/n/a/servi cios",
                 "/API/n/a/servicios", "/API/perfil", "/api/n/a/SERVICIOS", "/api/N/a/servicios",
                 "/api/n/A/servicios", "/api/n/a/servicios/", "/api/servicios/", "/api/perfil/",
-                "/api/n/a/perfil/", "/api/n/a/auth/password/", "/api/auth/password/");
+                "/api/n/a/perfil/", "/api/n/a/auth/password/", "/api/auth/password/",
+                "/api/%70lataforma/negocios", "/api/plataforma/%6eegocios", "/api/n/a/%70lataforma/negocios",
+                "/api/n/a/plataforma/negocios", "/api/PLATAFORMA/negocios", "/api/plataforma/negocios/");
     }
 
     private Sesion login(String slug) throws Exception {

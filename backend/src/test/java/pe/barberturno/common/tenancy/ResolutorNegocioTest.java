@@ -102,4 +102,19 @@ class ResolutorNegocioTest {
                 (req, res) -> { assertThat(contexto.negocioActual()).isEmpty(); assertThat(contexto.delimitado()).isTrue(); });
         assertThat(contexto.delimitado()).isFalse();
     }
+
+    @Test void plataformaGlobal_sinAliasNiConsultaDeNegocio_yBajoPrefijo404() throws Exception {
+        filtro().doFilter(new MockHttpServletRequest("GET", "/api/plataforma/negocios"), new MockHttpServletResponse(),
+                (req, res) -> {
+                    assertThat(contexto.delimitado()).isTrue();
+                    assertThat(contexto.negocioActual()).isEmpty();
+                    assertThat(((jakarta.servlet.http.HttpServletRequest) req).getServletPath()).isEqualTo("/api/plataforma/negocios");
+                });
+        var respuesta = new MockHttpServletResponse();
+        filtro().doFilter(new MockHttpServletRequest("POST", "/api/n/a/plataforma/negocios"), respuesta,
+                (req, res) -> fail("Plataforma no entra por un negocio"));
+        assertThat(respuesta.getStatus()).isEqualTo(404);
+        verifyNoInteractions(directorio);
+        assertThat(contexto.delimitado()).isFalse();
+    }
 }
