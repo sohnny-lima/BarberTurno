@@ -78,6 +78,7 @@ public class SecurityConfig {
      * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
      * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
      * Plataforma exige su rol global independiente; la suspensión conserva lecturas y rechaza escrituras.
+     * Invitaciones: consulta por token pública, aceptación autenticada y gestión local solo ADMIN efectivo.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
@@ -166,6 +167,11 @@ public class SecurityConfig {
                             "/api/auth/logout").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones/{token}").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/aceptacion").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.DELETE, "/api/invitaciones/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.POST, "/api/clientes/alta").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();

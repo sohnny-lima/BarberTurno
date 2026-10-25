@@ -28,14 +28,14 @@ public class PlataformaController {
     public PlataformaController(PlataformaService plataforma) { this.plataforma = plataforma; }
 
     /**
-     * Da de alta un negocio; la invitación queda pendiente de V2-06.3 sin emitir enlace todavía.
+     * Da de alta un negocio con invitación del propietario atómica y enlace mostrado una vez.
      * @param datos alta validada del negocio
      * @param actor administrador global revalidado
-     * @return HTTP 201 con los metadatos globales, sin credenciales
+     * @return HTTP 201 con metadatos y enlace sin caché
      * @throws NegocioException si no hay permiso o el slug está ocupado
      */
     @PostMapping("/negocios")
-    public ResponseEntity<NegocioPlataformaDto> crear(@Valid @RequestBody CrearNegocioDto datos,
+    public ResponseEntity<NegocioCreadoDto> crear(@Valid @RequestBody CrearNegocioDto datos,
             @AuthenticationPrincipal UsuarioAutenticado actor) {
         return ResponseEntity.status(201).cacheControl(CacheControl.noStore()).body(plataforma.crear(datos, actor));
     }

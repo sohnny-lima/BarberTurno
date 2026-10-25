@@ -58,6 +58,8 @@ public enum ErrorCodigo {
     SLUG_DUPLICADO(409, "Slug ya registrado"),
     /** Escritura de negocio suspendido rechazada según V2-DA-38. */
     NEGOCIO_SUSPENDIDO(409, "Negocio suspendido"),
+    /** La invitación no reemplaza una membresía activa. */
+    YA_ES_MIEMBRO(409, "Ya es miembro"),
     /**
      * Nombre ya registrado; respuesta HTTP 409 según catálogo §6.2.
      */

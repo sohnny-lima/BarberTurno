@@ -43,7 +43,8 @@ public class Invitacion {
         this.expiraEn = ahora.plus(java.time.Duration.ofDays(7)); this.estado = "PENDIENTE";
     }
 
-    boolean vigente(Instant ahora) { return "PENDIENTE".equals(estado) && ahora.isBefore(expiraEn); }
+    boolean pendiente() { return "PENDIENTE".equals(estado); }
+    boolean vigente(Instant ahora) { return pendiente() && ahora.isBefore(expiraEn); }
     void aceptar(long usuarioId, Instant ahora) { estado = "ACEPTADA"; aceptadaPor = usuarioId; actualizadoEn = ahora; }
     void revocar(Instant ahora) { estado = "REVOCADA"; actualizadoEn = ahora; }
     Long id() { return id; }

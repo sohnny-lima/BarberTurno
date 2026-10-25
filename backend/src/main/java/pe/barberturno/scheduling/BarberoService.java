@@ -73,7 +73,8 @@ public class BarberoService {
     }
 
     /**
-     * Valida variantes excluyentes, serializa RN-19 y crea cuenta con membresía o vincula gestor del negocio.
+     * Valida variantes excluyentes, serializa RN-19 y crea cuenta con membresía o vincula personal activo.
+     * V2-DA-39 admite también BARBERO invitado sin perfil; nunca reasigna un perfil previo.
      * El correo queda normalizado y el consentimiento se omite porque el personal no es CLIENTE.
      * @param datos alta validada por MVC
      * @return perfil activo con contactos para ADMIN
@@ -90,11 +91,11 @@ public class BarberoService {
         if (datos.usuarioId() != null) {
             usuario = usuarios.bloquearPorId(datos.usuarioId()).orElseThrow(this::noEncontrado);
             var membresia = membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), usuario.getId())
-                    .filter(Membresia::isActiva).filter(m -> m.getRol() != RolNegocio.BARBERO);
+                    .filter(Membresia::isActiva);
             if (membresia.isEmpty()) throw noEncontrado();
             if (!usuario.isActivo() || barberos.buscarIdPorUsuario(usuario.getId()).isPresent()) {
                 throw new NegocioException(ErrorCodigo.CONFLICTO,
-                        "Solo puede vincular un administrador activo sin perfil de barbero.");
+                        "Solo puede vincular una cuenta activa sin perfil de barbero en este negocio.");
             }
         } else {
             String correo = datos.correo().toLowerCase(Locale.ROOT);

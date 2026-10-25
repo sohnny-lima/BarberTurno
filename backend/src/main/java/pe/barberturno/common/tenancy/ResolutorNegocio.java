@@ -55,7 +55,9 @@ public class ResolutorNegocio extends OncePerRequestFilter {
 
     /**
      * Rechaza variantes no canónicas antes de delimitar operaciones globales o locales por ruta o alias.
-     * Mantiene plataforma fuera del contexto local y oculta las rutas públicas suspendidas con 404.
+     * Mantiene plataforma y capacidades de invitación fuera del contexto local.
+     * Solo el segmento del token Base64URL distingue mayúsculas; los tramos fijos siguen canónicos.
+     * Oculta las rutas públicas suspendidas con 404.
      * @param request petición ya validada por el cortafuegos
      * @param response salida HTTP
      * @param chain resto de seguridad y MVC, con una única ruta normalizada
@@ -77,7 +79,8 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 return;
             }
             if (ruta == null) ruta = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
-            if (api && (!ruta.equals(ruta.toLowerCase(Locale.ROOT)) || ruta.endsWith("/"))) {
+            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]{43}(/aceptacion)?");
+            if (api && ((!capacidad && !ruta.equals(ruta.toLowerCase(Locale.ROOT))) || ruta.endsWith("/"))) {
                 noEncontrado(request, response);
                 return;
             }
@@ -117,7 +120,9 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 && !ruta.equals("/api/auth/registro")
                 || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
-                || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/");
+                || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
+                || ruta.matches("/api/invitaciones/[A-Za-z0-9_-]{43}(/aceptacion)?")
+                || ruta.matches("/api/invitaciones/[^/]+/aceptacion");
     }
 
     private boolean esPublica(HttpServletRequest peticion) {

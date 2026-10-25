@@ -25,6 +25,7 @@ public class PlataformaService {
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwords;
     private final Clock clock;
+    private final InvitacionService invitaciones;
     private final SecureRandom aleatorio = new SecureRandom();
 
     /**
@@ -33,22 +34,22 @@ public class PlataformaService {
      * @param usuarios identidades con bloqueo pesimista por cuenta
      * @param passwords BCrypt de la aplicación
      * @param clock fuente única de instantes
+     * @param invitaciones emisión del primer propietario dentro de esta transacción
      */
-    public PlataformaService(EntityManager entidades, UsuarioRepository usuarios, PasswordEncoder passwords, Clock clock) {
+    public PlataformaService(EntityManager entidades, UsuarioRepository usuarios, PasswordEncoder passwords, Clock clock, InvitacionService invitaciones) {
         this.entidades = entidades; this.usuarios = usuarios; this.passwords = passwords; this.clock = clock;
+        this.invitaciones = invitaciones;
     }
 
     /**
-     * Crea únicamente el negocio y la auditoría; los valores operativos iniciales proceden del DDL.
-     * Punto de extensión pendiente de V2-06.3: emitir aquí la invitación del primer propietario,
-     * antes de confirmar esta misma transacción. Todavía no genera ni guarda token, enlace o correo.
-     * @param datos nombre, slug validado y correo para el futuro paso de invitación
+     * Crea negocio, invitación del propietario y auditoría en una misma transacción.
+     * @param datos nombre, slug validado y correo del primer propietario
      * @param actor identidad con rol global revalidado
-     * @return negocio sin miembros; sin enlace hasta V2-06.3
+     * @return negocio sin miembros con enlace entregado una sola vez
      * @throws NegocioException si no es plataforma o el slug está ocupado
      */
     @Transactional
-    public NegocioPlataformaDto crear(CrearNegocioDto datos, UsuarioAutenticado actor) {
+    public NegocioCreadoDto crear(CrearNegocioDto datos, UsuarioAutenticado actor) {
         exigirPlataforma(actor);
         var filas = entidades.unwrap(org.hibernate.Session.class).createNativeQuery("""
                 insert into negocio(slug,nombre,creado_en,actualizado_en) values (:slug,:nombre,:ahora,:ahora)
@@ -58,7 +59,8 @@ public class PlataformaService {
         if (filas.isEmpty()) throw new NegocioException(ErrorCodigo.SLUG_DUPLICADO, "El slug ya está registrado.");
         long id = ((Number) filas.getFirst()).longValue();
         auditar(actor.id(), "CREAR_NEGOCIO", id, null);
-        return new NegocioPlataformaDto(id, datos.slug(), datos.nombre(), EstadoNegocio.ACTIVO, 0);
+        var emitida = invitaciones.emitir(id, datos.correoPropietario(), RolNegocio.PROPIETARIO, actor.id());
+        return new NegocioCreadoDto(id, datos.slug(), datos.nombre(), EstadoNegocio.ACTIVO, 0, emitida.enlaceInvitacion());
     }
 
     /**

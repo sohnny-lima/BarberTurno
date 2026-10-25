@@ -6,7 +6,7 @@ import jakarta.validation.constraints.*;
  * Alta global, sin parámetros de configuración ni permisos controlados por el navegador.
  * @param nombre denominación pública de hasta cien caracteres
  * @param slug identificador canónico único, de hasta cuarenta caracteres
- * @param correoPropietario destinatario del punto de invitación pendiente de V2-06.3; no se almacena todavía
+ * @param correoPropietario destinatario de la invitación inicial, normalizado al emitir
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
