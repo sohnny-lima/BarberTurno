@@ -64,9 +64,10 @@ public class EquipoService {
         bloquear();
         if (vigente(actor).getRol() != RolNegocio.PROPIETARIO) throw prohibido();
         var m = objetivo(id);
+        if (!m.isActiva()) throw new NegocioException(ErrorCodigo.TRANSICION_INVALIDA,
+                "No se puede cambiar el rol de una membresía revocada.");
         protegerUltimo(m, rol == RolNegocio.PROPIETARIO);
         if (m.getRol() != rol) {
-            desactivarPerfil(m);
             m.cambiarRol(rol, clock.instant());
         }
     }

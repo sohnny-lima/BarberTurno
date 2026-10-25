@@ -110,6 +110,11 @@ class EquipoIT extends PlataformaPruebaBase {
         en("a", () -> clientes.saveAndFlush(new pe.barberturno.customers.Cliente(persona, reloj.instant())));
         miembro(b, persona, RolNegocio.BARBERO);
         long perfil = perfil(persona, "a"); perfil(persona, "b"); var sesion = login("profesional");
+        var historialAntes = en("a", () -> {
+            var datos = DatosNegocioPrueba.crear(jdbc, "equipo");
+            DatosNegocioPrueba.reservar(jdbc, datos.ficha(), propietario.getId(), perfil, datos.servicio(), "CONFIRMADA", 60);
+            return historial();
+        });
         var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", persona.getId());
         var bAntes = huella("b");
         assertThat(http(titular, "POST", ruta(id, "revocacion"), null, token(titular)).statusCode()).isEqualTo(200);
@@ -119,21 +124,64 @@ class EquipoIT extends PlataformaPruebaBase {
         assertThat(http(sesion, "GET", "/api/n/a/reservas", null, null).statusCode()).isEqualTo(403);
         assertThat(http(sesion, "GET", "/api/n/b/reservas?desde=2026-10-01&hasta=2026-10-01", null, null).statusCode()).isEqualTo(200);
         assertThat(jdbc.queryForMap("select * from usuario where id=?", persona.getId())).isEqualTo(cuentaAntes);
+        assertThat(en("a", this::historial)).isEqualTo(historialAntes);
         assertThat(huella("b")).isEqualTo(bAntes);
     }
 
-    @Test void cambiarRol_ySalida_conservanCuentaYOtrosNegocios_yDesactivanPerfil() throws Exception {
+    Map<String, Object> historial() {
+        var filas = new LinkedHashMap<String, Object>();
+        for (String tabla : List.of("reserva", "auditoria_reserva", "notificacion")) {
+            filas.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+        }
+        return filas;
+    }
+
+    @Test void promoverYDegradar_conservanPerfilYCupo_salidaDesactiva_sinCambiarCuentaNiB() throws Exception {
         var persona = cuenta("profesional"); long id = miembro(a, persona, RolNegocio.BARBERO);
         miembro(b, persona, RolNegocio.PROPIETARIO); long perfil = perfil(persona, "a");
         var sesion = login("profesional"); var bAntes = huella("b");
         var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", persona.getId());
         assertThat(http(titular, "PATCH", ruta(id, "rol"), "{\"rol\":\"PROPIETARIO\"}", token(titular)).statusCode()).isEqualTo(200);
-        assertThat(en("a", () -> jdbc.queryForObject("select activo from barbero where id=?", Boolean.class, perfil))).isFalse();
+        assertThat(en("a", () -> jdbc.queryForObject("select activo from barbero where id=?", Boolean.class, perfil))).isTrue();
+        assertThat(en("a", () -> jdbc.queryForObject("select count(*) from barbero where activo", Long.class))).isEqualTo(1);
         assertThat(http(sesion, "GET", "/api/n/a/equipo", null, null).statusCode()).isEqualTo(200);
+        assertThat(http(titular, "PATCH", ruta(id, "rol"), "{\"rol\":\"BARBERO\"}", token(titular)).statusCode()).isEqualTo(200);
+        assertThat(en("a", () -> jdbc.queryForObject("select activo from barbero where id=?", Boolean.class, perfil))).isTrue();
+        assertThat(en("a", () -> jdbc.queryForObject("select count(*) from barbero where activo", Long.class))).isEqualTo(1);
         assertThat(http(sesion, "POST", "/api/n/a/equipo/salida", "{\"usuarioId\":" + propietario.getId() + "}", token(sesion)).statusCode()).isEqualTo(200);
+        assertThat(en("a", () -> jdbc.queryForObject("select activo from barbero where id=?", Boolean.class, perfil))).isFalse();
         assertThat(membresias.findByNegocioIdAndUsuarioId(a, persona.getId()).orElseThrow().getMotivoRevocacion()).isEqualTo(MotivoRevocacion.SALIDA);
         assertThat(jdbc.queryForMap("select * from usuario where id=?", persona.getId())).isEqualTo(cuentaAntes);
         assertThat(huella("b")).isEqualTo(bAntes);
+    }
+
+    @Test void rolRevocado_rechazaInclusoMismoRol_yRevocacionDeSalida_conservaMotivoEInstante() throws Exception {
+        var persona = cuenta("profesional"); long id = miembro(a, persona, RolNegocio.BARBERO);
+        var sesion = login("profesional");
+        assertThat(http(sesion, "POST", "/api/n/a/equipo/salida", null, token(sesion)).statusCode()).isEqualTo(200);
+        var antes = jdbc.queryForMap("select * from membresia where id=?", id);
+        reloj.adelantar(java.time.Duration.ofMinutes(5));
+        for (String rol : List.of("BARBERO", "PROPIETARIO")) {
+            codigo(http(titular, "PATCH", ruta(id, "rol"), "{\"rol\":\"" + rol + "\"}", token(titular)), 409, "TRANSICION_INVALIDA");
+            assertThat(jdbc.queryForMap("select * from membresia where id=?", id)).isEqualTo(antes);
+        }
+        assertThat(http(titular, "POST", ruta(id, "revocacion"), null, token(titular)).statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForMap("select * from membresia where id=?", id)).isEqualTo(antes);
+        assertThat(http(gestorLocal, "POST", ruta(id, "revocacion"), null, token(gestorLocal)).statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForMap("select * from membresia where id=?", id)).isEqualTo(antes);
+    }
+
+    @Test void bajaPerfil_revocacionGestor_prevalece_yReactivarNoDevuelveAcceso() throws Exception {
+        var persona = cuenta("profesional"); long id = miembro(a, persona, RolNegocio.BARBERO);
+        en("a", () -> clientes.saveAndFlush(new pe.barberturno.customers.Cliente(persona, reloj.instant())));
+        long perfil = perfil(persona, "a"); var sesion = login("profesional");
+        String estado = "/api/n/a/barberos/" + perfil + "/estado";
+        assertThat(http(titular, "PATCH", estado, "{\"activo\":false}", token(titular)).statusCode()).isEqualTo(200);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(a, persona.getId()).orElseThrow().getMotivoRevocacion()).isEqualTo(MotivoRevocacion.PERFIL_DESACTIVADO);
+        assertThat(http(titular, "POST", ruta(id, "revocacion"), null, token(titular)).statusCode()).isEqualTo(200);
+        assertThat(http(titular, "PATCH", estado, "{\"activo\":true}", token(titular)).statusCode()).isEqualTo(200);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(a, persona.getId()).orElseThrow().getMotivoRevocacion()).isEqualTo(MotivoRevocacion.DECISION_GESTOR);
+        assertThat(http(sesion, "GET", "/api/n/a/reservas", null, null).statusCode()).isEqualTo(403);
     }
 
     @Test void invitacionInicial_reenvioRevocacion_auditoriaAtomica_yOtrosRolesRechazados() throws Exception {

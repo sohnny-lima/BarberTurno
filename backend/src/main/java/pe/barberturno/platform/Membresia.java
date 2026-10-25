@@ -3,6 +3,8 @@ package pe.barberturno.platform;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.Objects;
+import pe.barberturno.common.error.ErrorCodigo;
+import pe.barberturno.common.error.NegocioException;
 
 /**
  * Pertenencia única de una identidad global a un negocio, sin políticas RLS (V2-DA-24).
@@ -50,7 +52,8 @@ public class Membresia {
     }
 
     /**
-     * Revoca los permisos sin borrar la pertenencia histórica ni modificar el JWT.
+     * Revoca sin modificar el JWT; una baja previa conserva causa e instante salvo que
+     * la decisión del gestor sustituya una baja del perfil (V2-DA-41).
      * @param motivo causa que limita las vías posteriores de restablecimiento
      * @param ahora instante del cambio aportado por el reloj
      * @throws NullPointerException si falta el motivo o el instante
@@ -58,6 +61,8 @@ public class Membresia {
     public void revocar(MotivoRevocacion motivo, Instant ahora) {
         Objects.requireNonNull(motivo);
         Objects.requireNonNull(ahora);
+        if (!isActiva() && !(motivoRevocacion == MotivoRevocacion.PERFIL_DESACTIVADO
+                && motivo == MotivoRevocacion.DECISION_GESTOR)) return;
         motivoRevocacion = motivo;
         actualizadoEn = ahora;
         estado = "REVOCADA";
@@ -114,8 +119,11 @@ public class Membresia {
      * @param nuevoRol permisos autorizados por el propietario
      * @param ahora instante del cambio aportado por el reloj
      * @throws NullPointerException si falta rol o instante
+     * @throws NegocioException si la pertenencia está revocada (TRANSICION_INVALIDA)
      */
     public void cambiarRol(RolNegocio nuevoRol, Instant ahora) {
+        if (!isActiva()) throw new NegocioException(ErrorCodigo.TRANSICION_INVALIDA,
+                "No se puede cambiar el rol de una membresía revocada.");
         rol = Objects.requireNonNull(nuevoRol);
         actualizadoEn = Objects.requireNonNull(ahora);
     }
