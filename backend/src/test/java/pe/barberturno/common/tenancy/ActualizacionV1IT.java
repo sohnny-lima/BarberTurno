@@ -11,6 +11,29 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.*;
 
 class ActualizacionV1IT extends MigracionPruebaBase {
+    @Test void v109_aV110_conservaTodasLasFilas_yPermiteInvitarSinPrivilegiosAdministrativos() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("109").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long cuenta;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            cuenta = DatosNegocioPrueba.crear(jdbc, "pre-v110").admin();
+            for (String tabla : List.of("negocio", "usuario", "membresia", "cliente", "servicio", "barbero",
+                    "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "auditoria_plataforma")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            assertThat(jdbc.queryForObject("select count(*) from invitacion", Long.class)).isZero();
+            InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
+            aplicacion.commit();
+        }
+    }
     private static final List<String> TABLAS = List.of("usuario", "servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion");
 
     @Test void v108_aV109_conservaNegociosCuentasYDatos_yPermiteAuditoriaComoAplicacion() throws Exception {
@@ -33,6 +56,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             var jdbc = jdbc(aplicacion);
             for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
             AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
+            InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
             assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma", Long.class)).isZero();
             jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,'CREAR_NEGOCIO',1,CURRENT_TIMESTAMP)", cuenta);
             assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma where actor_id=? and negocio_id=1", Long.class, cuenta)).isEqualTo(1);

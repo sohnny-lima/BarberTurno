@@ -79,7 +79,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 return;
             }
             if (ruta == null) ruta = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
-            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]{43}(/aceptacion)?");
+            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion)?");
             if (api && ((!capacidad && !ruta.equals(ruta.toLowerCase(Locale.ROOT))) || ruta.endsWith("/"))) {
                 noEncontrado(request, response);
                 return;
@@ -90,7 +90,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
             contexto.fijar(id);
             if (ruta.equals("/api/n") || ruta.startsWith("/api/n/")) {
                 String[] partes = ruta.split("/", 5);
-                if (partes.length < 5 || partes[4].isEmpty() || (partes[4].equals("auth") || partes[4].startsWith("auth/") || esGlobal("/api/" + partes[4]))) {
+                if (partes.length < 5 || partes[4].isEmpty() || (partes[4].equals("auth") || partes[4].startsWith("auth/") || esGlobal("/api/" + partes[4], request.getMethod()))) {
                     noEncontrado(request, response);
                     return;
                 }
@@ -98,7 +98,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 id = esPublica(efectiva) ? directorio.buscarActivo(partes[3]) : directorio.buscar(partes[3]);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
                 salida = new RespuestaNegocio(response, request.getContextPath() + "/api/n/" + partes[3] + "/");
-            } else if (ruta.startsWith("/api/") && !esGlobal(ruta)) {
+            } else if (ruta.startsWith("/api/") && !esGlobal(ruta, request.getMethod())) {
                 id = esPublica(efectiva) ? directorio.buscarActivo(alias) : directorio.buscar(alias);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
             }
@@ -115,13 +115,13 @@ public class ResolutorNegocio extends OncePerRequestFilter {
         return ruta != null && (ruta.equalsIgnoreCase("/api") || ruta.regionMatches(true, 0, "/api/", 0, 5));
     }
 
-    private boolean esGlobal(String ruta) {
+    private boolean esGlobal(String ruta, String metodo) {
         return (ruta.equals("/api/auth") || ruta.startsWith("/api/auth/"))
                 && !ruta.equals("/api/auth/registro")
                 || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
                 || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
-                || ruta.matches("/api/invitaciones/[A-Za-z0-9_-]{43}(/aceptacion)?")
+                || (metodo.equals("GET") || metodo.equals("HEAD")) && ruta.matches("/api/invitaciones/[^/]+")
                 || ruta.matches("/api/invitaciones/[^/]+/aceptacion");
     }
 

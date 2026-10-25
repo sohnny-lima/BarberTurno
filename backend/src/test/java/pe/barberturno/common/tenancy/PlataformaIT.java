@@ -18,16 +18,23 @@ import static org.assertj.core.api.Assertions.*;
 
 /** CF-2/6/7: separación global, operaciones atómicas y ausencia de secretos. */
 class PlataformaIT extends PlataformaPruebaBase {
-    @Test void altaPendienteDeV2063_sinTokenEnlaceCorreoNiTablaDeInvitaciones() throws Exception {
+    @Test void altaConInvitacionPropietarioAtomica_enlaceSoloEnEmision_yListadoSinSecretos() throws Exception {
         long antes = auditorias();
-        long id = alta("nuevo");
+        var alta = http(admin, "POST", "/api/plataforma/negocios", altaJson("nuevo"), token(admin));
+        assertThat(alta.statusCode()).isEqualTo(201);
+        assertThat(alta.headers().firstValue("Cache-Control")).contains("no-store");
+        var creada = mapper.readTree(alta.body());
+        long id = creada.get("id").asLong();
+        String enlace = creada.get("enlaceInvitacion").asString();
+        assertThat(http(anonima(), "GET", enlace, null, null).statusCode()).isEqualTo(200);
         assertThat(jdbc.queryForMap("select slug,nombre,estado,zona_horaria from negocio where id=?", id))
                 .containsEntry("slug", "nuevo").containsEntry("estado", "ACTIVO").containsEntry("zona_horaria", "America/Lima");
         assertThat(jdbc.queryForObject("select count(*) from membresia where negocio_id=?", Long.class, id)).isZero();
-        assertThat(jdbc.queryForObject("select to_regclass('public.invitacion') is null", Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("select count(*) from invitacion where negocio_id=? and rol='PROPIETARIO' and estado='PENDIENTE' and correo='invitado@ejemplo.test'", Long.class, id)).isEqualTo(1);
         var lista = http(admin, "GET", "/api/plataforma/negocios", null, null);
         assertThat(lista.statusCode()).isEqualTo(200);
         var filas = mapper.readTree(lista.body());
+        assertThat(lista.body()).doesNotContain(enlace);
         for (var fila : filas) {
             assertThat(fila.properties()).hasSize(5);
             assertThat(fila.has("enlaceInvitacion") || fila.has("token") || fila.has("correoPropietario")).isFalse();
@@ -159,6 +166,7 @@ class PlataformaIT extends PlataformaPruebaBase {
         });
         assertThat(auditorias()).isEqualTo(antes);
         assertThat(directorio.buscar("revertido")).isEmpty();
+        assertThat(jdbc.queryForObject("select count(*) from invitacion i join negocio n on n.id=i.negocio_id where n.slug='revertido'", Long.class)).isZero();
         assertThat(jdbc.queryForMap("select * from usuario where id=?", propietario.getId())).isEqualTo(cuentaAntes);
         assertThat(jdbc.queryForMap("select * from negocio where id=?", a)).isEqualTo(negocioAntes);
     }

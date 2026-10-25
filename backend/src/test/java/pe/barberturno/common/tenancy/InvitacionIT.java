@@ -18,6 +18,8 @@ import static org.assertj.core.api.Assertions.*;
 
 /** CF-3: servidor real, dos negocios HTTP y rol/CSRF reales; sin mocks de autorización. */
 class InvitacionIT extends PlataformaPruebaBase {
+    @org.springframework.beans.factory.annotation.Autowired InvitacionService invitaciones;
+    @org.springframework.beans.factory.annotation.Autowired jakarta.persistence.EntityManager entidades;
     record Emitida(long id, String enlace) { }
 
     Emitida invitar(Sesion sesion, String slug, String alias, String rol) throws Exception {
@@ -31,6 +33,35 @@ class InvitacionIT extends PlataformaPruebaBase {
 
     int aceptar(Sesion sesion, Emitida i) throws Exception {
         return http(sesion, "POST", i.enlace() + "/aceptacion", null, token(sesion)).statusCode();
+    }
+
+    @Test void rollbackDeAceptacion_revierteJuntasMembresiaEInvitacion_yPermiteIntentarOtraVez() throws Exception {
+        var persona = cuenta("destino"); var sesion = login("destino");
+        var i = invitar(titular, "a", "destino", "BARBERO");
+        new TransactionTemplate(gestor).executeWithoutResult(tx -> {
+            invitaciones.aceptar(i.enlace().substring("/api/invitaciones/".length()),
+                    new pe.barberturno.common.security.UsuarioAutenticado(persona.getId(), null, Optional.empty(), false));
+            entidades.flush();
+            assertThat(jdbc.queryForObject("select estado from invitacion where id=?", String.class, i.id())).isEqualTo("ACEPTADA");
+            assertThat(jdbc.queryForObject("select count(*) from membresia where negocio_id=? and usuario_id=?", Long.class, a, persona.getId())).isEqualTo(1);
+            tx.setRollbackOnly();
+        });
+        assertThat(jdbc.queryForObject("select estado from invitacion where id=?", String.class, i.id())).isEqualTo("PENDIENTE");
+        assertThat(membresias.findByNegocioIdAndUsuarioId(a, persona.getId())).isEmpty();
+        assertThat(aceptar(sesion, i)).isEqualTo(200);
+    }
+
+    @Test void consultaConTokenMalformado_sigueGlobalConSesionSinRolLocal_yNoAdmitePrefijo() throws Exception {
+        cuenta("sin-rol"); var sesion = login("sin-rol");
+        for (String token : List.of("123", "corto", "A", "x".repeat(44))) {
+            String ruta = "/api/invitaciones/" + token;
+            for (var actor : List.of(sesion, anonima())) {
+                var respuesta = http(actor, "GET", ruta, null, null);
+                assertThat(respuesta.statusCode()).isEqualTo(404);
+                assertThat(mapper.readTree(respuesta.body()).get("detail").asString()).isEqualTo("No se encontró la invitación.");
+            }
+            assertThat(http(titular, "GET", "/api/n/a" + ruta.substring(4), null, null).statusCode()).isEqualTo(404);
+        }
     }
 
     @Test void pendienteCaducada_sePuedeRevocarYReemitir_sinReutilizarCapacidad() throws Exception {
@@ -151,7 +182,10 @@ class InvitacionIT extends PlataformaPruebaBase {
             assertThat(http(titular, "DELETE", "/api/n/a/invitaciones/" + i.id(), null, csrf).statusCode()).isEqualTo(403);
             assertThat(http(persona, "POST", i.enlace() + "/aceptacion", null, csrf).statusCode()).isEqualTo(403);
         }
-        for (var sinRol : List.of(persona, admin)) {
+        var profesional = cuenta("barbero");
+        membresias.save(new Membresia(a, profesional.getId(), RolNegocio.BARBERO, reloj.instant()));
+        var barbero = login("barbero");
+        for (var sinRol : List.of(persona, admin, barbero)) {
             assertThat(http(sinRol, "POST", "/api/n/a/invitaciones", "{}", token(sinRol)).statusCode()).isEqualTo(403);
             assertThat(http(sinRol, "DELETE", "/api/n/a/invitaciones/" + i.id(), null, token(sinRol)).statusCode()).isEqualTo(403);
             assertThat(http(sinRol, "GET", "/api/n/a/invitaciones", null, null).statusCode()).isEqualTo(403);

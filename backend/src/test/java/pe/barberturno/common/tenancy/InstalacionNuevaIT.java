@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.*;
 
 class InstalacionNuevaIT extends MigracionPruebaBase {
     @Test
-    void esquemaVacio_instalaLasDoceTablasYPermiteReservaCompletaComoAplicacion() throws Exception {
+    void esquemaVacio_instalaLasCatorceTablasYPermiteReservaCompletaComoAplicacion() throws Exception {
         var flyway = flyway(null);
         flyway.clean();
         flyway.migrate();
@@ -13,7 +13,7 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
         try (var conexion = conexion(false)) {
             var jdbc = jdbc(conexion);
             assertThat(jdbc.queryForObject("select current_user", String.class)).isEqualTo("barberturno_v2_app");
-            assertThat(jdbc.queryForObject("select count(*) from pg_tables where schemaname='public' and tablename<>'flyway_schema_history'", Integer.class)).isEqualTo(13);
+            assertThat(jdbc.queryForObject("select count(*) from pg_tables where schemaname='public' and tablename<>'flyway_schema_history'", Integer.class)).isEqualTo(14);
             assertThat(jdbc.queryForObject("select count(*) from membresia", Integer.class)).isZero();
             assertThat(jdbc.queryForObject("select count(*) from negocio where slug='barberturno'", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("select count(*) from pg_class where relnamespace='public'::regnamespace and relrowsecurity and relforcerowsecurity", Integer.class)).isEqualTo(8);
@@ -27,6 +27,7 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
             }
             contexto(conexion, 1L);
             var datos = DatosNegocioPrueba.crear(jdbc, "instalacion");
+            InvitacionEsquemaPruebas.comprobar(jdbc, datos.admin());
             assertThat(jdbc.queryForObject("select tolerancia_inicio_min from negocio where id=1", Integer.class)).isEqualTo(15);
             assertThat(jdbc.queryForObject("select nombre_visible from barbero where id=?", String.class, datos.barbero())).isEqualTo("Profesional ficticio");
             assertThat(jdbc.queryForMap("select is_nullable, character_maximum_length from information_schema.columns where table_name='barbero' and column_name='nombre_visible'"))

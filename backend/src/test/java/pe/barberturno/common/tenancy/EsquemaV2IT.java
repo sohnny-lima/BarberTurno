@@ -6,6 +6,13 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
+    @Test void v110_invitacionesSinRls_permisosMinimosYRestriccionesComoAplicacion() {
+        enNegocio(1L, () -> {
+            var datos = DatosNegocioPrueba.crear(jdbc, "v110");
+            InvitacionEsquemaPruebas.comprobar(jdbc, datos.admin());
+            return null;
+        });
+    }
     @Test void v107_indicesEmpiezanPorElNegocio() { IndicesNegocioEsquemaPruebas.comprobar(jdbc); }
     @Test void v106_estadoDeFichaSincronizadoYAplicacionSoloLeeElIndice() throws Exception {
         long b = negocioB();

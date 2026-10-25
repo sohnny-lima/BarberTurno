@@ -328,10 +328,15 @@ class BarberoIT {
         assertThat(usuarios.count()).isEqualTo(2);
     }
 
-    @ParameterizedTest @ValueSource(strings = {"CLIENTE", "BARBERO", "ADMIN_INACTIVO", "ADMIN_VINCULADO", "ADMIN_VINCULADO_INACTIVO"})
-    void vincular_usuarioIncompatible_devuelve404SinMembresiaDeGestionO409SiIncompatible(String caso) throws Exception {
+    @ParameterizedTest @ValueSource(strings = {"CLIENTE", "BARBERO_SIN_MEMBRESIA", "ADMIN_INACTIVO", "ADMIN_VINCULADO", "ADMIN_VINCULADO_INACTIVO"})
+    void vincular_usuarioIncompatible_devuelve404SinMembresiaActivaO409SiIncompatible(String caso) throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
-        Usuario u = crearUsuario("vinculo", caso.startsWith("ADMIN") ? Rol.ADMIN : Rol.valueOf(caso));
+        Usuario u = crearUsuario("vinculo", caso.startsWith("ADMIN") ? Rol.ADMIN : caso.startsWith("BARBERO") ? Rol.BARBERO : Rol.CLIENTE);
+        if (caso.equals("BARBERO_SIN_MEMBRESIA")) {
+            var membresia = membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow();
+            membresia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
+            membresias.save(membresia);
+        }
         if (caso.equals("ADMIN_INACTIVO")) { u.desactivar(reloj.instant()); usuarios.saveAndFlush(u); }
         if (caso.startsWith("ADMIN_VINCULADO")) {
             Barbero perfil = new Barbero(u, "Cortes", reloj.instant());
@@ -339,11 +344,25 @@ class BarberoIT {
             barberos.saveAndFlush(perfil);
         }
         long cantidad = barberos.count();
-        boolean sinGestion = caso.equals("CLIENTE") || caso.equals("BARBERO");
+        boolean sinGestion = caso.equals("CLIENTE") || caso.equals("BARBERO_SIN_MEMBRESIA");
         escribir("POST", 0, admin, Map.of("usuarioId", u.getId(), "especialidad", "Cortes"))
                 .andExpect(status().is(sinGestion ? 404 : 409))
                 .andExpect(jsonPath("$.codigo").value(sinGestion ? "NO_ENCONTRADO" : "CONFLICTO"));
         assertThat(barberos.count()).isEqualTo(cantidad);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"BARBERO", "ENCARGADO", "PROPIETARIO"})
+    void vincular_membresiaActivaSinPerfil_admiteLosTresRolesSinCambiarCuenta(String rol) throws Exception {
+        Cookie actor = login(crearUsuario("gestor", Rol.ADMIN));
+        Usuario usuario = crearUsuario("invitado", Rol.CLIENTE);
+        membresias.save(new pe.barberturno.platform.Membresia(1L, usuario.getId(),
+                pe.barberturno.platform.RolNegocio.valueOf(rol), reloj.instant()));
+        var antes = jdbc.queryForMap("select * from usuario where id=?", usuario.getId());
+        escribir("POST", 0, actor, Map.of("usuarioId", usuario.getId(), "especialidad", "Cortes"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.correo").value(usuario.getCorreo()));
+        assertThat(jdbc.queryForObject("select usuario_id from barbero", Long.class)).isEqualTo(usuario.getId());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", usuario.getId())).isEqualTo(antes);
+        assertThat(barberos.count()).isEqualTo(1);
     }
 
     @Test void vincular_usuarioInexistente_devuelve404() throws Exception {
