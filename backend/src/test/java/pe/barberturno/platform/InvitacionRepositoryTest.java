@@ -9,7 +9,8 @@ class InvitacionRepositoryTest {
     @Test void superficie_cadaOperacionExigeNegocioOSuCapacidadSecretaSinCrudHeredado() throws Exception {
         assertThat(InvitacionRepository.class.getInterfaces()).containsExactly(Repository.class);
         assertThat(Arrays.stream(InvitacionRepository.class.getMethods()).map(java.lang.reflect.Method::getName))
-                .containsExactlyInAnyOrder("save", "findByTokenHash", "bloquearPorToken", "bloquearPorNegocio", "listarPendientes");
+                .containsExactlyInAnyOrder("save", "findByTokenHash", "bloquearPorToken", "bloquearPorNegocio", "listarPendientes",
+                        "findFirstByNegocioIdAndRolOrderByIdAsc");
         for (var metodo : InvitacionRepository.class.getMethods()) {
             switch (metodo.getName()) {
                 case "save" -> assertThat(metodo.getParameterTypes()).containsExactly(Invitacion.class);

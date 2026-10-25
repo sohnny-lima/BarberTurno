@@ -17,6 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public interface InvitacionRepository extends Repository<Invitacion, Long> {
     /**
+     * Serializa reenvíos sobre la primera invitación del propietario, creada junto con el negocio.
+     * @param negocioId negocio explícitamente autorizado por plataforma
+     * @param rol PROPIETARIO para localizar la acreditación inicial
+     * @return primera emisión histórica, que conserva el correo destinatario original
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Invitacion> findFirstByNegocioIdAndRolOrderByIdAsc(long negocioId, RolNegocio rol);
+    /**
      * Consulta global limitada a la capacidad secreta, nunca por id de plataforma sin negocio.
      * @param tokenHash SHA-256 calculado del token recibido
      * @return única invitación identificada por esa capacidad

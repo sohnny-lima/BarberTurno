@@ -11,6 +11,32 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.*;
 
 class ActualizacionV1IT extends MigracionPruebaBase {
+    @Test void v110_aV111_conservaDatos_yAdmiteLosDosEventosDeInvitacionInicial() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("110").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long cuenta;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            cuenta = DatosNegocioPrueba.crear(jdbc, "pre-v111").admin();
+            jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,'CREAR_NEGOCIO',1,CURRENT_TIMESTAMP)", cuenta);
+            for (String tabla : List.of("negocio", "usuario", "membresia", "cliente", "servicio", "barbero",
+                    "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "auditoria_plataforma", "invitacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
+            for (String accion : List.of("REENVIAR_INVITACION_PROPIETARIO", "REVOCAR_INVITACION_PROPIETARIO")) {
+                assertThat(jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,?,1,CURRENT_TIMESTAMP)", cuenta, accion)).isEqualTo(1);
+            }
+            aplicacion.commit();
+        }
+    }
     @Test void v109_aV110_conservaTodasLasFilas_yPermiteInvitarSinPrivilegiosAdministrativos() throws Exception {
         var completa = flyway(null);
         completa.clean(); flyway("109").migrate();

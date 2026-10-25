@@ -110,6 +110,17 @@ public class Membresia {
     }
 
     /**
+     * Sustituye permisos sin restablecer una baja ni modificar la identidad global.
+     * @param nuevoRol permisos autorizados por el propietario
+     * @param ahora instante del cambio aportado por el reloj
+     * @throws NullPointerException si falta rol o instante
+     */
+    public void cambiarRol(RolNegocio nuevoRol, Instant ahora) {
+        rol = Objects.requireNonNull(nuevoRol);
+        actualizadoEn = Objects.requireNonNull(ahora);
+    }
+
+    /**
      * Identificador de la membresía asignado por la base.
      * @return identidad persistente de la pertenencia
      */

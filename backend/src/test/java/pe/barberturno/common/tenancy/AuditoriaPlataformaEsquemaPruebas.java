@@ -24,5 +24,9 @@ final class AuditoriaPlataformaEsquemaPruebas {
         assertThat(jdbc.queryForList("select conname from pg_constraint where conrelid='auditoria_plataforma'::regclass", String.class))
                 .contains("auditoria_plataforma_actor_fk", "auditoria_plataforma_negocio_fk", "auditoria_plataforma_objetivo_fk",
                         "auditoria_plataforma_accion_valida", "auditoria_plataforma_destino_coherente");
+        for (String restriccion : List.of("auditoria_plataforma_accion_valida", "auditoria_plataforma_destino_coherente")) {
+            assertThat(jdbc.queryForObject("select pg_get_constraintdef(oid) from pg_constraint where conrelid='auditoria_plataforma'::regclass and conname=?",
+                    String.class, restriccion)).contains("REENVIAR_INVITACION_PROPIETARIO", "REVOCAR_INVITACION_PROPIETARIO");
+        }
     }
 }

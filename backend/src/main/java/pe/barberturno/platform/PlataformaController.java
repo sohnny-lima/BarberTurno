@@ -22,6 +22,31 @@ public class PlataformaController {
     private final PlataformaService plataforma;
 
     /**
+     * Renueva la invitación del destinatario inicial y evita almacenar su capacidad en caché.
+     * @param id negocio destinatario
+     * @param actor administrador global autenticado
+     * @return HTTP 200 con enlace mostrado una sola vez
+     * @throws NegocioException si falta permiso, invitación o el negocio está suspendido
+     */
+    @PostMapping("/negocios/{id}/invitacion-propietario")
+    public ResponseEntity<InvitacionEmitidaDto> reenviarInicial(@PathVariable long id,
+            @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(plataforma.reenviarInicial(id, actor));
+    }
+
+    /**
+     * Invalida la invitación inicial sin afectar a otras invitaciones ni membresías.
+     * @param id negocio destinatario
+     * @param actor administrador global autenticado
+     * @return HTTP 200 sin cuerpo
+     * @throws NegocioException si falta permiso o invitación inicial
+     */
+    @DeleteMapping("/negocios/{id}/invitacion-propietario")
+    public ResponseEntity<Void> revocarInicial(@PathVariable long id, @AuthenticationPrincipal UsuarioAutenticado actor) {
+        plataforma.revocarInicial(id, actor); return ResponseEntity.ok().build();
+    }
+
+    /**
      * Conecta las rutas globales con el servicio transaccional autorizado.
      * @param plataforma operaciones y auditoría atómicas
      */

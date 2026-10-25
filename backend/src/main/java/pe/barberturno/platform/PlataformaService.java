@@ -120,6 +120,34 @@ public class PlataformaService {
         return new PasswordTemporalDto(temporal);
     }
 
+    /**
+     * Invalida la invitación inicial pendiente y entrega una capacidad nueva una sola vez.
+     * @param id negocio destinatario
+     * @param actor administrador global autenticado
+     * @return emisión nueva con enlace secreto, nunca auditado en claro
+     * @throws NegocioException si falta permiso, invitación inicial o el negocio está suspendido
+     */
+    @Transactional
+    public InvitacionEmitidaDto reenviarInicial(long id, UsuarioAutenticado actor) {
+        exigirPlataforma(actor);
+        var emitida = invitaciones.gestionarInicial(id, actor.id(), true);
+        auditar(actor.id(), "REENVIAR_INVITACION_PROPIETARIO", id, null);
+        return emitida;
+    }
+
+    /**
+     * Retira la capacidad inicial del propietario con auditoría en la misma transacción.
+     * @param id negocio destinatario
+     * @param actor administrador global autenticado
+     * @throws NegocioException si falta permiso o la invitación inicial no existe
+     */
+    @Transactional
+    public void revocarInicial(long id, UsuarioAutenticado actor) {
+        exigirPlataforma(actor);
+        invitaciones.gestionarInicial(id, actor.id(), false);
+        auditar(actor.id(), "REVOCAR_INVITACION_PROPIETARIO", id, null);
+    }
+
     private void exigirPlataforma(UsuarioAutenticado actor) {
         if (actor == null || actor.rolPlataforma() != RolPlataforma.ADMIN_PLATAFORMA) {
             throw new NegocioException(ErrorCodigo.PROHIBIDO, "Se requiere administración de plataforma.");

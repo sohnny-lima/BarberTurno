@@ -14,6 +14,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public interface MembresiaRepository extends Repository<Membresia, Long> {
     /**
+     * Lee el equipo histórico exclusivamente del negocio autorizado.
+     * @param negocioId ámbito explícito de la ruta
+     * @return pertenencias activas y revocadas ordenadas por id
+     */
+    java.util.List<Membresia> findByNegocioIdOrderByIdAsc(long negocioId);
+
+    /**
+     * Resuelve un recurso del equipo sin revelar pertenencias ajenas.
+     * @param negocioId ámbito explícito de la ruta
+     * @param id pertenencia solicitada
+     * @return pertenencia local, si existe
+     */
+    Optional<Membresia> findByNegocioIdAndId(long negocioId, long id);
+    /**
      * Lee exclusivamente las pertenencias activas de la cuenta autenticada (V2-DA-26, V2-05).
      * @param usuarioId identidad del principal, nunca un parámetro del navegador
      * @return pertenencias propias vigentes para construir mis-negocios

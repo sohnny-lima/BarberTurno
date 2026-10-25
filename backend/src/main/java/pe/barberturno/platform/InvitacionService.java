@@ -57,6 +57,20 @@ public class InvitacionService {
     }
 
     // Invocado solo tras autorización global de PlataformaService, dentro de su misma transacción.
+    InvitacionEmitidaDto gestionarInicial(long negocioId, long actorId, boolean reenviar) {
+        var inicial = invitaciones.findFirstByNegocioIdAndRolOrderByIdAsc(negocioId, RolNegocio.PROPIETARIO)
+                .orElseThrow(this::noEncontrado);
+        for (var pendiente : invitaciones.listarPendientes(negocioId)) {
+            if (pendiente.rol() == RolNegocio.PROPIETARIO && pendiente.correo().equals(inicial.correo())) {
+                var bloqueada = invitaciones.bloquearPorNegocio(negocioId, pendiente.id()).orElseThrow(this::noEncontrado);
+                if (bloqueada.pendiente()) bloqueada.revocar(clock.instant());
+            }
+        }
+        entidades.flush();
+        return reenviar ? emitir(negocioId, inicial.correo(), RolNegocio.PROPIETARIO, actorId) : null;
+    }
+
+    // Invocado solo tras autorización global de PlataformaService, dentro de su misma transacción.
     InvitacionEmitidaDto emitir(long negocioId, String correo, RolNegocio rol, long actorId) {
         // Serializa emisiones por negocio y evita que una violación única registre correos en Hibernate.
         var estado = entidades.createNativeQuery("select estado from negocio where id=:id for update", String.class)
