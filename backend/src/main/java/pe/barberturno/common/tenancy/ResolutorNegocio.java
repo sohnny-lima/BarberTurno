@@ -55,6 +55,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
 
     /**
      * Rechaza variantes no canónicas antes de delimitar operaciones globales o locales por ruta o alias.
+     * Mantiene plataforma fuera del contexto local y oculta las rutas públicas suspendidas con 404.
      * @param request petición ya validada por el cortafuegos
      * @param response salida HTTP
      * @param chain resto de seguridad y MVC, con una única ruta normalizada
@@ -99,6 +100,10 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
             }
             contexto.fijar(id);
+            if (id.isPresent() && directorio.suspendido(id.getAsLong()) && esPublica(efectiva)) {
+                noEncontrado(request, response);
+                return;
+            }
             ServletRequestPathUtils.parseAndCache(efectiva);
             chain.doFilter(efectiva, salida);
         } finally {
@@ -115,7 +120,16 @@ public class ResolutorNegocio extends OncePerRequestFilter {
         return (ruta.equals("/api/auth") || ruta.startsWith("/api/auth/"))
                 && !ruta.equals("/api/auth/registro")
                 || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
-                || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/");
+                || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
+                || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/");
+    }
+
+    private boolean esPublica(HttpServletRequest peticion) {
+        String ruta = peticion.getServletPath();
+        return (peticion.getMethod().equals("GET") || peticion.getMethod().equals("HEAD"))
+                && (ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
+                || peticion.getMethod().equals("POST") && (ruta.equals("/api/registro")
+                || ruta.equals("/api/auth/registro") || ruta.equals("/api/clientes/alta"));
     }
 
     private void noEncontrado(HttpServletRequest request, HttpServletResponse response) throws IOException {

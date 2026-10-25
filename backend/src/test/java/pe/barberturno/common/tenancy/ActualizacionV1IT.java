@@ -13,6 +13,33 @@ import static org.assertj.core.api.Assertions.*;
 class ActualizacionV1IT extends MigracionPruebaBase {
     private static final List<String> TABLAS = List.of("usuario", "servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion");
 
+    @Test void v108_aV109_conservaNegociosCuentasYDatos_yPermiteAuditoriaComoAplicacion() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("108").migrate();
+        Map<String, Object> antes = new LinkedHashMap<>();
+        long cuenta;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L);
+            var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "v109"); cuenta = datos.admin();
+            for (String tabla : List.of("negocio", "usuario", "membresia", "servicio", "barbero", "cliente", "reserva", "auditoria_reserva", "notificacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L);
+            var jdbc = jdbc(aplicacion);
+            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
+            assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma", Long.class)).isZero();
+            jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,'CREAR_NEGOCIO',1,CURRENT_TIMESTAMP)", cuenta);
+            assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma where actor_id=? and negocio_id=1", Long.class, cuenta)).isEqualTo(1);
+            aplicacion.commit();
+        }
+    }
+
     @Test
     void datosV1_conservaHuellasIdentidadesYExclusionesYAislaLasRelaciones() throws Exception {
         var completa = flyway(null);

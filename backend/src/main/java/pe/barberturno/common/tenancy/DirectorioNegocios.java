@@ -16,7 +16,7 @@ public class DirectorioNegocios {
 
     /**
      * Recibe la sesión protegida por la guarda de V2-DA-23.
-     * @param entidades acceso a la tabla global negocio, que solo permite SELECT a la aplicación
+     * @param entidades acceso transaccional a la tabla global negocio
      */
     public DirectorioNegocios(EntityManager entidades) { this.entidades = entidades; }
 
@@ -33,6 +33,17 @@ public class DirectorioNegocios {
         var filas = entidades.createNativeQuery("select id from negocio where slug=:slug", Long.class)
                 .setParameter("slug", slug).getResultList();
         return filas.isEmpty() ? OptionalLong.empty() : OptionalLong.of(((Number) filas.getFirst()).longValue());
+    }
+
+    /**
+     * Revalida la disponibilidad administrativa sin caché, antes de acceder al dominio del negocio.
+     * @param id negocio resuelto exclusivamente por la ruta
+     * @return true si la plataforma lo ha suspendido
+     */
+    @Transactional(readOnly = true)
+    public boolean suspendido(long id) {
+        return !entidades.createNativeQuery("select id from negocio where id=:id and estado='SUSPENDIDO'", Long.class)
+                .setParameter("id", id).getResultList().isEmpty();
     }
 
     /**

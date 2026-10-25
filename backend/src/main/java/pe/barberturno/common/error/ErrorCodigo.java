@@ -54,6 +54,10 @@ public enum ErrorCodigo {
     CORREO_DUPLICADO(409, "Correo ya registrado"),
     /** Cambio global reservado a la plataforma por pertenencias activas en otros negocios. */
     IDENTIDAD_COMPARTIDA(409, "Identidad compartida"),
+    /** Identificador público de negocio ya ocupado, sin distinguir datos personales. */
+    SLUG_DUPLICADO(409, "Slug ya registrado"),
+    /** Escritura de negocio suspendido rechazada según V2-DA-38. */
+    NEGOCIO_SUSPENDIDO(409, "Negocio suspendido"),
     /**
      * Nombre ya registrado; respuesta HTTP 409 según catálogo §6.2.
      */

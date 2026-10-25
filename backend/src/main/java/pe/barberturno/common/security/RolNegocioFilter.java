@@ -7,6 +7,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.tenancy.ContextoNegocio;
+import pe.barberturno.common.tenancy.DirectorioNegocios;
 
 /**
  * Aplica V2-DA-34 a las operaciones protegidas, tras revalidar la sesión en el negocio de la ruta.
@@ -18,18 +19,21 @@ import pe.barberturno.common.tenancy.ContextoNegocio;
 public class RolNegocioFilter extends OncePerRequestFilter {
     private final ContextoNegocio contexto;
     private final RespuestaSeguridad errores;
+    private final DirectorioNegocios directorio;
 
     /**
      * Recibe el mismo ámbito que fijó el resolutor y el escritor común RFC 9457.
      * @param contexto ámbito de la petición, nunca elegido por el JWT o una cabecera
      * @param errores salida pública sin trazas
+     * @param directorio revalidación del estado administrativo sin caché
      */
-    public RolNegocioFilter(ContextoNegocio contexto, RespuestaSeguridad errores) {
-        this.contexto = contexto; this.errores = errores;
+    public RolNegocioFilter(ContextoNegocio contexto, RespuestaSeguridad errores, DirectorioNegocios directorio) {
+        this.contexto = contexto; this.errores = errores; this.directorio = directorio;
     }
 
     /**
      * Deniega con 403 a una identidad válida sin papel local, sin confundirla con una sesión inválida.
+     * Tras CSRF y autenticación impide toda escritura de negocio suspendido (409), también en el alias.
      * @param request solicitud normalizada por el resolutor
      * @param response respuesta que recibe PROHIBIDO cuando corresponde
      * @param chain autorización por rol y controles de recurso del resto de la aplicación
@@ -48,6 +52,12 @@ public class RolNegocioFilter extends OncePerRequestFilter {
         if (contexto.negocioActual().isPresent() && !publica && !altaPropia && autenticacion != null
                 && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario && usuario.rol() == null) {
             errores.escribir(request, response, ErrorCodigo.PROHIBIDO, "No tiene permiso para realizar esta acción.");
+            return;
+        }
+        if (contexto.negocioActual().isPresent() && !java.util.Set.of("GET", "HEAD", "OPTIONS", "TRACE").contains(request.getMethod())
+                && directorio.suspendido(contexto.negocioActual().getAsLong())) {
+            errores.escribir(request, response, ErrorCodigo.NEGOCIO_SUSPENDIDO,
+                    "El negocio está suspendido y solo admite lecturas del personal.");
             return;
         }
         chain.doFilter(request, response);

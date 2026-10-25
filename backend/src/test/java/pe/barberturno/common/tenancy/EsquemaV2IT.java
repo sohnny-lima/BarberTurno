@@ -89,7 +89,8 @@ class EsquemaV2IT extends TenancyPruebaBase {
         assertThat(jdbc.queryForObject("select has_function_privilege(current_user, 'app_negocio_actual()', 'EXECUTE')", Boolean.class)).isTrue();
         for (String tabla : java.util.stream.Stream.concat(TABLAS.stream(), java.util.stream.Stream.of("usuario", "negocio", "membresia", "vinculo_cliente")).toList()) {
             for (String permiso : List.of("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")) {
-                boolean permitido = "SELECT".equals(permiso) || !List.of("negocio", "vinculo_cliente").contains(tabla) && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
+                boolean permitido = "SELECT".equals(permiso) || tabla.equals("negocio") && List.of("INSERT", "UPDATE").contains(permiso)
+                        || !List.of("negocio", "vinculo_cliente").contains(tabla) && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
                         .as("%s %s", tabla, permiso).isEqualTo(permitido);
             }
