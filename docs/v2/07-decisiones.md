@@ -224,3 +224,9 @@
 ### V2-DA-38 · Efectos de un negocio suspendido
 - **Decisión:** un negocio `SUSPENDIDO` es invisible en sus rutas públicas (404), su personal conserva las lecturas y toda escritura de negocio da 409 `NEGOCIO_SUSPENDIDO`. Las invitaciones no se pueden aceptar y solo la plataforma lo reactiva. Se impone en la resolución del negocio, de modo que ningún controlador lo elude.
 - **Por qué:** concreta R2-04 («no acepta reservas… su personal conserva el acceso de lectura») con un comportamiento uniforme y comprobable.
+
+### V2-DA-39 · La invitación no vincula perfiles profesionales; un perfil nunca cambia de cuenta (24/10/2026)
+- **Problema (hallazgo H-090-01 de Codex, válido):** el diseño de la invitación con `barberoId` suponía un perfil profesional previo **sin cuenta**, pero `barbero.usuario_id` es `NOT NULL` y lo usan la agenda, los avisos y los permisos de la reserva. Vincular al aceptar un perfil que ya tuviera cuenta **reasignaría su agenda a otra persona**.
+- **Decisión:** en V2-06.3 la invitación **no** lleva `barbero_id` (se omite de `V110`). Aceptar una invitación `BARBERO` crea o restablece solo la **membresía**. El perfil profesional lo crea después el personal de gestión con el vínculo existente `POST /api/n/{slug}/barberos {usuarioId, especialidad}`, ampliado a cualquier cuenta con **membresía activa en ese negocio** (`BARBERO`, `ENCARGADO` o `PROPIETARIO`) y **sin perfil** en él; fuera de eso, 404. `barbero.usuario_id` es **inmutable**: ningún camino reasigna un perfil a otra cuenta (prueba explícita).
+- **Aplazado:** perfiles creados antes de la aceptación (con horario preparado) y perfiles sin cuenta, si un negocio piloto los necesita; exigiría `usuario_id` anulable y revisar a todos sus consumidores.
+- **Alternativa descartada:** hacer `barbero.usuario_id` anulable ahora (toca agenda, avisos, permisos y reservas en una subtarea de invitaciones).

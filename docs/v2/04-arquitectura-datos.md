@@ -100,11 +100,9 @@ CREATE TABLE invitacion (
   expira_en   timestamptz  NOT NULL,
   invitada_por bigint NOT NULL REFERENCES usuario(id),
   aceptada_por bigint REFERENCES usuario(id),
-  barbero_id   bigint,                        -- perfil que se vincula al aceptar (solo rol BARBERO)
-  creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,
-  CONSTRAINT invitacion_barbero_fk  FOREIGN KEY (negocio_id, barbero_id) REFERENCES barbero (negocio_id, id),
-  CONSTRAINT invitacion_barbero_rol CHECK (barbero_id IS NULL OR rol = 'BARBERO')
+  creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL
 );
+-- Sin barbero_id: la invitación no vincula perfiles (V2-DA-39).
 CREATE UNIQUE INDEX invitacion_token_uk ON invitacion (token_hash);
 CREATE UNIQUE INDEX invitacion_pendiente_uk ON invitacion (negocio_id, correo) WHERE estado = 'PENDIENTE';
 
