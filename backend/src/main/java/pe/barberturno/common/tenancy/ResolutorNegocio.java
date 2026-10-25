@@ -91,19 +91,15 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                     noEncontrado(request, response);
                     return;
                 }
-                id = directorio.buscar(partes[3]);
-                if (id.isEmpty()) { noEncontrado(request, response); return; }
                 efectiva = new PeticionNegocio(request, "/api/" + partes[4]);
+                id = esPublica(efectiva) ? directorio.buscarActivo(partes[3]) : directorio.buscar(partes[3]);
+                if (id.isEmpty()) { noEncontrado(request, response); return; }
                 salida = new RespuestaNegocio(response, request.getContextPath() + "/api/n/" + partes[3] + "/");
             } else if (ruta.startsWith("/api/") && !esGlobal(ruta)) {
-                id = directorio.buscar(alias);
+                id = esPublica(efectiva) ? directorio.buscarActivo(alias) : directorio.buscar(alias);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
             }
             contexto.fijar(id);
-            if (id.isPresent() && directorio.suspendido(id.getAsLong()) && esPublica(efectiva)) {
-                noEncontrado(request, response);
-                return;
-            }
             ServletRequestPathUtils.parseAndCache(efectiva);
             chain.doFilter(efectiva, salida);
         } finally {

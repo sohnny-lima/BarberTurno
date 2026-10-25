@@ -54,7 +54,7 @@ class EsquemaIT {
                 WHERE schemaname = 'public' AND tablename <> 'flyway_schema_history'
                 ORDER BY tablename
                 """, String.class)).containsExactly(
-                "auditoria_reserva", "barbero", "bloqueo", "cliente", "jornada", "membresia",
+                "auditoria_plataforma", "auditoria_reserva", "barbero", "bloqueo", "cliente", "jornada", "membresia",
                 "negocio", "notificacion", "reserva", "servicio", "usuario", "vinculo_cliente");
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist'
