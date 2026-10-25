@@ -11,6 +11,31 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.*;
 
 class ActualizacionV1IT extends MigracionPruebaBase {
+    @Test void v111_aV112_conservaDatos_yRestringeUpdateAColumnasPermitidas() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("111").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            DatosNegocioPrueba.crear(jdbc, "pre-v112");
+            assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'negocio','UPDATE')", Boolean.class)).isTrue();
+            for (String tabla : List.of("negocio", "usuario", "membresia", "cliente", "servicio", "barbero",
+                    "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "auditoria_plataforma", "invitacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id"))
+                    .as(tabla).isEqualTo(antes.get(tabla));
+            ConfiguracionNegocioEsquemaPruebas.comprobarPermisos(jdbc);
+            ConfiguracionNegocioEsquemaPruebas.rechazarColumnasReservadas(aplicacion);
+            assertThat(jdbc.update("update negocio set nombre='Nombre permitido', estado='SUSPENDIDO', actualizado_en=CURRENT_TIMESTAMP where id=1")).isEqualTo(1);
+            aplicacion.commit();
+        }
+    }
     @Test void v110_aV111_conservaDatos_yAdmiteLosDosEventosDeInvitacionInicial() throws Exception {
         var completa = flyway(null);
         completa.clean(); flyway("110").migrate();

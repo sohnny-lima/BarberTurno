@@ -26,6 +26,7 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, 'vinculo_cliente', ?)", Boolean.class, permiso)).isFalse();
             }
             contexto(conexion, 1L);
+            ConfiguracionNegocioEsquemaPruebas.rechazarColumnasReservadas(conexion);
             var datos = DatosNegocioPrueba.crear(jdbc, "instalacion");
             InvitacionEsquemaPruebas.comprobar(jdbc, datos.admin());
             assertThat(jdbc.queryForObject("select tolerancia_inicio_min from negocio where id=1", Integer.class)).isEqualTo(15);

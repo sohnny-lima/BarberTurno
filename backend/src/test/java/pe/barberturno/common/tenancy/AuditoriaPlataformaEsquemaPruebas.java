@@ -17,9 +17,8 @@ final class AuditoriaPlataformaEsquemaPruebas {
             assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'auditoria_plataforma',?)", Boolean.class, permiso))
                     .as("Auditoría %s", permiso).isEqualTo(List.of("SELECT", "INSERT").contains(permiso));
         }
-        for (String permiso : List.of("INSERT", "UPDATE")) {
-            assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'negocio',?)", Boolean.class, permiso)).isTrue();
-        }
+        assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'negocio','INSERT')", Boolean.class)).isTrue();
+        ConfiguracionNegocioEsquemaPruebas.comprobarPermisos(jdbc);
         assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'negocio','DELETE')", Boolean.class)).isFalse();
         assertThat(jdbc.queryForList("select conname from pg_constraint where conrelid='auditoria_plataforma'::regclass", String.class))
                 .contains("auditoria_plataforma_actor_fk", "auditoria_plataforma_negocio_fk", "auditoria_plataforma_objetivo_fk",
