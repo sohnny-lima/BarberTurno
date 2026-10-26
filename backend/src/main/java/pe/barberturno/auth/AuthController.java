@@ -58,11 +58,14 @@ public class AuthController {
      * GET /api/auth/sesion: CLIENTE, BARBERO y ADMIN reciben su identidad; sin sesión devuelve 401
      * NO_AUTENTICADO. La cadena emite XSRF-TOKEN si falta, también sin sesión, y conserva el token existente (DA-26).
      * La identidad se revalida sin contexto de negocio. Solo la proyección compatible consulta el alias
-     * con un ejecutor explícito, fuera de esa transacción; sin alias, el rol de negocio es null.
+     * con un ejecutor explícito, fuera de esa transacción; rolNegocio siempre es null en esta ruta
+     * global (V2-DA-45), aunque se conserve el rol efectivo compatible hasta retirar el alias.
      * @return representación pública resultante de la operación
      */
     @GetMapping("/sesion")
-    public UsuarioSesionDto sesion() { return alias == null ? auth.sesion(actual.id()) : ejecutor.ejecutar(alias, () -> auth.sesion(actual.id())); }
+    public UsuarioSesionDto sesion() {
+        return global(alias == null ? auth.sesion(actual.id()) : ejecutor.ejecutar(alias, () -> auth.sesion(actual.id())));
+    }
 
     /**
      * POST /api/auth/registro público: crea CLIENTE (201) y sustituye BT_SESION aun si fue revocada (DA-22). Exige CSRF; rechaza VALIDACION
@@ -126,10 +129,16 @@ public class AuthController {
             HttpServletRequest peticion, HttpServletResponse respuesta) {
         var dto = contexto.negocioActual().isPresent() || alias == null
                 ? auth.sesion(usuario) : ejecutor.ejecutar(alias, () -> auth.sesion(usuario));
+        if (contexto.negocioActual().isEmpty()) dto = global(dto);
         var resultado = ResponseEntity.status(estado).body(dto);
         // Ambas cookies se añaden al servlet; ResponseEntity no debe reemplazar Set-Cookie.
         respuesta.addHeader(HttpHeaders.SET_COOKIE, cookies.emitir(jwt.emitir(usuario)).toString());
         csrf.saveToken(csrf.generateToken(peticion), peticion, respuesta);
         return resultado;
+    }
+
+    private UsuarioSesionDto global(UsuarioSesionDto dto) {
+        return new UsuarioSesionDto(dto.id(), dto.nombre(), dto.correo(), dto.rol(), dto.barberoId(),
+                dto.debeCambiarPassword(), dto.rolPlataforma(), null);
     }
 }

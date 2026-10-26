@@ -130,7 +130,8 @@ public class AuthService {
     }
 
     /**
-     * Proyecta identidad vigente y perfil de barbero opcional sin datos sensibles para RF-02.
+     * Proyecta identidad, perfil opcional y roles de presentación revalidados (V2-DA-45).
+     * Los roles describen esta sesión; no sustituyen la autorización en cada operación.
      * @param usuario identidad persistida
      * @return DTO sin datos sensibles
      */
@@ -139,7 +140,9 @@ public class AuthService {
         var principal = principal(usuario);
         return new UsuarioSesionDto(usuario.getId(), usuario.getNombre(), usuario.getCorreo(),
                 principal.rol(), principal.barberoId().orElse(null),
-                usuario.isDebeCambiarPassword());
+                usuario.isDebeCambiarPassword(), usuario.getRolPlataforma() == RolPlataforma.ADMIN_PLATAFORMA
+                        ? RolPlataforma.ADMIN_PLATAFORMA : null,
+                principal.rolNegocio().orElse(null));
     }
 
     /**

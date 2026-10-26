@@ -30,7 +30,52 @@ class PapelSolicitadoIT extends PlataformaPruebaBase {
         var dto = mapper.readTree(r.body());
         if (esperado == null) assertThat(dto.get("rol").isNull()).isTrue();
         else assertThat(dto.get("rol").asString()).isEqualTo(esperado);
-        if (papel != null) assertThat(dto.get("barberoId").isNull()).isTrue();
+        if (papel != null) {
+            assertThat(dto.get("barberoId").isNull()).isTrue();
+            assertThat(dto.get("rolNegocio").isNull()).isTrue();
+        }
+    }
+
+    @Test void rolesDePresentacion_sesionGlobalYNegociosAyB_sinElevarPapelCliente() throws Exception {
+        var profesional = cuenta("profesional");
+        var cliente = cuenta("cliente");
+        membresias.save(new Membresia(a, profesional.getId(), RolNegocio.BARBERO, reloj.instant()));
+        membresias.save(new Membresia(b, profesional.getId(), RolNegocio.ENCARGADO, reloj.instant()));
+        for (String slug : List.of("a", "b")) {
+            en(slug, () -> clientes.saveAndFlush(new Cliente(cliente, reloj.instant())));
+            en(slug, () -> clientes.saveAndFlush(new Cliente(propietario, reloj.instant())));
+        }
+        var personal = login("profesional"); var consumidor = login("cliente");
+        var actores = List.of(titular, gestorLocal, personal, consumidor, admin);
+        for (int i = 0; i < actores.size(); i++) {
+            var actor = actores.get(i);
+            var global = http(actor, "GET", "/api/auth/sesion", null, null);
+            assertThat(global.statusCode()).isEqualTo(200);
+            var identidad = mapper.readTree(global.body());
+            assertThat(identidad.get("rolNegocio").isNull()).isTrue();
+            if (i == 4) assertThat(identidad.get("rolPlataforma").asString()).isEqualTo("ADMIN_PLATAFORMA");
+            else assertThat(identidad.get("rolPlataforma").isNull()).isTrue();
+            for (String slug : List.of("a", "b")) {
+                var local = http(actor, "GET", "/api/n/" + slug + "/sesion", null, null);
+                assertThat(local.statusCode()).isEqualTo(200);
+                var dto = mapper.readTree(local.body());
+                String esperado = switch (i) {
+                    case 0 -> "PROPIETARIO";
+                    case 1 -> "ENCARGADO";
+                    case 2 -> slug.equals("a") ? "BARBERO" : "ENCARGADO";
+                    default -> null;
+                };
+                if (esperado == null) assertThat(dto.get("rolNegocio").isNull()).isTrue();
+                else assertThat(dto.get("rolNegocio").asString()).isEqualTo(esperado);
+                assertThat(dto.get("rolPlataforma")).isEqualTo(identidad.get("rolPlataforma"));
+                var reducida = pedir(actor, "GET", "/api/n/" + slug + "/sesion", "CLIENTE", null);
+                assertThat(reducida.statusCode()).isEqualTo(200);
+                var vista = mapper.readTree(reducida.body());
+                assertThat(vista.get("rolNegocio").isNull()).isTrue();
+                assertThat(vista.get("barberoId").isNull()).isTrue();
+                assertThat(vista.get("rolPlataforma")).isEqualTo(identidad.get("rolPlataforma"));
+            }
+        }
     }
 
     @Test void reducePersonal_yLimpiaElContextoEntrePeticionesAyB_enLaMismaConexion() throws Exception {
