@@ -76,8 +76,12 @@ class BarberoIT {
         assertThat(u.getCreadoEn()).isEqualTo(reloj.instant());
         Cookie temporal = login(u);
         mvc.perform(get("/api/auth/sesion").cookie(temporal)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.barberoId").value(id))
+                .andExpect(jsonPath("$.barberoId").isEmpty())
+                .andExpect(jsonPath("$.rol").isEmpty())
+                .andExpect(jsonPath("$.rolNegocio").isEmpty())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(true));
+        mvc.perform(get(negocio("/api/sesion")).cookie(temporal)).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         mvc.perform(get(negocio("/api/barberos")).cookie(temporal)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         var cambio = mvc.perform(conCsrf(put("/api/auth/password"), temporal)
@@ -88,6 +92,8 @@ class BarberoIT {
         mvc.perform(get("/api/auth/sesion").cookie(temporal)).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/auth/sesion").cookie(nueva)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(false));
+        mvc.perform(get(negocio("/api/sesion")).cookie(nueva)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.barberoId").value(id));
         mvc.perform(get(negocio("/api/barberos")).cookie(nueva)).andExpect(status().isOk());
     }
 
@@ -148,14 +154,14 @@ class BarberoIT {
         long id = id(escribir("POST", 0, sesion, Map.of("usuarioId", admin.getId(), "especialidad", "Cortes"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.nombre").value(admin.getNombre())).andReturn());
         assertThat(usuarios.count()).isEqualTo(1);
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.rol").value("ADMIN")).andExpect(jsonPath("$.barberoId").value(id));
         escribir("PATCH", id, sesion, Map.of("activo", false)).andExpect(status().isOk());
         Usuario conservado = usuarios.findById(admin.getId()).orElseThrow();
         assertThat(conservado.isActivo()).isTrue();
         assertThat(conservado.getTokenVersion()).isEqualTo(admin.getTokenVersion());
         assertThat(jdbc.queryForMap("select * from usuario where id=?", admin.getId())).isEqualTo(cuentaAntes);
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barberoId").value(id));
         login(admin);
         escribir("PATCH", id, sesion, Map.of("activo", true)).andExpect(status().isOk());

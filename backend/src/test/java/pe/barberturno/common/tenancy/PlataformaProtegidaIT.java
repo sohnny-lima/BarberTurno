@@ -176,7 +176,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         return usuarios.saveAndFlush(usuario);
     }
 
-    private void exigirAjena(Usuario usuario, Cookie cookie) throws Exception { exigirAjena(usuario, cookie, "/api"); }
+    private void exigirAjena(Usuario usuario, Cookie cookie) throws Exception { exigirAjena(usuario, cookie, "/api/n/barberturno"); }
 
     private void exigirAjena(Usuario usuario, Cookie cookie, String raiz) throws Exception {
         var anterior = huella(usuario);
