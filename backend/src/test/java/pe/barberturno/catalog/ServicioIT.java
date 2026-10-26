@@ -282,7 +282,7 @@ class ServicioIT {
             "PUT /api/servicios/1/estado", "PATCH /api/servicios/1", "GET /api/prueba/no-implementada"})
     void rutasNoAutorizadas_seMantienenCerradas(String caso) throws Exception {
         String[] partes = caso.split(" ");
-        var solicitud = request(HttpMethod.valueOf(partes[0]), partes[1]);
+        var solicitud = request(HttpMethod.valueOf(partes[0]), negocio(partes[1]));
         mvc.perform(conCsrf(solicitud, login(Rol.ADMIN, false))).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
     }
