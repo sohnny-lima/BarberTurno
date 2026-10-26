@@ -11,7 +11,7 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import { Rol } from '../modelos/identidad';
-import { authGuard, gestionGuard, passwordGuard, rolGuard } from './guards';
+import { authGuard, gestionGuard, passwordGuard, plataformaGuard, rolGuard } from './guards';
 import { SesionService } from './sesion-service';
 
 describe('Guards de identidad', () => {
@@ -65,6 +65,32 @@ describe('Guards de identidad', () => {
   it('authGuard con sesión permite el acceso', () => {
     entrar('CLIENTE');
     expect(ejecutar(authGuard)).toBe(true);
+  });
+  it.each([null, 'ADMIN_PLATAFORMA'] as const)(
+    'plataforma exige el rol global %s, independiente del propietario local',
+    (rolPlataforma) => {
+      sesion.cargar().subscribe();
+      http
+        .expectOne('/api/auth/sesion')
+        .flush({ id: 1, rol: null, rolPlataforma, debeCambiarPassword: false });
+      const negocio = TestBed.inject(NegocioActual);
+      negocio.actualizarSesion({
+        id: 1,
+        nombre: 'Ficticio',
+        correo: 'guard@ejemplo.test',
+        rol: 'ADMIN',
+        rolNegocio: 'PROPIETARIO',
+        debeCambiarPassword: false,
+      });
+      expect(ejecutar(plataformaGuard, '/plataforma/negocios')).toEqual(
+        rolPlataforma ? true : router.parseUrl('/sin-acceso'),
+      );
+    },
+  );
+  it('plataforma sin sesión pide ingresar con retorno', () => {
+    expect(ejecutar(plataformaGuard, '/plataforma/negocios')).toEqual(
+      router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: '/plataforma/negocios' } }),
+    );
   });
   it.each(['CLIENTE', 'BARBERO', 'ADMIN'] as Rol[])(
     'rolGuard permite el rol %s autorizado',

@@ -15,14 +15,20 @@ import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { EstadoContenido } from '../../shared/estado-contenido';
 import { EntradaNegocio } from './entrada-negocio';
+import { RouterLink } from '@angular/router';
+import { SesionService } from '../../core/auth/sesion-service';
 
 @Component({
   selector: 'app-negocios',
-  imports: [MatButtonModule, CabeceraPagina, EstadoContenido],
+  imports: [MatButtonModule, CabeceraPagina, EstadoContenido, RouterLink],
   template: `<app-cabecera-pagina
       titulo="Sus barberías"
       subtitulo="Elija dónde quiere trabajar o reservar."
-    />
+    >
+      @if (sesion.usuario()?.rolPlataforma === 'ADMIN_PLATAFORMA') {
+        <a mat-stroked-button routerLink="/plataforma/negocios">Plataforma</a>
+      }
+    </app-cabecera-pagina>
     @if (negocio.avisoSelector()) {
       <app-estado-contenido tipo="aviso" [texto]="negocio.avisoSelector()" />
     }
@@ -104,6 +110,7 @@ import { EntradaNegocio } from './entrada-negocio';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Negocios {
+  readonly sesion = inject(SesionService);
   private readonly api = inject(MisNegociosApi);
   private readonly entrada = inject(EntradaNegocio);
   private readonly destroyRef = inject(DestroyRef);

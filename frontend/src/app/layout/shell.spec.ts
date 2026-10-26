@@ -83,6 +83,29 @@ describe('Shell adaptable', () => {
       'Mi cuenta',
     ]);
   });
+  it('plataforma sin membresía tiene zona separada y ningún menú del negocio', () => {
+    TestBed.inject(SesionService).cargar().subscribe();
+    http.expectOne('/api/auth/sesion').flush({
+      id: 1,
+      nombre: 'Plataforma ficticia',
+      correo: 'plataforma@ejemplo.test',
+      rol: null,
+      rolPlataforma: 'ADMIN_PLATAFORMA',
+      debeCambiarPassword: false,
+    });
+    TestBed.inject(NegocioActual).seleccionar(null);
+    const f = TestBed.createComponent(Shell);
+    f.detectChanges();
+    expect(f.componentInstance.enlaces().map((e) => e.texto)).toEqual([
+      'Sus barberías',
+      'Mi cuenta',
+    ]);
+    expect(f.componentInstance.nombreRol()).toBe('Administrador de plataforma');
+    expect(f.nativeElement.querySelector('nav[aria-label="Plataforma"]')?.textContent).toContain(
+      'Plataforma',
+    );
+    expect(f.nativeElement.querySelector('app-barberia-actual section')).toBeNull();
+  });
   it.each(['PROPIETARIO', 'ENCARGADO', 'BARBERO'] as const)(
     'gestión usa rolNegocio %s de la sesión local',
     (rolNegocio) => {

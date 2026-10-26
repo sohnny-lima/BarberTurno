@@ -89,8 +89,19 @@ export class Shell {
     () => this.sesion.autenticado() && !this.sesion.debeCambiarPassword(),
   );
   readonly tieneBarraInferior = computed(
-    () => this.movil() && this.navegacionCompleta() && this.negocio.rol() !== 'ADMIN',
+    () =>
+      this.movil() &&
+      this.navegacionCompleta() &&
+      this.negocio.rol() !== 'ADMIN' &&
+      !this.zonaPlataforma(),
   );
+  readonly puedePlataforma = computed(
+    () =>
+      this.sesion.usuario()?.rolPlataforma === 'ADMIN_PLATAFORMA' &&
+      !this.sesion.debeCambiarPassword(),
+  );
+  readonly zonaPlataforma = computed(() => this.ruta().startsWith('/plataforma'));
+  readonly usaCajon = computed(() => this.negocio.rol() === 'ADMIN' || this.zonaPlataforma());
   readonly tituloVista = inject(TituloPagina);
   readonly tituloPagina = computed(() => {
     if (this.tituloVista.texto()) return this.tituloVista.texto()!;
@@ -154,11 +165,12 @@ export class Shell {
         ];
     }
   });
-  readonly nombreRol = computed(
-    () =>
-      ({ CLIENTE: 'Cliente', BARBERO: 'Barbero', ADMIN: 'Administrador' })[
-        this.negocio.rol() ?? 'CLIENTE'
-      ],
+  readonly nombreRol = computed(() =>
+    !this.negocio.rol() && this.puedePlataforma()
+      ? 'Administrador de plataforma'
+      : { CLIENTE: 'Cliente', BARBERO: 'Barbero', ADMIN: 'Administrador' }[
+          this.negocio.rol() ?? 'CLIENTE'
+        ],
   );
   parametrosEnlace(ruta: string) {
     return ruta.startsWith('/n/') && this.negocio.papel() === 'CLIENTE' ? { papel: 'cliente' } : {};

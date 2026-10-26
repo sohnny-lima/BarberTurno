@@ -30,6 +30,14 @@ export const authGuard: CanActivateFn = (_ruta, estado) => {
     inject(Router).createUrlTree(['/ingresar'], { queryParams: { returnUrl: estado.url } })
   );
 };
+export const plataformaGuard: CanActivateFn = (ruta, estado) => {
+  const sesion = inject(SesionService);
+  const identidad = authGuard(ruta, estado);
+  if (identidad !== true) return identidad;
+  return (
+    sesion.usuario()?.rolPlataforma === 'ADMIN_PLATAFORMA' || inject(Router).parseUrl('/sin-acceso')
+  );
+};
 export const passwordGuard: CanActivateFn = (_ruta, estado) => {
   const sesion = inject(SesionService);
   return (

@@ -1,10 +1,27 @@
 import { inject } from '@angular/core';
 import { Routes, Router } from '@angular/router';
-import { authGuard, legadoGuard } from './core/auth/guards';
+import { authGuard, legadoGuard, plataformaGuard } from './core/auth/guards';
 import { SesionService } from './core/auth/sesion-service';
 import { negocioGuard } from './core/negocio/rutas-negocio';
 const proximamente = () => import('./features/proximamente').then((m) => m.Proximamente);
 export const rutasShell: Routes = [
+  {
+    path: 'sin-acceso',
+    loadComponent: () => import('./features/negocios/sin-acceso').then((m) => m.SinAcceso),
+  },
+  {
+    path: 'plataforma',
+    canActivate: [plataformaGuard],
+    canActivateChild: [plataformaGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'negocios' },
+      {
+        path: 'negocios',
+        loadComponent: () => import('./features/plataforma/plataforma').then((m) => m.Plataforma),
+      },
+      { path: '**', redirectTo: 'negocios' },
+    ],
+  },
   {
     path: 'invitacion/:token',
     loadComponent: () => import('./features/gestion/aceptacion').then((m) => m.Aceptacion),

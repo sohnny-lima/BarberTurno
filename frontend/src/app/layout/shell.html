@@ -14,6 +14,9 @@
         <button mat-button class="cerrar-menu" (click)="menu.close()">Cerrar menú</button>
       }
       <app-barberia-actual />
+      @if (zonaPlataforma()) {
+        <h2>Plataforma</h2>
+      }
       <nav aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
           <a
@@ -38,6 +41,18 @@
           </a>
         }
       </nav>
+      @if (puedePlataforma()) {
+        <nav class="border-t border-linea pt-4" aria-label="Plataforma">
+          <a
+            class="enlace"
+            routerLink="/plataforma/negocios"
+            routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
+            (click)="movil() && menu.close()"
+            >Plataforma</a
+          >
+        </nav>
+      }
       @if (sesion.usuario(); as usuario) {
         <div class="usuario">
           <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
@@ -55,7 +70,7 @@
   <mat-sidenav-content>
     @if (movil() || !navegacionCompleta() || negocio.rol() !== 'ADMIN') {
       <header class="cabecera" [class.cabecera-pagina]="!movil() && navegacionCompleta()">
-        @if (movil() && navegacionCompleta() && negocio.rol() === 'ADMIN') {
+        @if (movil() && navegacionCompleta() && usaCajon()) {
           <button
             mat-button
             (click)="menu.toggle()"
@@ -161,7 +176,11 @@
               <strong>{{ sesion.usuario()?.nombre }}</strong
               ><span>{{ nombreRol() }}</span>
             </div>
-            <app-barberia-actual /><a mat-menu-item routerLink="/perfil">Mi cuenta</a
+            <app-barberia-actual />
+            @if (puedePlataforma()) {
+              <a mat-menu-item routerLink="/plataforma/negocios">Plataforma</a>
+            }
+            <a mat-menu-item routerLink="/perfil">Mi cuenta</a
             ><button mat-menu-item class="riesgo" (click)="salir()" [disabled]="saliendo()">
               {{ saliendo() ? 'Saliendo…' : 'Salir' }}
             </button></mat-menu
