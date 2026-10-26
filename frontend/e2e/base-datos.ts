@@ -63,6 +63,7 @@ export function vaciar() {
     `BEGIN;
     DO $$ BEGIN
       IF current_database() <> '${BASE_E2E}' OR current_user <> 'barberturno_v2'
+        OR NOT EXISTS (SELECT FROM negocio WHERE id = 1 AND slug = 'barberturno')
         OR EXISTS (SELECT FROM pg_stat_activity WHERE datname = current_database()
           AND pid <> pg_backend_pid()) THEN
         RAISE EXCEPTION 'Destino o sesiones de limpieza E2E no autorizados';
