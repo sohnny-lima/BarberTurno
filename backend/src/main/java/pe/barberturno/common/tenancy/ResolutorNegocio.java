@@ -58,6 +58,10 @@ public class ResolutorNegocio extends OncePerRequestFilter {
      * Mantiene plataforma y capacidades de invitación fuera del contexto local.
      * Solo el segmento del token Base64URL distingue mayúsculas; los tramos fijos siguen canónicos.
      * Oculta las rutas públicas suspendidas con 404.
+     * X-BT-Papel solo admite CLIENTE y solo en /api/n/{slug}/…; cualquier otro valor,
+     * repetición o uso fuera de esa ruta devuelve 400 VALIDACION. La cabecera reduce el principal
+     * a cliente con ficha activa (sin ficha queda sin rol), nunca concede membresía ni perfil.
+     * Se elimina junto con el contexto en finally y no sustituye la protección CSRF.
      * @param request petición ya validada por el cortafuegos
      * @param response salida HTTP
      * @param chain resto de seguridad y MVC, con una única ruta normalizada
@@ -79,6 +83,16 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 return;
             }
             if (ruta == null) ruta = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
+            var papeles = java.util.Collections.list(request.getHeaders("X-BT-Papel"));
+            if (!papeles.isEmpty()) {
+                if (papeles.size() != 1 || !"CLIENTE".equals(papeles.getFirst())
+                        || !ruta.matches("/api/n/[^/]+/.+")) {
+                    errores.escribir(request, response, ErrorCodigo.VALIDACION,
+                            "X-BT-Papel solo admite CLIENTE en una ruta de negocio.");
+                    return;
+                }
+                contexto.solicitarCliente();
+            }
             boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion)?");
             if (api && ((!capacidad && !ruta.equals(ruta.toLowerCase(Locale.ROOT))) || ruta.endsWith("/"))) {
                 noEncontrado(request, response);
@@ -128,7 +142,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
     private boolean esPublica(HttpServletRequest peticion) {
         String ruta = peticion.getServletPath();
         return (peticion.getMethod().equals("GET") || peticion.getMethod().equals("HEAD"))
-                && (ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
+                && (ruta.equals("/api/negocio") || ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
                 || peticion.getMethod().equals("POST") && (ruta.equals("/api/registro")
                 || ruta.equals("/api/auth/registro") || ruta.equals("/api/clientes/alta"));
     }

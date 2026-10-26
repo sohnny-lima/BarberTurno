@@ -35,6 +35,9 @@ class EquipoIT extends PlataformaPruebaBase {
         var sesion = login("profesional");
         assertThat(http(sesion, "GET", "/api/n/a/equipo", null, null).statusCode()).isEqualTo(403);
         assertThat(http(admin, "GET", "/api/n/a/equipo", null, null).statusCode()).isEqualTo(403);
+        var cliente = cuenta("cliente-equipo");
+        en("a", () -> clientes.saveAndFlush(new pe.barberturno.customers.Cliente(cliente, reloj.instant())));
+        assertThat(http(login("cliente-equipo"), "GET", "/api/n/a/equipo", null, null).statusCode()).isEqualTo(403);
         for (var gestor : List.of(titular, gestorLocal)) {
             var r = http(gestor, "GET", "/api/n/a/equipo", null, null);
             assertThat(r.statusCode()).isEqualTo(200);
@@ -42,13 +45,21 @@ class EquipoIT extends PlataformaPruebaBase {
             assertThat(lista).hasSize(3);
             for (var m : lista) {
                 assertThat(m.get("id").asLong()).isNotEqualTo(ajena);
-                assertThat(m.properties()).hasSize(5);
+                assertThat(m.properties()).extracting(java.util.Map.Entry::getKey).containsExactlyInAnyOrder(
+                        "id", "usuarioId", "nombre", "correo", "rol", "estado", "motivoRevocacion");
+                var cuenta = usuarios.findById(m.get("usuarioId").asLong()).orElseThrow();
+                assertThat(m.get("nombre").asString()).isEqualTo(cuenta.getNombre());
+                assertThat(m.get("correo").asString()).isEqualTo(cuenta.getCorreo());
             }
         }
         assertThat(http(gestorLocal, "POST", ruta(local, "revocacion"), null, token(gestorLocal)).statusCode()).isEqualTo(200);
         var lista = mapper.readTree(http(titular, "GET", "/api/n/a/equipo", null, null).body());
         assertThat(lista.get(2).get("estado").asString()).isEqualTo("REVOCADA");
         assertThat(lista.get(2).get("motivoRevocacion").asString()).isEqualTo("DECISION_GESTOR");
+        assertThat(lista.get(2).get("nombre").asString()).isEqualTo(persona.getNombre());
+        assertThat(lista.get(2).get("correo").isNull()).isTrue();
+        var vistaEncargado = mapper.readTree(http(gestorLocal, "GET", "/api/n/a/equipo", null, null).body());
+        assertThat(vistaEncargado.get(2).get("correo").isNull()).isTrue();
         assertThat(http(sesion, "GET", "/api/n/a/reservas", null, null).statusCode()).isEqualTo(403);
     }
 

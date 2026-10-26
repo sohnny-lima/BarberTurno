@@ -41,15 +41,19 @@ public class EquipoService {
     /**
      * Lista pertenencias de este negocio para su personal de gestión.
      * @param actor propietario o encargado vigente
-     * @return equipo histórico local sin datos de cuentas
+     * @return equipo histórico local con nombre y correo solo en pertenencias activas (V2-DA-43)
      * @throws NegocioException si falta el permiso de gestión
      */
     @Transactional(readOnly = true)
     public List<EquipoDto> listar(UsuarioAutenticado actor) {
         exigirGestor(vigente(actor));
         return membresias.findByNegocioIdOrderByIdAsc(idNegocio()).stream()
-                .map(m -> new EquipoDto(m.getId(), m.getUsuarioId(), m.getRol(),
-                        m.isActiva() ? "ACTIVA" : "REVOCADA", m.getMotivoRevocacion())).toList();
+                .map(m -> {
+                    var persona = usuarios.findById(m.getUsuarioId()).orElseThrow(this::noEncontrado);
+                    return new EquipoDto(m.getId(), m.getUsuarioId(), persona.getNombre(),
+                            m.isActiva() ? persona.getCorreo() : null, m.getRol(),
+                            m.isActiva() ? "ACTIVA" : "REVOCADA", m.getMotivoRevocacion());
+                }).toList();
     }
 
     /**

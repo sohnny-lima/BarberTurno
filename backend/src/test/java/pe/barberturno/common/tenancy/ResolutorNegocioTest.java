@@ -21,6 +21,26 @@ class ResolutorNegocioTest {
         return new ResolutorNegocio(contexto, directorio, new RespuestaSeguridad(new JsonMapper()), entorno);
     }
 
+    @Test void papelSolicitado_soloDuranteLaCadena_ySeEliminaTambienConExcepcion() throws Exception {
+        when(directorio.buscarActivo("a")).thenReturn(OptionalLong.of(2));
+        var peticion = new MockHttpServletRequest("GET", "/api/n/a/servicios");
+        peticion.addHeader("X-BT-Papel", "CLIENTE");
+        assertThatThrownBy(() -> filtro().doFilter(peticion, new MockHttpServletResponse(), (req, res) -> {
+            assertThat(contexto.clienteSolicitado()).isTrue();
+            throw new IllegalStateException("Fallo simulado");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(contexto.clienteSolicitado()).isFalse();
+        assertThat(contexto.delimitado()).isFalse();
+        filtro().doFilter(new MockHttpServletRequest("GET", "/api/n/a/servicios"), new MockHttpServletResponse(),
+                (req, res) -> assertThat(contexto.clienteSolicitado()).isFalse());
+        var repetida = new MockHttpServletRequest("GET", "/api/n/a/servicios");
+        repetida.addHeader("X-BT-Papel", "CLIENTE"); repetida.addHeader("X-BT-Papel", "CLIENTE");
+        var respuesta = new MockHttpServletResponse();
+        filtro().doFilter(repetida, respuesta, (req, res) -> fail("No admite valores repetidos"));
+        assertThat(respuesta.getStatus()).isEqualTo(400);
+        assertThat(contexto.clienteSolicitado()).isFalse();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"/api/n/a/%70erfil", "/api/%70erfil", "/api/%6E/a/servicios",
             "/api/n/%61/servicios", "/api/n/a/%61uth/password", "/api/servicios%", "/api/servicios%zz"})
