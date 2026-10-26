@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createConnection } from 'node:net';
-import { sql, vaciar } from './base-datos';
+import { BASE_E2E, sql, vaciar, validarBase, comprobarSinSesiones } from './base-datos';
 
 async function puertoLibre(puerto: number) {
   const ocupado = await new Promise<boolean>((terminar) => {
@@ -18,6 +18,7 @@ async function puertoLibre(puerto: number) {
 
 /** Importa secretos únicamente al entorno; no escribe estados de sesión ni credenciales. */
 export default async function preparar() {
+  validarBase();
   mkdirSync(resolve('tmp'), { recursive: true });
   const ruta = resolve('tmp/e2e.lock');
   const bloqueo = openSync(ruta, 'wx');
@@ -38,19 +39,18 @@ export default async function preparar() {
         if (entrada && !process.env[entrada[1]]) process.env[entrada[1]] = entrada[2];
       }
     }
-    if (!process.env['BT_DB_PASSWORD'])
-      throw new Error('Falta BT_DB_PASSWORD en el entorno o archivo local.');
-    await puertoLibre(8080);
+    if (!process.env['BT_DB_PASSWORD'] || !process.env['BT_FLYWAY_PASSWORD'])
+      throw new Error('Faltan las credenciales de aplicación o de limpieza en el entorno local.');
+    process.env['BT_DB_USER'] ??= 'barberturno_v2_app';
+    process.env['BT_FLYWAY_USER'] ??= 'barberturno_v2';
+    validarBase();
+    await puertoLibre(8081);
     await puertoLibre(18034);
-    const conexiones = sql(
-      "SELECT count(*) FROM pg_stat_activity WHERE datname = 'barberturno_test' AND pid <> pg_backend_pid()",
-      'barberturno_test',
-    );
-    if (conexiones.status !== 0 || conexiones.stdout.trim() !== '0')
-      throw new Error(
-        'Hay conexiones de otra suite PostgreSQL o no se pudo comprobar su ausencia.',
-      );
-    process.env['BT_E2E_DB'] = 'barberturno_test';
+    comprobarSinSesiones();
+    const rol = sql(`SELECT current_database() = '${BASE_E2E}' AND current_user = 'barberturno_v2_app'
+      AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname = current_user`);
+    if (rol.status !== 0 || rol.stdout.trim() !== 't') throw new Error('Rol real E2E inválido.');
+    process.env['BT_E2E_DB'] = BASE_E2E;
     process.env['BT_DB_URL'] = `jdbc:postgresql://localhost:5433/${process.env['BT_E2E_DB']}`;
     // Cada ejecución usa una clave ficticia distinta y efímera para todas las cuentas demo.
     process.env['BT_DEMO_PASSWORD'] = `Demo1${randomBytes(18).toString('hex')}`;
