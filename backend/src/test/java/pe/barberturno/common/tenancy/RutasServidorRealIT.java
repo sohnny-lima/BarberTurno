@@ -185,6 +185,26 @@ class RutasServidorRealIT {
                 "/api/n/a/plataforma/negocios", "/api/PLATAFORMA/negocios", "/api/plataforma/negocios/");
     }
 
+    @Test void rutasLegadas_porTcp_conYSinSesion_404SinControladoresNiEfectos() throws Exception {
+        var autenticada = login("a");
+        var anonima = new Sesion("visitante", new CookieManager(null, CookiePolicy.ACCEPT_ALL),
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+        sesiones.add(anonima);
+        var antes = huella();
+        for (String ruta : pe.barberturno.support.RutasNegocioPruebas.legadas()) {
+            for (var sesion : List.of(autenticada, anonima)) {
+                for (String metodo : List.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE")) {
+                    var resultado = http(sesion, metodo, ruta, metodo.equals("HEAD") ? null : "{}", null);
+                    assertThat(resultado.codigo()).as("%s %s, %s", metodo, ruta, sesion.slug()).isEqualTo(404);
+                    assertThat(resultado.traza().controladores).isEmpty();
+                    assertThat(resultado.traza().contextoLimpio).isTrue();
+                }
+            }
+        }
+        assertThat(huella()).isEqualTo(antes);
+        catalogo(autenticada, "a"); catalogo(autenticada, "b");
+    }
+
     private Sesion login(String slug) throws Exception {
         var cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
         var sesion = new Sesion(slug, cookies, HttpClient.newBuilder().cookieHandler(cookies)

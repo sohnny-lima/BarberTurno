@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.OptionalLong;
-import org.springframework.core.env.Environment;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ServletRequestPathUtils;
 import org.springframework.web.util.UrlPathHelper;
@@ -27,7 +26,7 @@ import pe.barberturno.common.security.RespuestaSeguridad;
  * La cadena única de SecurityConfig ve esa misma ruta en los tres getters. Se recalcula RequestPath,
  * que FilterChainProxy puede haber cacheado antes; se restaura al salir. El reset del firewall no
  * altera los getters del envoltorio exterior. CSRF y DA-22 reciben así la misma ruta que el controlador.
- * La respuesta conserva el prefijo en Location para que el URI canónico de una reserva no salte al alias.
+ * La respuesta conserva el prefijo en Location; ninguna ruta local sin slug alcanza la cadena posterior.
  * No es un bean Filter: solo se registra dentro de Spring Security, nunca en el contenedor.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
@@ -36,25 +35,22 @@ public class ResolutorNegocio extends OncePerRequestFilter {
     private final ContextoNegocio contexto;
     private final DirectorioNegocios directorio;
     private final RespuestaSeguridad errores;
-    private final String alias;
 
     /**
      * Recibe contexto, búsqueda y escritor común de errores RFC 9457.
      * @param contexto holder que se elimina en finally en todas las salidas
      * @param directorio resolución exacta de slugs sin caché
      * @param errores respuesta ProblemDetail sin trazas
-     * @param entorno configuración del alias, validada antes de conectar por ConfiguracionTenancy
      */
     public ResolutorNegocio(ContextoNegocio contexto, DirectorioNegocios directorio,
-            RespuestaSeguridad errores, Environment entorno) {
+            RespuestaSeguridad errores) {
         this.contexto = contexto;
         this.directorio = directorio;
         this.errores = errores;
-        this.alias = entorno.getProperty("barberturno.tenancy.alias-legado.slug");
     }
 
     /**
-     * Rechaza variantes no canónicas antes de delimitar operaciones globales o locales por ruta o alias.
+     * Rechaza variantes no canónicas y operaciones locales sin el prefijo obligatorio /api/n/{slug}.
      * Mantiene plataforma y capacidades de invitación (consulta, aceptación y registro) fuera del contexto local.
      * Solo el segmento del token Base64URL distingue mayúsculas; los tramos fijos siguen canónicos.
      * Oculta las rutas públicas suspendidas con 404.
@@ -112,9 +108,10 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 id = esPublica(efectiva) ? directorio.buscarActivo(partes[3]) : directorio.buscar(partes[3]);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
                 salida = new RespuestaNegocio(response, request.getContextPath() + "/api/n/" + partes[3] + "/");
-            } else if (ruta.startsWith("/api/") && !esGlobal(ruta, request.getMethod())) {
-                id = esPublica(efectiva) ? directorio.buscarActivo(alias) : directorio.buscar(alias);
-                if (id.isEmpty()) { noEncontrado(request, response); return; }
+            } else if (ruta.equals("/api/auth/registro")
+                    || ruta.startsWith("/api/") && !esGlobal(ruta, request.getMethod())) {
+                noEncontrado(request, response);
+                return;
             }
             contexto.fijar(id);
             ServletRequestPathUtils.parseAndCache(efectiva);
@@ -131,7 +128,6 @@ public class ResolutorNegocio extends OncePerRequestFilter {
 
     private boolean esGlobal(String ruta, String metodo) {
         return (ruta.equals("/api/auth") || ruta.startsWith("/api/auth/"))
-                && !ruta.equals("/api/auth/registro")
                 || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
                 || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
@@ -144,7 +140,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
         return (peticion.getMethod().equals("GET") || peticion.getMethod().equals("HEAD"))
                 && (ruta.equals("/api/negocio") || ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
                 || peticion.getMethod().equals("POST") && (ruta.equals("/api/registro")
-                || ruta.equals("/api/auth/registro") || ruta.equals("/api/clientes/alta"));
+                || ruta.equals("/api/clientes/alta"));
     }
 
     private void noEncontrado(HttpServletRequest request, HttpServletResponse response) throws IOException {

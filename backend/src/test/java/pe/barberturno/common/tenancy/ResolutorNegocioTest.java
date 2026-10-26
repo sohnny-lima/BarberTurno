@@ -4,7 +4,6 @@ import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.*;
 import org.springframework.web.util.ServletRequestPathUtils;
 import pe.barberturno.common.security.RespuestaSeguridad;
@@ -15,10 +14,9 @@ import static org.mockito.Mockito.*;
 class ResolutorNegocioTest {
     final ContextoNegocio contexto = new ContextoNegocio();
     final DirectorioNegocios directorio = mock(DirectorioNegocios.class);
-    final MockEnvironment entorno = new MockEnvironment();
 
     ResolutorNegocio filtro() {
-        return new ResolutorNegocio(contexto, directorio, new RespuestaSeguridad(new JsonMapper()), entorno);
+        return new ResolutorNegocio(contexto, directorio, new RespuestaSeguridad(new JsonMapper()));
     }
 
     @Test void papelSolicitado_soloDuranteLaCadena_ySeEliminaTambienConExcepcion() throws Exception {
@@ -59,20 +57,20 @@ class ResolutorNegocioTest {
         assertThat(ServletRequestPathUtils.getParsedRequestPath(request)).isSameAs(previo);
     }
 
-    @ParameterizedTest @ValueSource(strings = {"/api/perfil", "/api/servicios"})
-    void globalYAlias_gettersCoincidenConRutaMvc_yPorcentajeEnConsultaNoSeRechaza(String ruta) throws Exception {
-        entorno.setProperty("barberturno.tenancy.alias-legado.slug", "a");
+    @ParameterizedTest @ValueSource(strings = {"/api/perfil", "/api/n/a/servicios"})
+    void globalYPrefijo_gettersCoincidenConRutaMvc_yPorcentajeEnConsultaNoSeRechaza(String ruta) throws Exception {
         when(directorio.buscar("a")).thenReturn(OptionalLong.of(2));
         when(directorio.buscarActivo("a")).thenReturn(OptionalLong.of(2));
         var request = new MockHttpServletRequest("GET", "/barberturno" + ruta);
         request.setContextPath("/barberturno");
         request.setQueryString("busqueda=%70erfil");
         filtro().doFilter(request, new MockHttpServletResponse(), (req, res) -> {
+            String normalizada = ruta.equals("/api/perfil") ? ruta : "/api/servicios";
             var efectiva = (jakarta.servlet.http.HttpServletRequest) req;
-            assertThat(efectiva.getRequestURI()).isEqualTo("/barberturno" + ruta);
-            assertThat(efectiva.getServletPath()).isEqualTo(ruta);
+            assertThat(efectiva.getRequestURI()).isEqualTo("/barberturno" + normalizada);
+            assertThat(efectiva.getServletPath()).isEqualTo(normalizada);
             assertThat(efectiva.getPathInfo()).isNull();
-            assertThat(ServletRequestPathUtils.getParsedRequestPath(efectiva).pathWithinApplication().value()).isEqualTo(ruta);
+            assertThat(ServletRequestPathUtils.getParsedRequestPath(efectiva).pathWithinApplication().value()).isEqualTo(normalizada);
             if (ruta.equals("/api/perfil")) assertThat(contexto.negocioActual()).isEmpty();
             else assertThat(contexto.negocioActual()).hasValue(2);
         });
@@ -114,7 +112,6 @@ class ResolutorNegocioTest {
     }
 
     @Test void sinAlias_localFallaPeroGlobalContinuaSinContexto() throws Exception {
-        when(directorio.buscarActivo(null)).thenReturn(OptionalLong.empty());
         var respuesta = new MockHttpServletResponse();
         filtro().doFilter(new MockHttpServletRequest("GET", "/api/servicios"), respuesta,
                 (req, res) -> fail("No debe continuar sin negocio"));
@@ -122,6 +119,7 @@ class ResolutorNegocioTest {
         filtro().doFilter(new MockHttpServletRequest("GET", "/api/perfil"), new MockHttpServletResponse(),
                 (req, res) -> { assertThat(contexto.negocioActual()).isEmpty(); assertThat(contexto.delimitado()).isTrue(); });
         assertThat(contexto.delimitado()).isFalse();
+        verifyNoInteractions(directorio);
     }
 
     @Test void plataformaGlobal_sinAliasNiConsultaDeNegocio_yBajoPrefijo404() throws Exception {

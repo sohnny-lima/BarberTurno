@@ -20,8 +20,6 @@ logging:
 
 barberturno:
   tenancy:
-    alias-legado:
-      slug: barberturno
     negocio-inicial-slug: barberturno
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}

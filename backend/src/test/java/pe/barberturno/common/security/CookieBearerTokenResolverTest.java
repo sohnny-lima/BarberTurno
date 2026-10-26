@@ -20,7 +20,8 @@ class CookieBearerTokenResolverTest {
 
     @ParameterizedTest @ValueSource(strings = {"login", "registro", "logout"})
     void post_recuperacionConContextPath_ignoraInclusoCookiesAmbiguas(String accion) {
-        var peticion = peticion("POST", "/barberturno/api/auth/" + accion);
+        var peticion = peticion("POST", accion.equals("registro")
+                ? "/barberturno/api/registro" : "/barberturno/api/auth/" + accion);
         peticion.setCookies(new Cookie("BT_SESION", "anterior"), new Cookie("BT_SESION", "otra"));
         assertThat(resolver.resolve(peticion)).isNull();
     }
@@ -29,7 +30,7 @@ class CookieBearerTokenResolverTest {
     void get_oPostFueraDeRecuperacion_noOmiteCookie(String accion) {
         var peticion = peticion("GET", "/barberturno/api/auth/" + accion);
         assertThat(resolver.resolve(peticion)).isEqualTo("anterior");
-        if (accion.equals("password") || accion.equals("login/otra")) {
+        if (accion.equals("password") || accion.equals("login/otra") || accion.equals("registro")) {
             peticion.setMethod("POST");
             assertThat(resolver.resolve(peticion)).isEqualTo("anterior");
         }

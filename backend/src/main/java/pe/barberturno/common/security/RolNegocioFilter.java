@@ -33,7 +33,7 @@ public class RolNegocioFilter extends OncePerRequestFilter {
 
     /**
      * Deniega con 403 a una identidad válida sin papel local, sin confundirla con una sesión inválida.
-     * Tras CSRF y autenticación impide toda escritura de negocio suspendido (409), también en el alias.
+     * Tras CSRF y autenticación impide toda escritura de negocio suspendido (409) bajo su ruta canónica.
      * @param request solicitud normalizada por el resolutor
      * @param response respuesta que recibe PROHIBIDO cuando corresponde
      * @param chain autorización por rol y controles de recurso del resto de la aplicación

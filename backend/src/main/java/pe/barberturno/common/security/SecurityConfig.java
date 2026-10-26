@@ -151,7 +151,7 @@ public class SecurityConfig {
                         .bearerTokenResolver(new CookieBearerTokenResolver())
                         .authenticationEntryPoint(entryPoint).accessDeniedHandler(denegado)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
-                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas, entorno), SecurityContextHolderFilter.class)
+                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new RolNegocioFilter(contexto, respuestas, directorio), PasswordTemporalFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
@@ -166,7 +166,7 @@ public class SecurityConfig {
                     if (swaggerHabilitado) {
                         permisos.requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }
-                    permisos.requestMatchers(HttpMethod.POST, "/api/registro", "/api/auth/registro", "/api/auth/login",
+                    permisos.requestMatchers(HttpMethod.POST, "/api/registro", "/api/auth/login",
                             "/api/auth/logout").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
