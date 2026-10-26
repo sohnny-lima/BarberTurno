@@ -28,7 +28,7 @@ import { errorCampo, mostrarErrores } from '../../shared/formulario';
             errorCampo(formulario.controls.nombre)
           }}</mat-error></mat-form-field
         >
-        <mat-form-field
+        <mat-form-field subscriptSizing="dynamic"
           ><mat-label>Dirección web</mat-label><span matTextPrefix>/n/</span
           ><input matInput formControlName="slug" maxlength="40" autocapitalize="none" /><mat-hint
             >Letras minúsculas, números y guiones simples. Hasta 40 caracteres.</mat-hint
