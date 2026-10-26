@@ -117,17 +117,21 @@ public class InvitacionService {
      * Revela negocio, rol, correo oculto y estado solo ante quien tiene la capacidad (V2-DA-46).
      * @param token capacidad opaca presentada por la persona invitada
      * @return proyección pública mínima sin identificadores de cuenta ni hash
-     * @throws NegocioException si el token es desconocido o está mal formado (404)
+     * Una invitación pendiente de una barbería suspendida no se presenta como aceptable (V2-DA-38/46).
+     * @throws NegocioException si el token es desconocido o está mal formado (404), o si sigue pendiente
+     * y su barbería está suspendida (409 NEGOCIO_SUSPENDIDO)
      */
     @Transactional(readOnly = true)
     public InvitacionPublicaDto consultar(String token) {
         var invitacion = invitaciones.findByTokenHash(hashValido(token)).orElseThrow(this::noEncontrado);
-        String nombre = entidades.unwrap(org.hibernate.Session.class)
-                .createNativeQuery("select nombre from negocio where id=:id", String.class)
-                .setParameter("id", invitacion.negocioId()).getSingleResult();
+        String estado = invitacion.estadoPublico(clock.instant());
+        String nombre = "PENDIENTE".equals(estado) ? (String) estadoNegocio(invitacion.negocioId(), false)[0]
+                : entidades.unwrap(org.hibernate.Session.class)
+                        .createNativeQuery("select nombre from negocio where id=:id", String.class)
+                        .setParameter("id", invitacion.negocioId()).getSingleResult();
         String correo = invitacion.correo();
         return new InvitacionPublicaDto(nombre, invitacion.rol(), correo.substring(0, 1) + "***@" + correo.substring(correo.indexOf('@') + 1),
-                invitacion.estadoPublico(clock.instant()));
+                estado);
     }
 
     /**

@@ -132,8 +132,12 @@ class InvitacionIT extends PlataformaPruebaBase {
         };
         if (!caso.equals("distinto")) {
             var consulta = http(anonima(), "GET", i.enlace(), null, null);
-            assertThat(consulta.statusCode()).isEqualTo(caso.equals("inexistente") ? 404 : 200);
-            if (!caso.equals("inexistente")) {
+            assertThat(consulta.statusCode()).isEqualTo(caso.equals("inexistente") ? 404 : caso.equals("suspendido") ? 409 : 200);
+            // Pendiente en barbería suspendida: se conserva el 409 previo a V2-DA-46 (revisión del coordinador).
+            if (caso.equals("suspendido")) {
+                assertThat(mapper.readTree(consulta.body()).get("codigo").asString()).isEqualTo("NEGOCIO_SUSPENDIDO");
+                assertThat(consulta.body()).doesNotContain(destino.getCorreo());
+            } else if (!caso.equals("inexistente")) {
                 assertThat(mapper.readTree(consulta.body()).get("estado").asString()).isEqualTo(estado);
                 assertThat(consulta.body()).doesNotContain(destino.getCorreo());
             }
