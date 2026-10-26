@@ -1,5 +1,7 @@
 package pe.barberturno.scheduling;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.util.*;
@@ -76,7 +78,7 @@ class BarberoIT {
         mvc.perform(get("/api/auth/sesion").cookie(temporal)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barberoId").value(id))
                 .andExpect(jsonPath("$.debeCambiarPassword").value(true));
-        mvc.perform(get("/api/barberos").cookie(temporal)).andExpect(status().isForbidden())
+        mvc.perform(get(negocio("/api/barberos")).cookie(temporal)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         var cambio = mvc.perform(conCsrf(put("/api/auth/password"), temporal)
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
@@ -86,7 +88,7 @@ class BarberoIT {
         mvc.perform(get("/api/auth/sesion").cookie(temporal)).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/auth/sesion").cookie(nueva)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(false));
-        mvc.perform(get("/api/barberos").cookie(nueva)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/barberos")).cookie(nueva)).andExpect(status().isOk());
     }
 
     @Test void editar_desactivarYReactivar_conservaCuentaEHistorialYRevocaSoloMembresia() throws Exception {
@@ -118,10 +120,10 @@ class BarberoIT {
         assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
         assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().isActiva()).isFalse();
         mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
-        mvc.perform(get("/api/reservas").cookie(anterior)).andExpect(status().isForbidden());
+        mvc.perform(get(negocio("/api/reservas")).cookie(anterior)).andExpect(status().isForbidden());
         solicitarLogin(u.getCorreo(), PASSWORD).andExpect(status().isOk());
         cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", u.getId());
-        mvc.perform(get("/api/barberos")).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get(negocio("/api/barberos"))).andExpect(jsonPath("$.length()").value(0));
         escribir("PATCH", b.getId(), admin, Map.of("activo", false)).andExpect(status().isOk());
         assertThat(usuarios.findById(u.getId()).orElseThrow().getTokenVersion()).isEqualTo(inactivo.getTokenVersion());
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Perfil inactivo", "especialidad", "Cortes"))
@@ -168,7 +170,7 @@ class BarberoIT {
         barberos.saveAndFlush(z);
         Cookie sesion = actor.equals("PUBLICO") ? null : login(crearUsuario("actor", Rol.valueOf(actor)));
         for (boolean incluir : List.of(false, true)) {
-            var solicitud = get("/api/barberos").param("incluirInactivos", Boolean.toString(incluir));
+            var solicitud = get(negocio("/api/barberos")).param("incluirInactivos", Boolean.toString(incluir));
             if (sesion != null) solicitud.cookie(sesion);
             var resultado = mvc.perform(solicitud).andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(incluir && actor.equals("ADMIN") ? 3 : 2))
@@ -225,7 +227,7 @@ class BarberoIT {
                     preparados.countDown();
                     if (!salida.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("No se liberó la carrera.");
                     boolean alta = caso.equals("altas") || (caso.equals("mixto") && indice == 0);
-                    var solicitud = alta ? post("/api/barberos") : patch("/api/barberos/{id}/estado", indice == 0 ? a.getId() : b.getId());
+                    var solicitud = alta ? post(negocio("/api/barberos")) : patch(negocio("/api/barberos/{id}/estado"), indice == 0 ? a.getId() : b.getId());
                     Cookie token = indice == 0 ? csrfA : csrfB;
                     Object cuerpo = alta ? datos("Concurrente ficticio", "concurrente" + indice + "@ejemplo.test") : Map.of("activo", true);
                     return mvc.perform(solicitud.cookie(admin, token).header("X-XSRF-TOKEN", token.getValue())
@@ -416,7 +418,7 @@ class BarberoIT {
     @ParameterizedTest @ValueSource(strings = {"{}", "{\"activo\":null}"})
     void estado_ausenteONulo_rechaza400(String cuerpo) throws Exception {
         Barbero b = guardar("objetivo"); Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
-        mvc.perform(conCsrf(patch("/api/barberos/{id}/estado", b.getId()), admin).contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(conCsrf(patch(negocio("/api/barberos/{id}/estado"), b.getId()), admin).contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errores[0].campo").value("activo"));
     }
 
@@ -452,9 +454,9 @@ class BarberoIT {
     }
     private MockHttpServletRequestBuilder solicitud(String metodo, long id) {
         return switch (metodo) {
-            case "POST" -> post("/api/barberos");
-            case "PUT" -> put("/api/barberos/{id}", id);
-            case "PATCH" -> patch("/api/barberos/{id}/estado", id);
+            case "POST" -> post(negocio("/api/barberos"));
+            case "PUT" -> put(negocio("/api/barberos/{id}"), id);
+            case "PATCH" -> patch(negocio("/api/barberos/{id}/estado"), id);
             default -> throw new IllegalArgumentException("Método no previsto.");
         };
     }

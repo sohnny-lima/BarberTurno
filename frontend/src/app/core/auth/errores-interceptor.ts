@@ -25,7 +25,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
       if (error.status === 401 && ruta === '/api/auth/sesion' && peticion.method === 'GET') {
         return throwError(() => error);
       }
-      if (error.status === 401 && ruta !== '/api/auth/login' && ruta !== '/api/auth/registro') {
+      if (error.status === 401 && ruta !== '/api/auth/login') {
         sesion.limpiar();
         void router.navigate(['/ingresar'], { queryParams: { returnUrl: router.url } });
       } else if (error.status === 403 && problema?.codigo === 'CAMBIO_PASSWORD_REQUERIDO') {

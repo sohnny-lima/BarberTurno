@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -40,7 +42,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
     @Test void crear_valida_referenciasAuditoriaAvisosLocationYPermisos() throws Exception {
         SqlPruebas.limpiar();
         var resultado = mvc.perform(conCsrf(peticion(cmd(barbero, "10:00")), sesion(cliente)))
-                .andExpect(status().isCreated()).andExpect(header().string("Location", "/api/reservas/100"))
+                .andExpect(status().isCreated()).andExpect(header().string("Location", negocio("/api/reservas/100")))
                 .andExpect(jsonPath("$.cliente.telefono").doesNotExist())
                 .andExpect(jsonPath("$.inicio").value("2026-10-01T10:00:00-05:00"))
                 .andReturn();
@@ -214,7 +216,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
         "{\"servicioId\":1,\"barberoId\":1,\"inicio\":\"2026-10-01T10:00\"}",
         "{\"servicioId\":1,\"barberoId\":1,\"inicio\":\"ilegible\"}"})
     void cuerpoInvalido_400(String cuerpo) throws Exception {
-        mvc.perform(conCsrf(post("/api/reservas").contentType("application/json").content(cuerpo), sesion(cliente)))
+        mvc.perform(conCsrf(post(negocio("/api/reservas")).contentType("application/json").content(cuerpo), sesion(cliente)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
 

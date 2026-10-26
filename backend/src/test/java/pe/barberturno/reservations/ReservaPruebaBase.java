@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -75,7 +77,7 @@ abstract class ReservaPruebaBase {
     }
 
     MockHttpServletRequestBuilder peticion(CrearReservaDto cmd) {
-        return post("/api/reservas").contentType("application/json").content(json.writeValueAsString(cmd));
+        return post(negocio("/api/reservas", jdbc.entorno().getProperty("pruebas.negocio-slug", "barberturno"))).contentType("application/json").content(json.writeValueAsString(cmd));
     }
 
     Cookie sesion(Usuario usuario) { return new Cookie("BT_SESION", jwt.emitir(usuario)); }

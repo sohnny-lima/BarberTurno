@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,11 +28,11 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         enNegocio(b, () -> clientes.saveAndFlush(fichaB));
         var anterior = huella(usuario);
         var solicitud = switch (operacion) {
-            case "password" -> post("/api/usuarios/" + usuario.getId() + "/restablecer-password");
+            case "password" -> post(negocio("/api/usuarios/") + usuario.getId() + "/restablecer-password");
             case "estado" -> estado(usuario.getId(), false);
-            case "perfil" -> patch("/api/barberos/" + perfil.getId() + "/estado").contentType("application/json")
+            case "perfil" -> patch(negocio("/api/barberos/") + perfil.getId() + "/estado").contentType("application/json")
                     .content("{\"activo\":false}");
-            default -> put("/api/barberos/" + perfil.getId()).contentType("application/json")
+            default -> put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
                     .content("{\"nombre\":\"" + (operacion.equals("nombre") ? "Nuevo" : usuario.getNombre())
                             + "\",\"telefono\":\"" + (operacion.equals("telefono") ? "999000002" : usuario.getTelefono())
                             + "\",\"especialidad\":\"Barba\"}");
@@ -63,9 +65,9 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
         var anterior = huella(usuario);
         var solicitud = switch (operacion) {
-            case "password" -> post("/api/usuarios/" + usuario.getId() + "/restablecer-password");
+            case "password" -> post(negocio("/api/usuarios/") + usuario.getId() + "/restablecer-password");
             case "estado" -> estado(usuario.getId(), false);
-            default -> put("/api/barberos/" + perfil.getId()).contentType("application/json")
+            default -> put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
                     .content("{\"nombre\":\"" + (operacion.equals("nombre") ? "Nombre nuevo" : usuario.getNombre())
                             + "\",\"telefono\":\"" + (operacion.equals("telefono") ? "999000002" : usuario.getTelefono())
                             + "\",\"especialidad\":\"Barba\"}");
@@ -95,13 +97,13 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         var anterior = huella(usuario);
         var cookie = sesion(usuario);
         for (boolean activo : List.of(false, true)) {
-            mvc.perform(csrf(patch("/api/barberos/" + perfil.getId() + "/estado").contentType("application/json")
+            mvc.perform(csrf(patch(negocio("/api/barberos/") + perfil.getId() + "/estado").contentType("application/json")
                     .content("{\"activo\":" + activo + "}"), sesion(actor))).andExpect(status().isOk());
             assertThat(barberos.findById(perfil.getId()).orElseThrow().isActivo()).isEqualTo(activo);
             assertThat(huella(usuario)).isEqualTo(anterior);
             mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isOk());
         }
-        mvc.perform(csrf(put("/api/barberos/" + perfil.getId()).contentType("application/json")
+        mvc.perform(csrf(put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
                 .content("{\"nombre\":\"" + usuario.getNombre() + "\",\"telefono\":\"" + usuario.getTelefono()
                         + "\",\"especialidad\":\"Barba\"}"), sesion(actor))).andExpect(status().isOk());
         assertThat(huella(usuario)).isEqualTo(anterior);
@@ -114,17 +116,17 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         pertenencia(1L, usuario, RolNegocio.BARBERO);
         var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
         var cookie = sesion(actor);
-        mvc.perform(csrf(post("/api/usuarios/" + usuario.getId() + "/restablecer-password"), cookie)).andExpect(status().isOk());
+        mvc.perform(csrf(post(negocio("/api/usuarios/") + usuario.getId() + "/restablecer-password"), cookie)).andExpect(status().isOk());
         mvc.perform(csrf(estado(usuario.getId(), false), cookie)).andExpect(status().isOk());
         mvc.perform(csrf(estado(usuario.getId(), true), cookie)).andExpect(status().isOk());
         var cuentaAntes = huella(usuario);
-        mvc.perform(csrf(put("/api/barberos/" + perfil.getId()).contentType("application/json")
+        mvc.perform(csrf(put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
                 .content("{\"nombre\":\"Nuevo nombre\",\"telefono\":\"999000002\",\"especialidad\":\"Barba\"}"), cookie))
                 .andExpect(status().isOk());
         assertThat(usuarios.findById(usuario.getId()).orElseThrow().getNombre()).isEqualTo(usuario.getNombre());
         assertThat(barberos.findById(perfil.getId()).orElseThrow().getNombreVisible()).isEqualTo("Nuevo nombre");
         assertThat(huella(usuario)).isEqualTo(cuentaAntes);
-        mvc.perform(csrf(patch("/api/barberos/" + perfil.getId() + "/estado").contentType("application/json")
+        mvc.perform(csrf(patch(negocio("/api/barberos/") + perfil.getId() + "/estado").contentType("application/json")
                 .content("{\"activo\":false}"), cookie)).andExpect(status().isOk());
         assertThat(usuarios.findById(usuario.getId()).orElseThrow().isActivo()).isTrue();
         assertThat(huella(usuario)).isEqualTo(cuentaAntes);

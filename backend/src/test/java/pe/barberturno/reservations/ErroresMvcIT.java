@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -24,7 +26,7 @@ class ErroresMvcIT extends ReservaPruebaBase {
 
     @Test
     void reservar_conSesionClienteCsrfYTexto_devuelve415ValidacionSinEscrituras() throws Exception {
-        mvc.perform(conCsrf(post("/api/reservas").contentType(MediaType.TEXT_PLAIN)
+        mvc.perform(conCsrf(post(negocio("/api/reservas")).contentType(MediaType.TEXT_PLAIN)
                 .content("Contenido ficticio"), sesion(cliente)))
                 .andExpect(status().isUnsupportedMediaType())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -50,7 +52,7 @@ class ErroresMvcIT extends ReservaPruebaBase {
 
     @Test
     void metodoNoPermitido_conSesionYCsrf_seguridadRechazaAntesDeMvc() throws Exception {
-        mvc.perform(conCsrf(put("/api/reservas").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(conCsrf(put(negocio("/api/reservas")).contentType(MediaType.APPLICATION_JSON)
                 .content("{}"), sesion(cliente)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));

@@ -1,5 +1,7 @@
 package pe.barberturno.scheduling;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -156,7 +158,7 @@ class BloqueoIT {
     void crear_inicioPasado_rechazaSinEscrituras(String tipo) throws Exception {
         var cuerpo = cuerpo("2026-09-28T08:59:59-05:00", "2026-09-28T09:30:00-05:00", "Feriado");
         if (tipo.equals("lote")) cuerpo.put("barberoIds", List.of(barbero.getId()));
-        escribir(post(tipo.equals("lote") ? "/api/bloqueos/lote" : ruta(barbero.getId())), admin, cuerpo)
+        escribir(post(tipo.equals("lote") ? negocio("/api/bloqueos/lote") : ruta(barbero.getId())), admin, cuerpo)
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.codigo").value("INICIO_EN_PASADO"));
         assertThat(bloqueos.count()).isZero();
     }
@@ -166,7 +168,7 @@ class BloqueoIT {
         var cuerpo = cuerpo("2026-10-01T11:00:00-05:00",
                 caso.equals("igual") ? "2026-10-01T11:00:00-05:00" : "2026-10-01T10:00:00-05:00", "Feriado");
         if (tipo.equals("lote")) cuerpo.put("barberoIds", List.of(barbero.getId()));
-        escribir(post(tipo.equals("lote") ? "/api/bloqueos/lote" : ruta(barbero.getId())), admin, cuerpo)
+        escribir(post(tipo.equals("lote") ? negocio("/api/bloqueos/lote") : ruta(barbero.getId())), admin, cuerpo)
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("INTERVALO_INVALIDO"));
         assertThat(bloqueos.count()).isZero();
     }
@@ -284,8 +286,8 @@ class BloqueoIT {
         var resultado = switch (metodo) {
             case "GET" -> listar(999, admin, "2026-10-01", "2026-10-01");
             case "POST" -> escribir(post(ruta(999)), admin, lote(List.of(barbero.getId())));
-            case "LOTE" -> escribir(post("/api/bloqueos/lote"), admin, lote(List.of(barbero.getId(), 999L)));
-            default -> escribir(delete("/api/bloqueos/999"), admin, Map.of());
+            case "LOTE" -> escribir(post(negocio("/api/bloqueos/lote")), admin, lote(List.of(barbero.getId(), 999L)));
+            default -> escribir(delete(negocio("/api/bloqueos/999")), admin, Map.of());
         };
         resultado.andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
         assertThat(bloqueos.count()).isZero();
@@ -303,14 +305,14 @@ class BloqueoIT {
         Bloqueo otro = guardarBloqueo(barbero, "2026-10-02T16:00:00-05:00", "2026-10-02T17:00:00-05:00");
         var citas = jdbc.queryForList("select * from jornada order by id");
         SqlPruebas.limpiar();
-        escribir(delete("/api/bloqueos/" + b.getId()), admin, Map.of()).andExpect(status().isNoContent())
+        escribir(delete(negocio("/api/bloqueos/") + b.getId()), admin, Map.of()).andExpect(status().isNoContent())
                 .andExpect(content().string(""));
         var sql = SqlPruebas.sentencias();
         assertThat(indice(sql, "for no key update")).isGreaterThanOrEqualTo(0);
         assertThat(indice(sql, "delete from bloqueo")).isGreaterThan(indice(sql, "for no key update"));
         assertThat(bloqueos.findAll()).extracting(Bloqueo::getId).containsExactly(otro.getId());
         assertThat(jdbc.queryForList("select * from jornada order by id")).isEqualTo(citas);
-        escribir(delete("/api/bloqueos/" + b.getId()), admin, Map.of()).andExpect(status().isNotFound());
+        escribir(delete(negocio("/api/bloqueos/") + b.getId()), admin, Map.of()).andExpect(status().isNotFound());
     }
 
     @Test void lote_conflictoEnUnPerfil_noCreaNinguno_yAgrupaTodosLosConflictos() throws Exception {
@@ -320,13 +322,13 @@ class BloqueoIT {
         var previo = guardarBloqueo(libre, "2026-10-02T10:00:00-05:00", "2026-10-02T11:00:00-05:00");
         var antes = filas();
         var ids = List.of(otro.getId(), libre.getId(), barbero.getId());
-        var resultado = escribir(post("/api/bloqueos/lote"), admin, lote(ids)).andExpect(status().isConflict())
+        var resultado = escribir(post(negocio("/api/bloqueos/lote")), admin, lote(ids)).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.codigo").value("CONFLICTO_CON_RESERVAS")).andReturn().getResponse();
         assertThat(json.readTree(resultado.getContentAsString()).get("reservas").get(barbero.getId().toString()).get(0).longValue())
                 .isEqualTo(r.getId());
         assertThat(filas()).isEqualTo(antes);
         Reserva otra = reservar(otro, "2026-10-01T21:00:00Z", EstadoReserva.PENDIENTE);
-        var respuesta = escribir(post("/api/bloqueos/lote"), admin, lote(ids)).andExpect(status().isConflict()).andReturn().getResponse();
+        var respuesta = escribir(post(negocio("/api/bloqueos/lote")), admin, lote(ids)).andExpect(status().isConflict()).andReturn().getResponse();
         var conflictos = json.readTree(respuesta.getContentAsString()).get("reservas");
         assertThat(conflictos.properties()).hasSize(2);
         assertThat(conflictos.get(otro.getId().toString()).get(0).longValue()).isEqualTo(otra.getId());
@@ -338,7 +340,7 @@ class BloqueoIT {
         reservar(barbero, "2026-10-01T21:00:00Z", EstadoReserva.CANCELADA);
         clearInvocations(barberos);
         SqlPruebas.limpiar();
-        escribir(post("/api/bloqueos/lote"), admin, lote(List.of(otro.getId(), barbero.getId())))
+        escribir(post(negocio("/api/bloqueos/lote")), admin, lote(List.of(otro.getId(), barbero.getId())))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].barberoId").value(barbero.getId().intValue()))
                 .andExpect(jsonPath("$[1].barberoId").value(otro.getId().intValue()));
@@ -369,7 +371,7 @@ class BloqueoIT {
             case "sinFin" -> cuerpo.remove("fin");
             default -> throw new AssertionError(caso);
         }
-        escribir(post("/api/bloqueos/lote"), admin, cuerpo).andExpect(status().isBadRequest())
+        escribir(post(negocio("/api/bloqueos/lote")), admin, cuerpo).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"));
         assertThat(bloqueos.count()).isZero();
     }
@@ -411,7 +413,7 @@ class BloqueoIT {
 
     @ParameterizedTest @CsvSource({"00:00,01:00", "18:30,19:30", "23:00,23:59"})
     void jornada_horasLimaConZonaJdbcUtc_conservaValoresFisicos(String inicio, String fin) throws Exception {
-        escribir(put("/api/barberos/" + barbero.getId() + "/jornadas"), admin,
+        escribir(put(negocio("/api/barberos/") + barbero.getId() + "/jornadas"), admin,
                 List.of(Map.of("diaSemana", 4, "horaInicio", inicio, "horaFin", fin)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].horaInicio").value(inicio))
                 .andExpect(jsonPath("$[0].horaFin").value(fin));
@@ -453,7 +455,7 @@ class BloqueoIT {
     }
 
     private MvcResult cambioConcurrente(boolean bloqueo, Cookie token) throws Exception {
-        var peticion = bloqueo ? post(ruta(barbero.getId())) : put("/api/barberos/" + barbero.getId() + "/jornadas");
+        var peticion = bloqueo ? post(ruta(barbero.getId())) : put(negocio("/api/barberos/") + barbero.getId() + "/jornadas");
         Object cuerpo = bloqueo ? lote(List.of(barbero.getId()))
                 : List.of(Map.of("diaSemana", 4, "horaInicio", "08:00", "horaFin", "19:00"));
         return mvc.perform(peticion.cookie(admin, token).header("X-XSRF-TOKEN", token.getValue())
@@ -490,8 +492,8 @@ class BloqueoIT {
     private MockHttpServletRequestBuilder peticion(String metodo, long id) {
         return switch (metodo) {
             case "POST" -> post(ruta(barbero.getId()));
-            case "LOTE" -> post("/api/bloqueos/lote");
-            default -> delete("/api/bloqueos/" + id);
+            case "LOTE" -> post(negocio("/api/bloqueos/lote"));
+            default -> delete(negocio("/api/bloqueos/") + id);
         };
     }
     private ResultActions crear(String inicio, String fin) throws Exception {
@@ -535,7 +537,7 @@ class BloqueoIT {
         return -1;
     }
     private List<?> filas() { return jdbc.queryForList("select * from bloqueo order by id"); }
-    private String ruta(long id) { return "/api/barberos/" + id + "/bloqueos"; }
+    private String ruta(long id) { return negocio("/api/barberos/") + id + "/bloqueos"; }
     private Cookie csrf() throws Exception { return mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN"); }
     private Cookie login(Usuario usuario) throws Exception {
         Cookie token = csrf();

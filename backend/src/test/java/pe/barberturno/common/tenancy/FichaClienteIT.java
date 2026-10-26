@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -18,9 +20,9 @@ class FichaClienteIT extends IdentidadPruebaBase {
         var datosB = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "cliente-solo-b"));
         assertThat(enNegocio(1L, () -> jdbc.queryForObject("select count(*) from cliente where id=?", Integer.class, datosB.ficha()))).isZero();
         assertThat(enNegocio(1L, () -> jdbc.queryForObject("select count(*) from reserva where id=?", Integer.class, datosB.reserva()))).isZero();
-        mvc.perform(get("/api/clientes/" + datosB.ficha()).cookie(sesion(actor))).andExpect(status().isNotFound());
+        mvc.perform(get(negocio("/api/clientes/") + datosB.ficha()).cookie(sesion(actor))).andExpect(status().isNotFound());
         mvc.perform(csrf(editar(datosB.ficha(), "Ajena", "999000002"), sesion(actor))).andExpect(status().isNotFound());
-        mvc.perform(get("/api/usuarios").param("rol", "CLIENTE").cookie(sesion(actor)))
+        mvc.perform(get(negocio("/api/usuarios")).param("rol", "CLIENTE").cookie(sesion(actor)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(0))
                 .andExpect(jsonPath("$.totalElementos").value(0));
         mvc.perform(csrf(estado(datosB.cliente(), false), sesion(actor)))
@@ -56,7 +58,7 @@ class FichaClienteIT extends IdentidadPruebaBase {
     }
 
     @Test void sinSesion_getYPatchConCsrfValido401() throws Exception {
-        mvc.perform(get("/api/clientes/1")).andExpect(status().isUnauthorized());
+        mvc.perform(get(negocio("/api/clientes/1"))).andExpect(status().isUnauthorized());
         mvc.perform(csrf(editar(1L, "Sin sesión", "999000001"), null)).andExpect(status().isUnauthorized());
     }
 
@@ -67,7 +69,7 @@ class FichaClienteIT extends IdentidadPruebaBase {
         var antes = huella(persona);
         reloj.adelantar(java.time.Duration.ofMinutes(1));
         mvc.perform(csrf(editar(local.getId(), "x".repeat(100), "9".repeat(16)), sesion(actor))).andExpect(status().isOk());
-        mvc.perform(csrf(patch("/api/clientes/" + local.getId()).contentType("application/json")
+        mvc.perform(csrf(patch(negocio("/api/clientes/") + local.getId()).contentType("application/json")
                 .content("{\"nombre\":\"Sin teléfono\",\"telefono\":null}"), sesion(actor)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.telefono").isEmpty());
         var actual = clientes.findById(local.getId()).orElseThrow();
@@ -86,7 +88,7 @@ class FichaClienteIT extends IdentidadPruebaBase {
         var otra = ficha(b, persona);
         var usuarioAntes = huella(persona);
         var fichaAntesB = enNegocio(b, () -> jdbc.queryForMap("select * from cliente where id=?", otra.getId()));
-        mvc.perform(get("/api/clientes/" + a.getId()).cookie(sesion(actor)))
+        mvc.perform(get(negocio("/api/clientes/") + a.getId()).cookie(sesion(actor)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(a.getId()));
         mvc.perform(csrf(editar(a.getId(), "Nombre solo A", "51999000003"), sesion(actor)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.nombre").value("Nombre solo A"))
@@ -95,7 +97,7 @@ class FichaClienteIT extends IdentidadPruebaBase {
         var despuesB = enNegocio(b, () -> jdbc.queryForMap("select * from cliente where id=?", otra.getId()));
         assertThat(despuesB).isEqualTo(fichaAntesB);
         for (long ajeno : java.util.List.of(otra.getId(), 999999L)) {
-            mvc.perform(get("/api/clientes/" + ajeno).cookie(sesion(actor))).andExpect(status().isNotFound())
+            mvc.perform(get(negocio("/api/clientes/") + ajeno).cookie(sesion(actor))).andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
             mvc.perform(csrf(editar(ajeno, "No permitido", "999000001"), sesion(actor))).andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
@@ -126,8 +128,8 @@ class FichaClienteIT extends IdentidadPruebaBase {
             local.desactivar(reloj.instant()); clientes.saveAndFlush(local);
         }
         var antes = huella(persona);
-        mvc.perform(get("/api/auth/sesion").cookie(sesion(persona))).andExpect(status().isOk());
-        mvc.perform(get("/api/clientes/" + local.getId()).cookie(sesion(persona))).andExpect(status().isForbidden());
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion(persona))).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/clientes/") + local.getId()).cookie(sesion(persona))).andExpect(status().isForbidden());
         mvc.perform(csrf(editar(local.getId(), "Cambio rechazado", "999000002"), sesion(persona)))
                 .andExpect(status().isForbidden());
         assertThat(huella(persona)).isEqualTo(antes);
@@ -154,7 +156,7 @@ class FichaClienteIT extends IdentidadPruebaBase {
             assertThat(c.getTelefono()).isEqualTo(nueva.getTelefono());
             assertThat(c.getPrivacidadAceptadaEn()).isEqualTo(nueva.getPrivacidadAceptadaEn());
         });
-        mvc.perform(get("/api/auth/sesion").cookie(respuesta.getCookie("BT_SESION")))
+        mvc.perform(get(negocio("/api/sesion")).cookie(respuesta.getCookie("BT_SESION")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.rol").value("CLIENTE"));
         assertThat(enNegocio(b, () -> jdbc.queryForObject("select count(*) from cliente where usuario_id=?", Integer.class, existente.getId()))).isEqualTo(1);
     }
@@ -176,12 +178,12 @@ class FichaClienteIT extends IdentidadPruebaBase {
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder editar(long id, String nombre, String telefono) {
-        return patch("/api/clientes/" + id).contentType("application/json")
+        return patch(negocio("/api/clientes/") + id).contentType("application/json")
                 .content("{\"nombre\":\"" + nombre + "\",\"telefono\":\"" + telefono + "\"}");
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder registro(String correo) {
-        return post("/api/auth/registro").contentType("application/json").content("""
+        return post(negocio("/api/registro")).contentType("application/json").content("""
                 {"nombre":"Cuenta nueva ficticia","correo":"%s","telefono":"999000005",
                  "password":"ClaveFicticia123","aceptaPrivacidad":true}
                 """.formatted(correo));
@@ -214,21 +216,21 @@ class FichaClienteIT extends IdentidadPruebaBase {
         long b = negocioB();
         var persona = persona("rol-legado-admin", Rol.ADMIN);
         var cookie = sesion(persona);
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
         var local = ficha(1L, persona);
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("CLIENTE"));
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(jsonPath("$.rol").value("CLIENTE"));
         proveedor.fijar(b);
         try {
             mvc.perform(get("/api/n/negocio-b/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
             mvc.perform(get("/api/n/negocio-b/reservas/mias").cookie(cookie)).andExpect(status().isForbidden());
         } finally { proveedor.reiniciar(); }
         pertenencia(1L, persona, RolNegocio.BARBERO);
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("BARBERO"));
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(jsonPath("$.rol").value("BARBERO"));
         var pertenencia = membresias.findByNegocioIdAndUsuarioId(1L, persona.getId()).orElseThrow();
         pertenencia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(pertenencia);
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("CLIENTE"));
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(jsonPath("$.rol").value("CLIENTE"));
         local.desactivar(reloj.instant()); clientes.saveAndFlush(local);
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());
         var legado = persona("cliente-sin-ficha", Rol.CLIENTE);
         assertThat(auth.autenticar(legado.getId(), 0).orElseThrow().rol()).isNull();
     }

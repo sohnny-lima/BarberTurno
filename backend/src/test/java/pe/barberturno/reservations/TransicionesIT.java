@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -54,14 +56,14 @@ class TransicionesIT extends ReservaPruebaBase {
     private ReservaDto reserva(EstadoReserva estado, String hora) throws Exception {
         var entidad = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante(hora),
                 estado, cliente, reloj.instant()));
-        return json.readValue(mvc.perform(get("/api/reservas/{id}", entidad.getId()).cookie(sesion(barbero.getUsuario())))
+        return json.readValue(mvc.perform(get(negocio("/api/reservas/{id}"), entidad.getId()).cookie(sesion(barbero.getUsuario())))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), ReservaDto.class);
     }
 
     private void hasta(String hora) { reloj.adelantar(Duration.between(reloj.instant(), instante(hora))); }
 
     private MockHttpServletRequestBuilder peticion(long id, EstadoReserva estado, Integer version) {
-        return post("/api/reservas/{id}/transiciones", id).contentType("application/json")
+        return post(negocio("/api/reservas/{id}/transiciones"), id).contentType("application/json")
                 .content(json.writeValueAsString(new TransicionarReservaDto(estado, version)));
     }
 
@@ -148,7 +150,7 @@ class TransicionesIT extends ReservaPruebaBase {
         var dto = reserva(EstadoReserva.CONFIRMADA, "10:00");
         var actor = esAdmin ? admin() : barbero.getUsuario();
         hasta(hora);
-        var visible = json.readTree(mvc.perform(get("/api/reservas/{id}", dto.id()).cookie(sesion(actor)))
+        var visible = json.readTree(mvc.perform(get(negocio("/api/reservas/{id}"), dto.id()).cookie(sesion(actor)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(visible.get("permisos").get("transiciones").values().stream()
                 .anyMatch(v -> v.asString().equals(destino.name()))).isEqualTo(permitida);
@@ -235,7 +237,7 @@ class TransicionesIT extends ReservaPruebaBase {
     @ParameterizedTest @ValueSource(strings = {"{}", "{\"estado\":\"DESCONOCIDO\",\"version\":0}", "{\"estado\":\"CONFIRMADA\"}", "{\"estado\":\"CONFIRMADA\",\"version\":\"abc\"}", "{"})
     void cuerpoInvalido_400(String cuerpo) throws Exception {
         var dto = reserva(EstadoReserva.PENDIENTE, "10:00");
-        mvc.perform(conCsrf(post("/api/reservas/{id}/transiciones", dto.id()).contentType("application/json")
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/transiciones"), dto.id()).contentType("application/json")
                 .content(cuerpo), sesion(barbero.getUsuario()))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"));
         assertThat(cantidad("auditoria_reserva")).isZero();

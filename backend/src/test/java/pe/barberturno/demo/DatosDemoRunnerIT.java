@@ -1,5 +1,7 @@
 package pe.barberturno.demo;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -156,7 +158,7 @@ class DatosDemoRunnerIT {
         long corte = jdbc.queryForObject("select id from servicio where nombre='Corte clásico'", Long.class);
         String respuesta = org.springframework.web.client.RestClient.create("http://localhost:"
                 + contexto.getEnvironment().getProperty("local.server.port")).get()
-                .uri("/api/disponibilidad?fecha=2026-10-01&servicioId=" + corte + "&barberoId=" + carlos)
+                .uri(negocio("/api/disponibilidad?fecha=2026-10-01&servicioId=") + corte + "&barberoId=" + carlos)
                 .retrieve().body(String.class);
         var horas = new java.util.ArrayList<String>();
         contexto.getBean(tools.jackson.databind.json.JsonMapper.class).readTree(respuesta).get("franjas")

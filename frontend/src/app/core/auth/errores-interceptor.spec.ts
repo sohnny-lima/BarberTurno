@@ -80,9 +80,9 @@ describe('Interceptor de errores', () => {
       detail: 'Revise sus datos.',
       errores: [{ campo: 'nombre', mensaje: 'Obligatorio.' }],
     };
-    http.post('/api/auth/registro', {}).subscribe({ error });
+    http.post('/api/n/prueba/registro', {}).subscribe({ error });
     peticiones
-      .expectOne('/api/auth/registro')
+      .expectOne('/api/n/prueba/registro')
       .flush(problema, { status: 400, statusText: 'Bad Request' });
     expect(error.mock.calls[0][0].error).toEqual(problema);
     expect(abrir).toHaveBeenCalledWith(problema.detail, 'Cerrar', { duration: 6000 });

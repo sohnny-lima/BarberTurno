@@ -990,7 +990,7 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
 test('07 · registro con privacidad y edición persistente del perfil (CP-01)', async ({
   page,
 }, testInfo) => {
-  await page.goto('/registro');
+  await page.goto('/registro?returnUrl=/n/barberturno/reservar');
   const fotoRegistro = page.locator('app-composicion-acceso img');
   if ((page.viewportSize()?.width ?? 1440) >= 1024) {
     await expect(fotoRegistro).toBeVisible();
@@ -1008,7 +1008,9 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
   }
   await page.getByRole('checkbox', { name: 'Acepto el aviso de privacidad' }).check();
   const registro = page.waitForResponse(
-    (r) => new URL(r.url()).pathname === '/api/auth/registro' && r.request().method() === 'POST',
+    (r) =>
+      new URL(r.url()).pathname === '/api/n/barberturno/registro' &&
+      r.request().method() === 'POST',
   );
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
   const registrada = await registro;

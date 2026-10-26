@@ -1,5 +1,7 @@
 package pe.barberturno.common.security;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -34,7 +36,7 @@ class SecurityConfigIT {
     void solicitarApi_sinAutenticacionConCsrf_devuelve401SinCrearSesion(String metodo) throws Exception {
         var xsrf = mockMvc.perform(get("/api/auth/sesion")).andReturn()
                 .getResponse().getCookie("XSRF-TOKEN");
-        var resultado = mockMvc.perform(request(HttpMethod.valueOf(metodo), "/api/cualquier-ruta")
+        var resultado = mockMvc.perform(request(HttpMethod.valueOf(metodo), negocio("/api/cualquier-ruta"))
                 .cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())).andExpect(status().isUnauthorized())
                 .andExpect(header().doesNotExist("Location"))
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
@@ -46,7 +48,7 @@ class SecurityConfigIT {
     @ParameterizedTest
     @ValueSource(strings = {"POST", "PUT", "PATCH", "DELETE"})
     void solicitarEscritura_sinCsrf_devuelve403(String metodo) throws Exception {
-        mockMvc.perform(request(HttpMethod.valueOf(metodo), "/api/cualquier-ruta"))
+        mockMvc.perform(request(HttpMethod.valueOf(metodo), negocio("/api/cualquier-ruta")))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
     }
 
@@ -72,7 +74,7 @@ class SecurityConfigIT {
     @Test
     @WithMockUser(roles = "ADMIN")
     void solicitarApi_conUsuarioSimulado_seDeniegaConProblemDetailHastaImplementarRuta() throws Exception {
-        mockMvc.perform(get("/api/cualquier-ruta")).andExpect(status().isForbidden())
+        mockMvc.perform(get(negocio("/api/cualquier-ruta"))).andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"))

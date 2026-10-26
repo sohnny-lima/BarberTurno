@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { Registro } from './registro';
 
 describe('Formulario de registro', () => {
@@ -11,7 +11,17 @@ describe('Formulario de registro', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [Registro],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { queryParamMap: convertToParamMap({ returnUrl: '/n/prueba/reservar' }) },
+          },
+        },
+      ],
     }).compileComponents();
     fixture = TestBed.createComponent(Registro);
     pagina = fixture.componentInstance;
@@ -58,7 +68,7 @@ describe('Formulario de registro', () => {
     pagina.formulario.controls.aceptaPrivacidad.setValue(false);
     pagina.enviar();
     expect(pagina.formulario.controls.aceptaPrivacidad.hasError('required')).toBe(true);
-    http.expectNone('/api/auth/registro');
+    http.expectNone('/api/n/prueba/registro');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Debe aceptar el aviso de privacidad.');
   });
@@ -67,7 +77,7 @@ describe('Formulario de registro', () => {
     pagina.formulario.controls.confirmacion.setValue('Otra123456');
     pagina.enviar();
     expect(pagina.formulario.hasError('confirmacion')).toBe(true);
-    http.expectNone('/api/auth/registro');
+    http.expectNone('/api/n/prueba/registro');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#error-confirmacion')?.textContent).toContain(
       'Las contraseñas deben coincidir.',
@@ -81,7 +91,7 @@ describe('Formulario de registro', () => {
   it('muestra errores del servidor por campo y permite corregirlos', async () => {
     rellenar();
     pagina.enviar();
-    http.expectOne('/api/auth/registro').flush(
+    http.expectOne('/api/n/prueba/registro').flush(
       {
         detail: 'Revise los datos.',
         errores: [
@@ -113,7 +123,7 @@ describe('Formulario de registro', () => {
     pagina.enviar();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('button[type=submit]').disabled).toBe(true);
-    const peticion = http.expectOne('/api/auth/registro');
+    const peticion = http.expectOne('/api/n/prueba/registro');
     expect(peticion.request.body).not.toHaveProperty('confirmacion');
     expect(peticion.request.body.aceptaPrivacidad).toBe(true);
     peticion.flush(
@@ -133,7 +143,7 @@ describe('Formulario de registro', () => {
     rellenar();
     pagina.enviar();
     http
-      .expectOne('/api/auth/registro')
+      .expectOne('/api/n/prueba/registro')
       .flush(
         { codigo: 'CORREO_DUPLICADO', detail: 'El correo ya está registrado.' },
         { status: 409, statusText: 'Conflict' },
@@ -141,5 +151,35 @@ describe('Formulario de registro', () => {
     expect(pagina.formulario.controls.correo.getError('servidor')).toBe(
       'El correo ya está registrado.',
     );
+  });
+});
+
+describe('Registro sin barbería explícita', () => {
+  it.each([
+    null,
+    '/negocios',
+    '//sitio-ajeno/n/sur/reservar',
+    'https://ejemplo.test/n/sur/reservar',
+  ])('no usa una barbería implícita con retorno %s', (returnUrl) => {
+    TestBed.configureTestingModule({
+      imports: [Registro],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { queryParamMap: convertToParamMap(returnUrl ? { returnUrl } : {}) },
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(Registro);
+    fixture.detectChanges();
+    fixture.componentInstance.enviar();
+    expect(fixture.nativeElement.querySelector('form')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('abra la página de la barbería');
+    TestBed.inject(HttpTestingController).expectNone(() => true);
   });
 });

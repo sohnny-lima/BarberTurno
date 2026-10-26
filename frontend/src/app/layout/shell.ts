@@ -173,6 +173,8 @@ export class Shell {
         ],
   );
   parametrosEnlace(ruta: string) {
+    if ((ruta === '/registro' || ruta === '/ingresar') && this.negocio.slug())
+      return { returnUrl: this.negocio.ruta('reservar') };
     return ruta.startsWith('/n/') && this.negocio.papel() === 'CLIENTE' ? { papel: 'cliente' } : {};
   }
   constructor() {
