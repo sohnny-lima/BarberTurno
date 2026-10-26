@@ -59,7 +59,7 @@ describe('SesionService', () => {
     expect(peticion.request.body).toEqual(datos);
     peticion.flush(cliente);
     expect(sesion.usuario()).toEqual(cliente);
-    expect(sesion.inicio()).toBe('/reservar');
+    expect(sesion.inicio()).toBe('/negocios');
   });
   it('login incorrecto propaga el error sin autenticar', () => {
     const error = vi.fn();
@@ -123,6 +123,6 @@ describe('SesionService', () => {
     peticion.flush(null, { status: 204, statusText: 'No Content' });
     http.expectOne('/api/auth/sesion').flush({ ...cliente, rol: 'BARBERO' });
     expect(sesion.debeCambiarPassword()).toBe(false);
-    expect(sesion.inicio()).toBe('/agenda');
+    expect(sesion.inicio()).toBe('/negocios');
   });
 });

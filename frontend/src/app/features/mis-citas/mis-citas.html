@@ -100,7 +100,9 @@
                   : 'Reserve un turno y aparecerá aquí con su día y hora de Lima. Sus citas pasadas están en Historial.'
               }}
             </p>
-            <a mat-flat-button routerLink="/reservar">Reservar un turno</a>
+            <a mat-flat-button [routerLink]="negocio.ruta('reservar')" queryParamsHandling="merge"
+              >Reservar un turno</a
+            >
           </div>
         </div>
       }

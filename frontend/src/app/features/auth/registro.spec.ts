@@ -126,7 +126,7 @@ describe('Formulario de registro', () => {
       },
       { status: 201, statusText: 'Created' },
     );
-    expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalledWith('/reservar');
+    expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalledWith('/negocios');
     expect(pagina.cargando()).toBe(false);
   });
   it('correo duplicado aparece junto al correo', () => {

@@ -1,3 +1,6 @@
+import { RutasNegocio } from '../core/negocio/rutas-negocio';
+import { NegocioActual } from '../core/negocio/negocio-actual';
+import { BarberiaActual } from './barberia-actual';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import {
   ChangeDetectionStrategy,
@@ -42,6 +45,7 @@ const ADMIN = [
 @Component({
   selector: 'app-shell',
   imports: [
+    BarberiaActual,
     MatButtonModule,
     MatMenuModule,
     RegionMenu,
@@ -65,6 +69,7 @@ const ADMIN = [
 })
 export class Shell {
   readonly sesion = inject(SesionService);
+  readonly negocio = inject(NegocioActual);
   readonly avisos = inject(AvisosService);
   private readonly dialogos = inject(MatDialog);
   private dialogoAvisosActivo = false;
@@ -84,14 +89,14 @@ export class Shell {
     () => this.sesion.autenticado() && !this.sesion.debeCambiarPassword(),
   );
   readonly tieneBarraInferior = computed(
-    () => this.movil() && this.navegacionCompleta() && this.sesion.rol() !== 'ADMIN',
+    () => this.movil() && this.navegacionCompleta() && this.negocio.rol() !== 'ADMIN',
   );
   readonly tituloVista = inject(TituloPagina);
   readonly tituloPagina = computed(() => {
     if (this.tituloVista.texto()) return this.tituloVista.texto()!;
     const ruta = this.ruta().split('?')[0];
-    if (ruta === '/reservar')
-      return this.sesion.rol() === 'ADMIN' ? 'Reserva asistida' : 'Reservar un turno';
+    if (ruta.endsWith('/reservar'))
+      return this.negocio.rol() === 'ADMIN' ? 'Reserva asistida' : 'Reservar un turno';
     return this.enlaces().find((enlace) => enlace.ruta === ruta)?.texto ?? 'BarberTurno';
   });
   readonly iniciales = computed(() =>
@@ -112,18 +117,24 @@ export class Shell {
   readonly enlaces = computed(() => {
     if (this.sesion.debeCambiarPassword())
       return [{ ruta: '/cambiar-password', texto: 'Cambiar contraseña' }];
-    switch (this.sesion.rol()) {
+    const prefijar = (filas: { ruta: string; texto: string }[]) =>
+      filas.map((fila) =>
+        fila.ruta === '/perfil' ? fila : { ...fila, ruta: this.negocio.enlace(fila.ruta.slice(1)) },
+      );
+    switch (this.negocio.rol()) {
       case 'CLIENTE':
-        return [
+        return prefijar([
           { ruta: '/reservar', texto: 'Reservar' },
           { ruta: '/mis-citas', texto: 'Mis citas' },
           CUENTA,
-        ];
+        ]);
       case 'BARBERO':
-        return [AGENDA, CUENTA];
+        return prefijar([AGENDA, CUENTA]);
       case 'ADMIN':
-        return ADMIN;
+        return prefijar(ADMIN);
       default:
+        if (this.sesion.autenticado())
+          return [{ ruta: '/negocios', texto: 'Sus barberías' }, CUENTA];
         return [
           { ruta: '/ingresar', texto: 'Ingresar' },
           { ruta: '/registro', texto: 'Crear cuenta' },
@@ -133,10 +144,15 @@ export class Shell {
   readonly nombreRol = computed(
     () =>
       ({ CLIENTE: 'Cliente', BARBERO: 'Barbero', ADMIN: 'Administrador' })[
-        this.sesion.rol() ?? 'CLIENTE'
+        this.negocio.rol() ?? 'CLIENTE'
       ],
   );
   constructor() {
+    inject(RutasNegocio);
+    this.negocio.cambios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.dialogos.closeAll();
+      this.dialogoAvisosActivo = false;
+    });
     this.router.events
       .pipe(
         filter((evento) => evento instanceof NavigationEnd),
@@ -158,9 +174,12 @@ export class Shell {
   }
   async abrirAvisos() {
     if (this.dialogoAvisosActivo) return;
+    const origen = this.negocio.ambito();
+    if (!origen) return;
     this.dialogoAvisosActivo = true;
     try {
       const { AvisosDialogo } = await import('./avisos-dialogo');
+      if (!this.negocio.vigente(origen) || this.destroyRef.destroyed) return;
       this.dialogos
         .open(AvisosDialogo, {
           width: '640px',

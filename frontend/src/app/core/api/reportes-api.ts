@@ -1,3 +1,4 @@
+import { NegocioActual } from '../negocio/negocio-actual';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { catchError, Observable, throwError } from 'rxjs';
 import { inject, Injectable } from '@angular/core';
@@ -6,16 +7,19 @@ import { ConsultaResumen, ResumenReporteDto } from '../modelos/reportes';
 @Injectable({ providedIn: 'root' })
 export class ReportesApi {
   private readonly http = inject(HttpClient);
+  private readonly negocio = inject(NegocioActual).cliente();
 
   resumen(consulta: ConsultaResumen) {
-    return this.http.get<ResumenReporteDto>('/api/reportes/resumen', {
+    return this.http.get<ResumenReporteDto>(this.negocio.url('/reportes/resumen'), {
+      context: this.negocio.contexto(),
       params: this.parametros(consulta),
     });
   }
 
   excel(consulta: ConsultaResumen) {
     return this.http
-      .get('/api/reportes/resumen.xlsx', {
+      .get(this.negocio.url('/reportes/resumen.xlsx'), {
+        context: this.negocio.contexto(),
         params: this.parametros(consulta),
         headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
         responseType: 'blob',

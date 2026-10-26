@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -37,12 +38,13 @@ describe('Gestión de usuarios', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function preparar() {
     const f = TestBed.createComponent(Usuarios);
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ contenido: [cliente], totalElementos: 1 });
     f.detectChanges();
     return f;
@@ -54,7 +56,7 @@ describe('Gestión de usuarios', () => {
     f.componentInstance.busqueda.setValue(' Cli ');
     f.componentInstance.rol.setValue('CLIENTE');
     f.componentInstance.buscar();
-    const req = http.expectOne((r) => r.url === '/api/usuarios');
+    const req = http.expectOne((r) => r.url === '/api/n/prueba/usuarios');
     expect(req.request.params.get('q')).toBe('Cli');
     expect(req.request.params.get('rol')).toBe('CLIENTE');
     req.flush({ contenido: [], totalElementos: 0 });
@@ -66,11 +68,11 @@ describe('Gestión de usuarios', () => {
     s.busqueda.setValue('cli');
     s.buscar();
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ contenido: [cliente], totalElementos: 30 });
     s.busqueda.setValue('nuevo');
     s.paginar({ pageIndex: 1, pageSize: 20, length: 30 });
-    const req = http.expectOne((r) => r.url === '/api/usuarios');
+    const req = http.expectOne((r) => r.url === '/api/n/prueba/usuarios');
     expect(req.request.params.get('q')).toBe('cli');
     expect(req.request.params.get('pagina')).toBe('1');
     req.flush({ contenido: [], totalElementos: 30 });
@@ -86,7 +88,7 @@ describe('Gestión de usuarios', () => {
     const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
     expect(datos.riesgo).toBeUndefined();
     datos.cambiar().subscribe();
-    const req = http.expectOne('/api/usuarios/9/restablecer-password');
+    const req = http.expectOne('/api/n/prueba/usuarios/9/restablecer-password');
     expect(req.request.method).toBe('POST');
     req.flush({ passwordTemporal: 'Temporal1234' });
     expect(dialogos.open).toHaveBeenCalledTimes(1);
@@ -97,7 +99,7 @@ describe('Gestión de usuarios', () => {
     expect(JSON.stringify(s.filas())).not.toContain('Temporal1234');
     temporalCierre.next();
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ contenido: [{ ...cliente, debeCambiarPassword: true }], totalElementos: 1 });
     expect(s.operando()).toBe(false);
     expect(dialogos.open).toHaveBeenCalledTimes(2);
@@ -106,7 +108,7 @@ describe('Gestión de usuarios', () => {
     const s = preparar().componentInstance;
     dialogos.open.mockReturnValue({ afterClosed: () => of(false) });
     s.restablecer(cliente);
-    http.expectNone('/api/usuarios/9/restablecer-password');
+    http.expectNone('/api/n/prueba/usuarios/9/restablecer-password');
     expect(s.operando()).toBe(false);
     expect(dialogos.open).toHaveBeenCalledTimes(1);
   });
@@ -118,24 +120,24 @@ describe('Gestión de usuarios', () => {
     expect(datos.activar).toBe(false);
     expect(datos.riesgo).toBe(true);
     datos.cambiar().subscribe();
-    const req = http.expectOne('/api/usuarios/9/estado');
+    const req = http.expectOne('/api/n/prueba/usuarios/9/estado');
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body).toEqual({ activo: false });
     req.flush(null);
     cierre.next(true);
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ contenido: [{ ...cliente, activo: false }], totalElementos: 1 });
     expect(s.filas()[0].activo).toBe(false);
   });
   it('consulta nueva cancela anterior y presenta error recuperable', () => {
     const s = preparar().componentInstance;
     s.buscar();
-    const anterior = http.expectOne((r) => r.url === '/api/usuarios');
+    const anterior = http.expectOne((r) => r.url === '/api/n/prueba/usuarios');
     s.buscar();
     expect(anterior.cancelled).toBe(true);
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ detail: 'No disponible' }, { status: 503, statusText: 'Service Unavailable' });
     expect(s.mensaje()).toBe('No pudimos completar la solicitud. Intente nuevamente.');
     expect(s.filas()).toEqual([]);
@@ -220,7 +222,7 @@ describe('Gestión de usuarios', () => {
     const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
     expect(datos.activar).toBe(true);
     expect(datos.riesgo).toBe(false);
-    http.expectNone('/api/usuarios/9/estado');
+    http.expectNone('/api/n/prueba/usuarios/9/estado');
   });
 
   it('anuncia carga y permite recuperar el error desde la alerta', () => {
@@ -230,13 +232,15 @@ describe('Gestión de usuarios', () => {
       'Buscando usuarios…',
     );
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({}, { status: 503, statusText: 'Service Unavailable' });
     f.detectChanges();
     const alerta = f.nativeElement.querySelector('[role="alert"]');
     expect(alerta.textContent).toContain('No pudimos completar la solicitud. Intente nuevamente.');
     alerta.querySelector('button').click();
-    http.expectOne((r) => r.url === '/api/usuarios').flush({ contenido: [], totalElementos: 0 });
+    http
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
+      .flush({ contenido: [], totalElementos: 0 });
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('No se encontraron usuarios.');
     expect(f.nativeElement.querySelector('[role="alert"]')).toBeNull();

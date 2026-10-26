@@ -1,3 +1,5 @@
+import { prepararNegocio } from '../negocio/negocio-prueba';
+import { NegocioActual } from '../negocio/negocio-actual';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -23,6 +25,8 @@ describe('Guards de identidad', () => {
     sesion = TestBed.inject(SesionService);
     http = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
+    prepararNegocio();
+    TestBed.inject(NegocioActual).actualizarSesion(null);
   });
   afterEach(() => http.verify());
   function entrar(rol: Rol, temporal = false) {
@@ -34,6 +38,7 @@ describe('Guards de identidad', () => {
       rol,
       debeCambiarPassword: temporal,
     });
+    TestBed.inject(NegocioActual).actualizarSesion(sesion.usuario());
   }
   function ejecutar(guard: CanActivateFn, url = '/perfil') {
     return TestBed.runInInjectionContext(() =>
@@ -57,15 +62,17 @@ describe('Guards de identidad', () => {
     },
   );
   it.each([
-    ['CLIENTE', '/reservar'],
-    ['BARBERO', '/agenda'],
-    ['ADMIN', '/agenda'],
+    ['CLIENTE', '/n/prueba/sin-acceso'],
+    ['BARBERO', '/n/prueba/sin-acceso'],
+    ['ADMIN', '/n/prueba/sin-acceso'],
   ] as const)('rolGuard redirige %s a su inicio', (rol, inicio) => {
     entrar(rol);
     expect(ejecutar(rolGuard([]))).toEqual(router.parseUrl(inicio));
   });
   it('rolGuard sin sesión redirige al ingreso', () => {
-    expect(ejecutar(rolGuard(['ADMIN']))).toEqual(router.parseUrl('/ingresar'));
+    expect(ejecutar(rolGuard(['ADMIN']))).toEqual(
+      router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: '/perfil' } }),
+    );
   });
   it('passwordGuard temporal impide incluso páginas públicas', () => {
     entrar('BARBERO', true);

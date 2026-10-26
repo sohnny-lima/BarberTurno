@@ -4,7 +4,7 @@ export interface UsuarioSesionDto {
   id: number;
   nombre: string;
   correo: string;
-  rol: Rol;
+  rol: Rol | null;
   barberoId?: number | null;
   debeCambiarPassword: boolean;
 }
@@ -26,7 +26,7 @@ export interface PerfilDto {
   nombre: string;
   correo: string;
   telefono: string | null;
-  rol: Rol;
+  rol: Rol | null;
 }
 export interface ActualizarPerfilDto {
   nombre: string;

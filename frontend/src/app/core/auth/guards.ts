@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { Rol } from '../modelos/identidad';
 import { SesionService } from './sesion-service';
+import { NegocioActual } from '../negocio/negocio-actual';
 
 export const authGuard: CanActivateFn = (_ruta, estado) => {
   const sesion = inject(SesionService);
@@ -19,11 +20,23 @@ export const passwordGuard: CanActivateFn = (_ruta, estado) => {
   );
 };
 export function rolGuard(roles: Rol[]): CanActivateFn {
-  return () => {
+  return (_ruta, estado) => {
     const sesion = inject(SesionService);
+    const negocio = inject(NegocioActual);
     const router = inject(Router);
-    if (!sesion.autenticado()) return router.createUrlTree(['/ingresar']);
     if (sesion.debeCambiarPassword()) return router.createUrlTree(['/cambiar-password']);
-    return roles.includes(sesion.rol()!) || router.createUrlTree([sesion.inicio()]);
+    // El contenedor muestra estos estados y no crea la sección protegida.
+    if (
+      ['inexistente', 'error', 'suspendido'].includes(negocio.estado()?.tipo ?? '') &&
+      !negocio.rol()
+    )
+      return true;
+    if (!negocio.usuario())
+      return router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: estado.url } });
+    return roles.includes(negocio.rol()!) || router.parseUrl(negocio.enlace('sin-acceso'));
   };
 }
+
+export const legadoGuard: CanActivateFn = () => {
+  return inject(Router).parseUrl(inject(SesionService).autenticado() ? '/negocios' : '/ingresar');
+};

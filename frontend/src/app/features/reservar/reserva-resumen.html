@@ -64,7 +64,9 @@
     {{
       store.asistida()
         ? 'Puede gestionar la cita después desde Agenda.'
-        : 'Puede cambiar o cancelar hasta 2 horas antes.'
+        : 'Puede cambiar o cancelar hasta ' +
+          store.negocio.parametros()?.anticipacionCambioClienteMin +
+          ' minutos antes.'
     }}
   </p>
 </aside>

@@ -1,3 +1,6 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { prepararNegocio } from '../core/negocio/negocio-prueba';
 import { registerLocaleData } from '@angular/common';
 import localeEsPe from '@angular/common/locales/es-PE';
 import { TestBed } from '@angular/core/testing';
@@ -8,7 +11,12 @@ import { ReservaTarjeta } from './reserva-tarjeta';
 registerLocaleData(localeEsPe);
 
 describe('Tarjeta de reserva', () => {
-  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    prepararNegocio();
+  });
   it.each([
     [true, true],
     [true, false],
@@ -28,11 +36,11 @@ describe('Tarjeta de reserva', () => {
       expect(!!fixture.nativeElement.querySelector('button')).toBe(cancelar);
       if (reprogramar)
         expect(fixture.nativeElement.querySelector('a').getAttribute('href')).toBe(
-          '/reservar?reprogramar=101',
+          '/n/prueba/reservar?reprogramar=101',
         );
-      expect(fixture.nativeElement.textContent.includes('Faltan menos de 2 horas')).toBe(
-        !reprogramar && !cancelar,
-      );
+      expect(
+        fixture.nativeElement.textContent.includes('Esta cita no permite cambios por la web'),
+      ).toBe(!reprogramar && !cancelar);
     },
   );
   it('presenta referencias, estado legible e intervalo en Lima', () => {
@@ -64,7 +72,9 @@ describe('Tarjeta de reserva', () => {
       });
       fixture.componentRef.setInput('ahora', 0);
       fixture.detectChanges();
-      expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
+      expect(fixture.nativeElement.textContent).not.toContain(
+        'Esta cita no permite cambios por la web',
+      );
     },
   );
   it('no muestra la explicación para una cita pasada y emite la reserva al cancelar', () => {
@@ -81,7 +91,9 @@ describe('Tarjeta de reserva', () => {
       permisos: { reprogramar: false, cancelar: false, transiciones: [] },
     });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('Faltan menos de 2 horas');
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'Esta cita no permite cambios por la web',
+    );
   });
   it('presenta fecha compacta en minúsculas y horario con profesional', () => {
     const fixture = TestBed.createComponent(ReservaTarjeta);

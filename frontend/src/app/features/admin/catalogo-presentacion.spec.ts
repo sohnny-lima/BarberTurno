@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { registerLocaleData } from '@angular/common';
 import localeEsPe from '@angular/common/locales/es-PE';
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
@@ -60,7 +61,7 @@ for (const config of [
     let cierre: Subject<boolean>;
     const observe = vi.fn();
     const dialogos = { open: vi.fn() };
-    const url = '/api/' + config.recurso;
+    const url = '/api/n/prueba/' + config.recurso;
     beforeEach(() => {
       cambios = new BehaviorSubject<BreakpointState>({ matches: false, breakpoints: {} });
       cierre = new Subject<boolean>();
@@ -76,6 +77,7 @@ for (const config of [
         ],
       });
       http = TestBed.inject(HttpTestingController);
+      prepararNegocio();
     });
     afterEach(() => http.verify());
     function preparar() {

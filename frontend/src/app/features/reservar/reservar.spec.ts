@@ -1,3 +1,5 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -30,6 +32,7 @@ describe('Vista de reserva guiada', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => {
     http.verify();
@@ -45,9 +48,10 @@ describe('Vista de reserva guiada', () => {
         rol,
         debeCambiarPassword: false,
       });
+      TestBed.inject(NegocioActual).actualizarSesion(TestBed.inject(SesionService).usuario());
     }
     const fixture = TestBed.createComponent(Reservar);
-    http.expectOne('/api/servicios?incluirInactivos=false').flush([
+    http.expectOne('/api/n/prueba/servicios?incluirInactivos=false').flush([
       {
         id: 1,
         nombre: 'Corte',
@@ -57,7 +61,7 @@ describe('Vista de reserva guiada', () => {
         activo: true,
       },
     ]);
-    http.expectOne('/api/barberos?incluirInactivos=false').flush([
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=false').flush([
       { id: 2, nombre: 'Ficticio A', especialidad: 'Corte', activo: true },
       { id: 3, nombre: 'Ficticio B', especialidad: 'Corte', activo: true },
     ]);
@@ -67,7 +71,7 @@ describe('Vista de reserva guiada', () => {
   function seleccionar(f: ReturnType<typeof preparar>) {
     const s = f.componentInstance.store;
     s.elegirServicio(1);
-    const r = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const r = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     r.flush({
       franjas: [
         {
@@ -120,7 +124,7 @@ describe('Vista de reserva guiada', () => {
     const f = preparar();
     const store = f.componentInstance.store;
     store.elegirServicio(1);
-    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad').flush({ franjas: [] });
     store.irPaso(1);
     await f.whenStable();
     f.detectChanges();
@@ -169,6 +173,8 @@ describe('Vista de reserva guiada', () => {
     sessionStorage.setItem(
       'barberturno.reserva',
       JSON.stringify({
+        slug: 'prueba',
+        papel: 'PERSONAL',
         servicioId: 1,
         preferencia: null,
         fecha,
@@ -178,7 +184,7 @@ describe('Vista de reserva guiada', () => {
     );
     const f = preparar();
     http
-      .expectOne((r) => r.url === '/api/disponibilidad')
+      .expectOne((r) => r.url === '/api/n/prueba/disponibilidad')
       .flush({
         franjas: [
           { inicio: fecha + 'T10:00:00-05:00', fin: fecha + 'T10:30:00-05:00', barberoIds: [2] },
@@ -262,7 +268,7 @@ describe('Vista de reserva guiada', () => {
     f.detectChanges();
     expect(f.componentInstance.fechaControl.hasError('matDatepickerMin')).toBe(true);
     f.componentInstance.cambiarFecha();
-    http.expectNone((r) => r.url === '/api/disponibilidad');
+    http.expectNone((r) => r.url === '/api/n/prueba/disponibilidad');
   });
   it('deshabilita confirmar y fecha durante envío y evita la segunda petición', () => {
     const f = preparar();
@@ -276,7 +282,7 @@ describe('Vista de reserva guiada', () => {
     expect(f.componentInstance.fechaControl.disabled).toBe(true);
     f.componentInstance.store.confirmar();
     http
-      .expectOne('/api/reservas')
+      .expectOne('/api/n/prueba/reservas')
       .flush(
         { codigo: 'FUERA_DE_HORARIO', detail: 'Elija otra franja.' },
         { status: 422, statusText: 'Unprocessable Content' },
@@ -297,13 +303,13 @@ describe('Vista de reserva guiada', () => {
     expect(f.nativeElement.textContent).toContain('Ficticio A');
     f.componentInstance.store.confirmar();
     http
-      .expectOne('/api/reservas')
+      .expectOne('/api/n/prueba/reservas')
       .flush(
         { codigo: 'LIMITE_RESERVAS_ACTIVAS', detail: 'Tiene tres reservas.' },
         { status: 422, statusText: 'Unprocessable Content' },
       );
     f.detectChanges();
-    expect(f.nativeElement.querySelector('a[href="/mis-citas"]')).not.toBeNull();
+    expect(f.nativeElement.querySelector('a[href="/n/prueba/mis-citas"]')).not.toBeNull();
   });
   it.each([false, true])(
     'ADMIN ve Cliente como paso previo y el resumen conserva la identidad, móvil=%s',
@@ -369,12 +375,12 @@ describe('Vista de reserva guiada', () => {
     const f = preparar();
     const store = f.componentInstance.store;
     store.elegirServicio(1);
-    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad').flush({ franjas: [] });
     store.elegirPreferencia(3);
-    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad').flush({ franjas: [] });
     store.elegirFecha(fechaHoyLima(1));
     http
-      .expectOne((r) => r.url === '/api/disponibilidad')
+      .expectOne((r) => r.url === '/api/n/prueba/disponibilidad')
       .flush({ detail: 'Sin conexión.' }, { status: 503, statusText: 'Service Unavailable' });
     f.detectChanges();
     await f.whenStable();
@@ -386,7 +392,7 @@ describe('Vista de reserva guiada', () => {
       (b: HTMLButtonElement) => b.textContent?.trim() === 'Reintentar',
     ) as HTMLButtonElement;
     boton.click();
-    const peticion = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const peticion = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     expect(peticion.request.params.get('servicioId')).toBe('1');
     expect(peticion.request.params.get('barberoId')).toBe('3');
     expect(peticion.request.params.get('fecha')).toBe(fechaHoyLima(1));

@@ -13,6 +13,7 @@
       @if (movil()) {
         <button mat-button class="cerrar-menu" (click)="menu.close()">Cerrar menú</button>
       }
+      <app-barberia-actual />
       <nav aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
           <a
@@ -51,9 +52,9 @@
     </div>
   </mat-sidenav>
   <mat-sidenav-content>
-    @if (movil() || !navegacionCompleta() || sesion.rol() !== 'ADMIN') {
+    @if (movil() || !navegacionCompleta() || negocio.rol() !== 'ADMIN') {
       <header class="cabecera" [class.cabecera-pagina]="!movil() && navegacionCompleta()">
-        @if (movil() && navegacionCompleta() && sesion.rol() === 'ADMIN') {
+        @if (movil() && navegacionCompleta() && negocio.rol() === 'ADMIN') {
           <button
             mat-button
             (click)="menu.toggle()"
@@ -74,7 +75,14 @@
         @if (!navegacionCompleta()) {
           <span class="marca"><span aria-hidden="true" class="simbolo">✂</span> BarberTurno</span>
         } @else if (movil()) {
-          <span class="titulo-pagina">{{ tituloPagina() }}</span>
+          <span
+            class="titulo-pagina"
+            [title]="tituloPagina() + (negocio.nombre() ? ' · ' + negocio.nombre() : '')"
+            >{{ tituloPagina() }}
+            @if (negocio.nombre()) {
+              <small class="nombre-barberia">{{ negocio.nombre() }}</small>
+            }
+          </span>
         }
         @if (movil() && tituloVista.actualizarAgenda(); as actualizar) {
           <button
@@ -95,15 +103,16 @@
         }
         @if (
           navegacionCompleta() &&
-          sesion.rol() !== 'ADMIN' &&
-          (movil() || ruta().split('?')[0] !== '/mis-citas')
+          negocio.rol() !== 'ADMIN' &&
+          negocio.rol() &&
+          (movil() || !ruta().split('?')[0].endsWith('/mis-citas'))
         ) {
           <button
             mat-button
             class="campana"
             (click)="abrirAvisos()"
             [attr.aria-label]="
-              (sesion.rol() === 'BARBERO' ? 'Ver avisos: ' : 'Avisos: ') +
+              (negocio.rol() === 'BARBERO' ? 'Ver avisos: ' : 'Avisos: ') +
               avisos.noLeidas() +
               ' sin leer'
             "
@@ -143,7 +152,7 @@
               <strong>{{ sesion.usuario()?.nombre }}</strong
               ><span>{{ nombreRol() }}</span>
             </div>
-            <a mat-menu-item routerLink="/perfil">Mi cuenta</a
+            <app-barberia-actual /><a mat-menu-item routerLink="/perfil">Mi cuenta</a
             ><button mat-menu-item class="riesgo" (click)="salir()" [disabled]="saliendo()">
               {{ saliendo() ? 'Saliendo…' : 'Salir' }}
             </button></mat-menu

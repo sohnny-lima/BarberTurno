@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -30,11 +31,12 @@ describe('Reprogramación administrativa', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function crear() {
     const fixture = TestBed.createComponent(ReprogramarDialogo);
-    const consulta = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const consulta = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     expect(consulta.request.params.get('servicioId')).toBe('2');
     expect(consulta.request.params.get('excluirReservaId')).toBe('101');
     expect(consulta.request.params.get('barberoId')).toBe('3');
@@ -46,7 +48,7 @@ describe('Reprogramación administrativa', () => {
     const fixture = crear();
     fixture.componentInstance.formulario.controls.motivo.setValue(motivo);
     fixture.componentInstance.confirmar();
-    http.expectNone('/api/reservas/101/reprogramacion');
+    http.expectNone('/api/n/prueba/reservas/101/reprogramacion');
     expect(fixture.componentInstance.formulario.controls.motivo.invalid).toBe(true);
   });
   it('envía franja del servidor, barbero, versión y motivo trim; bloquea doble envío y cierre', () => {
@@ -56,7 +58,7 @@ describe('Reprogramación administrativa', () => {
     fixture.componentInstance.confirmar();
     expect(referencia.disableClose).toBe(true);
     expect(fixture.componentInstance.formulario.disabled).toBe(true);
-    const peticion = http.expectOne('/api/reservas/101/reprogramacion');
+    const peticion = http.expectOne('/api/n/prueba/reservas/101/reprogramacion');
     expect(peticion.request.body).toEqual({
       inicio,
       barberoId: 3,
@@ -69,12 +71,12 @@ describe('Reprogramación administrativa', () => {
   it('cambiar profesional cancela consulta anterior y elimina selección obsoleta', () => {
     const fixture = crear();
     fixture.componentInstance.cargar();
-    const anterior = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const anterior = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     fixture.componentInstance.formulario.controls.barberoId.setValue(4);
     fixture.componentInstance.cargar();
     expect(anterior.cancelled).toBe(true);
     expect(fixture.componentInstance.formulario.controls.inicio.value).toBe('');
-    const consulta = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const consulta = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     expect(consulta.request.params.get('barberoId')).toBe('4');
     consulta.flush({ franjas: [] });
   });
@@ -85,7 +87,7 @@ describe('Reprogramación administrativa', () => {
       fixture.componentInstance.formulario.controls.motivo.setValue('Cambio ficticio');
       fixture.componentInstance.confirmar();
       http
-        .expectOne('/api/reservas/101/reprogramacion')
+        .expectOne('/api/n/prueba/reservas/101/reprogramacion')
         .flush({ codigo }, { status: 409, statusText: 'Conflict' });
       expect(referencia.close).toHaveBeenCalledWith('actualizada');
     },
@@ -95,7 +97,7 @@ describe('Reprogramación administrativa', () => {
     fixture.componentInstance.formulario.controls.motivo.setValue('Cambio ficticio');
     fixture.componentInstance.confirmar();
     http
-      .expectOne('/api/reservas/101/reprogramacion')
+      .expectOne('/api/n/prueba/reservas/101/reprogramacion')
       .flush({ detail: 'La cita ya empezó' }, { status: 422, statusText: 'Unprocessable Entity' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('La cita ya empezó');
