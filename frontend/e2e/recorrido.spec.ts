@@ -1323,9 +1323,8 @@ test('10 · administrador reserva para el cliente elegido y conserva su identida
   const reserva = await creada.json();
   // El perfil global cambió en 07; la ficha local conserva el nombre de su alta (V2-RN-16).
   expect(reserva.cliente.nombre).toBe('Cliente E2E de registro');
-  const ficha = await page.request.get(`/api/n/barberturno/clientes/${reserva.cliente.id}`);
-  expect(ficha.status()).toBe(200);
-  expect((await ficha.json()).nombre).toBe('Cliente E2E de registro');
+  // ReservaDto conserva el id de cuenta, no expone el id interno de ficha (V2-DA-29).
+  expect(reserva.cliente.id).toBe(cuentaRegistrada);
   await expect(page).toHaveURL(/\/agenda/);
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-10-03');
   await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
