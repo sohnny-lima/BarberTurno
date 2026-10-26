@@ -47,7 +47,7 @@ public class RolNegocioFilter extends OncePerRequestFilter {
         boolean publica = "GET".equals(request.getMethod()) && (ruta.equals("/api/servicios")
                 || ruta.equals("/api/barberos") || ruta.equals("/api/negocio") || ruta.equals("/api/disponibilidad") || ruta.equals("/api/sesion"));
         boolean altaPropia = "POST".equals(request.getMethod()) && (ruta.equals("/api/clientes/alta")
-                || ruta.equals("/api/registro") || ruta.equals("/api/auth/registro"));
+                || ruta.equals("/api/registro"));
         var autenticacion = SecurityContextHolder.getContext().getAuthentication();
         if (contexto.negocioActual().isPresent() && !publica && !altaPropia && autenticacion != null
                 && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario && usuario.rol() == null) {
