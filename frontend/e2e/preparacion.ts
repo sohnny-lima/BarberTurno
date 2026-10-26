@@ -45,17 +45,18 @@ export default async function preparar() {
     process.env['BT_FLYWAY_USER'] ??= 'barberturno_v2';
     validarBase();
     await puertoLibre(8081);
-    await puertoLibre(18034);
     comprobarSinSesiones();
-    const rol = sql(`SELECT current_database() = '${BASE_E2E}' AND current_user = 'barberturno_v2_app'
+    const rol =
+      sql(`SELECT current_database() = '${BASE_E2E}' AND current_user = 'barberturno_v2_app'
       AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname = current_user`);
     if (rol.status !== 0 || rol.stdout.trim() !== 't') throw new Error('Rol real E2E inválido.');
     process.env['BT_E2E_DB'] = BASE_E2E;
     process.env['BT_DB_URL'] = `jdbc:postgresql://localhost:5433/${process.env['BT_E2E_DB']}`;
     // Cada ejecución usa una clave ficticia distinta y efímera para todas las cuentas demo.
     process.env['BT_DEMO_PASSWORD'] = `Demo1${randomBytes(18).toString('hex')}`;
-    process.env['BT_ADMIN_CORREO'] = 'admin-e2e@ejemplo.test';
-    process.env['BT_ADMIN_NOMBRE'] = 'Administrador E2E';
+    const alias = randomBytes(8).toString('hex');
+    process.env['BT_ADMIN_CORREO'] = `admin-${alias}@ejemplo.test`;
+    process.env['BT_ADMIN_NOMBRE'] = `Administrador E2E ${alias}`;
     process.env['BT_ADMIN_PASSWORD'] = process.env['BT_DEMO_PASSWORD'];
     process.env['BT_JWT_SECRET'] = randomBytes(48).toString('base64');
     process.env['BT_COOKIE_SECURE'] = 'false';

@@ -33,8 +33,12 @@ function ejecutar(sentencia: string, propietario: boolean, base: string) {
       sentencia,
     ],
     {
-      env: { ...process.env, PGPASSWORD: process.env[propietario ? 'BT_FLYWAY_PASSWORD' : 'BT_DB_PASSWORD'] },
-      encoding: 'utf8', windowsHide: true,
+      env: {
+        ...process.env,
+        PGPASSWORD: process.env[propietario ? 'BT_FLYWAY_PASSWORD' : 'BT_DB_PASSWORD'],
+      },
+      encoding: 'utf8',
+      windowsHide: true,
     },
   );
 }
@@ -55,7 +59,8 @@ export function comprobarSinSesiones() {
 export function vaciar() {
   validarBase();
   comprobarSinSesiones();
-  const resultado = ejecutar(`BEGIN;
+  const resultado = ejecutar(
+    `BEGIN;
     DO $$ BEGIN
       IF current_database() <> '${BASE_E2E}' OR current_user <> 'barberturno_v2'
         OR EXISTS (SELECT FROM pg_stat_activity WHERE datname = current_database()
@@ -66,6 +71,14 @@ export function vaciar() {
     TRUNCATE notificacion, auditoria_reserva, reserva, bloqueo, jornada,
       barbero, servicio, usuario, invitacion RESTART IDENTITY CASCADE;
     DELETE FROM negocio WHERE id <> 1;
-    COMMIT;`, true, validarBase());
+    UPDATE negocio SET nombre = 'BarberTurno', estado = 'ACTIVO',
+      anticipacion_cambio_cliente_min = 120, horizonte_dias = 30,
+      limite_reservas_activas = 3, limite_barberos_activos = 10,
+      confirmacion_manual = false, tolerancia_inicio_min = 15,
+      actualizado_en = CURRENT_TIMESTAMP WHERE id = 1;
+    COMMIT;`,
+    true,
+    validarBase(),
+  );
   if (resultado.status !== 0) throw new Error('No se pudo vaciar la base v2 de prueba autorizada.');
 }
