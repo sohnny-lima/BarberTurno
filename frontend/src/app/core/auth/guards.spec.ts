@@ -11,7 +11,7 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import { Rol } from '../modelos/identidad';
-import { authGuard, passwordGuard, rolGuard } from './guards';
+import { authGuard, gestionGuard, passwordGuard, rolGuard } from './guards';
 import { SesionService } from './sesion-service';
 
 describe('Guards de identidad', () => {
@@ -50,6 +50,18 @@ describe('Guards de identidad', () => {
       router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: '/perfil' } }),
     );
   });
+  it.each(['PROPIETARIO', 'ENCARGADO', 'BARBERO'] as const)(
+    'configuración exige rol de negocio PROPIETARIO frente a %s',
+    (rolNegocio) => {
+      entrar('ADMIN');
+      const negocio = TestBed.inject(NegocioActual);
+      negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio });
+      const resultado = ejecutar(gestionGuard(['PROPIETARIO']));
+      expect(resultado).toEqual(
+        rolNegocio === 'PROPIETARIO' ? true : router.parseUrl('/n/prueba/sin-acceso'),
+      );
+    },
+  );
   it('authGuard con sesión permite el acceso', () => {
     entrar('CLIENTE');
     expect(ejecutar(authGuard)).toBe(true);

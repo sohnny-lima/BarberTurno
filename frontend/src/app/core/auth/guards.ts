@@ -3,6 +3,25 @@ import { CanActivateFn, Router } from '@angular/router';
 import { Rol } from '../modelos/identidad';
 import { SesionService } from './sesion-service';
 import { NegocioActual } from '../negocio/negocio-actual';
+import { RolPersonal } from '../modelos/negocios';
+
+export function gestionGuard(roles: RolPersonal[]): CanActivateFn {
+  const efectivo = rolGuard(['ADMIN']);
+  return (ruta, estado) => {
+    const resultado = efectivo(ruta, estado);
+    if (resultado !== true) return resultado;
+    const negocio = inject(NegocioActual);
+    if (
+      ['inexistente', 'error', 'suspendido'].includes(negocio.estado()?.tipo ?? '') &&
+      !negocio.rol()
+    )
+      return true;
+    return (
+      roles.includes(negocio.usuario()?.rolNegocio as RolPersonal) ||
+      inject(Router).parseUrl(negocio.enlace('sin-acceso'))
+    );
+  };
+}
 
 export const authGuard: CanActivateFn = (_ruta, estado) => {
   const sesion = inject(SesionService);

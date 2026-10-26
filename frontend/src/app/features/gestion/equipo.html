@@ -1,0 +1,118 @@
+<app-cabecera-pagina titulo="Equipo" subtitulo="Personas con acceso a esta barbería.">
+  <a mat-flat-button [routerLink]="negocio.ruta('invitaciones')">Invitar</a>
+</app-cabecera-pagina>
+<div class="herramientas">
+  <mat-slide-toggle [checked]="revocadas()" (change)="revocadas.set($event.checked)"
+    >Mostrar revocadas</mat-slide-toggle
+  >
+</div>
+@if (mensaje()) {
+  <app-estado-contenido
+    tipo="error"
+    [texto]="mensaje()"
+    reintento="Reintentar"
+    (reintentar)="cargar()"
+  />
+}
+@if (cargando()) {
+  <app-estado-contenido tipo="carga" texto="Cargando equipo…" />
+} @else if (!visibles().length) {
+  <app-estado-contenido tipo="vacio" texto="No hay personas para mostrar." />
+} @else {
+  <app-lista-adaptable nombre="Equipo" [tabla]="tabla" [tarjetas]="tarjetas" />
+}
+<ng-template #tabla
+  ><table>
+    <thead>
+      <tr>
+        <th>Persona</th>
+        <th>Rol</th>
+        <th>Estado</th>
+        <th>Motivo</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (fila of visibles(); track fila.id) {
+        <tr>
+          <td>
+            <strong>{{ fila.nombre }}</strong>
+            @if (propia(fila)) {
+              <span>Usted</span>
+            }
+            @if (fila.estado === 'ACTIVA' && fila.correo) {
+              <p class="ayuda">{{ fila.correo }}</p>
+            }
+          </td>
+          <td>{{ nombres[fila.rol] }}</td>
+          <td>
+            <span class="estado" [class.inactivo]="fila.estado === 'REVOCADA'">{{
+              fila.estado === 'ACTIVA' ? 'Activa' : 'Revocada'
+            }}</span>
+          </td>
+          <td>{{ motivo(fila) }}</td>
+          <td>
+            <ng-container
+              [ngTemplateOutlet]="acciones"
+              [ngTemplateOutletContext]="{ $implicit: fila }"
+            />
+          </td>
+        </tr>
+      }
+    </tbody></table
+></ng-template>
+<ng-template #tarjetas>
+  @for (fila of visibles(); track fila.id) {
+    <article class="ficha" role="listitem">
+      <div class="ficha-cabecera">
+        <h2>
+          {{ fila.nombre }}
+          @if (propia(fila)) {
+            <small>Usted</small>
+          }
+        </h2>
+        <span class="estado" [class.inactivo]="fila.estado === 'REVOCADA'">{{
+          fila.estado === 'ACTIVA' ? 'Activa' : 'Revocada'
+        }}</span>
+      </div>
+      @if (fila.estado === 'ACTIVA' && fila.correo) {
+        <p class="ayuda">{{ fila.correo }}</p>
+      }
+      <p>{{ nombres[fila.rol] }}</p>
+      <p class="ayuda">{{ motivo(fila) }}</p>
+      <div class="acciones-fila">
+        <ng-container
+          [ngTemplateOutlet]="acciones"
+          [ngTemplateOutletContext]="{ $implicit: fila }"
+        />
+      </div>
+    </article>
+  }
+</ng-template>
+<ng-template #acciones let-fila>
+  @if (propietario()) {
+    <button
+      mat-stroked-button
+      [matMenuTriggerFor]="rolesMenu"
+      [attr.aria-label]="'Cambiar rol de ' + fila.nombre"
+    >
+      Cambiar rol</button
+    ><mat-menu #rolesMenu="matMenu">
+      @for (rol of roles; track rol) {
+        <button mat-menu-item (click)="cambiarRol(fila, rol)">{{ nombres[rol] }}</button>
+      }
+    </mat-menu>
+  }
+  @if (propia(fila) && fila.estado === 'ACTIVA') {
+    <button mat-stroked-button class="riesgo" (click)="salir(fila)">Salir de la barbería</button>
+  } @else if (puedeRevocar(fila)) {
+    <button
+      mat-stroked-button
+      class="riesgo"
+      [attr.aria-label]="'Revocar acceso de ' + fila.nombre"
+      (click)="revocar(fila)"
+    >
+      Revocar acceso
+    </button>
+  }
+</ng-template>

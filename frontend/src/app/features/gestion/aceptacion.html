@@ -1,0 +1,97 @@
+<app-cabecera-pagina titulo="Invitación" [ocultarEnMovil]="false" />
+@if (cargando()) {
+  <app-estado-contenido tipo="carga" texto="Consultando invitación…" />
+} @else {
+  <app-seccion-formulario>
+    @if (invitacion(); as dato) {
+      <h2>{{ dato.negocio }} le invita como {{ nombres[dato.rol] }}</h2>
+      <p class="ayuda">{{ dato.correoEnmascarado }}</p>
+    }
+    @if (aviso()) {
+      <app-estado-contenido tipo="aviso" [texto]="aviso()" /><a mat-button routerLink="/negocios"
+        >Ir a mis barberías</a
+      >
+    } @else if (invitacion()?.estado === 'PENDIENTE') {
+      @if (mensaje()) {
+        <app-estado-contenido tipo="error" [texto]="mensaje()" />
+      }
+      @if (sesion.autenticado()) {
+        <button mat-flat-button [disabled]="guardando()" (click)="aceptar()">
+          Aceptar invitación
+        </button>
+      } @else {
+        <p>Ingrese o cree una cuenta con ese correo para aceptarla.</p>
+        <div class="acciones-formulario">
+          <a mat-stroked-button routerLink="/ingresar" [queryParams]="{ returnUrl: retorno }"
+            >Ingresar</a
+          ><button mat-flat-button (click)="registro.set(true)">Crear cuenta</button>
+        </div>
+        @if (registro()) {
+          <h3>Crear cuenta con el correo invitado</h3>
+          <form
+            class="formulario"
+            [formGroup]="formulario"
+            (ngSubmit)="crearCuenta()"
+            [attr.aria-busy]="guardando()"
+          >
+            <mat-form-field
+              ><mat-label>Nombre</mat-label
+              ><input matInput formControlName="nombre" autocomplete="name" /><mat-error>{{
+                errorCampo(formulario.controls.nombre)
+              }}</mat-error></mat-form-field
+            >
+            <mat-form-field
+              ><mat-label>Teléfono</mat-label
+              ><input
+                matInput
+                formControlName="telefono"
+                type="tel"
+                autocomplete="tel"
+              /><mat-error>{{
+                errorCampo(formulario.controls.telefono)
+              }}</mat-error></mat-form-field
+            >
+            <mat-form-field
+              ><mat-label>Contraseña</mat-label
+              ><input
+                matInput
+                formControlName="password"
+                type="password"
+                autocomplete="new-password"
+              /><mat-hint>De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</mat-hint
+              ><mat-error>{{ errorCampo(formulario.controls.password) }}</mat-error></mat-form-field
+            >
+            <mat-form-field
+              ><mat-label>Confirmar contraseña</mat-label
+              ><input
+                matInput
+                formControlName="confirmacion"
+                type="password"
+                autocomplete="new-password"
+              /><mat-error>{{
+                errorCampo(formulario.controls.confirmacion)
+              }}</mat-error></mat-form-field
+            >
+            @if (formulario.hasError('confirmacion') && formulario.controls.confirmacion.touched) {
+              <p role="alert">Las contraseñas deben coincidir.</p>
+            }
+            <mat-checkbox formControlName="aceptaPrivacidad"
+              >Acepto el aviso de privacidad</mat-checkbox
+            ><a routerLink="/privacidad" target="_blank" rel="noopener"
+              >Leer el aviso de privacidad (abre otra pestaña)</a
+            >
+            @if (
+              formulario.controls.aceptaPrivacidad.touched &&
+              formulario.controls.aceptaPrivacidad.invalid
+            ) {
+              <p role="alert">Debe aceptar el aviso de privacidad.</p>
+            }
+            <button mat-flat-button type="submit" [disabled]="guardando()">
+              Crear cuenta y aceptar
+            </button>
+          </form>
+        }
+      }
+    }
+  </app-seccion-formulario>
+}

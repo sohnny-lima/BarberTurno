@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { rolGuard } from '../../core/auth/guards';
+import { gestionGuard, rolGuard } from '../../core/auth/guards';
 export const rutasNegocio: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'reservar' },
   {
@@ -50,6 +50,24 @@ export const rutasNegocio: Routes = [
     canActivate: [rolGuard(['ADMIN'])],
     runGuardsAndResolvers: 'always',
     loadComponent: () => import('../admin/usuarios').then((modulo) => modulo.Usuarios),
+  },
+  {
+    path: 'equipo',
+    canActivate: [gestionGuard(['PROPIETARIO', 'ENCARGADO'])],
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('../gestion/equipo').then((m) => m.Equipo),
+  },
+  {
+    path: 'invitaciones',
+    canActivate: [gestionGuard(['PROPIETARIO', 'ENCARGADO'])],
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('../gestion/invitaciones').then((m) => m.Invitaciones),
+  },
+  {
+    path: 'configuracion',
+    canActivate: [gestionGuard(['PROPIETARIO'])],
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('../gestion/configuracion').then((m) => m.Configuracion),
   },
   { path: 'sin-acceso', loadComponent: () => import('./sin-acceso').then((m) => m.SinAcceso) },
   { path: '**', redirectTo: 'sin-acceso' },

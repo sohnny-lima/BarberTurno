@@ -7,6 +7,8 @@ export interface UsuarioSesionDto {
   rol: Rol | null;
   barberoId?: number | null;
   debeCambiarPassword: boolean;
+  rolNegocio?: import('./negocios').RolPersonal | null;
+  rolPlataforma?: 'ADMIN_PLATAFORMA' | null;
 }
 export interface LoginDto {
   correo: string;

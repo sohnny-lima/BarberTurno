@@ -224,6 +224,23 @@ describe('Contexto multinegocio y transporte', () => {
       { duration: 6000 },
     );
   });
+  it('una membresía perdida vuelve al selector aunque quede una ficha de cliente', () => {
+    negocio.seleccionar('a');
+    negocio.cargar().subscribe();
+    http
+      .expectOne('/api/n/a/sesion')
+      .flush({ ...usuarioNegocio('BARBERO'), rolNegocio: 'BARBERO' });
+    http.expectOne('/api/n/a/negocio').flush({ nombre: 'Barbería A', slug: 'a' });
+    TestBed.inject(ReservasApi)
+      .obtener(8)
+      .subscribe({ error: () => undefined });
+    http
+      .expectOne('/api/n/a/reservas/8')
+      .flush({ codigo: 'PROHIBIDO' }, { status: 403, statusText: 'Forbidden' });
+    http.expectOne('/api/n/a/sesion').flush({ ...usuarioNegocio('CLIENTE'), rolNegocio: null });
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/negocios']);
+    expect(negocio.avisoSelector()).toBe('Ya no tiene acceso a Barbería A.');
+  });
   it('logout limpia identidad, contexto, avisos y almacenamiento opcional', () => {
     const sesion = TestBed.inject(SesionService);
     sesion.cargar().subscribe();

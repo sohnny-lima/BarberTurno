@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, type Response, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
+import { sql } from './base-datos';
 import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
 import type { Pagina } from '../src/app/core/modelos/pagina';
@@ -1670,4 +1671,177 @@ test('16 · logout y reingreso vacían el negocio y el papel anterior', async ({
   expect(rutas.length).toBeGreaterThan(0);
   expect(rutas.every((r) => r.startsWith('/api/n/barberturno/'))).toBe(true);
   await salirConRespuesta(page);
+});
+
+async function capturarGestion(page: Page, info: TestInfo, nombre: string, subtarea = 'v2-07-2') {
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({
+    path: `../docs/pruebas/v2-07/capturas/${subtarea}/${info.project.name}-${nombre}.png`,
+    fullPage: true,
+    animations: 'disabled',
+  });
+}
+
+test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada', async ({
+  page,
+}, info) => {
+  await ingresar(page, 'encargado@ejemplo.test', false);
+  await page.goto('/n/sur/equipo');
+  await expect(page.locator('main')).toContainText('Usted');
+  await capturarGestion(page, info, 'equipo');
+  // El servidor conserva la protección del último propietario y el diálogo muestra su detalle.
+  await page.getByRole('button', { name: 'Salir de la barbería', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Salir de la barbería', exact: true })
+    .click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText(/propietario/i);
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await salirConRespuesta(page);
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/equipo');
+  await capturarGestion(page, info, 'equipo-inicial');
+  await page.goto('/n/barberturno/invitaciones');
+  await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
+  await seleccionar(page, 'Rol', 'Barbero');
+  const creada = page.waitForResponse(
+    (r) => r.url().endsWith('/api/n/barberturno/invitaciones') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Crear invitación', exact: true }).click();
+  expect((await creada).status()).toBe(201);
+  const emitida = await (await creada).json();
+  await expect(page.locator('app-enlace-invitacion')).toContainText('se muestra una sola vez');
+  await capturarGestion(page, info, 'invitaciones-enlace');
+  await page.reload();
+  await expect(page.locator('app-invitaciones')).toBeVisible();
+  await expect(page.locator('app-enlace-invitacion')).toHaveCount(0);
+  await page.goto(emitida.enlaceInvitacion);
+  const ajena = page.waitForResponse((r) => r.url().endsWith('/aceptacion'));
+  await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
+  expect((await ajena).status()).toBe(403);
+  await expect(page.locator('main')).toContainText('Esta invitación es para otra cuenta.');
+  await salirConRespuesta(page);
+  await page.goto(emitida.enlaceInvitacion);
+  await expect(page.locator('main')).toContainText('Ingrese o cree una cuenta');
+  await capturarGestion(page, info, 'aceptacion-sin-sesion');
+  await page.getByRole('link', { name: 'Ingresar', exact: true }).click();
+  await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
+  await page.getByLabel('Contraseña', { exact: true }).evaluate((el, valor) => {
+    (el as HTMLInputElement).value = valor;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, process.env['BT_DEMO_PASSWORD']!);
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+  await expect(page.locator('app-aceptacion')).toBeVisible();
+  await capturarGestion(page, info, 'aceptacion-con-sesion');
+  await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  await page.goto(emitida.enlaceInvitacion);
+  await expect(page.locator('main')).toContainText('Esta invitación ya se usó.');
+  await capturarGestion(page, info, 'invitacion-usada');
+  const gestor = await sesionApi('multirol@ejemplo.test');
+  try {
+    const vencida = await (
+      await escribir(gestor, '/api/n/barberturno/invitaciones', {
+        correo: 'caducada@ejemplo.test',
+        rol: 'BARBERO',
+      })
+    ).json();
+    // Excepción del encargo: adelantar la caducidad con el rol de aplicación y un id de esta prueba.
+    expect(Number.isSafeInteger(vencida.invitacion.id)).toBe(true);
+    const ajuste = sql(
+      `UPDATE invitacion SET expira_en = '2026-09-27T09:00:00-05:00' WHERE id = ${vencida.invitacion.id} AND estado = 'PENDIENTE' RETURNING id`,
+    );
+    expect(ajuste.status).toBe(0);
+    expect(ajuste.stdout).toContain(String(vencida.invitacion.id));
+    await page.goto(vencida.enlaceInvitacion);
+    await expect(page.locator('main')).toContainText('Esta invitación caducó.');
+    await capturarGestion(page, info, 'invitacion-caducada');
+    const revocada = await (
+      await escribir(gestor, '/api/n/barberturno/invitaciones', {
+        correo: 'revocada@ejemplo.test',
+        rol: 'BARBERO',
+      })
+    ).json();
+    const cookies = (await gestor.storageState()).cookies;
+    expect(
+      (
+        await gestor.delete(`/api/n/barberturno/invitaciones/${revocada.invitacion.id}`, {
+          headers: {
+            'X-XSRF-TOKEN': decodeURIComponent(cookies.find((c) => c.name === 'XSRF-TOKEN')!.value),
+          },
+        })
+      ).status(),
+    ).toBe(200);
+    await page.goto(revocada.enlaceInvitacion);
+    await expect(page.locator('main')).toContainText('Esta invitación ya no es válida.');
+    await capturarGestion(page, info, 'invitacion-revocada');
+  } finally {
+    await gestor.dispose();
+  }
+});
+
+test('18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente', async ({
+  page,
+}, info) => {
+  await ingresar(page, 'cliente@ejemplo.test', false);
+  await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  const gestor = await sesionApi('multirol@ejemplo.test');
+  try {
+    const equipo = await (await gestor.get('/api/n/barberturno/equipo')).json();
+    const miembro = equipo.find((f: { correo: string }) => f.correo === 'cliente@ejemplo.test');
+    expect(miembro).toBeDefined();
+    await escribir(gestor, `/api/n/barberturno/equipo/${miembro.id}/revocacion`, null);
+    await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+    await expect(page).toHaveURL(/\/negocios$/);
+    await expect(page.locator('main')).toContainText('Ya no tiene acceso a BarberTurno.');
+    await capturarGestion(page, info, 'acceso-revocado');
+    await page.goto('/n/barberturno/equipo');
+    await expect(page.locator('main')).toContainText('No tiene acceso a esta sección.');
+  } finally {
+    await gestor.dispose();
+  }
+});
+
+test('19 · configuración real aplica el horizonte en la siguiente petición del cliente', async ({
+  page,
+}, info) => {
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/configuracion');
+  await expect(page.getByLabel('Horizonte en días', { exact: true })).toHaveValue('30');
+  await expect(page.locator('main')).toContainText('Límite técnico: Entre 1 y 32767.');
+  await page.getByLabel('Horizonte en días', { exact: true }).fill('12');
+  const respuesta = page.waitForResponse(
+    (r) => r.url().endsWith('/configuracion') && r.request().method() === 'PUT',
+  );
+  await page.getByRole('button', { name: 'Guardar configuración', exact: true }).click();
+  expect((await respuesta).status()).toBe(200);
+  await expect(page.locator('main')).toContainText('Configuración guardada.');
+  await capturarGestion(page, info, 'configuracion');
+  await salirConRespuesta(page);
+  await ingresar(page, 'cliente@ejemplo.test');
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
+  await expect(page.getByLabel('Otra fecha, hasta 12 días', { exact: true })).toBeVisible();
+  await page.getByLabel('Otra fecha, hasta 12 días', { exact: true }).fill('11/10/2026');
+  await page.getByLabel('Otra fecha, hasta 12 días', { exact: true }).press('Tab');
+  await expect(page.locator('main')).toContainText(
+    'Elija una fecha válida dentro de los próximos 12 días.',
+  );
+  const gestor = await sesionApi('multirol@ejemplo.test');
+  try {
+    const datos = await (await gestor.get('/api/n/barberturno/configuracion')).json();
+    const cookies = (await gestor.storageState()).cookies;
+    const guardado = await gestor.put('/api/n/barberturno/configuracion', {
+      data: { ...datos, horizonteDias: 30 },
+      headers: {
+        'X-XSRF-TOKEN': decodeURIComponent(cookies.find((c) => c.name === 'XSRF-TOKEN')!.value),
+      },
+    });
+    expect(guardado.status()).toBe(200);
+  } finally {
+    await gestor.dispose();
+  }
 });

@@ -83,6 +83,19 @@ describe('Shell adaptable', () => {
       'Mi cuenta',
     ]);
   });
+  it.each(['PROPIETARIO', 'ENCARGADO', 'BARBERO'] as const)(
+    'gestión usa rolNegocio %s de la sesión local',
+    (rolNegocio) => {
+      entrar(rolNegocio === 'BARBERO' ? 'BARBERO' : 'ADMIN');
+      const negocio = TestBed.inject(NegocioActual);
+      negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio });
+      const vista = TestBed.createComponent(Shell);
+      const textos = vista.componentInstance.enlaces().map((e) => e.texto);
+      expect(textos.includes('Equipo')).toBe(rolNegocio !== 'BARBERO');
+      expect(textos.includes('Invitaciones')).toBe(rolNegocio !== 'BARBERO');
+      expect(textos.includes('Configuración')).toBe(rolNegocio === 'PROPIETARIO');
+    },
+  );
   it('los enlaces conservan el papel cliente como query y lo excluyen de Mi cuenta', async () => {
     const router = TestBed.inject(Router);
     router.resetConfig([{ path: 'n/prueba/mis-citas', children: [] }]);

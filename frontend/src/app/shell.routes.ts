@@ -6,6 +6,10 @@ import { negocioGuard } from './core/negocio/rutas-negocio';
 const proximamente = () => import('./features/proximamente').then((m) => m.Proximamente);
 export const rutasShell: Routes = [
   {
+    path: 'invitacion/:token',
+    loadComponent: () => import('./features/gestion/aceptacion').then((m) => m.Aceptacion),
+  },
+  {
     path: '',
     pathMatch: 'full',
     canActivate: [

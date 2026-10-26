@@ -33,6 +33,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
       } else if (error.status === 403 && origen) {
         // Un 403 por permisos de sección no implica revocación: se revalida el rol efectivo.
         const nombre = negocio.nombre();
+        const eraPersonal = !!negocio.usuario()?.rolNegocio;
         http
           .get<UsuarioSesionDto>(negocio.url('/sesion'), { context: negocio.contexto(true) })
           .pipe(takeUntil(negocio.cambios$))
@@ -40,7 +41,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
             next: (usuario) => {
               if (!negocio.vigente(origen)) return;
               negocio.actualizarSesion(usuario);
-              if (!usuario.rol) {
+              if (!usuario.rol || (eraPersonal && !usuario.rolNegocio)) {
                 negocio.avisoSelector.set('Ya no tiene acceso a ' + nombre + '.');
                 void router.navigate(['/negocios']);
               } else snackbar.open('No tiene acceso a esta sección.', 'Cerrar', { duration: 6000 });

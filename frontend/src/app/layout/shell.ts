@@ -131,7 +131,20 @@ export class Shell {
       case 'BARBERO':
         return prefijar([AGENDA, CUENTA]);
       case 'ADMIN':
-        return prefijar(ADMIN);
+        return prefijar([
+          ...ADMIN.slice(0, -1),
+          ...(this.negocio.usuario()?.rolNegocio === 'PROPIETARIO' ||
+          this.negocio.usuario()?.rolNegocio === 'ENCARGADO'
+            ? [
+                { ruta: '/equipo', texto: 'Equipo' },
+                { ruta: '/invitaciones', texto: 'Invitaciones' },
+              ]
+            : []),
+          ...(this.negocio.usuario()?.rolNegocio === 'PROPIETARIO'
+            ? [{ ruta: '/configuracion', texto: 'Configuración' }]
+            : []),
+          CUENTA,
+        ]);
       default:
         if (this.sesion.autenticado())
           return [{ ruta: '/negocios', texto: 'Sus barberías' }, CUENTA];
