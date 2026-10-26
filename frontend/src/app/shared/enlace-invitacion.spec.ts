@@ -10,7 +10,7 @@ describe('Enlace de invitación efímero', () => {
     });
     const persistir = vi.spyOn(Storage.prototype, 'setItem');
     const f = TestBed.createComponent(EnlaceInvitacion);
-    f.componentRef.setInput('enlace', '/invitacion/capacidad-ficticia');
+    f.componentRef.setInput('enlace', '/api/invitaciones/capacidad-ficticia');
     f.componentRef.setInput('expiraEn', '2026-10-02T03:00:00Z');
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('01/10/2026, 22:00');

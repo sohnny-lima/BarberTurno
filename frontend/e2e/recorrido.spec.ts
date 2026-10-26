@@ -1674,6 +1674,13 @@ test('16 · logout y reingreso vacían el negocio y el papel anterior', async ({
 });
 
 async function capturarGestion(page: Page, info: TestInfo, nombre: string, subtarea = 'v2-07-2') {
+  await expect(page.locator('main')).toBeVisible();
+  await expect(
+    page.locator(
+      'main app-equipo, main app-invitaciones, main app-aceptacion, main app-configuracion, main app-negocios, main app-plataforma',
+    ),
+  ).toBeVisible();
+  await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
@@ -1716,13 +1723,13 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
   await page.reload();
   await expect(page.locator('app-invitaciones')).toBeVisible();
   await expect(page.locator('app-enlace-invitacion')).toHaveCount(0);
-  await page.goto(emitida.enlaceInvitacion);
+  await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
   const ajena = page.waitForResponse((r) => r.url().endsWith('/aceptacion'));
   await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
   expect((await ajena).status()).toBe(403);
   await expect(page.locator('main')).toContainText('Esta invitación es para otra cuenta.');
   await salirConRespuesta(page);
-  await page.goto(emitida.enlaceInvitacion);
+  await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
   await expect(page.locator('main')).toContainText('Ingrese o cree una cuenta');
   await capturarGestion(page, info, 'aceptacion-sin-sesion');
   await page.getByRole('link', { name: 'Ingresar', exact: true }).click();
@@ -1736,7 +1743,7 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
   await capturarGestion(page, info, 'aceptacion-con-sesion');
   await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
   await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
-  await page.goto(emitida.enlaceInvitacion);
+  await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
   await expect(page.locator('main')).toContainText('Esta invitación ya se usó.');
   await capturarGestion(page, info, 'invitacion-usada');
   const gestor = await sesionApi('multirol@ejemplo.test');
@@ -1754,7 +1761,7 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
     );
     expect(ajuste.status).toBe(0);
     expect(ajuste.stdout).toContain(String(vencida.invitacion.id));
-    await page.goto(vencida.enlaceInvitacion);
+    await page.goto(vencida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
     await expect(page.locator('main')).toContainText('Esta invitación caducó.');
     await capturarGestion(page, info, 'invitacion-caducada');
     const revocada = await (
@@ -1773,7 +1780,7 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
         })
       ).status(),
     ).toBe(200);
-    await page.goto(revocada.enlaceInvitacion);
+    await page.goto(revocada.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
     await expect(page.locator('main')).toContainText('Esta invitación ya no es válida.');
     await capturarGestion(page, info, 'invitacion-revocada');
   } finally {

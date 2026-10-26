@@ -43,7 +43,8 @@ export class EnlaceInvitacion {
   readonly enlace = input.required<string>();
   readonly expiraEn = input<string | null>(null);
   readonly mensaje = signal('');
-  readonly enlaceCompleto = () => new URL(this.enlace(), location.origin).href;
+  readonly enlaceCompleto = () =>
+    new URL(this.enlace().replace(/^\/api\/invitaciones\//, '/invitacion/'), location.origin).href;
   async copiar() {
     try {
       await navigator.clipboard.writeText(this.enlaceCompleto());
