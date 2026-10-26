@@ -1,7 +1,20 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  FormGroupDirective,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -43,6 +56,7 @@ import { SeccionFormulario } from '../../shared/seccion-formulario';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Invitaciones {
+  private readonly formularioVista = viewChild(FormGroupDirective);
   private readonly api = inject(InvitacionesApi);
   private readonly negocio = inject(NegocioActual);
   private readonly dialogos = inject(MatDialog);
@@ -102,7 +116,9 @@ export class Invitaciones {
       .subscribe({
         next: (emitida) => {
           this.emitida.set(emitida);
-          this.formulario.controls.correo.reset();
+          if (this.formularioVista())
+            this.formularioVista()!.resetForm({ correo: '', rol: 'BARBERO' });
+          else this.formulario.reset({ correo: '', rol: 'BARBERO' });
           this.cargar();
         },
         error: (error) => this.mensaje.set(mostrarErrores(this.formulario, error)),

@@ -2,6 +2,8 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { FormGroupDirective } from '@angular/forms';
+import { By } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, provideRouter, Router } from '@angular/router';
 import { of, Subject } from 'rxjs';
@@ -123,22 +125,47 @@ describe('Gestión del negocio', () => {
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Mensaje del servidor.');
   });
+  it('cambiar el rol propio navega y deja que la guarda recargue sin destruir la petición', () => {
+    rol('PROPIETARIO');
+    const propia = { ...miembro, usuarioId: 9, rol: 'PROPIETARIO' as const };
+    const f = TestBed.createComponent(Equipo);
+    http.expectOne('/api/n/prueba/equipo').flush([propia]);
+    const navegar = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    f.componentInstance.cambiarRol(propia, 'BARBERO');
+    const datos = dialogos.open.mock.calls[0][1].data as ConfirmarEstadoDatos;
+    datos.cambiar().subscribe();
+    const req = http.expectOne('/api/n/prueba/equipo/3/rol');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ rol: 'BARBERO' });
+    req.flush(null);
+    cierre.next(true);
+    expect(navegar).toHaveBeenCalledWith('/n/prueba/agenda');
+    http.expectNone('/api/n/prueba/sesion');
+    expect(TestBed.inject(NegocioActual).estado()?.tipo).toBe('disponible');
+  });
   it.each(['PROPIETARIO', 'ENCARGADO'] as const)(
     'ofrece solo roles invitables por %s; el enlace no se recupera al recrear',
     (actor) => {
       rol(actor);
       const f = TestBed.createComponent(Invitaciones);
       http.expectOne('/api/n/prueba/invitaciones').flush([]);
+      f.detectChanges();
       expect(f.componentInstance.roles()).toEqual(
         actor === 'PROPIETARIO' ? ['PROPIETARIO', 'ENCARGADO', 'BARBERO'] : ['BARBERO'],
       );
       f.componentInstance.formulario.setValue({ correo: pendiente.correo, rol: 'BARBERO' });
-      f.componentInstance.crear();
+      f.nativeElement
+        .querySelector('form')
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       http
         .expectOne('/api/n/prueba/invitaciones')
         .flush({ invitacion: pendiente, enlaceInvitacion: '/invitacion/capacidad-ficticia' });
       http.expectOne('/api/n/prueba/invitaciones').flush([pendiente]);
       f.detectChanges();
+      expect(
+        f.debugElement.query(By.directive(FormGroupDirective)).injector.get(FormGroupDirective)
+          .submitted,
+      ).toBe(false);
       expect(f.nativeElement.textContent).toContain('se muestra una sola vez');
       expect(f.nativeElement.textContent).toContain('hora de Lima');
       f.destroy();

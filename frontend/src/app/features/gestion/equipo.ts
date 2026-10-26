@@ -14,7 +14,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
-import { finalize, map, switchMap } from 'rxjs';
+import { finalize, map } from 'rxjs';
 import { EquipoApi } from '../../core/api/equipo-api';
 import { EquipoDto } from '../../core/modelos/gestion';
 import { NOMBRES_PAPEL, RolPersonal } from '../../core/modelos/negocios';
@@ -149,13 +149,9 @@ export class Equipo {
           this.negocio.avisoSelector.set('Ya no tiene acceso a ' + nombre + '.');
           void this.router.navigate(['/negocios']);
         } else if (propia) {
-          this.negocio
-            .cargar()
-            .pipe(
-              switchMap(() => this.router.navigateByUrl(this.negocio.enlace('agenda'))),
-              takeUntilDestroyed(this.destroyRef),
-            )
-            .subscribe();
+          // La guarda recarga la sesión antes de crear Agenda. Cargar desde esta
+          // vista la destruiría al mostrar el estado de carga del contenedor.
+          void this.router.navigateByUrl(this.negocio.enlace('agenda'));
         } else this.cargar();
       });
   }
