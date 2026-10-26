@@ -55,7 +55,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
 
     /**
      * Rechaza variantes no canónicas antes de delimitar operaciones globales o locales por ruta o alias.
-     * Mantiene plataforma y capacidades de invitación fuera del contexto local.
+     * Mantiene plataforma y capacidades de invitación (consulta, aceptación y registro) fuera del contexto local.
      * Solo el segmento del token Base64URL distingue mayúsculas; los tramos fijos siguen canónicos.
      * Oculta las rutas públicas suspendidas con 404.
      * X-BT-Papel solo admite CLIENTE y solo en /api/n/{slug}/…; cualquier otro valor,
@@ -93,7 +93,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 }
                 contexto.solicitarCliente();
             }
-            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion)?");
+            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion|/registro)?");
             if (api && ((!capacidad && !ruta.equals(ruta.toLowerCase(Locale.ROOT))) || ruta.endsWith("/"))) {
                 noEncontrado(request, response);
                 return;
@@ -136,7 +136,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
                 || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
                 || (metodo.equals("GET") || metodo.equals("HEAD")) && ruta.matches("/api/invitaciones/[^/]+")
-                || ruta.matches("/api/invitaciones/[^/]+/aceptacion");
+                || ruta.matches("/api/invitaciones/[^/]+/(aceptacion|registro)");
     }
 
     private boolean esPublica(HttpServletRequest peticion) {

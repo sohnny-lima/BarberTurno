@@ -78,7 +78,7 @@ public class SecurityConfig {
      * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
      * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
      * Plataforma exige su rol global independiente; la suspensión conserva lecturas y rechaza escrituras.
-     * Invitaciones: consulta por token pública, aceptación autenticada y gestión local solo ADMIN efectivo.
+     * Invitaciones: consulta y registro por token públicos, aceptación autenticada y gestión local solo ADMIN efectivo.
      * Equipo permite gestión ADMIN y salida propia del personal; el servicio distingue propietario y encargado.
      * Configuración admite ADMIN efectivo y exige propietario vigente también en el servicio.
      * La proyección pública GET de negocio expone solo los parámetros aprobados en V2-DA-44.
@@ -171,6 +171,7 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones/{token}").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/registro").permitAll();
                     permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/aceptacion").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/equipo").hasRole("ADMIN");

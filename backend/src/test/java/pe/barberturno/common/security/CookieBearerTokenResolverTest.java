@@ -10,6 +10,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CookieBearerTokenResolverTest {
     private final CookieBearerTokenResolver resolver = new CookieBearerTokenResolver();
 
+    @ParameterizedTest @ValueSource(strings = {"registro", "aceptacion"})
+    void invitacion_omiteCookieSoloEnElRegistroPublico(String accion) {
+        var peticion = peticion("POST", "/barberturno/api/invitaciones/" + "A".repeat(43) + "/" + accion);
+        assertThat(resolver.resolve(peticion)).isEqualTo(accion.equals("registro") ? null : "anterior");
+        peticion.setMethod("GET");
+        assertThat(resolver.resolve(peticion)).isEqualTo("anterior");
+    }
+
     @ParameterizedTest @ValueSource(strings = {"login", "registro", "logout"})
     void post_recuperacionConContextPath_ignoraInclusoCookiesAmbiguas(String accion) {
         var peticion = peticion("POST", "/barberturno/api/auth/" + accion);
