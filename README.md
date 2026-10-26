@@ -6,9 +6,7 @@ El repositorio y las bases locales están preparados (T-01). El backend ya arran
 
 ## BarberTurno v2 en local
 
-**V2-05 bloqueada por H-085-01:** una ruta global codificada puede evitar el rechazo del prefijo de negocio. Pasos 1–4 implementados; no se ha completado verify ni el cierre. Véase [la evidencia y la regresión](docs/v2/pruebas/v2-05.md). Sin integración ni publicación.
-
-Este worktree desarrolla V2-05 en `tarea/V2-05-negocio-por-peticion`, desde `v2`. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. V2 sigue pendiente de gestión, interfaz y validación de conjunto; no está preparada para desplegarse.
+Este worktree desarrolla V2-07 en `tarea/V2-07-interfaz-multinegocio`, desde `v2` con V2-01…V2-06 integradas. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. La interfaz multinegocio y la validación de conjunto siguen pendientes; esta subtarea implementa únicamente el apoyo del backend, sin integración ni publicación.
 
 El responsable prepara el entorno una sola vez desde la raíz con `tools/preparar-entorno-v2.ps1` (PostgreSQL 18.6, puerto 5433). El script crea exclusivamente las bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`, propiedad de `barberturno_v2`, y el rol operativo `barberturno_v2_app`, sin privilegios administrativos ni propiedad. No reutilice bases o credenciales de v1. En este equipo ya está preparado.
 
@@ -25,6 +23,18 @@ cd backend
 `dev` usa `http://localhost:8081` y `barberturno_v2`; `test`, `barberturno_v2_test`. Flyway aplica V1 y las migraciones V100+ con el propietario y Hibernate valida con el rol operativo. Las pruebas de instalación y actualización limpian únicamente `barberturno_v2_migracion`, comprobando su nombre antes de hacerlo. Ejecute siempre una sola suite o aplicación contra PostgreSQL a la vez. La suite conserva el negocio único al limpiar los datos de prueba.
 
 El alias `barberturno.tenancy.alias-legado.slug=barberturno` permite al frontend actual usar las rutas de negocio sin prefijo en dev/test/demo; sin alias responden 404. Configurarlo con prod impide arrancar. Las rutas globales de identidad no reciben contexto de negocio. Cada transacción fija RLS localmente y lo pierde al terminar; no cambie de negocio dentro de una transacción. `barberturno.tenancy.negocio-inicial-slug` y `barberturno.demo.negocio-slug` delimitan los inicializadores mediante un slug explícito; si no existe, fallan sin elegir otro. El frontend no cambia en V2-05. Evidencia y criterios: [V2-05](docs/v2/pruebas/v2-05.md).
+
+Con `dev,demo` y `BT_DEMO_PASSWORD` configurada en el entorno del proceso, el arranque carga también el escenario multinegocio idempotente. Desde `backend/`, después de terminar cualquier suite: `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev,demo"`. Sin esa contraseña se omite la carga; los reinicios conservan claves, configuración y bajas existentes. La barbería inicial es `barberturno` (30 días, confirmación automática); `sur` tiene 14 días y confirmación manual. Ambas tienen catálogo y jornadas para reservar.
+
+| Cuenta ficticia (todas usan BT_DEMO_PASSWORD al crearse) | Papeles de la demo v2 |
+|---|---|
+| `plataforma@ejemplo.test` | ADMIN_PLATAFORMA, sin membresías |
+| `multirol@ejemplo.test` | Propietario en barberturno; barbero en sur |
+| `personal-cliente@ejemplo.test` | Barbero y cliente en barberturno |
+| `encargado@ejemplo.test` | Encargado en barberturno; propietario en sur para mantenerla operativa |
+| `cliente@ejemplo.test` | Cliente en las dos barberías; se conserva la cuenta de la demo académica |
+
+Para actuar como cliente, envíe `X-BT-Papel: CLIENTE` solo en `/api/n/{slug}/…`. Una ficha activa concede el papel CLIENTE y elimina los permisos de personal de esa petición; sin ficha no hay papel local. Otro valor o la cabecera fuera del prefijo da 400 `VALIDACION`. Sigue siendo obligatorio CSRF al escribir. `GET /api/n/{slug}/sesion` refleja el papel efectivo; `GET /api/mis-negocios` publica todos los `papeles` disponibles; `GET /api/n/{slug}/negocio` expone los seis parámetros públicos aprobados (suspendido → 404). [Contrato y pruebas de V2-07.0](docs/v2/pruebas/v2-07.md).
 
 ## Entorno
 
