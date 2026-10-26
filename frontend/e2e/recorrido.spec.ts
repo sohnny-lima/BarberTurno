@@ -1674,6 +1674,7 @@ test('16 · logout y reingreso vacían el negocio y el papel anterior', async ({
 });
 
 async function capturarGestion(page: Page, info: TestInfo, nombre: string, subtarea = 'v2-07-2') {
+  await page.bringToFront();
   await expect(page.locator('main')).toBeVisible();
   await expect(
     page.locator(
@@ -1682,9 +1683,24 @@ async function capturarGestion(page: Page, info: TestInfo, nombre: string, subta
   ).toBeVisible();
   await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  await page.locator('main').focus();
-  await page.keyboard.press('Tab');
+  const dialogo = page.getByRole('dialog');
+  if (await dialogo.isVisible()) {
+    await dialogo.locator('input, button, a[href]').filter({ visible: true }).first().focus();
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(
+      true,
+    );
+  } else {
+    await page.locator('main').focus();
+    await page.keyboard.press('Tab');
+  }
   expect(await page.evaluate(() => document.activeElement?.matches(':focus-visible'))).toBe(true);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolver) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolver())),
+      ),
+  );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
     path: `../docs/pruebas/v2-07/capturas/${subtarea}/${info.project.name}-${nombre}.png`,
