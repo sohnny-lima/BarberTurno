@@ -77,3 +77,4 @@ El MVP se construye en cuatro fases. Cada fase deja un sistema funcionando y rev
 | P2-07 | Barberías piloto y su autorización por escrito. | — | Fase 3 |
 | P2-08 | Alojamiento de *staging* de v2 (coste aparte del crédito de Azure for Students que usa v1). | Decidir en la Fase 3 | V2-17 |
 | P2-09 | Levantar el freeze **solo en la rama `v2`** (en `main` sigue vigente). | Sí | V2-01 |
+| P2-10 | Rangos de producto de la configuración del negocio (horizonte, anticipación, máximo de reservas, cupo de barberos, tolerancia): hoy solo hay límites técnicos (`smallint`, V2-DA-44); validarlos con las barberías. | — | Piloto |

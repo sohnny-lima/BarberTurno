@@ -244,3 +244,15 @@
   2. **Cambiar el rol de una membresía revocada → 409 `TRANSICION_INVALIDA`**, sin cambios: una membresía revocada solo se restablece por las vías de V2-DA-37.
   3. **Revocar una membresía ya revocada:** si su motivo es `PERFIL_DESACTIVADO`, pasa a `DECISION_GESTOR` (la decisión del gestor prevalece y la reactivación del perfil ya no devuelve el acceso); con cualquier otro motivo, la operación es idempotente (200) y conserva el motivo y el instante originales. Los permisos del actor (encargado solo sobre `BARBERO`) se comprueban igual.
 - **Prueba (`EquipoIT`):** promover y degradar a una persona con perfil activo lo conserva activo y no cambia el cupo; cambio de rol sobre revocada → 409 sin cambios; perfil desactivado (membresía `PERFIL_DESACTIVADO`) → revocación del propietario → reactivación del perfil → sin acceso y motivo `DECISION_GESTOR`; revocar una `SALIDA` → 200 con motivo e instante intactos.
+
+### V2-DA-42 · Papel solicitado por petición (26/10/2026)
+- **Problema:** una cuenta que es personal y cliente de la misma barbería (R2-01) no puede actuar como cliente: `AuthService.principal` da prioridad a la membresía (deuda registrada en V2-05).
+- **Decisión:** cabecera `X-BT-Papel: CLIENTE`, válida solo en `/api/n/{slug}/…`. **Solo reduce privilegios:** con ficha activa en ese negocio, la petición se atiende como `CLIENTE` (sin rol de negocio ni perfil profesional); sin ficha, sin rol en el negocio (403 en lo protegido; lo público sigue público). Otro valor o la cabecera en una ruta global → 400 `VALIDACION`. Sin cabecera, el comportamiento actual. Se fija y se limpia con el contexto de la petición (`ResolutorNegocio`). No sustituye a CSRF ni a las comprobaciones del servicio.
+- **Alternativas descartadas:** rutas duplicadas `/api/n/{slug}/cliente/…` (duplica la superficie y la matriz de permisos) y un papel guardado en el JWT (obligaría a reemitir la sesión al cambiar de papel o de barbería).
+
+### V2-DA-43 · Exposición mínima de identidades en el equipo (26/10/2026)
+- **Decisión:** `EquipoDto` añade `nombre` (todas las membresías del negocio) y `correo` (solo las activas; `null` en las revocadas, para no seguir mostrando el correo de quien salió). Solo propietario y encargado del negocio; ninguna búsqueda ni listado general de cuentas. Motivo: sin nombre ni correo el equipo no es gestionable (observación de V2-06).
+
+### V2-DA-44 · Parámetros públicos del negocio y papeles en mis-negocios (26/10/2026)
+- **Decisión:** `GET /api/n/{slug}/negocio` (público como el catálogo; suspendido → 404) → `{slug, nombre, horizonteDias, anticipacionCambioClienteMin, limiteReservasActivas, confirmacionManual}`, para que los controles reflejen los parámetros reales; sin cupo de barberos, tolerancia, estado ni ids. `GET /api/mis-negocios` añade `papeles` (rol de la membresía activa y `CLIENTE` si hay ficha activa), conservando `rol`.
+- **Límites técnicos frente a reglas de producto:** la interfaz valida y rotula solo los límites que impone el servidor (p. ej. `smallint`); los rangos de producto siguen pendientes de validación con el negocio.
