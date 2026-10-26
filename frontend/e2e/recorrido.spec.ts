@@ -1682,6 +1682,9 @@ async function capturarGestion(page: Page, info: TestInfo, nombre: string, subta
   ).toBeVisible();
   await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await page.locator('main').focus();
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.activeElement?.matches(':focus-visible'))).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
     path: `../docs/pruebas/v2-07/capturas/${subtarea}/${info.project.name}-${nombre}.png`,
@@ -1705,7 +1708,14 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
     .click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(/propietario/i);
   await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await salirConRespuesta(page);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await test.step(
+    'Cerrar la sesión del propietario de Sur',
+    async () => {
+      await salirConRespuesta(page);
+    },
+    { timeout: 20_000 },
+  );
   await ingresar(page, 'multirol@ejemplo.test');
   await page.goto('/n/barberturno/equipo');
   await capturarGestion(page, info, 'equipo-inicial');

@@ -38,7 +38,7 @@
           <td>
             <strong>{{ fila.nombre }}</strong>
             @if (propia(fila)) {
-              <span>Usted</span>
+              <span class="yo">Usted</span>
             }
             @if (fila.estado === 'ACTIVA' && fila.correo) {
               <p class="ayuda">{{ fila.correo }}</p>

@@ -25,8 +25,16 @@ td:last-child {
 .acciones-fila,
 td:last-child {
   button {
-    margin-bottom: 8px;
+    margin: 0 4px 8px;
   }
+}
+.yo {
+  margin-left: 8px;
+  color: var(--color-texto-2);
+  font-size: 13px;
+}
+mat-slide-toggle {
+  margin-top: 24px;
 }
 @media (min-width: 768px) {
   .campos {

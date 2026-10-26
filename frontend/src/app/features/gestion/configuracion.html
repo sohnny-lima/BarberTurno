@@ -27,7 +27,7 @@
     ><app-seccion-formulario titulo="Reservas"
       ><div class="campos">
         @for (campo of campos; track campo.clave) {
-          <mat-form-field
+          <mat-form-field subscriptSizing="dynamic"
             ><mat-label>{{ campo.etiqueta }}</mat-label
             ><input
               matInput
