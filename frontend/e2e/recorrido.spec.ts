@@ -10,6 +10,7 @@ import type { ReservaDto } from '../src/app/core/modelos/reservas';
 import type { UsuarioAdminDto } from '../src/app/core/modelos/usuarios';
 
 async function capturarNucleo(page: Page, testInfo: TestInfo, nombre: string) {
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   // Esperar los estados finales de Material evita capturar un cajón o diálogo a medio abrir.
   await page.evaluate(async () => {
     await Promise.all(
@@ -40,6 +41,7 @@ async function abrirContexto(page: Page) {
 let atencion: string;
 let cercana: string;
 let pendiente: string;
+let cuentaRegistrada: number;
 
 // El guion modifica la demo de forma secuencial y reportes verifica su resultado final.
 test.describe.configure({ mode: 'serial' });
@@ -1004,7 +1006,13 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
     }, process.env['BT_DEMO_PASSWORD']!);
   }
   await page.getByRole('checkbox', { name: 'Acepto el aviso de privacidad' }).check();
+  const registro = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/auth/registro' && r.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
+  const registrada = await registro;
+  expect(registrada.status()).toBe(201);
+  cuentaRegistrada = (await registrada.json()).id;
   await expect(page).not.toHaveURL(/\/registro(?:\?|$)/);
   await comprobarSalida(page);
   await page.goto('/perfil');
@@ -1311,12 +1319,17 @@ test('10 · administrador reserva para el cliente elegido y conserva su identida
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
   const creada = await respuesta;
   expect(creada.status()).toBe(201);
+  expect(creada.request().postDataJSON().clienteId).toBe(cuentaRegistrada);
   const reserva = await creada.json();
-  expect(reserva.cliente.nombre).toBe('Cliente E2E actualizado');
+  // El perfil global cambió en 07; la ficha local conserva el nombre de su alta (V2-RN-16).
+  expect(reserva.cliente.nombre).toBe('Cliente E2E de registro');
+  const ficha = await page.request.get(`/api/n/barberturno/clientes/${reserva.cliente.id}`);
+  expect(ficha.status()).toBe(200);
+  expect((await ficha.json()).nombre).toBe('Cliente E2E de registro');
   await expect(page).toHaveURL(/\/agenda/);
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-10-03');
   await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
-  await expect(citaAgenda(page, reserva.codigo)).toContainText('Cliente E2E actualizado');
+  await expect(citaAgenda(page, reserva.codigo)).toContainText('Cliente E2E de registro');
 });
 
 test('11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario', async ({
