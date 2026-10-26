@@ -45,6 +45,11 @@ public class Invitacion {
 
     boolean pendiente() { return "PENDIENTE".equals(estado); }
     boolean vigente(Instant ahora) { return pendiente() && ahora.isBefore(expiraEn); }
+    String estadoPublico(Instant ahora) {
+        if ("ACEPTADA".equals(estado)) return "USADA";
+        if (pendiente() && !ahora.isBefore(expiraEn)) return "CADUCADA";
+        return estado;
+    }
     void aceptar(long usuarioId, Instant ahora) { estado = "ACEPTADA"; aceptadaPor = usuarioId; actualizadoEn = ahora; }
     void revocar(Instant ahora) { estado = "REVOCADA"; actualizadoEn = ahora; }
     Long id() { return id; }

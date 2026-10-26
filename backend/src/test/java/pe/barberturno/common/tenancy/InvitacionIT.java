@@ -60,6 +60,7 @@ class InvitacionIT extends PlataformaPruebaBase {
                 assertThat(respuesta.statusCode()).isEqualTo(404);
                 assertThat(mapper.readTree(respuesta.body()).get("detail").asString()).isEqualTo("No se encontró la invitación.");
             }
+            assertThat(http(sesion, "POST", ruta + "/aceptacion", null, token(sesion)).statusCode()).isEqualTo(404);
             assertThat(http(titular, "GET", "/api/n/a" + ruta.substring(4), null, null).statusCode()).isEqualTo(404);
         }
     }
@@ -71,7 +72,9 @@ class InvitacionIT extends PlataformaPruebaBase {
         assertThat(http(titular, "DELETE", "/api/n/a/invitaciones/" + i.id(), null, token(titular)).statusCode()).isEqualTo(200);
         var nueva = invitar(titular, "a", "caducada", "BARBERO");
         assertThat(nueva.enlace()).isNotEqualTo(i.enlace());
-        assertThat(http(anonima(), "GET", i.enlace(), null, null).statusCode()).isEqualTo(404);
+        var revocada = http(anonima(), "GET", i.enlace(), null, null);
+        assertThat(revocada.statusCode()).isEqualTo(200);
+        assertThat(mapper.readTree(revocada.body()).get("estado").asString()).isEqualTo("REVOCADA");
         assertThat(http(anonima(), "GET", nueva.enlace(), null, null).statusCode()).isEqualTo(200);
     }
 
@@ -93,7 +96,8 @@ class InvitacionIT extends PlataformaPruebaBase {
             var publico = http(anonima(), "GET", emitida.enlace(), null, null);
             assertThat(publico.statusCode()).isEqualTo(200);
             var vista = mapper.readTree(publico.body());
-            assertThat(vista.properties()).hasSize(3);
+            assertThat(vista.properties()).hasSize(4);
+            assertThat(vista.get("estado").asString()).isEqualTo("PENDIENTE");
             assertThat(vista.get("negocio").asString()).isEqualTo("Negocio ficticio");
             assertThat(vista.get("rol").asString()).isEqualTo("BARBERO");
             assertThat(vista.get("correoEnmascarado").asString()).isEqualTo("d***@ejemplo.test");
@@ -109,7 +113,7 @@ class InvitacionIT extends PlataformaPruebaBase {
     }
 
     @ParameterizedTest @ValueSource(strings = {"distinto", "caducada", "revocada", "usada", "inexistente", "suspendido"})
-    void aceptarInvalida_rechazoGenericoSinCrearNiModificarMembresias(String caso) throws Exception {
+    void aceptarInvalida_estadoSegunDA46_sinCrearNiModificarMembresias(String caso) throws Exception {
         var destino = cuenta("destino"); var sesion = login("destino");
         var i = invitar(titular, "a", "destino", "BARBERO");
         if (caso.equals("distinto")) sesion = gestorLocal;
@@ -120,15 +124,35 @@ class InvitacionIT extends PlataformaPruebaBase {
         if (caso.equals("usada")) assertThat(aceptar(sesion, i)).isEqualTo(200);
         if (caso.equals("inexistente")) i = new Emitida(-1, "/api/invitaciones/" + "x".repeat(43));
         if (caso.equals("suspendido")) estado(a, "SUSPENDIDO");
+        String estado = switch (caso) {
+            case "caducada" -> "CADUCADA";
+            case "revocada" -> "REVOCADA";
+            case "usada" -> "USADA";
+            default -> "PENDIENTE";
+        };
         if (!caso.equals("distinto")) {
-            assertThat(http(anonima(), "GET", i.enlace(), null, null).statusCode()).isEqualTo(caso.equals("suspendido") ? 409 : 404);
+            var consulta = http(anonima(), "GET", i.enlace(), null, null);
+            assertThat(consulta.statusCode()).isEqualTo(caso.equals("inexistente") ? 404 : 200);
+            if (!caso.equals("inexistente")) {
+                assertThat(mapper.readTree(consulta.body()).get("estado").asString()).isEqualTo(estado);
+                assertThat(consulta.body()).doesNotContain(destino.getCorreo());
+            }
         }
         var antes = jdbc.queryForList("select * from membresia order by id");
         var r = http(sesion, "POST", i.enlace() + "/aceptacion", null, token(sesion));
-        assertThat(r.statusCode()).isEqualTo(caso.equals("suspendido") ? 409 : 404);
+        assertThat(r.statusCode()).isEqualTo(caso.equals("distinto") ? 403 : caso.equals("inexistente") ? 404 : 409);
         assertThat(mapper.readTree(r.body()).get("codigo").asString())
-                .isEqualTo(caso.equals("suspendido") ? "NEGOCIO_SUSPENDIDO" : "NO_ENCONTRADO");
-        if (!caso.equals("suspendido")) assertThat(mapper.readTree(r.body()).get("detail").asString()).isEqualTo("No se encontró la invitación.");
+                .isEqualTo(switch (caso) {
+                    case "distinto" -> "INVITACION_OTRA_CUENTA";
+                    case "inexistente" -> "NO_ENCONTRADO";
+                    case "suspendido" -> "NEGOCIO_SUSPENDIDO";
+                    default -> "INVITACION_NO_VIGENTE";
+                });
+        if (caso.equals("inexistente")) assertThat(mapper.readTree(r.body()).get("detail").asString()).isEqualTo("No se encontró la invitación.");
+        if (List.of("caducada", "revocada", "usada").contains(caso)) {
+            assertThat(mapper.readTree(r.body()).get("detail").asString()).contains(estado);
+        }
+        assertThat(r.body()).doesNotContain(destino.getCorreo());
         assertThat(jdbc.queryForList("select * from membresia order by id")).isEqualTo(antes);
         if (!caso.equals("usada")) assertThat(membresias.findByNegocioIdAndUsuarioId(a, destino.getId())).isEmpty();
     }
@@ -144,7 +168,8 @@ class InvitacionIT extends PlataformaPruebaBase {
         assertThat(http(anonima(), "GET", "/api/invitaciones/" + "x".repeat(43), null, null).statusCode()).isEqualTo(404);
         assertThat(aceptar(sesion, i)).isEqualTo(200);
         var r = http(anonima(), "GET", i.enlace(), null, null);
-        assertThat(r.statusCode()).isEqualTo(404);
+        assertThat(r.statusCode()).isEqualTo(200);
+        assertThat(mapper.readTree(r.body()).get("estado").asString()).isEqualTo("USADA");
         assertThat(r.body()).doesNotContain(persona.getCorreo());
     }
 
@@ -168,7 +193,9 @@ class InvitacionIT extends PlataformaPruebaBase {
         assertThat(ids).contains(i.id()).doesNotContain(otra.id());
         assertThat(http(titular, "DELETE", "/api/n/a/invitaciones/" + otra.id(), null, token(titular)).statusCode()).isEqualTo(404);
         assertThat(http(gestorLocal, "DELETE", "/api/n/a/invitaciones/" + i.id(), null, token(gestorLocal)).statusCode()).isEqualTo(200);
-        assertThat(http(anonima(), "GET", i.enlace(), null, null).statusCode()).isEqualTo(404);
+        var revocada = http(anonima(), "GET", i.enlace(), null, null);
+        assertThat(revocada.statusCode()).isEqualTo(200);
+        assertThat(mapper.readTree(revocada.body()).get("estado").asString()).isEqualTo("REVOCADA");
         assertThat(http(anonima(), "GET", otra.enlace(), null, null).statusCode()).isEqualTo(200);
     }
 
@@ -243,7 +270,7 @@ class InvitacionIT extends PlataformaPruebaBase {
                 barrera.await(10, TimeUnit.SECONDS); return aceptar(sesion, i);
             }));
             assertThat(List.of(resultados.get(0).get(30, TimeUnit.SECONDS), resultados.get(1).get(30, TimeUnit.SECONDS)))
-                    .containsExactlyInAnyOrder(200, 404);
+                    .containsExactlyInAnyOrder(200, 409);
         }
         assertThat(jdbc.queryForObject("select count(*) from membresia where negocio_id=? and usuario_id=?", Long.class, a, persona.getId())).isEqualTo(1);
         assertThat(jdbc.queryForMap("select estado,aceptada_por from invitacion where id=?", i.id()))

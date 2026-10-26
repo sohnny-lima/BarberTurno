@@ -207,17 +207,27 @@ class EquipoIT extends PlataformaPruebaBase {
             var r = http(admin, "POST", ruta, null, token(admin));
             assertThat(r.statusCode()).isEqualTo(200);
             assertThat(r.headers().firstValue("Cache-Control")).contains("no-store");
-            if (enlaceAnterior != null) assertThat(http(anonima(), "GET", enlaceAnterior, null, null).statusCode()).isEqualTo(404);
+            if (enlaceAnterior != null) comprobarRevocada(enlaceAnterior);
             enlaceAnterior = mapper.readTree(r.body()).get("enlaceInvitacion").asString();
             assertThat(http(anonima(), "GET", enlaceAnterior, null, null).statusCode()).isEqualTo(200);
         }
         assertThat(http(admin, "DELETE", ruta, null, token(admin)).statusCode()).isEqualTo(200);
-        assertThat(http(anonima(), "GET", enlaceAnterior, null, null).statusCode()).isEqualTo(404);
+        comprobarRevocada(enlaceAnterior);
         assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma where negocio_id=? and accion='REENVIAR_INVITACION_PROPIETARIO' and objetivo_id is null and actor_id=?", Long.class, a, plataforma.getId())).isEqualTo(2);
         assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma where negocio_id=? and accion='REVOCAR_INVITACION_PROPIETARIO' and objetivo_id is null", Long.class, a)).isEqualTo(1);
         assertThat(jdbc.queryForList("select * from invitacion where negocio_id=? order by id", b)).usingRecursiveComparison().isEqualTo(antes);
         for (String metodo : List.of("POST", "DELETE")) assertThat(http(admin, metodo,
                 "/api/plataforma/negocios/2147483646/invitacion-propietario", null, token(admin)).statusCode()).isEqualTo(404);
+    }
+
+    private void comprobarRevocada(String enlace) throws Exception {
+        var consulta = http(anonima(), "GET", enlace, null, null);
+        assertThat(consulta.statusCode()).isEqualTo(200);
+        assertThat(mapper.readTree(consulta.body()).get("estado").asString()).isEqualTo("REVOCADA");
+        var rechazo = http(admin, "POST", enlace + "/aceptacion", null, token(admin));
+        assertThat(rechazo.statusCode()).isEqualTo(409);
+        assertThat(mapper.readTree(rechazo.body()).get("codigo").asString()).isEqualTo("INVITACION_NO_VIGENTE");
+        assertThat(jdbc.queryForObject("select count(*) from membresia where usuario_id=?", Long.class, plataforma.getId())).isZero();
     }
 
     @Test void invitacionInicial_rollbackRevierteCapacidadYAuditoria_yNoRetiraOtrasInvitaciones() throws Exception {

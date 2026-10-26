@@ -114,18 +114,20 @@ public class InvitacionService {
     }
 
     /**
-     * Revela solo negocio, rol y correo oculto para una capacidad pendiente y vigente.
+     * Revela negocio, rol, correo oculto y estado solo ante quien tiene la capacidad (V2-DA-46).
      * @param token capacidad opaca presentada por la persona invitada
      * @return proyección pública mínima sin identificadores de cuenta ni hash
-     * @throws NegocioException si el enlace no es válido o el negocio está suspendido
+     * @throws NegocioException si el token es desconocido o está mal formado (404)
      */
     @Transactional(readOnly = true)
     public InvitacionPublicaDto consultar(String token) {
         var invitacion = invitaciones.findByTokenHash(hashValido(token)).orElseThrow(this::noEncontrado);
-        if (!invitacion.vigente(clock.instant())) throw noEncontrado();
-        String nombre = (String) estadoNegocio(invitacion.negocioId(), false)[0];
+        String nombre = entidades.unwrap(org.hibernate.Session.class)
+                .createNativeQuery("select nombre from negocio where id=:id", String.class)
+                .setParameter("id", invitacion.negocioId()).getSingleResult();
         String correo = invitacion.correo();
-        return new InvitacionPublicaDto(nombre, invitacion.rol(), correo.substring(0, 1) + "***@" + correo.substring(correo.indexOf('@') + 1));
+        return new InvitacionPublicaDto(nombre, invitacion.rol(), correo.substring(0, 1) + "***@" + correo.substring(correo.indexOf('@') + 1),
+                invitacion.estadoPublico(clock.instant()));
     }
 
     /**
@@ -133,18 +135,24 @@ public class InvitacionService {
      * Bloquea invitación y cuenta para serializar consumos y dos tokens de una misma persona.
      * @param token secreto presentado, del que solo se consulta SHA-256
      * @param actor identidad autenticada cuyo correo se contrasta en persistencia
-     * @throws NegocioException con 404 genérico si el enlace o correo no es válido, 409 si ya pertenece
-     * o si el negocio está suspendido
+     * @throws NegocioException con 404 si el token es desconocido o mal formado, 403 si el correo
+     * corresponde a otra cuenta y 409 si no está vigente, ya pertenece o el negocio está suspendido
      */
     @Transactional
     public void aceptar(String token, UsuarioAutenticado actor) {
         if (actor == null) throw new NegocioException(ErrorCodigo.PROHIBIDO, "Se requiere una cuenta autenticada.");
         var invitacion = invitaciones.bloquearPorToken(hashValido(token)).orElseThrow(this::noEncontrado);
-        if (!invitacion.vigente(clock.instant())) throw noEncontrado();
+        if (!invitacion.vigente(clock.instant())) {
+            throw new NegocioException(ErrorCodigo.INVITACION_NO_VIGENTE,
+                    "La invitación no está vigente: " + invitacion.estadoPublico(clock.instant()) + ".");
+        }
         // Toda acreditación del equipo usa el bloqueo de propietarios antes de ① (V2-RN-06).
         membresias.bloquearPropietarios(invitacion.negocioId());
         var usuario = usuarios.bloquearPorId(actor.id()).orElseThrow(this::noEncontrado);
-        if (!usuario.getCorreo().equalsIgnoreCase(invitacion.correo())) throw noEncontrado();
+        if (!usuario.getCorreo().equalsIgnoreCase(invitacion.correo())) {
+            throw new NegocioException(ErrorCodigo.INVITACION_OTRA_CUENTA,
+                    "Esta invitación es para otra cuenta. Ingrese con el correo invitado.");
+        }
         estadoNegocio(invitacion.negocioId(), true);
         var anterior = membresias.findByNegocioIdAndUsuarioId(invitacion.negocioId(), actor.id());
         if (anterior.filter(Membresia::isActiva).isPresent()) {
