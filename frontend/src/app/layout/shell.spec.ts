@@ -83,6 +83,41 @@ describe('Shell adaptable', () => {
       'Mi cuenta',
     ]);
   });
+  it('los enlaces conservan el papel cliente como query y lo excluyen de Mi cuenta', async () => {
+    const router = TestBed.inject(Router);
+    router.resetConfig([{ path: 'n/prueba/mis-citas', children: [] }]);
+    entrar('CLIENTE');
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.seleccionar('prueba', 'CLIENTE');
+    negocio.cargar().subscribe();
+    http.expectOne('/api/n/prueba/sesion').flush({
+      ...TestBed.inject(SesionService).usuario(),
+      rol: 'CLIENTE',
+    });
+    http.expectOne('/api/n/prueba/negocio').flush({ slug: 'prueba', nombre: 'Ficticia' });
+    movil.next({ matches: true });
+    const vista = TestBed.createComponent(Shell);
+    vista.detectChanges();
+    for (const region of ['mat-sidenav nav', '.barra-inferior']) {
+      const enlaces = vista.nativeElement.querySelectorAll(
+        region + ' a',
+      ) as NodeListOf<HTMLAnchorElement>;
+      expect(enlaces[0].getAttribute('href')).toBe('/n/prueba/reservar?papel=cliente');
+      expect(enlaces[1].getAttribute('href')).toBe('/n/prueba/mis-citas?papel=cliente');
+      expect(enlaces[2].getAttribute('href')).toBe('/perfil');
+    }
+    (
+      vista.nativeElement.querySelector('.barra-inferior a:nth-child(2)') as HTMLAnchorElement
+    ).click();
+    await vista.whenStable();
+    vista.detectChanges();
+    expect(router.url).toBe('/n/prueba/mis-citas?papel=cliente');
+    expect(negocio.papel()).toBe('CLIENTE');
+    expect(vista.componentInstance.tituloPagina()).toBe('Mis citas');
+    expect(
+      vista.nativeElement.querySelector('.barra-inferior [aria-current="page"]').textContent,
+    ).toContain('Mis citas');
+  });
   it.each(['slug', 'papel'] as const)(
     'cierra también los diálogos con disableClose al cambiar %s',
     async (cambio) => {
@@ -318,6 +353,15 @@ describe('Shell adaptable', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
+  });
+  it('muestra el nombre completo accesible de la barbería también al visitante móvil', () => {
+    movil.next({ matches: true });
+    const vista = TestBed.createComponent(Shell);
+    vista.detectChanges();
+    const marca = vista.nativeElement.querySelector('.cabecera .titulo-marca') as HTMLElement;
+    expect(marca.title).toBe('Barbería ficticia');
+    expect(marca.querySelector('.nombre-barberia')?.textContent).toBe('Barbería ficticia');
+    expect(vista.nativeElement.querySelector('[aria-label="Abrir cuenta"]')).toBeNull();
   });
   it.each([true, false])(
     'con contraseña temporal ofrece cambiarla y Salir siempre visible: móvil=%s',

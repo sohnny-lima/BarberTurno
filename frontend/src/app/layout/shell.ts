@@ -119,7 +119,7 @@ export class Shell {
       return [{ ruta: '/cambiar-password', texto: 'Cambiar contraseña' }];
     const prefijar = (filas: { ruta: string; texto: string }[]) =>
       filas.map((fila) =>
-        fila.ruta === '/perfil' ? fila : { ...fila, ruta: this.negocio.enlace(fila.ruta.slice(1)) },
+        fila.ruta === '/perfil' ? fila : { ...fila, ruta: this.negocio.ruta(fila.ruta.slice(1)) },
       );
     switch (this.negocio.rol()) {
       case 'CLIENTE':
@@ -147,6 +147,9 @@ export class Shell {
         this.negocio.rol() ?? 'CLIENTE'
       ],
   );
+  parametrosEnlace(ruta: string) {
+    return ruta.startsWith('/n/') && this.negocio.papel() === 'CLIENTE' ? { papel: 'cliente' } : {};
+  }
   constructor() {
     inject(RutasNegocio);
     this.negocio.cambios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {

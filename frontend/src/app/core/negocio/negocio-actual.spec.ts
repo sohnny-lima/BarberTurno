@@ -1,4 +1,10 @@
-import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import {
+  HttpClient,
+  HttpRequest,
+  HttpResponse,
+  provideHttpClient,
+  withInterceptors,
+} from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -8,6 +14,7 @@ import { MisNegociosApi } from '../api/mis-negocios-api';
 import { PerfilApi } from '../api/perfil-api';
 import { ReservasApi } from '../api/reservas-api';
 import { ServiciosApi } from '../api/servicios-api';
+import { of } from 'rxjs';
 import { erroresInterceptor } from '../auth/errores-interceptor';
 import { SesionService } from '../auth/sesion-service';
 import { Papel } from '../modelos/negocios';
@@ -98,6 +105,44 @@ describe('Contexto multinegocio y transporte', () => {
       expect(recibido).not.toHaveBeenCalled();
     },
   );
+  it.each(['slug', 'papel'] as const)(
+    'descarta una respuesta cuyo transporte termina mientras cambia %s antes de registrar la cancelación',
+    (cambio) => {
+      negocio.seleccionar('a');
+      const peticion = new HttpRequest('GET', negocio.url('/servicios'), {
+        context: negocio.contexto(),
+      });
+      const recibido = vi.fn();
+      TestBed.runInInjectionContext(() =>
+        negocioInterceptor(peticion, () => {
+          negocio.seleccionar(
+            cambio === 'slug' ? 'b' : 'a',
+            cambio === 'papel' ? 'CLIENTE' : 'PERSONAL',
+          );
+          return of(new HttpResponse({ body: [{ nombre: 'Respuesta anterior' }] }));
+        }),
+      ).subscribe(recibido);
+      expect(recibido).not.toHaveBeenCalled();
+    },
+  );
+  it('un 401 de una operación limpia el negocio y conserva la URL completa para reingresar', () => {
+    const sesion = TestBed.inject(SesionService);
+    sesion.cargar().subscribe();
+    http.expectOne('/api/auth/sesion').flush(usuarioNegocio('CLIENTE'));
+    negocio.seleccionar('a', 'CLIENTE');
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'url', 'get').mockReturnValue('/n/a/mis-citas?papel=cliente');
+    TestBed.inject(ReservasApi)
+      .obtener(8)
+      .subscribe({ error: () => undefined });
+    http.expectOne('/api/n/a/reservas/8').flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(sesion.autenticado()).toBe(false);
+    expect(negocio.slug()).toBeNull();
+    expect(negocio.estado()).toBeNull();
+    expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
+      queryParams: { returnUrl: '/n/a/mis-citas?papel=cliente' },
+    });
+  });
   it.each([
     [200, 200, 'disponible'],
     [401, 200, 'disponible'],

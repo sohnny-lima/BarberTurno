@@ -1,5 +1,4 @@
 import { registerLocaleData } from '@angular/common';
-import localeEsPe from '@angular/common/locales/es-PE';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
 import {
   ApplicationConfig,
@@ -17,7 +16,6 @@ import { SesionService } from './core/auth/sesion-service';
 import { negocioInterceptor } from './core/negocio/negocio-interceptor';
 import { ReutilizacionNegocio } from './core/negocio/reutilizacion-negocio';
 
-registerLocaleData(localeEsPe);
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
@@ -30,13 +28,15 @@ export const appConfig: ApplicationConfig = {
         headerName: 'X-XSRF-TOKEN',
       }),
     ),
-    provideAppInitializer(() =>
-      firstValueFrom(
-        inject(SesionService)
-          .cargar()
-          .pipe(catchError(() => of(null))),
-      ),
-    ),
+    provideAppInitializer(async () => {
+      const sesion = inject(SesionService);
+      await Promise.all([
+        import('@angular/common/locales/es-PE').then(({ default: datos }) =>
+          registerLocaleData(datos),
+        ),
+        firstValueFrom(sesion.cargar().pipe(catchError(() => of(null)))),
+      ]);
+    }),
     { provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { panelClass: 'aviso-transitorio' } },
     { provide: LOCALE_ID, useValue: 'es-PE' },
   ],

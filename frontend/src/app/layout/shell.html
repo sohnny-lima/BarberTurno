@@ -19,6 +19,7 @@
           <a
             class="enlace"
             [routerLink]="enlace.ruta"
+            [queryParams]="parametrosEnlace(enlace.ruta)"
             routerLinkActive="activo"
             ariaCurrentWhenActive="page"
             (click)="movil() && menu.close()"
@@ -73,7 +74,15 @@
           </button>
         }
         @if (!navegacionCompleta()) {
-          <span class="marca"><span aria-hidden="true" class="simbolo">✂</span> BarberTurno</span>
+          <span class="marca"
+            ><span aria-hidden="true" class="simbolo">✂</span>
+            <span class="titulo-marca" [title]="negocio.nombre() ?? 'BarberTurno'"
+              >BarberTurno
+              @if (negocio.nombre()) {
+                <small class="nombre-barberia">{{ negocio.nombre() }}</small>
+              }
+            </span>
+          </span>
         } @else if (movil()) {
           <span
             class="titulo-pagina"
@@ -170,7 +179,11 @@
     @if (tieneBarraInferior()) {
       <nav class="barra-inferior" aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
-          <a [routerLink]="enlace.ruta" routerLinkActive="activo" ariaCurrentWhenActive="page"
+          <a
+            [routerLink]="enlace.ruta"
+            [queryParams]="parametrosEnlace(enlace.ruta)"
+            routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
             ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 [attr.d]="icono(enlace.ruta)"

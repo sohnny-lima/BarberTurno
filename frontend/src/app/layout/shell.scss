@@ -39,6 +39,7 @@ mat-sidenav {
   background: var(--color-verde);
   color: white;
   font-size: 24px;
+  flex-shrink: 0;
 }
 nav {
   display: grid;
@@ -102,7 +103,7 @@ main {
   max-width: 1400px;
   margin: auto;
 }
-main#contenido[tabindex='-1']:focus-visible {
+main#contenido[tabindex='-1']:focus {
   outline: none;
 }
 footer {
@@ -136,6 +137,10 @@ footer {
 .cabecera .marca,
 .titulo-pagina {
   flex: 1;
+  min-width: 0;
+}
+.titulo-marca {
+  min-width: 0;
 }
 .titulo-pagina {
   font: 700 20px/28px var(--font-cuerpo);
@@ -254,6 +259,7 @@ button.cdk-keyboard-focused {
 
 .nombre-barberia {
   display: block;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 14px;

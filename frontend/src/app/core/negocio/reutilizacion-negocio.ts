@@ -14,4 +14,3 @@ export class ReutilizacionNegocio extends BaseRouteReuseStrategy {
     );
   }
 }
-
