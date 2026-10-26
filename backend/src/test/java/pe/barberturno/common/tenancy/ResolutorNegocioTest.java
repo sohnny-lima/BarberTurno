@@ -43,6 +43,7 @@ class ResolutorNegocioTest {
     void globalYAlias_gettersCoincidenConRutaMvc_yPorcentajeEnConsultaNoSeRechaza(String ruta) throws Exception {
         entorno.setProperty("barberturno.tenancy.alias-legado.slug", "a");
         when(directorio.buscar("a")).thenReturn(OptionalLong.of(2));
+        when(directorio.buscarActivo("a")).thenReturn(OptionalLong.of(2));
         var request = new MockHttpServletRequest("GET", "/barberturno" + ruta);
         request.setContextPath("/barberturno");
         request.setQueryString("busqueda=%70erfil");
@@ -77,7 +78,7 @@ class ResolutorNegocioTest {
         request.setContextPath(contextPath);
         request.setServletPath("/api/n/a/servicios");
         var previo = ServletRequestPathUtils.parseAndCache(request);
-        when(directorio.buscar("a")).thenReturn(OptionalLong.of(2));
+        when(directorio.buscarActivo("a")).thenReturn(OptionalLong.of(2));
         assertThatThrownBy(() -> filtro().doFilter(request, new MockHttpServletResponse(), (req, res) -> {
             var efectiva = (jakarta.servlet.http.HttpServletRequest) req;
             assertThat(efectiva.getRequestURI()).isEqualTo(contextPath + "/api/servicios");
@@ -93,13 +94,28 @@ class ResolutorNegocioTest {
     }
 
     @Test void sinAlias_localFallaPeroGlobalContinuaSinContexto() throws Exception {
-        when(directorio.buscar(null)).thenReturn(OptionalLong.empty());
+        when(directorio.buscarActivo(null)).thenReturn(OptionalLong.empty());
         var respuesta = new MockHttpServletResponse();
         filtro().doFilter(new MockHttpServletRequest("GET", "/api/servicios"), respuesta,
                 (req, res) -> fail("No debe continuar sin negocio"));
         assertThat(respuesta.getStatus()).isEqualTo(404);
         filtro().doFilter(new MockHttpServletRequest("GET", "/api/perfil"), new MockHttpServletResponse(),
                 (req, res) -> { assertThat(contexto.negocioActual()).isEmpty(); assertThat(contexto.delimitado()).isTrue(); });
+        assertThat(contexto.delimitado()).isFalse();
+    }
+
+    @Test void plataformaGlobal_sinAliasNiConsultaDeNegocio_yBajoPrefijo404() throws Exception {
+        filtro().doFilter(new MockHttpServletRequest("GET", "/api/plataforma/negocios"), new MockHttpServletResponse(),
+                (req, res) -> {
+                    assertThat(contexto.delimitado()).isTrue();
+                    assertThat(contexto.negocioActual()).isEmpty();
+                    assertThat(((jakarta.servlet.http.HttpServletRequest) req).getServletPath()).isEqualTo("/api/plataforma/negocios");
+                });
+        var respuesta = new MockHttpServletResponse();
+        filtro().doFilter(new MockHttpServletRequest("POST", "/api/n/a/plataforma/negocios"), respuesta,
+                (req, res) -> fail("Plataforma no entra por un negocio"));
+        assertThat(respuesta.getStatus()).isEqualTo(404);
+        verifyNoInteractions(directorio);
         assertThat(contexto.delimitado()).isFalse();
     }
 }

@@ -100,11 +100,9 @@ CREATE TABLE invitacion (
   expira_en   timestamptz  NOT NULL,
   invitada_por bigint NOT NULL REFERENCES usuario(id),
   aceptada_por bigint REFERENCES usuario(id),
-  barbero_id   bigint,                        -- perfil que se vincula al aceptar (solo rol BARBERO)
-  creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,
-  CONSTRAINT invitacion_barbero_fk  FOREIGN KEY (negocio_id, barbero_id) REFERENCES barbero (negocio_id, id),
-  CONSTRAINT invitacion_barbero_rol CHECK (barbero_id IS NULL OR rol = 'BARBERO')
+  creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL
 );
+-- Sin barbero_id: la invitación no vincula perfiles (V2-DA-39).
 CREATE UNIQUE INDEX invitacion_token_uk ON invitacion (token_hash);
 CREATE UNIQUE INDEX invitacion_pendiente_uk ON invitacion (negocio_id, correo) WHERE estado = 'PENDIENTE';
 
@@ -261,7 +259,7 @@ En la primera tarea, `negocio_id` se añade **en tres pasos** (columna anulable 
 ## 5. Concurrencia (protocolo de v1, extendido)
 - Orden global **sin cambios**: ⓪ *advisory* → ① ficha del cliente → ② barberos por id ascendente → ③ reserva. Las reservas por WhatsApp llaman a `ReservaService.crear/reprogramar/cancelar`, así que heredan el protocolo, la revalidación tras el bloqueo y las `EXCLUDE`.
 - ① pasa de la fila `usuario` a la fila `cliente` (la ficha del negocio): el límite de reservas activas (RN-20) y el solape (RN-04) son por ficha.
-- ⓪ pasa a la forma de dos claves `pg_advisory_xact_lock(clase int4, negocio_id int4)`: `141414` cupo de barberos (por negocio) y `313131` último propietario (por negocio). PostgreSQL distingue las claves de una y de dos partes (`pg_locks.objsubid` 1 y 2), así que la clave global `313131` de un solo valor se conserva para el último `ADMIN_PLATAFORMA`. Cada camino toma como máximo un bloqueo ⓪ y siempre antes de ①②③; ninguno se toma tras bloquear filas. (En v1 el cupo también se toma al desactivar, `BarberoService.cambiarEstado`; se conserva.)
+- ⓪ pasa a la forma de dos claves `pg_advisory_xact_lock(clase int4, negocio_id int4)`: `141414` cupo de barberos (por negocio) y `313131` último propietario (por negocio). PostgreSQL distingue las claves de una y de dos partes (`pg_locks.objsubid` 1 y 2), así que la clave global `313131` de un solo valor se conserva para el último `ADMIN_PLATAFORMA`. **Orden total de los bloqueos ⓪ (V2-DA-40, 24/10/2026):** `(313131, negocio)` → `(141414, negocio)` → ① → ② → ③. Un camino puede tomar uno o los dos bloqueos ⓪, pero siempre en ese orden y antes de bloquear filas; ninguno se toma tras bloquear filas. *(La versión inicial decía «como máximo un bloqueo ⓪ por camino»; la retirada de una membresía con perfil profesional necesita los dos.)* (En v1 el cupo también se toma al desactivar, `BarberoService.cambiarEstado`; se conserva.)
 - **Un solo negocio por transacción y por contexto de persistencia:** el contexto no cambia a mitad de una transacción (las entidades ya cargadas son de un negocio). Los trabajos abren una transacción por negocio.
 - Nuevo: la ejecución de una `operacion_pendiente` toma `FOR UPDATE` sobre su fila **antes** de llamar al servicio de reservas y la marca `EJECUTADA` en la misma transacción: dos pulsaciones del botón (o una pulsación y un reintento del *webhook*) producen una sola reserva. Esa fila no participa en el protocolo ①②③ de ninguna otra operación, así que no forma ciclos (se toma siempre la primera).
 - Cola de eventos y outbox: `SELECT … FOR UPDATE SKIP LOCKED LIMIT n` en transacciones cortas, sin bloqueos del dominio.

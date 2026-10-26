@@ -24,6 +24,7 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.scheduling.Jornada;
 import pe.barberturno.support.*;
 import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
@@ -155,9 +156,13 @@ class ReprogramacionIT extends ReservaPruebaBase {
     }
 
     @Test void adminConPerfil_noRecibeAutoaviso() throws Exception {
-        var dto = crear();
         var actor = admin();
-        jdbc.update("update barbero set usuario_id=? where id=?", actor.getId(), barbero.getId());
+        // El perfil nace con su cuenta definitiva; nunca se reasigna una agenda (V2-DA-39).
+        barbero = barberos.saveAndFlush(new Barbero(actor, "Cortes", reloj.instant()));
+        for (short dia = 1; dia <= 7; dia++) {
+            jornadas.saveAndFlush(new Jornada(barbero, dia, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        var dto = crear();
         var nuevo = perfil("nuevo");
         reprogramar(dto, actor, mover("11:00", nuevo.getId(), 0, "Cambio solicitado"));
         avisos(cliente.getId(), nuevo.getUsuario().getId());

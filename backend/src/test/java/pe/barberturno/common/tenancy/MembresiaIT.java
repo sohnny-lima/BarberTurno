@@ -69,7 +69,7 @@ class MembresiaIT extends IdentidadPruebaBase {
         mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isOk());
         var anterior = huella(usuario);
         var pertenencia = membresias.findByNegocioIdAndUsuarioId(1L, usuario.getId()).orElseThrow();
-        pertenencia.revocar(reloj.instant());
+        pertenencia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
         membresias.save(pertenencia);
         mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isForbidden());
         mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
@@ -110,7 +110,6 @@ class MembresiaIT extends IdentidadPruebaBase {
     @Test void arranque_completaCuentaExistenteSinCambiarCredencialesYNoDuplicaPertenencias() {
         var existente = persona("inicial", Rol.ADMIN);
         var previa = pertenencia(1L, existente, RolNegocio.BARBERO);
-        previa.revocar(reloj.instant()); membresias.save(previa);
         var anterior = huella(existente);
         auth.crearAdminInicial(existente.getCorreo(), "ClaveInicial123", "Inicial");
         auth.crearAdminInicial(existente.getCorreo(), "ClaveInicial123", "Inicial");
@@ -131,7 +130,7 @@ class MembresiaIT extends IdentidadPruebaBase {
         pertenencia(1L, barbero, RolNegocio.BARBERO);
         var revocado = propietario("titular-revocado");
         var previa = membresias.findByNegocioIdAndUsuarioId(1L, revocado.getId()).orElseThrow();
-        previa.revocar(reloj.instant()); membresias.save(previa);
+        previa.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(previa);
         var cookie = sesion(encargado);
         mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElementos").value(2));

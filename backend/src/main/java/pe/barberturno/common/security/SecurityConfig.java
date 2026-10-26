@@ -77,6 +77,10 @@ public class SecurityConfig {
      * GET/PATCH de fichas admite solo el equivalente ADMIN de PROPIETARIO/ENCARGADO, con ámbito en el servicio.
      * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
      * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
+     * Plataforma exige su rol global independiente; la suspensión conserva lecturas y rechaza escrituras.
+     * Invitaciones: consulta por token pública, aceptación autenticada y gestión local solo ADMIN efectivo.
+     * Equipo permite gestión ADMIN y salida propia del personal; el servicio distingue propietario y encargado.
+     * Configuración admite ADMIN efectivo y exige propietario vigente también en el servicio.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
@@ -148,9 +152,10 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
                 .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas, entorno), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
-                .addFilterAfter(new RolNegocioFilter(contexto, respuestas), PasswordTemporalFilter.class)
+                .addFilterAfter(new RolNegocioFilter(contexto, respuestas, directorio), PasswordTemporalFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
                 .authorizeHttpRequests(permisos -> {
+                    permisos.requestMatchers("/api/plataforma", "/api/plataforma/**").hasRole("ADMIN_PLATAFORMA");
                     permisos.requestMatchers(SpaForwardFilter::esRecursoPublico).permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/actuator/health").permitAll();
                     permisos.requestMatchers(HttpMethod.HEAD, "/actuator/health").permitAll();
@@ -164,6 +169,17 @@ public class SecurityConfig {
                             "/api/auth/logout").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones/{token}").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/aceptacion").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/equipo").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/configuracion").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PUT, "/api/configuracion").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PATCH, "/api/equipo/{id}/rol").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/equipo/{id}/revocacion").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/equipo/salida").hasAnyRole("ADMIN", "BARBERO");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.DELETE, "/api/invitaciones/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.POST, "/api/clientes/alta").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();

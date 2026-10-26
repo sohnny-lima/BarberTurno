@@ -16,7 +16,7 @@ public class DirectorioNegocios {
 
     /**
      * Recibe la sesión protegida por la guarda de V2-DA-23.
-     * @param entidades acceso a la tabla global negocio, que solo permite SELECT a la aplicación
+     * @param entidades acceso transaccional a la tabla global negocio
      */
     public DirectorioNegocios(EntityManager entidades) { this.entidades = entidades; }
 
@@ -27,12 +27,38 @@ public class DirectorioNegocios {
      */
     @Transactional(readOnly = true)
     public OptionalLong buscar(String slug) {
+        return buscar(slug, false);
+    }
+
+    /**
+     * Resuelve una ruta pública en una sola consulta, ocultando negocios suspendidos sin caché.
+     * @param slug identificador público con el formato canónico del DDL
+     * @return id del negocio activo o vacío si no existe, está suspendido o el formato es inválido
+     */
+    @Transactional(readOnly = true)
+    public OptionalLong buscarActivo(String slug) {
+        return buscar(slug, true);
+    }
+
+    private OptionalLong buscar(String slug, boolean soloActivo) {
         if (slug == null || slug.length() > 40 || !slug.matches("[a-z0-9](-?[a-z0-9])*")) {
             return OptionalLong.empty();
         }
-        var filas = entidades.createNativeQuery("select id from negocio where slug=:slug", Long.class)
+        var filas = entidades.createNativeQuery("select id from negocio where slug=:slug"
+                + (soloActivo ? " and estado='ACTIVO'" : ""), Long.class)
                 .setParameter("slug", slug).getResultList();
         return filas.isEmpty() ? OptionalLong.empty() : OptionalLong.of(((Number) filas.getFirst()).longValue());
+    }
+
+    /**
+     * Revalida la disponibilidad administrativa sin caché, antes de acceder al dominio del negocio.
+     * @param id negocio resuelto exclusivamente por la ruta
+     * @return true si la plataforma lo ha suspendido
+     */
+    @Transactional(readOnly = true)
+    public boolean suspendido(long id) {
+        return !entidades.createNativeQuery("select id from negocio where id=:id and estado='SUSPENDIDO'", Long.class)
+                .setParameter("id", id).getResultList().isEmpty();
     }
 
     /**

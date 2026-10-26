@@ -142,7 +142,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         var actor = propietario("titular");
         var usuario = persona("cliente-con-historial-ajeno", Rol.CLIENTE);
         var membresia = pertenencia(b, usuario, RolNegocio.BARBERO);
-        membresia.revocar(reloj.instant());
+        membresia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
         membresias.save(membresia);
         exigirAjena(usuario, sesion(actor));
     }
@@ -153,7 +153,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         var usuario = persona("revocado", Rol.CLIENTE);
         var membresia = pertenencia(1L, usuario, rol);
         var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
-        membresia.revocar(reloj.instant());
+        membresia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
         membresias.save(membresia);
         var anterior = huella(usuario);
         exigirAjena(usuario, sesion(actor));

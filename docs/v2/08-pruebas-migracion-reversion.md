@@ -86,7 +86,12 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 | `V105__perfil_por_negocio.sql` (V2-04) | Sustituye la unicidad heredada de v1 `barbero_usuario_id_key UNIQUE (usuario_id)` por `barbero_usuario_uk UNIQUE (negocio_id, usuario_id)`: la misma cuenta puede tener un perfil profesional en cada negocio, nunca dos en el mismo (V2-DA-32) | Restaurar la copia previa |
 | `V106__vinculo_cliente_activo.sql` (V2-05) | `vinculo_cliente.activo` rellenado desde cada ficha y mantenido por el disparador de `V102`, redefinido con `CREATE OR REPLACE` sin editar `V102` (V2-DA-35) | Restaurar la copia previa |
 | `V107__indices_negocio.sql` (V2-05) | Índices que empiezan por `negocio_id` para los accesos por negocio | Eliminar los índices |
-| `V108+` (equipo, WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
+| `V108__motivo_revocacion.sql` (V2-06.1) | `membresia.motivo_revocacion` y su coherencia con el estado; relleno `PERFIL_DESACTIVADO` para las revocaciones de V2-04 | Restaurar la copia previa |
+| `V109__auditoria_plataforma.sql` (V2-06.2) | Auditoría global sin secretos ni datos personales (actor, acción, negocio u objetivo, instante); INSERT/UPDATE de negocio para la aplicación desde V2-06 según V2-DA-20; auditoría con SELECT/INSERT, sin UPDATE/DELETE. Probada en instalación nueva y actualización | Eliminar la tabla y revocar INSERT/UPDATE de negocio (antes de retomar una versión anterior) |
+| `V110__invitacion.sql` (V2-06.3) | Invitaciones de plataforma sin RLS ni barbero_id; SHA-256 único y pendiente por negocio/correo; aplicación SELECT/INSERT/UPDATE (sin DELETE) y secuencia USAGE/SELECT; disparador impide reasignar barbero.usuario_id también por SQL (V2-DA-39), sin EXECUTE directo para la aplicación | Eliminar la tabla, el disparador barbero_usuario_inmutable y la función impedir_reasignacion_barbero (solo al revertir la versión) |
+| `V111__auditoria_invitacion_inicial.sql` (V2-06.4) | Amplía los `CHECK` de `auditoria_plataforma` con el reenvío y la revocación de la invitación inicial | Restaurar la copia previa |
+| `V112__permisos_configuracion.sql` (V2-06.5) | Sustituye el `UPDATE` sobre toda la tabla `negocio` por `UPDATE` por columnas (sin `id`, `slug` ni `zona_horaria`) | Restaurar los permisos anteriores |
+| `V113+` (WhatsApp, conversación) | Tablas nuevas, sin tocar datos existentes | Eliminar tablas |
 | `V1xx__contraer.sql` (tras el corte) | Eliminar `usuario.rol`, `usuario_cliente_completo` y las rutas antiguas | Solo después de un periodo estable |
 
 ### 6.2 Verificación de la migración (V2-CP-10)

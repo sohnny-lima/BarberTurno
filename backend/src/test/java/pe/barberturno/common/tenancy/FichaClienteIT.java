@@ -225,7 +225,7 @@ class FichaClienteIT extends IdentidadPruebaBase {
         pertenencia(1L, persona, RolNegocio.BARBERO);
         mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("BARBERO"));
         var pertenencia = membresias.findByNegocioIdAndUsuarioId(1L, persona.getId()).orElseThrow();
-        pertenencia.revocar(reloj.instant()); membresias.save(pertenencia);
+        pertenencia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(pertenencia);
         mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("CLIENTE"));
         local.desactivar(reloj.instant()); clientes.saveAndFlush(local);
         mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").isEmpty());

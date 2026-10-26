@@ -16,6 +16,7 @@ import pe.barberturno.users.Usuario;
 /**
  * Perfil de atención de un negocio vinculado a una cuenta del personal (RN-26).
  * Copia inicialmente nombre y teléfono de la cuenta a los datos locales; su estado controla RN-06.
+ * La cuenta se fija al crear el perfil y no se reasigna (V2-DA-39, también impuesto por PostgreSQL).
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
@@ -32,7 +33,7 @@ public class Barbero {
     private Long negocioId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = false, updatable = false)
     private Usuario usuario;
 
     @Column(name = "nombre_visible", nullable = false, length = 100)

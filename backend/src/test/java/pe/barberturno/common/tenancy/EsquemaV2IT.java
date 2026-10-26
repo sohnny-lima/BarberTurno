@@ -6,6 +6,13 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
+    @Test void v110_invitacionesSinRls_permisosMinimosYRestriccionesComoAplicacion() {
+        enNegocio(1L, () -> {
+            var datos = DatosNegocioPrueba.crear(jdbc, "v110");
+            InvitacionEsquemaPruebas.comprobar(jdbc, datos.admin());
+            return null;
+        });
+    }
     @Test void v107_indicesEmpiezanPorElNegocio() { IndicesNegocioEsquemaPruebas.comprobar(jdbc); }
     @Test void v106_estadoDeFichaSincronizadoYAplicacionSoloLeeElIndice() throws Exception {
         long b = negocioB();
@@ -89,7 +96,8 @@ class EsquemaV2IT extends TenancyPruebaBase {
         assertThat(jdbc.queryForObject("select has_function_privilege(current_user, 'app_negocio_actual()', 'EXECUTE')", Boolean.class)).isTrue();
         for (String tabla : java.util.stream.Stream.concat(TABLAS.stream(), java.util.stream.Stream.of("usuario", "negocio", "membresia", "vinculo_cliente")).toList()) {
             for (String permiso : List.of("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")) {
-                boolean permitido = "SELECT".equals(permiso) || !List.of("negocio", "vinculo_cliente").contains(tabla) && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
+                boolean permitido = "SELECT".equals(permiso) || tabla.equals("negocio") && "INSERT".equals(permiso)
+                        || !List.of("negocio", "vinculo_cliente").contains(tabla) && List.of("INSERT", "UPDATE", "DELETE").contains(permiso);
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
                         .as("%s %s", tabla, permiso).isEqualTo(permitido);
             }

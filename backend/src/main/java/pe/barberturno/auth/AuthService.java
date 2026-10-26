@@ -181,6 +181,7 @@ public class AuthService {
     /**
      * Crea o completa la cuenta configurada con administración global y propiedad del negocio único.
      * No habilita cuentas inactivas ni cambia sus credenciales al completar permisos (RN-26).
+     * Crea la membresía si falta; conserva toda revocación y emite un aviso sin datos personales.
      * @param correo correo inicial configurado; vacío indica configuración incompleta
      * @param password contraseña inicial configurada; vacía omite la cuenta, nunca se registra
      * @param nombre nombre inicial configurado; vacío omite la cuenta
@@ -203,6 +204,9 @@ public class AuthService {
         var propiedad = membresias.findByNegocioIdAndUsuarioId(negocioId, admin.getId())
                 .orElseGet(() -> new Membresia(negocioId, admin.getId(), RolNegocio.PROPIETARIO, ahora));
         propiedad.acreditarPropietarioInicial(ahora);
+        if (!propiedad.isActiva()) {
+            LOG.warn("La membresía inicial está revocada; el arranque conserva la baja y no concede acceso.");
+        }
         membresias.save(propiedad);
         LOG.info("Registro de administrador inicial id={}.", admin.getId());
     }

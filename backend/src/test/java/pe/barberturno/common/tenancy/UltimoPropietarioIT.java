@@ -48,7 +48,7 @@ class UltimoPropietarioIT extends IdentidadPruebaBase {
         pertenencia(1L, encargado, RolNegocio.ENCARGADO);
         var otro = persona("revocado", Rol.ADMIN);
         var revocada = pertenencia(1L, otro, RolNegocio.PROPIETARIO);
-        revocada.revocar(reloj.instant()); membresias.save(revocada);
+        revocada.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(revocada);
         var inactivo = propietario("inactivo");
         inactivo.desactivar(reloj.instant()); usuarios.saveAndFlush(inactivo);
         pertenencia(b, persona("titular-b", Rol.ADMIN), RolNegocio.PROPIETARIO);

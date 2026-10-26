@@ -21,7 +21,8 @@ class RutasCanonicasIT extends PeticionNegocioPruebaBase {
                 "/api/n/a/%70erfil", "/api/n/a/%61uth/password", "/api/%6E/a/servicios",
                 "/api/n/%61/servicios", "/api/%70erfil", "/%61pi/n/a/servicios",
                 "/%61pi/servicios", "/api/%61uth/password", "/api/n/a/%73ervicios",
-                "/api/%73ervicios",
+                "/api/%73ervicios", "/api/%70lataforma/negocios", "/api/plataforma/%6eegocios",
+                "/api/n/a/%70lataforma/negocios", "/api/n/a/plataforma/%6eegocios",
                 "/api/n/a/servicios%2F", "/api/servicios%2F", "/api/n/a/%2E/perfil",
                 "/api/%2E/perfil", "/api/n/a/%25perfil", "/api/%25perfil")
                 .map(ruta -> Arguments.of(ruta, 400));
@@ -31,7 +32,8 @@ class RutasCanonicasIT extends PeticionNegocioPruebaBase {
                 .map(ruta -> Arguments.of(ruta, 400));
         var noCanonicas = Stream.of("/api/n/a/PERFIL", "/api/PERFIL", "/API/n/a/perfil", "/API/perfil",
                 "/api/N/a/servicios", "/api/n/A/servicios", "/api/n/a/servicios/", "/api/servicios/",
-                "/api/n/a/perfil/", "/api/perfil/", "/api/n/a/auth/password/", "/api/auth/password/")
+                "/api/n/a/perfil/", "/api/perfil/", "/api/n/a/auth/password/", "/api/auth/password/",
+                "/api/PLATAFORMA/negocios", "/api/plataforma/negocios/", "/api/n/a/plataforma/negocios")
                 .map(ruta -> Arguments.of(ruta, 404));
         return Stream.of(codificadas, firewall, noCanonicas).flatMap(s -> s);
     }

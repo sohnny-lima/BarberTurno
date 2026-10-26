@@ -21,6 +21,7 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.scheduling.Jornada;
 import pe.barberturno.support.*;
 import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
@@ -207,9 +208,13 @@ class CancelacionIT extends ReservaPruebaBase {
     }
 
     @Test void adminConPerfilAsignado_noSeNotificaASiMismo() throws Exception {
-        var dto = crear();
         var admin = admin();
-        jdbc.update("update barbero set usuario_id=? where id=?", admin.getId(), barbero.getId());
+        // El perfil nace con su cuenta definitiva; nunca se reasigna una agenda (V2-DA-39).
+        barbero = barberos.saveAndFlush(new Barbero(admin, "Cortes", reloj.instant()));
+        for (short dia = 1; dia <= 7; dia++) {
+            jornadas.saveAndFlush(new Jornada(barbero, dia, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        var dto = crear();
         leer(cancelar(dto, admin, "Ausencia justificada"));
         comprobarAvisos(cliente.getId());
         comprobarAuditoria(dto, admin, "Ausencia justificada", false);

@@ -137,7 +137,7 @@ class IdentidadCompartidaIT extends IdentidadPruebaBase {
         var usuario = persona("local", Rol.BARBERO);
         pertenencia(1L, usuario, RolNegocio.BARBERO);
         var otra = pertenencia(b, usuario, RolNegocio.BARBERO);
-        otra.revocar(reloj.instant());
+        otra.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
         membresias.save(otra);
         mvc.perform(csrf(estado(usuario.getId(), false), sesion(actor))).andExpect(status().isOk());
     }

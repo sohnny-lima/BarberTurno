@@ -25,7 +25,7 @@ sequenceDiagram
 ## 2. Invitaciones del equipo
 | Paso | Regla |
 |---|---|
-| Invitar | Propietario: cualquier rol. Encargado: solo `BARBERO`. Si el rol es `BARBERO`, la invitación puede asociarse a un perfil `barbero` ya creado (con su horario; `invitacion.barbero_id`) y al aceptar se rellena `barbero.usuario_id`. Una invitación pendiente por correo y negocio (`invitacion_pendiente_uk`). |
+| Invitar | Propietario: cualquier rol. Encargado: solo `BARBERO`. La invitación no vincula perfiles (V2-DA-39): tras aceptar una invitación `BARBERO`, el personal de gestión crea el perfil profesional de esa cuenta (con su horario) por el vínculo `POST /api/n/{slug}/barberos {usuarioId}`. Una invitación pendiente por correo y negocio (`invitacion_pendiente_uk`). *(Actualizado el 24/10/2026; la versión inicial vinculaba un perfil previo con `invitacion.barbero_id`.)* |
 | Aceptar | Mismo flujo que el §1. Si la persona ya tiene membresía en el negocio → 409 `YA_ES_MIEMBRO`. |
 | Revocar invitación | Pasa a `REVOCADA`; el enlace deja de servir en el acto. |
 | Cambiar rol | Solo el propietario. Degradar al último propietario → 409 `ULTIMO_PROPIETARIO`. |
