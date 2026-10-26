@@ -171,6 +171,7 @@
 - **Decisión:** hasta que cambie el frontend (V2-07), `clienteId` (reserva asistida) y `ReservaDto.cliente.id` siguen siendo el id de la **cuenta**; el servidor lo traduce a la ficha activa del negocio actual (sin ficha → 404). Los ids de ficha solo aparecen en `/api/clientes/{id}`.
 - **Por qué:** evita tocar el frontend en esta etapa y mantiene válidos los datos migrados (en v1, ficha y cuenta comparten id; en v2 una cuenta puede tener varias fichas).
 - **Consecuencia:** las fichas sin cuenta (WhatsApp, alta por el personal) no se pueden reservar por la web hasta V2-07, que pasa el contrato a ids de ficha.
+- **Actualización (26/10/2026, V2-07, backlog §10.5):** V2-07 **conserva** el id de la cuenta: no hay en V2-07 ninguna pantalla que cree fichas sin cuenta, y el cambio no añade aislamiento. El paso a ids de ficha se hará con la primera funcionalidad que reserve para fichas sin cuenta (WhatsApp o bandeja web, V2-10/V2-11).
 
 ---
 *Decisiones V2-DA-30 y V2-DA-31: alcance de V2-04 (24/10/2026). Vigentes.*
