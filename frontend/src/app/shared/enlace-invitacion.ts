@@ -18,7 +18,7 @@ import { EstadoContenido } from './estado-contenido';
           ? 'El enlace se muestra una sola vez y caduca el ' +
             (expiraEn()! | fechaLima) +
             ' (hora de Lima).'
-          : 'El enlace se muestra una sola vez y caduca en siete días.'
+          : 'El enlace se muestra una sola vez.'
       "
     />
   </section>`,

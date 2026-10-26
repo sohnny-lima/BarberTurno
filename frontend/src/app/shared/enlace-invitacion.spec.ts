@@ -2,6 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { EnlaceInvitacion } from './enlace-invitacion';
 
 describe('Enlace de invitación efímero', () => {
+  it('no inventa una caducidad cuando la respuesta no la incluye', () => {
+    const f = TestBed.createComponent(EnlaceInvitacion);
+    f.componentRef.setInput('enlace', '/api/invitaciones/capacidad-ficticia');
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('El enlace se muestra una sola vez.');
+    expect(f.nativeElement.textContent).not.toContain('caduca');
+    expect(f.nativeElement.textContent).not.toContain('siete');
+  });
   it('copia la URL completa y anuncia el resultado sin persistir el token', async () => {
     const copiar = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
