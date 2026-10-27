@@ -6,7 +6,7 @@ El repositorio y las bases locales están preparados (T-01). El backend ya arran
 
 ## BarberTurno v2 en local
 
-Este worktree desarrolla V2-07 en `tarea/V2-07-interfaz-multinegocio`, desde `v2` con V2-01…V2-06 integradas. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. Gestión, plataforma y estados multinegocio implementados; retirada del alias y verificación final en curso ([evidencia](docs/v2/pruebas/v2-07.md)). El arnés E2E usa exclusivamente la base de pruebas de v2. Sin integración ni publicación.
+Este worktree desarrolla V2-07 en `tarea/V2-07-interfaz-multinegocio`, desde `v2` con V2-01…V2-06 integradas. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. Gestión, plataforma y estados multinegocio implementados; alias retirado y verificado, con la verificación visual final en curso ([evidencia](docs/v2/pruebas/v2-07.md)). El arnés E2E usa exclusivamente la base de pruebas de v2. Sin integración ni publicación.
 
 El responsable prepara el entorno una sola vez desde la raíz con `tools/preparar-entorno-v2.ps1` (PostgreSQL 18.6, puerto 5433). El script crea exclusivamente las bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`, propiedad de `barberturno_v2`, y el rol operativo `barberturno_v2_app`, sin privilegios administrativos ni propiedad. No reutilice bases o credenciales de v1. En este equipo ya está preparado.
 
