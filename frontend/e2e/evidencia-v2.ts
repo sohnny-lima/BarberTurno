@@ -85,6 +85,50 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
       }
     }
     await comprobarDisposicion(page, original.width);
+    expect(await page.locator('.saltar').evaluate((el) => el.matches(':focus-visible'))).toBe(
+      false,
+    );
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelector('mat-sidenav-content')?.scrollTo(0, 0);
+      document.querySelector('.mat-drawer-inner-container')?.scrollTo(0, 0);
+    });
+    await page.evaluate(
+      () =>
+        new Promise<void>((terminar) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => terminar())),
+        ),
+    );
+    await comprobarDisposicion(page, original.width);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    expect(
+      await page.locator('.saltar').evaluate((el) => el.getBoundingClientRect().bottom),
+    ).toBeLessThanOrEqual(0);
+    await esperarEstable(page);
+    const axe = await new AxeBuilder({ page }).analyze();
+    const relevantes = axe.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(
+      relevantes.map((v) => ({
+        id: v.id,
+        impacto: v.impact,
+        nodos: v.nodes.map((n) => n.target.join(' ') + ' · ' + n.failureSummary),
+      })),
+      nombre,
+    ).toEqual([]);
+    const navegador = info.project.use.browserName ?? info.project.name.split('-')[0];
+    const carpeta = resolve('../docs/pruebas/v2-07/capturas', navegador);
+    mkdirSync(carpeta, { recursive: true });
+    const archivo = `${original.width}-${nombre}`;
+    await page.screenshot({
+      path: resolve(carpeta, archivo + '.png'),
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await comprobarDisposicion(page, original.width);
+    // El foco con teclado se comprueba después de axe y de la captura: salir de un campo con
+    // Shift+Tab lo marca como tocado y mostraría un error que la persona no ha provocado.
     const raiz =
       (await paneles.count()) > 0
         ? paneles.first()
@@ -127,49 +171,6 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
     expect(foco.visible, descripcion).toBe(true);
     expect(foco.estilo, descripcion).not.toBe('none');
     expect(parseFloat(foco.ancho), descripcion).toBeGreaterThanOrEqual(3);
-    expect(await page.locator('.saltar').evaluate((el) => el.matches(':focus-visible'))).toBe(
-      false,
-    );
-    await page.evaluate(() => {
-      window.scrollTo(0, 0);
-      document.querySelector('mat-sidenav-content')?.scrollTo(0, 0);
-      document.querySelector('.mat-drawer-inner-container')?.scrollTo(0, 0);
-    });
-    await page.evaluate(
-      () =>
-        new Promise<void>((terminar) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => terminar())),
-        ),
-    );
-    await comprobarDisposicion(page, original.width);
-    expect(await page.evaluate(() => scrollY)).toBe(0);
-    expect(
-      await page.locator('.saltar').evaluate((el) => el.getBoundingClientRect().bottom),
-    ).toBeLessThanOrEqual(0);
-    // La prueba de foco puede mostrar un aviso con transición (p. ej. mat-error al salir de un campo).
-    await esperarEstable(page);
-    const axe = await new AxeBuilder({ page }).analyze();
-    const relevantes = axe.violations.filter(
-      (v) => v.impact === 'serious' || v.impact === 'critical',
-    );
-    expect(
-      relevantes.map((v) => ({
-        id: v.id,
-        impacto: v.impact,
-        nodos: v.nodes.map((n) => n.target.join(' ') + ' · ' + n.failureSummary),
-      })),
-      nombre,
-    ).toEqual([]);
-    const navegador = info.project.use.browserName ?? info.project.name.split('-')[0];
-    const carpeta = resolve('../docs/pruebas/v2-07/capturas', navegador);
-    mkdirSync(carpeta, { recursive: true });
-    const archivo = `${original.width}-${nombre}`;
-    await page.screenshot({
-      path: resolve(carpeta, archivo + '.png'),
-      fullPage: true,
-      animations: 'disabled',
-    });
-    await comprobarDisposicion(page, original.width);
     writeFileSync(
       resolve(carpeta, archivo + '.json'),
       JSON.stringify(
