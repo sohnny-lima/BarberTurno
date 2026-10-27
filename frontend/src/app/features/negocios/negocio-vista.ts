@@ -11,11 +11,12 @@ import { ReservasApi } from '../../core/api/reservas-api';
 import { ServiciosApi } from '../../core/api/servicios-api';
 import { UsuariosApi } from '../../core/api/usuarios-api';
 import { NegocioActual } from '../../core/negocio/negocio-actual';
+import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { EstadoContenido } from '../../shared/estado-contenido';
 
 @Component({
   selector: 'app-negocio-vista',
-  imports: [RouterOutlet, RouterLink, MatButtonModule, EstadoContenido],
+  imports: [RouterOutlet, RouterLink, MatButtonModule, CabeceraPagina, EstadoContenido],
   providers: [
     BarberosApi,
     DisponibilidadApi,
@@ -32,10 +33,12 @@ import { EstadoContenido } from '../../shared/estado-contenido';
     },
   ],
   template: ` @if (negocio.estado()?.tipo === 'inexistente') {
+      <app-cabecera-pagina titulo="Barbería no encontrada" />
       <app-estado-contenido tipo="vacio" texto="No encontramos esa barbería. Revise la dirección."
         ><a mat-button routerLink="/negocios">Ir a mis barberías</a></app-estado-contenido
       >
     } @else if (negocio.estado()?.tipo === 'error') {
+      <app-cabecera-pagina [titulo]="negocio.nombre() ?? ''" />
       <app-estado-contenido
         tipo="error"
         texto="No pudimos consultar la barbería. Intente nuevamente."
@@ -43,6 +46,7 @@ import { EstadoContenido } from '../../shared/estado-contenido';
         (reintentar)="recargar()"
       />
     } @else if (negocio.estado()?.tipo === 'suspendido' && !personal()) {
+      <app-cabecera-pagina titulo="Barbería no disponible" />
       <app-estado-contenido tipo="aviso" texto="Esta barbería no está disponible por ahora."
         ><a mat-button routerLink="/negocios">Ir a mis barberías</a></app-estado-contenido
       >

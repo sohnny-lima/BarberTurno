@@ -51,6 +51,8 @@ async function esperarEstable(page: Page) {
 /** Captura y ficha de QA sin cookies, valores de formulario ni capacidades en los metadatos. */
 export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
   await page.bringToFront();
+  // Sin hover accidental: al ampliar la altura el puntero quedaría sobre otro control.
+  await page.mouse.move(0, 0);
   await expect(page.locator('main')).toBeVisible();
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);

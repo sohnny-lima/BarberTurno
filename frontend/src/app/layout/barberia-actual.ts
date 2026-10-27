@@ -18,7 +18,7 @@ import { EntradaNegocio } from '../features/negocios/entrada-negocio';
 @Component({
   selector: 'app-barberia-actual',
   imports: [RouterLink, MatButtonModule],
-  template: `@if (negocio.slug()) {
+  template: `@if (negocio.slug() && negocio.estado()?.tipo !== 'inexistente') {
     <section aria-label="Barbería actual">
       <strong>{{ negocio.nombre() }}</strong
       ><span>{{ nombrePapel() }}</span>

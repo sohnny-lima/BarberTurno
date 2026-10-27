@@ -71,7 +71,7 @@ export class Configuracion {
     },
     {
       clave: 'anticipacionCambioClienteMin',
-      etiqueta: 'Anticipación para cambios del cliente en minutos',
+      etiqueta: 'Anticipación de cambios en minutos',
       ayuda: 'Tiempo previo necesario para que el cliente cambie su cita.',
       min: 0,
     },
