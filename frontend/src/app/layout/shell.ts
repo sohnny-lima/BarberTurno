@@ -202,6 +202,18 @@ export class Shell {
         });
       });
   }
+  /**
+   * Salto al contenido sin navegar: con `<base href="/">`, «#contenido» se resolvería como
+   * «/#contenido» y llevaría a la raíz. Con el menú móvil abierto, primero lo cierra.
+   */
+  saltarAlContenido(evento: Event) {
+    evento.preventDefault();
+    // focus() también desplaza la vista hasta el contenido.
+    const enfocar = () => this.contenido()?.nativeElement.focus();
+    const menu = this.menu();
+    if (this.movil() && menu?.opened) void menu.close().then(enfocar);
+    else enfocar();
+  }
   async abrirAvisos() {
     if (this.dialogoAvisosActivo) return;
     const origen = this.negocio.ambito();

@@ -476,6 +476,39 @@ describe('Shell adaptable', () => {
     expect(menu.opened).toBe(false);
     expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
+  it.each([false, true])(
+    'el salto al contenido no navega y lleva el foco a main (móvil con menú abierto: %s)',
+    async (esMovil) => {
+      entrar('ADMIN');
+      movil.next({ matches: esMovil });
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(MatSidenav))
+        .componentInstance as MatSidenav;
+      if (esMovil) {
+        await menu.open();
+        fixture.detectChanges();
+      }
+      const abierto = menu.opened;
+      const enlace = fixture.nativeElement.querySelector('.saltar') as HTMLAnchorElement;
+      const clic = new MouseEvent('click', { bubbles: true, cancelable: true });
+      // El foco se sitúa al terminar el cierre, cuando Material ya no lo devuelve al disparador.
+      const cerrado = new Promise<void>((listo) => {
+        if (!esMovil) return listo();
+        const aviso = menu.openedChange.subscribe(() => {
+          aviso.unsubscribe();
+          listo();
+        });
+      });
+      enlace.dispatchEvent(clic);
+      await cerrado;
+      await fixture.whenStable();
+      // Con <base href="/">, la acción por defecto llevaría a «/#contenido».
+      expect(clic.defaultPrevented).toBe(true);
+      expect(menu.opened).toBe(esMovil ? false : abierto);
+      expect(document.activeElement).toBe(fixture.nativeElement.querySelector('main'));
+    },
+  );
   it('la barra adopta el título de la vista sin añadir otro encabezado', () => {
     entrar('CLIENTE');
     movil.next({ matches: true });

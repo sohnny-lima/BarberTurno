@@ -299,6 +299,10 @@ describe('Agenda operativa', () => {
       .flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    // Un aria-label en <p> se ignora: el contexto va como texto visualmente oculto.
+    const resumen = fixture.nativeElement.querySelector('.resumen-conteos');
+    expect(resumen.hasAttribute('aria-label')).toBe(false);
+    expect(resumen.textContent.trim()).toBe('Resumen de citas: 0 citas.');
   });
   it('resume estados en minúsculas con plurales y conjunción', () => {
     const agenda = crear().componentInstance;

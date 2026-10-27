@@ -1471,10 +1471,40 @@ test('13 · selector y cambio con respuesta pendiente cancelan el ámbito anteri
   await capturarNucleo(page, testInfo, 'selector');
   await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
   await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  // Salto al contenido con el teclado: no navega (con <base href="/">, «#contenido» llevaría a la
+  // raíz) y deja el foco en el contenido de la página actual.
+  const agenda = page.url();
+  await page.locator('.saltar').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('main')).toBeFocused();
+  expect(page.url()).toBe(agenda);
   const contexto = await abrirContexto(page);
   await expect(contexto).toContainText('Propietario');
   await capturarNucleo(page, testInfo, page.viewportSize()!.width === 360 ? 'cajon' : 'contexto');
-  if (page.viewportSize()!.width === 360) await page.keyboard.press('Escape');
+  if (page.viewportSize()!.width === 360) {
+    await page.keyboard.press('Escape');
+    // Con el menú abierto, Tab no alcanza el salto, pero un lector de pantalla en modo exploración
+    // puede activarlo: el menú se cierra y el foco queda en el contenido visible.
+    await abrirContexto(page);
+    await expect(page.locator('mat-sidenav')).toBeVisible();
+    await page.locator('.saltar').evaluate((enlace: HTMLElement) => enlace.click());
+    await expect(page.locator('mat-sidenav')).toBeHidden();
+    await expect(page.locator('main')).toBeFocused();
+    expect(page.url()).toBe(agenda);
+    // El fondo del menú termina de desvanecerse ~100 ms después del foco (medido en Firefox):
+    // se espera a que el contenido quede visible en lugar de medir en un instante fijo.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const caja = document.querySelector('main')!.getBoundingClientRect();
+            const punto = document.elementFromPoint(caja.left + 40, Math.max(caja.top, 0) + 40);
+            return !!punto?.closest('main');
+          }),
+        { message: 'El contenido debe quedar visible tras el salto con el menú abierto.' },
+      )
+      .toBe(true);
+  }
   await seleccionar(page, 'Barbero', 'Carlos');
   let soltar!: () => void;
   const espera = new Promise<void>((resolver) => {

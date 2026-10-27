@@ -48,6 +48,105 @@ async function esperarEstable(page: Page) {
   });
 }
 
+/**
+ * Revisión de los nodos de contraste que axe deja «incompletos» (no puede decidir porque otro
+ * elemento, p. ej. el contorno de un campo de Material, se superpone al texto). Calcula el
+ * contraste con el color del texto y el fondo efectivo de sus antecesores, componiendo las
+ * transparencias y la opacidad. Se registra en la evidencia; no hace fallar la captura.
+ */
+function medirContraste(selectores: string[]) {
+  const lienzo = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const rgba = (color: string): number[] => {
+    lienzo.clearRect(0, 0, 1, 1);
+    lienzo.fillStyle = 'rgba(0, 0, 0, 0)';
+    lienzo.fillStyle = color;
+    lienzo.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = lienzo.getImageData(0, 0, 1, 1).data;
+    return [r, g, b, a / 255];
+  };
+  const componer = (arriba: number[], abajo: number[]) =>
+    [0, 1, 2].map((i) => arriba[i] * arriba[3] + abajo[i] * (1 - arriba[3])).concat(1);
+  const luminancia = (c: number[]) =>
+    c
+      .slice(0, 3)
+      .map((v) => v / 255)
+      .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+      .reduce((suma, v, i) => suma + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const hex = (c: number[]) =>
+    '#' +
+    c
+      .slice(0, 3)
+      .map((v) => Math.round(v).toString(16).padStart(2, '0'))
+      .join('');
+  return selectores.map((selector) => {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (!el) return { selector, error: 'no encontrado' };
+    const capas: number[][] = [];
+    let imagen = false;
+    let opacidad = 1;
+    for (let nodo: HTMLElement | null = el; nodo; nodo = nodo.parentElement) {
+      const propio = getComputedStyle(nodo);
+      opacidad *= Number(propio.opacity);
+      if (propio.backgroundImage !== 'none') imagen = true;
+      const capa = rgba(propio.backgroundColor);
+      if (capa[3] > 0) capas.push(capa);
+      if (capa[3] >= 1) break;
+    }
+    const fondo = capas
+      .reverse()
+      .reduce((abajo, arriba) => componer(arriba, abajo), [255, 255, 255, 1]);
+    const estilo = getComputedStyle(el);
+    const texto = rgba(estilo.color);
+    texto[3] *= opacidad;
+    const color = componer(texto, fondo);
+    const [l1, l2] = [luminancia(color), luminancia(fondo)].sort((a, b) => b - a);
+    const ratio = Math.round(((l1 + 0.05) / (l2 + 0.05)) * 100) / 100;
+    const tamano = parseFloat(estilo.fontSize);
+    const grande = tamano >= 24 || (tamano >= 18.66 && Number(estilo.fontWeight) >= 700);
+    const exento = !!el.closest(
+      ':disabled, [aria-disabled="true"], .mat-mdc-form-field-disabled, .mdc-text-field--disabled, .mat-mdc-button-disabled, .mdc-switch--disabled, .mat-button-toggle-disabled',
+    );
+    const componente = el.matches('input, textarea')
+      ? 'Valor de campo'
+      : el.closest('.mdc-floating-label, mat-label')
+        ? 'Etiqueta de campo'
+        : el.closest('mat-error')
+          ? 'Error de campo'
+          : el.closest('mat-hint, .mat-mdc-form-field-hint')
+            ? 'Pista de campo'
+            : el.closest(
+                  '.mat-mdc-select-value, .mat-mdc-select-min-line, .mat-mdc-select-placeholder',
+                )
+              ? 'Valor de selector'
+              : el.closest('.mat-button-toggle')
+                ? 'Grupo conmutable'
+                : el.closest('.mat-mdc-dialog-title')
+                  ? 'Título de diálogo'
+                  : el.closest('.mat-mdc-button-base')
+                    ? 'Botón'
+                    : el.tagName.toLowerCase() + '.' + (el.classList[0] ?? '');
+    const estado = exento
+      ? 'desactivado'
+      : el.closest('.mat-form-field-invalid')
+        ? 'con error'
+        : el.closest('.mat-focused')
+          ? 'con foco'
+          : 'normal';
+    return {
+      selector,
+      componente,
+      estado,
+      color: hex(color),
+      fondo: hex(fondo),
+      ratio,
+      minimo: grande ? 3 : 4.5,
+      exento,
+      cumple: exento || ratio >= (grande ? 3 : 4.5),
+      imagen,
+    };
+  });
+}
+
 /** Captura y ficha de QA sin cookies, valores de formulario ni capacidades en los metadatos. */
 export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
   await page.bringToFront();
@@ -119,6 +218,13 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
       })),
       nombre,
     ).toEqual([]);
+    const contrasteIncompleto = axe.incomplete.find((v) => v.id === 'color-contrast');
+    const contrasteManual = contrasteIncompleto
+      ? await page.evaluate(
+          medirContraste,
+          contrasteIncompleto.nodes.map((n) => n.target.join(' ')),
+        )
+      : [];
     const navegador = info.project.use.browserName ?? info.project.name.split('-')[0];
     const carpeta = resolve('../docs/pruebas/v2-07/capturas', navegador);
     mkdirSync(carpeta, { recursive: true });
@@ -181,6 +287,41 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
     expect(foco.visible, descripcion).toBe(true);
     expect(foco.estilo, descripcion).not.toBe('none');
     expect(parseFloat(foco.ancho), descripcion).toBeGreaterThanOrEqual(3);
+    // Contención: con un diálogo o el menú móvil abiertos, Tab y Shift+Tab nunca sacan el foco ni
+    // lo dejan en las anclas de CDK o en el salto al contenido (aria-hidden-focus de axe). Los menús
+    // de Material se cierran con Tab por diseño y no se recorren. El foco vuelve al control inicial.
+    let contencion: { ambito: string; pulsaciones: number } | null = null;
+    const ambito = (await page.getByRole('dialog').isVisible())
+      ? '[role="dialog"]'
+      : cajon
+        ? 'mat-sidenav'
+        : null;
+    if (ambito) {
+      const pulsaciones =
+        (await page
+          .locator(ambito)
+          .first()
+          .locator('a[href], button:enabled, input:enabled, textarea:enabled, [tabindex="0"]')
+          .filter({ visible: true })
+          .count()) + 2;
+      const escapes: string[] = [];
+      for (const tecla of ['Tab', 'Shift+Tab'])
+        for (let i = 1; i <= pulsaciones; i++) {
+          await page.keyboard.press(tecla);
+          const fuera = await page.evaluate((selector) => {
+            const activo = document.activeElement;
+            const valido =
+              !!activo?.closest(selector) &&
+              !activo.classList.contains('cdk-focus-trap-anchor') &&
+              !activo.classList.contains('saltar');
+            return valido ? null : activo ? activo.tagName + '.' + activo.className : 'ninguno';
+          }, ambito);
+          if (fuera) escapes.push(tecla + ' ' + i + ': ' + fuera);
+        }
+      expect(escapes, nombre + ': el foco sale de ' + ambito).toEqual([]);
+      await control.focus();
+      contencion = { ambito, pulsaciones };
+    }
     writeFileSync(
       resolve(carpeta, archivo + '.json'),
       JSON.stringify(
@@ -191,6 +332,7 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
           captura: page.viewportSize(),
           superpuesta,
           foco,
+          contencion,
           ruta: new URL(page.url()).pathname.replace(/^\/invitacion\/.+/, '/invitacion/:token'),
           // Resultado completo: la prueba falla solo con serias o críticas (CG-6); el resto se
           // registra con sus nodos, y los incompletos son los que axe no pudo decidir solo.
@@ -212,8 +354,9 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
             incompletas: axe.incomplete.map((v) => ({
               id: v.id,
               impacto: v.impact,
-              nodos: v.nodes.length,
+              nodos: v.nodes.map((n) => n.target.join(' ')),
             })),
+            contrasteManual,
           },
           disposicion: 'sin desbordamiento; escritorio sin barra móvil ni superposición del riel',
         },

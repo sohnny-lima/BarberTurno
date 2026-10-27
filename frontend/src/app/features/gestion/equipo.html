@@ -63,7 +63,7 @@
 ></ng-template>
 <ng-template #tarjetas>
   @for (fila of visibles(); track fila.id) {
-    <article class="ficha" role="listitem">
+    <div class="ficha" role="listitem">
       <div class="ficha-cabecera">
         <h2>
           {{ fila.nombre }}
@@ -88,7 +88,7 @@
           [ngTemplateOutletContext]="{ $implicit: fila }"
         />
       </div>
-    </article>
+    </div>
   }
 </ng-template>
 <ng-template #acciones let-fila>

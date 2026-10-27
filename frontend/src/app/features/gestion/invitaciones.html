@@ -74,12 +74,12 @@
 ></ng-template>
 <ng-template #tarjetas>
   @for (fila of filas(); track fila.id) {
-    <article class="ficha" role="listitem">
+    <div class="ficha" role="listitem">
       <h2>{{ fila.correo }}</h2>
       <p>{{ nombres[fila.rol] }}</p>
       <p class="ayuda">Caduca el {{ fila.expiraEn | fechaLima }} (hora de Lima).</p>
       <ng-container [ngTemplateOutlet]="acciones" [ngTemplateOutletContext]="{ $implicit: fila }" />
-    </article>
+    </div>
   }
 </ng-template>
 <ng-template #acciones let-fila>
