@@ -30,16 +30,11 @@ async function comprobarDisposicion(page: Page, ancho: number) {
   }
 }
 
-/** Captura y ficha de QA sin cookies, valores de formulario ni capacidades en los metadatos. */
-export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
-  await page.bringToFront();
-  await expect(page.locator('main')).toBeVisible();
-  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);
-  // Los avisos transitorios de otros escenarios terminan antes de fotografiar el estado estable.
-  // La ausencia inmediata del snackbar de suspensión se exige aparte en el recorrido 21.
-  await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+/** Fuentes, imágenes y animaciones finitas terminadas: axe y la captura miden el estado estable. */
+async function esperarEstable(page: Page) {
   await page.evaluate(async () => {
+    // Dos fotogramas: una transición recién provocada ya figura en getAnimations().
+    await new Promise((listo) => requestAnimationFrame(() => requestAnimationFrame(listo)));
     await document.fonts.ready;
     await Promise.all(
       Array.from(document.images).map((imagen) => imagen.decode().catch(() => undefined)),
@@ -51,6 +46,18 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
         .map((animacion) => animacion.finished.catch(() => undefined)),
     );
   });
+}
+
+/** Captura y ficha de QA sin cookies, valores de formulario ni capacidades en los metadatos. */
+export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
+  await page.bringToFront();
+  await expect(page.locator('main')).toBeVisible();
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);
+  // Los avisos transitorios de otros escenarios terminan antes de fotografiar el estado estable.
+  // La ausencia inmediata del snackbar de suspensión se exige aparte en el recorrido 21.
+  await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+  await esperarEstable(page);
   const original = page.viewportSize()!;
   await comprobarDisposicion(page, original.width);
   const paneles = page.locator('.cdk-overlay-pane').filter({ visible: true });
@@ -139,12 +146,18 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
     expect(
       await page.locator('.saltar').evaluate((el) => el.getBoundingClientRect().bottom),
     ).toBeLessThanOrEqual(0);
+    // La prueba de foco puede mostrar un aviso con transición (p. ej. mat-error al salir de un campo).
+    await esperarEstable(page);
     const axe = await new AxeBuilder({ page }).analyze();
     const relevantes = axe.violations.filter(
       (v) => v.impact === 'serious' || v.impact === 'critical',
     );
     expect(
-      relevantes.map((v) => ({ id: v.id, impacto: v.impact })),
+      relevantes.map((v) => ({
+        id: v.id,
+        impacto: v.impact,
+        nodos: v.nodes.map((n) => n.target.join(' ') + ' · ' + n.failureSummary),
+      })),
       nombre,
     ).toEqual([]);
     const navegador = info.project.use.browserName ?? info.project.name.split('-')[0];
