@@ -1958,6 +1958,20 @@ test('21 · suspensión desde plataforma: público no disponible, personal consu
       page.getByRole('button', { name: 'Reactivar BarberTurno', exact: true }),
     ).toBeVisible();
     await capturarGestion(page, info, 'suspendida-plataforma');
+    // Suspensión con la sesión abierta: el rechazo del servidor muestra el aviso fijo sin recargar.
+    await expect(personal.locator('main')).not.toContainText('Barbería suspendida');
+    const enCurso = personal.waitForResponse(
+      (r) => r.url().endsWith('/configuracion') && r.request().method() === 'PUT',
+    );
+    await personal.getByRole('button', { name: 'Guardar configuración', exact: true }).click();
+    const rechazoEnCurso = await enCurso;
+    expect(rechazoEnCurso.status()).toBe(409);
+    expect((await rechazoEnCurso.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
+    await expect(personal.locator('main')).toContainText(
+      'Barbería suspendida: puede consultar, pero no hacer cambios.',
+    );
+    await expect(personal.locator('main [role="alert"]')).toContainText(/suspendid/i);
+    expect(await personal.locator('mat-snack-bar-container').count()).toBe(0);
     await personal.reload();
     await expect(personal.locator('main')).toContainText(
       'Barbería suspendida: puede consultar, pero no hacer cambios.',

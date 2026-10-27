@@ -120,6 +120,12 @@ export class NegocioActual {
   actualizarSesion(usuario: UsuarioSesionDto | null) {
     this.datos.update((datos) => (datos ? { ...datos, sesion: usuario } : datos));
   }
+  /** El servidor rechazó una escritura por suspensión después de la carga: se muestra el aviso fijo. */
+  marcarSuspendido() {
+    this.datos.update((datos) =>
+      datos?.tipo === 'disponible' ? { ...datos, tipo: 'suspendido' } : datos,
+    );
+  }
   limpiar() {
     this.actual.set(null);
     this.datos.set(null);

@@ -54,8 +54,11 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
               }
             },
           });
-      } else if (error.status !== 409 || problema?.codigo !== 'NEGOCIO_SUSPENDIDO') {
-        // La vista conserva el rechazo junto a la acción y el aviso fijo de suspensión.
+      } else if (error.status === 409 && problema?.codigo === 'NEGOCIO_SUSPENDIDO') {
+        // La vista conserva el rechazo junto a la acción; si la suspensión llegó con la
+        // sesión abierta, el aviso fijo aparece sin esperar a recargar. Sin snackbar duplicado.
+        if (origen) negocio.marcarSuspendido();
+      } else {
         const mensaje =
           error.status === 0 || error.status >= 500
             ? 'No pudimos completar la solicitud. Intente nuevamente.'

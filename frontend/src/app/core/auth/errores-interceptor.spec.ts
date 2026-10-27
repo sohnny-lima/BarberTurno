@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideRouter, Router } from '@angular/router';
 import { erroresInterceptor } from './errores-interceptor';
 import { SesionService } from './sesion-service';
+import { NegocioActual } from '../negocio/negocio-actual';
 
 describe('Interceptor de errores', () => {
   let http: HttpClient;
@@ -108,6 +109,36 @@ describe('Interceptor de errores', () => {
     expect(error.mock.calls[0][0].error).toEqual(problema);
     expect(abrir).not.toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
+  });
+  it('una suspensión llegada con la sesión abierta muestra el aviso fijo, sin snackbar', () => {
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.seleccionar('a');
+    negocio.cargar().subscribe();
+    peticiones
+      .expectOne('/api/n/a/sesion')
+      .flush({ id: 1, rol: 'ADMIN', rolNegocio: 'PROPIETARIO', debeCambiarPassword: false });
+    peticiones.expectOne('/api/n/a/negocio').flush({ slug: 'a', nombre: 'Barbería ficticia A' });
+    expect(negocio.estado()?.tipo).toBe('disponible');
+    const otro = vi.fn();
+    http.put('/api/n/a/configuracion', {}, { context: negocio.contexto() }).subscribe({
+      error: otro,
+    });
+    peticiones
+      .expectOne('/api/n/a/configuracion')
+      .flush({ codigo: 'CUPO_EXCEDIDO', detail: 'Cupo.' }, { status: 409, statusText: 'Conflict' });
+    expect(negocio.estado()?.tipo).toBe('disponible');
+    expect(abrir).toHaveBeenCalledTimes(1);
+    const error = vi.fn();
+    http.put('/api/n/a/configuracion', {}, { context: negocio.contexto() }).subscribe({ error });
+    peticiones
+      .expectOne('/api/n/a/configuracion')
+      .flush(
+        { codigo: 'NEGOCIO_SUSPENDIDO', detail: 'Suspendida.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    expect(error.mock.calls[0][0].error.codigo).toBe('NEGOCIO_SUSPENDIDO');
+    expect(negocio.estado()?.tipo).toBe('suspendido');
+    expect(abrir).toHaveBeenCalledTimes(1);
   });
   it.each([500, 503])('oculta detalles técnicos del estado %s', (status) => {
     http.get('/api/perfil').subscribe({ error: () => undefined });
