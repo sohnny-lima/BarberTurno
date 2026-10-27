@@ -18,6 +18,7 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": null,
   "ruta": "/n/barberturno/invitaciones",
   "axe": {
     "version": "4.13.0",
@@ -34,7 +35,36 @@
       {
         "id": "color-contrast",
         "impacto": "serious",
-        "nodos": 2
+        "nodos": [
+          "#mat-input-0",
+          ".mat-mdc-select-min-line"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-input-0",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": ".mat-mdc-select-min-line",
+        "componente": "Valor de selector",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
       }
     ]
   },

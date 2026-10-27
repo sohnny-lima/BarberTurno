@@ -18,6 +18,10 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": {
+    "ambito": "[role=\"dialog\"]",
+    "pulsaciones": 7
+  },
   "ruta": "/plataforma/negocios",
   "axe": {
     "version": "4.13.0",
@@ -34,12 +38,71 @@
       {
         "id": "aria-hidden-focus",
         "impacto": "serious",
-        "nodos": 3
+        "nodos": [
+          "app-root",
+          "#cdk-overlay-0 > .cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(1)",
+          "#cdk-overlay-0 > .cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(3)"
+        ]
       },
       {
         "id": "color-contrast",
         "impacto": "serious",
-        "nodos": 4
+        "nodos": [
+          "#mat-input-2",
+          "span[mattextprefix=\"\"]",
+          "#mat-input-3",
+          "#mat-input-4"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-input-2",
+        "componente": "Valor de campo",
+        "estado": "con foco",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "span[mattextprefix=\"\"]",
+        "componente": "span.",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#ffffff",
+        "ratio": 5.62,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-3",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-4",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
       }
     ]
   },

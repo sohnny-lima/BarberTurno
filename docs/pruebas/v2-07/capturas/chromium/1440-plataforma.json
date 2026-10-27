@@ -18,6 +18,7 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": null,
   "ruta": "/plataforma/negocios",
   "axe": {
     "version": "4.13.0",
@@ -30,7 +31,8 @@
     "seriasOCriticas": 0,
     "total": 0,
     "otras": [],
-    "incompletas": []
+    "incompletas": [],
+    "contrasteManual": []
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

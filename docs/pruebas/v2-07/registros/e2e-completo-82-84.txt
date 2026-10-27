@@ -1,0 +1,125 @@
+# Ejecución E2E completa (27/10/2026, 01:58-02:13) sobre el árbol de trabajo que pasó a 69e0aa7, ANTES de añadir al arnés el último recurso de foco en la cabecera, extracto sin modificar de frontend/tmp/claude-27-e2e.log
+# Resultado: 82 passed, 2 failed. Fallos solo en el recorrido 21 a 360 px (chromium y firefox).
+
+  ok 31 [chromium-360] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (7.5s)
+  ok 32 [chromium-360] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (3.8s)
+  ok 33 [chromium-360] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (8.7s)
+  ok 34 [chromium-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (6.5s)
+  ok 35 [chromium-360] › e2e\recorrido.spec.ts:1543:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal (5.9s)
+  ok 36 [chromium-360] › e2e\recorrido.spec.ts:1601:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior (1.7s)
+  ok 37 [chromium-360] › e2e\recorrido.spec.ts:1628:5 › 16 · logout y reingreso vacían el negocio y el papel anterior (2.3s)
+  ok 38 [chromium-360] › e2e\recorrido.spec.ts:1664:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada (17.0s)
+  ok 39 [chromium-360] › e2e\recorrido.spec.ts:1771:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente (8.7s)
+  ok 40 [chromium-360] › e2e\recorrido.spec.ts:1797:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente (6.7s)
+  ok 41 [chromium-360] › e2e\recorrido.spec.ts:1838:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez (8.2s)
+  x  42 [chromium-360] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación (22.3s)
+(node:168068) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 43 [firefox-1440] › e2e\recorrido.spec.ts:272:5 › 01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela (21.1s)
+  ok 44 [firefox-1440] › e2e\recorrido.spec.ts:454:5 › 02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas (2.2s)
+  ok 45 [firefox-1440] › e2e\recorrido.spec.ts:474:5 › 03 · Carlos inicia y completa la atención y confirma BT-100 en Semana (7.3s)
+  ok 46 [firefox-1440] › e2e\recorrido.spec.ts:533:5 › 04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes (32.4s)
+  ok 47 [firefox-1440] › e2e\recorrido.spec.ts:913:5 › 05 · cliente redirigido de administración y protegido después de logout (2.4s)
+  ok 48 [firefox-1440] › e2e\recorrido.spec.ts:925:5 › 06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad (9.4s)
+  ok 49 [firefox-1440] › e2e\recorrido.spec.ts:972:5 › 07 · registro con privacidad y edición persistente del perfil (CP-01) (4.8s)
+  ok 50 [firefox-1440] › e2e\recorrido.spec.ts:1059:5 › 08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso (11.2s)
+  ok 51 [firefox-1440] › e2e\recorrido.spec.ts:1224:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF (3.7s)
+  ok 52 [firefox-1440] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (7.1s)
+  ok 53 [firefox-1440] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (5.6s)
+  ok 54 [firefox-1440] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (11.7s)
+  ok 55 [firefox-1440] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (6.1s)
+  ok 56 [firefox-1440] › e2e\recorrido.spec.ts:1543:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal (6.2s)
+  ok 57 [firefox-1440] › e2e\recorrido.spec.ts:1601:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior (2.7s)
+  ok 58 [firefox-1440] › e2e\recorrido.spec.ts:1628:5 › 16 · logout y reingreso vacían el negocio y el papel anterior (2.8s)
+  ok 59 [firefox-1440] › e2e\recorrido.spec.ts:1664:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada (22.9s)
+  ok 60 [firefox-1440] › e2e\recorrido.spec.ts:1771:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente (10.2s)
+  ok 61 [firefox-1440] › e2e\recorrido.spec.ts:1797:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente (6.6s)
+  ok 62 [firefox-1440] › e2e\recorrido.spec.ts:1838:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez (13.8s)
+  ok 63 [firefox-1440] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación (12.4s)
+(node:216812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 64 [firefox-360] › e2e\recorrido.spec.ts:272:5 › 01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela (20.1s)
+  ok 65 [firefox-360] › e2e\recorrido.spec.ts:454:5 › 02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas (2.5s)
+  ok 66 [firefox-360] › e2e\recorrido.spec.ts:474:5 › 03 · Carlos inicia y completa la atención y confirma BT-100 en Semana (7.5s)
+  ok 67 [firefox-360] › e2e\recorrido.spec.ts:533:5 › 04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes (35.2s)
+  ok 68 [firefox-360] › e2e\recorrido.spec.ts:913:5 › 05 · cliente redirigido de administración y protegido después de logout (3.5s)
+  ok 69 [firefox-360] › e2e\recorrido.spec.ts:925:5 › 06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad (10.0s)
+  ok 70 [firefox-360] › e2e\recorrido.spec.ts:972:5 › 07 · registro con privacidad y edición persistente del perfil (CP-01) (6.9s)
+  ok 71 [firefox-360] › e2e\recorrido.spec.ts:1059:5 › 08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso (14.3s)
+  ok 72 [firefox-360] › e2e\recorrido.spec.ts:1224:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF (3.4s)
+  ok 73 [firefox-360] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (9.4s)
+  ok 74 [firefox-360] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (5.9s)
+  ok 75 [firefox-360] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (12.3s)
+  ok 76 [firefox-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (6.8s)
+  ok 77 [firefox-360] › e2e\recorrido.spec.ts:1543:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal (6.0s)
+  ok 78 [firefox-360] › e2e\recorrido.spec.ts:1601:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior (2.7s)
+  ok 79 [firefox-360] › e2e\recorrido.spec.ts:1628:5 › 16 · logout y reingreso vacían el negocio y el papel anterior (3.2s)
+  ok 80 [firefox-360] › e2e\recorrido.spec.ts:1664:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada (25.1s)
+  ok 81 [firefox-360] › e2e\recorrido.spec.ts:1771:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente (9.8s)
+  ok 82 [firefox-360] › e2e\recorrido.spec.ts:1797:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente (8.7s)
+  ok 83 [firefox-360] › e2e\recorrido.spec.ts:1838:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez (12.3s)
+  x  84 [firefox-360] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación (27.1s)
+
+
+  1) [chromium-360] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('a.enlace').visible().first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('a.enlace').visible().first() with timeout 15000ms
+      - waiting for locator('a.enlace').visible().first()
+
+
+       at evidencia-v2.ts:151
+
+      149 |     if (!(await control.count()))
+      150 |       control = page.locator('a.enlace').filter({ visible: true }).first();
+    > 151 |     await expect(control).toBeVisible();
+          |                           ^
+      152 |     await control.focus();
+      153 |     await page.keyboard.press('Shift+Tab');
+      154 |     await page.keyboard.press('Tab');
+        at capturarV2 (D:\Proyectos\BarberTurno-v2\frontend\e2e\evidencia-v2.ts:151:27)
+        at capturarGestion (D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:1661:3)
+        at D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:2003:5
+
+    Error Context: test-results\recorrido-21-·-suspensión--27e05-a-y-no-escribe-reactivación-chromium-360\error-context.md
+
+  2) [firefox-360] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('a.enlace').visible().first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('a.enlace').visible().first() with timeout 15000ms
+      - waiting for locator('a.enlace').visible().first()
+
+
+       at evidencia-v2.ts:151
+
+      149 |     if (!(await control.count()))
+      150 |       control = page.locator('a.enlace').filter({ visible: true }).first();
+    > 151 |     await expect(control).toBeVisible();
+          |                           ^
+      152 |     await control.focus();
+      153 |     await page.keyboard.press('Shift+Tab');
+      154 |     await page.keyboard.press('Tab');
+        at capturarV2 (D:\Proyectos\BarberTurno-v2\frontend\e2e\evidencia-v2.ts:151:27)
+        at capturarGestion (D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:1661:3)
+        at D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:2003:5
+
+    Error Context: test-results\recorrido-21-·-suspensión--27e05-a-y-no-escribe-reactivación-firefox-360\error-context.md
+
+  2 failed
+    [chromium-360] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación 
+    [firefox-360] › e2e\recorrido.spec.ts:1918:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación 
+  82 passed (14.0m)

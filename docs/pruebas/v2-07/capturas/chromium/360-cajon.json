@@ -18,6 +18,10 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": {
+    "ambito": "mat-sidenav",
+    "pulsaciones": 16
+  },
   "ruta": "/n/barberturno/agenda",
   "axe": {
     "version": "4.13.0",
@@ -34,17 +38,38 @@
       {
         "id": "aria-hidden-focus",
         "impacto": "serious",
-        "nodos": 2
+        "nodos": [
+          ".cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(2)",
+          ".cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(4)"
+        ]
       },
       {
         "id": "color-contrast",
         "impacto": "serious",
-        "nodos": 1
+        "nodos": [
+          ".usuario > div > strong"
+        ]
       },
       {
         "id": "skip-link",
         "impacto": "moderate",
-        "nodos": 1
+        "nodos": [
+          ".saltar"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": ".usuario > div > strong",
+        "componente": "strong.",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
       }
     ]
   },

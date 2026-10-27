@@ -18,6 +18,7 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": null,
   "ruta": "/n/barberturno/reservar",
   "axe": {
     "version": "4.13.0",
@@ -34,7 +35,36 @@
       {
         "id": "color-contrast",
         "impacto": "serious",
-        "nodos": 2
+        "nodos": [
+          ".mat-step-label-active > .mat-step-text-label",
+          "#busqueda-cliente"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": ".mat-step-label-active > .mat-step-text-label",
+        "componente": "div.mat-step-text-label",
+        "estado": "normal",
+        "color": "#145c43",
+        "fondo": "#f6f8f7",
+        "ratio": 7.45,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#busqueda-cliente",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
       }
     ]
   },

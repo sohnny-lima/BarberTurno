@@ -301,3 +301,11 @@
 - **Pruebas:**
   - en `errores-interceptor.spec.ts`, el mismo 409 presentado no abre snackbar y sin presentar sí lo abre; las aserciones del snackbar esperan la microtarea, también las negativas;
   - los E2E de error de reservar, mis citas y agenda exigen ahora que no haya snackbar (antes lo cerraban).
+
+### V2-DA-51 · El salto al contenido no navega (27/10/2026)
+- **Problema (detectado en el recorrido 13 del E2E, anterior a V2-07 y presente también en v1):** con `<base href="/">`, el enlace «Saltar al contenido» (`href="#contenido"`, sin manejador) se resolvía como `/#contenido`. Activarlo, con el menú abierto o cerrado, llevaba a la raíz de la aplicación en lugar de mover el foco al contenido de la página actual.
+- **Decisión:** `Shell.saltarAlContenido` cancela la navegación y mueve el foco a `main` (`tabindex="-1"`). Si el menú móvil está abierto, lo cierra antes y enfoca al terminar el cierre, para que Material no devuelva el foco al botón que abrió el menú. Es el mismo patrón que ya usa la navegación del shell. El enlace conserva `href` para que siga siendo un enlace accesible.
+- **Pruebas:**
+  - unitaria en `shell.spec.ts`, con el menú cerrado (escritorio) y abierto (móvil): sin `preventDefault`, las dos fallan;
+  - recorrido 13: con el teclado, la URL no cambia y el foco queda en `main`; con el menú abierto, el menú se cierra, la URL no cambia, el foco queda en `main` y el contenido termina visible.
+- **v1:** registrado aparte como **INC-V1-02** (`incidencias-v1.md`), sin cambios en `main` ni en Azure.

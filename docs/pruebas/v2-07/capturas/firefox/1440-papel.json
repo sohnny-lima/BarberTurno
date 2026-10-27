@@ -18,6 +18,10 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": {
+    "ambito": "[role=\"dialog\"]",
+    "pulsaciones": 6
+  },
   "ruta": "/negocios",
   "axe": {
     "version": "4.13.0",
@@ -34,9 +38,14 @@
       {
         "id": "aria-hidden-focus",
         "impacto": "serious",
-        "nodos": 3
+        "nodos": [
+          "app-root",
+          "#cdk-overlay-0 > .cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(1)",
+          "#cdk-overlay-0 > .cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(3)"
+        ]
       }
-    ]
+    ],
+    "contrasteManual": []
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

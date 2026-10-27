@@ -18,6 +18,7 @@
     "ancho": "3px",
     "desfase": "2px"
   },
+  "contencion": null,
   "ruta": "/n/barberturno/configuracion",
   "axe": {
     "version": "4.13.0",
@@ -34,7 +35,88 @@
       {
         "id": "color-contrast",
         "impacto": "serious",
-        "nodos": 6
+        "nodos": [
+          "#mat-input-0",
+          "#mat-input-1",
+          "#mat-input-2",
+          "#mat-input-3",
+          "#mat-input-4",
+          "#mat-input-5"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-input-0",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-1",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-2",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-3",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-4",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-5",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
       }
     ]
   },
