@@ -50,7 +50,7 @@
         El descanso es el hueco entre dos intervalos. Un día sin intervalos es un día libre.
       </p>
       <form [formGroup]="editor.formulario" (ngSubmit)="guardarSemana()">
-        <fieldset [disabled]="ocupado()" aria-describedby="ayuda-descanso">
+        <fieldset [disabled]="ocupado() || soloLectura()" aria-describedby="ayuda-descanso">
           <legend class="sr-only">Intervalos de la semana en Lima</legend>
           <button type="button" mat-stroked-button class="copiar" (click)="editor.copiarLunes()">
             Copiar el lunes a martes–sábado
@@ -90,12 +90,16 @@
             <button mat-button type="submit">Consultar bloqueos</button>
           </fieldset>
         </form>
-        <app-lista-bloqueos [bloqueos]="bloqueos()" (eliminar)="eliminar($event)" />
+        <app-lista-bloqueos
+          [bloqueos]="bloqueos()"
+          [soloLectura]="soloLectura()"
+          (eliminar)="eliminar($event)"
+        />
       </section>
       <section class="tarjeta" aria-labelledby="titulo-alta">
         <h2 id="titulo-alta">Nuevo bloqueo</h2>
         <form #altaForm="ngForm" [formGroup]="alta" (ngSubmit)="crearBloqueo(altaForm)">
-          <fieldset [disabled]="ocupado()">
+          <fieldset [disabled]="ocupado() || soloLectura()">
             <legend class="sr-only">Fecha, intervalo y motivo del bloqueo en Lima</legend>
             <div class="campos">
               @for (campo of ['fecha', 'horaInicio', 'horaFin', 'motivo']; track campo) {

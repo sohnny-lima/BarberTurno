@@ -11,6 +11,7 @@ import { ServiciosApi } from '../../core/api/servicios-api';
 import { SesionService } from '../../core/auth/sesion-service';
 import { BarberoDto, ServicioDto } from '../../core/modelos/catalogo';
 import { ProblemDetail } from '../../core/modelos/identidad';
+import { marcarPresentado } from '../../core/notificaciones/errores-presentados';
 import { UsuarioAdminDto } from '../../core/modelos/usuarios';
 import { FranjaDto, ReservaDto } from '../../core/modelos/reservas';
 import { fechaHoyLima } from '../../core/tiempo/instante-lima';
@@ -310,6 +311,7 @@ export class ReservaStore {
     this.barberoId.set(null);
   }
   private mostrarError(error: HttpErrorResponse) {
+    marcarPresentado(error);
     const problema = error.error as Partial<ProblemDetail> | null;
     this.mensaje.set(
       problema?.detail ||

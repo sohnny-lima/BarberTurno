@@ -114,7 +114,7 @@
 <ng-template #acciones let-u>
   <button
     mat-stroked-button
-    [disabled]="operando()"
+    [disabled]="operando() || soloLectura()"
     (click)="restablecer(u)"
     [attr.aria-label]="'Restablecer contraseña de ' + u.nombre"
   >
@@ -123,7 +123,7 @@
   <button
     mat-stroked-button
     [class.riesgo]="u.activo"
-    [disabled]="operando()"
+    [disabled]="operando() || soloLectura()"
     (click)="cambiarEstado(u)"
     [attr.aria-label]="(u.activo ? 'Desactivar ' : 'Activar ') + u.nombre"
   >

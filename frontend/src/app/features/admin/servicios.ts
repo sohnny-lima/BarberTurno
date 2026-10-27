@@ -14,6 +14,7 @@ import { EstadoContenido } from '../../shared/estado-contenido';
 import { ListaAdaptable } from '../../shared/lista-adaptable';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { mostrarErrores } from '../../shared/formulario';
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { ServicioDialogo } from './servicio-dialogo';
 
 @Component({
@@ -39,6 +40,7 @@ export class Servicios {
   readonly filas = signal<ServicioDto[]>([]);
   readonly inactivos = signal(false);
   readonly cargando = signal(false);
+  readonly soloLectura = inject(NegocioActual).soloLectura;
   readonly mensaje = signal('');
   readonly columnas = ['nombre', 'duracion', 'precio', 'estado', 'acciones'];
   constructor() {

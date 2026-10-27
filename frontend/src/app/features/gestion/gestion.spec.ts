@@ -212,6 +212,35 @@ describe('Gestión del negocio', () => {
     expect(f.nativeElement.querySelector('form [role="alert"]')?.textContent).toContain('El cupo');
     expect(f.nativeElement.querySelectorAll('[role="alert"]')).toHaveLength(1);
   });
+  it('con la barbería suspendida, formularios y acciones de escritura quedan en solo lectura', () => {
+    rol('PROPIETARIO');
+    TestBed.inject(NegocioActual).marcarSuspendido();
+    const configuracionVista = TestBed.createComponent(Configuracion);
+    http.expectOne('/api/n/prueba/configuracion').flush(configuracion);
+    configuracionVista.detectChanges();
+    // Los valores se siguen consultando; solo se desactiva la edición.
+    expect(configuracionVista.componentInstance.formulario.getRawValue()).toEqual(configuracion);
+    expect(configuracionVista.componentInstance.formulario.disabled).toBe(true);
+    expect(configuracionVista.nativeElement.querySelector('button[type=submit]').disabled).toBe(
+      true,
+    );
+    const equipo = TestBed.createComponent(Equipo);
+    http.expectOne('/api/n/prueba/equipo').flush([miembro]);
+    equipo.detectChanges();
+    const botones = [...equipo.nativeElement.querySelectorAll('button')] as HTMLButtonElement[];
+    expect(botones.filter((b) => /Cambiar rol|Revocar/.test(b.textContent!))).toHaveLength(2);
+    for (const b of botones.filter((b) => /Cambiar rol|Revocar/.test(b.textContent!)))
+      expect(b.disabled).toBe(true);
+    expect(equipo.nativeElement.querySelector('mat-slide-toggle button').disabled).toBe(false);
+    const invitaciones = TestBed.createComponent(Invitaciones);
+    http.expectOne('/api/n/prueba/invitaciones').flush([pendiente]);
+    invitaciones.detectChanges();
+    expect(invitaciones.componentInstance.formulario.disabled).toBe(true);
+    expect(invitaciones.nativeElement.querySelector('button[type=submit]').disabled).toBe(true);
+    expect(
+      invitaciones.nativeElement.querySelector("button[aria-label^='Revocar invitación']").disabled,
+    ).toBe(true);
+  });
 });
 
 describe('Aceptación global de invitaciones', () => {

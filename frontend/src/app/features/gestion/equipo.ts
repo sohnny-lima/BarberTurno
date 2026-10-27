@@ -44,6 +44,7 @@ import { ListaAdaptable } from '../../shared/lista-adaptable';
 })
 export class Equipo {
   readonly negocio = inject(NegocioActual);
+  readonly soloLectura = this.negocio.soloLectura;
   private readonly api = inject(EquipoApi);
   private readonly dialogos = inject(MatDialog);
   private readonly router = inject(Router);

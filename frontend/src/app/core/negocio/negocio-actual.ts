@@ -24,6 +24,12 @@ export class NegocioActual {
   readonly rol = computed(() => this.usuario()?.rol ?? null);
   readonly gestion = computed(() => this.rol() === 'ADMIN');
   readonly parametros = computed(() => this.estado()?.parametros ?? null);
+  /**
+   * Presenta el estado que informó el servidor: con la barbería suspendida toda escritura da 409
+   * (V2-DA-38, V2-DA-49), así que las vistas desactivan sus acciones de cambio. No concede ni
+   * retira permisos; el servidor sigue rechazando cualquier escritura.
+   */
+  readonly soloLectura = computed(() => this.estado()?.tipo === 'suspendido');
   readonly nombre = computed(
     () => this.parametros()?.nombre ?? this.nombreRelacion() ?? this.slug(),
   );

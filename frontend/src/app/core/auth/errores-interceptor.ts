@@ -8,6 +8,7 @@ import { SesionService } from './sesion-service';
 import { NegocioActual, CONSULTA_CONTEXTO, ORIGEN_NEGOCIO } from '../negocio/negocio-actual';
 import { HttpClient } from '@angular/common/http';
 import { UsuarioSesionDto } from '../modelos/identidad';
+import { estaPresentado } from '../notificaciones/errores-presentados';
 
 export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
   const sesion = inject(SesionService);
@@ -70,7 +71,11 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
           error.status === 0 || error.status >= 500
             ? 'No pudimos completar la solicitud. Intente nuevamente.'
             : problema?.detail || 'No pudimos completar la solicitud.';
-        snackbar.open(mensaje, 'Cerrar', { duration: 6000 });
+        // Diferido: si la vista muestra el error junto a la acción (marcarPresentado en su
+        // manejador, que se ejecuta antes), no se repite en un snackbar.
+        queueMicrotask(() => {
+          if (!estaPresentado(error)) snackbar.open(mensaje, 'Cerrar', { duration: 6000 });
+        });
       }
       return throwError(() => error);
     }),

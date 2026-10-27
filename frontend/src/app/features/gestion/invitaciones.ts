@@ -30,7 +30,7 @@ import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { EnlaceInvitacion } from '../../shared/enlace-invitacion';
 import { EstadoContenido } from '../../shared/estado-contenido';
-import { errorCampo, mostrarErrores } from '../../shared/formulario';
+import { errorCampo, mostrarErrores, soloLecturaSegunNegocio } from '../../shared/formulario';
 import { ListaAdaptable } from '../../shared/lista-adaptable';
 import { SeccionFormulario } from '../../shared/seccion-formulario';
 
@@ -85,6 +85,7 @@ export class Invitaciones {
       validators: [Validators.required],
     }),
   });
+  readonly soloLectura = soloLecturaSegunNegocio(this.formulario);
   constructor() {
     this.cargar();
   }

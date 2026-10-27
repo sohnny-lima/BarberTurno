@@ -30,6 +30,8 @@ import { BloqueoDto, ConflictoHorarios } from '../../core/modelos/horarios';
 import { fechaHoyLima, instanteLima } from '../../core/tiempo/instante-lima';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { errorCampo, mostrarErrores } from '../../shared/formulario';
+import { marcarPresentado } from '../../core/notificaciones/errores-presentados';
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { EstadoContenido } from '../../shared/estado-contenido';
 import { SeccionFormulario } from '../../shared/seccion-formulario';
@@ -70,6 +72,7 @@ export class Horarios {
   readonly barberos = signal<BarberoDto[]>([]);
   readonly bloqueos = signal<BloqueoDto[]>([]);
   readonly ocupado = signal(false);
+  readonly soloLectura = inject(NegocioActual).soloLectura;
   readonly listo = signal(false);
   readonly mensaje = signal('');
   readonly conflictos = signal<{ barbero: string; reservas: number[] }[]>([]);
@@ -103,7 +106,8 @@ export class Horarios {
   constructor() {
     effect(() => {
       for (const control of [this.seleccion, this.alta.controls.todos]) {
-        if (this.ocupado()) control.disable({ emitEvent: false });
+        const soloLectura = control !== this.seleccion && this.soloLectura();
+        if (this.ocupado() || soloLectura) control.disable({ emitEvent: false });
         else control.enable({ emitEvent: false });
       }
     });
@@ -265,6 +269,8 @@ export class Horarios {
       });
   }
   private fallo(formulario: FormGroup, error: HttpErrorResponse) {
+    // La página muestra el mensaje reescrito; el error original tampoco va al snackbar.
+    marcarPresentado(error);
     const problema = error.error as Partial<ConflictoHorarios> | null;
     const errores = problema?.errores?.map((detalle) => ({
       ...detalle,

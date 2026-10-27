@@ -22,7 +22,7 @@
       >
     </div>
     <div class="acciones-formulario">
-      <button mat-flat-button type="submit" [disabled]="guardando()">
+      <button mat-flat-button type="submit" [disabled]="guardando() || soloLectura()">
         {{ guardando() ? 'Creando…' : 'Crear invitación' }}
       </button>
     </div>
@@ -87,6 +87,7 @@
     <button
       mat-stroked-button
       class="riesgo"
+      [disabled]="soloLectura()"
       [attr.aria-label]="'Revocar invitación de ' + fila.correo"
       (click)="revocar(fila)"
     >

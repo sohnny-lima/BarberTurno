@@ -16,6 +16,7 @@ import { NOMBRES_PAPEL } from '../../core/modelos/negocios';
 import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { EstadoContenido } from '../../shared/estado-contenido';
 import { confirmarPassword, errorCampo, mostrarErrores } from '../../shared/formulario';
+import { marcarPresentado } from '../../core/notificaciones/errores-presentados';
 import { SeccionFormulario } from '../../shared/seccion-formulario';
 
 @Component({
@@ -93,12 +94,14 @@ export class Aceptacion {
           this.invitacion.set(dato);
           this.aviso.set(this.estados[dato.estado]);
         },
-        error: (error: HttpErrorResponse) =>
+        error: (error: HttpErrorResponse) => {
+          marcarPresentado(error);
           this.aviso.set(
             error.status === 404
               ? 'Esta invitación ya no es válida.'
               : mostrarErrores(this.formulario, error),
-          ),
+          );
+        },
       });
   }
   aceptar() {
@@ -139,6 +142,8 @@ export class Aceptacion {
         error: (error: HttpErrorResponse) => {
           this.formulario.controls.password.reset();
           this.formulario.controls.confirmacion.reset();
+          // Cada rama muestra el motivo en la página (aviso, estado recargado o mensaje).
+          marcarPresentado(error);
           if (error.error?.codigo === 'INVITACION_OTRA_CUENTA')
             this.aviso.set('Esta invitación es para otra cuenta. Ingrese con el correo invitado.');
           else if (error.error?.codigo === 'INVITACION_NO_VIGENTE') this.cargar();

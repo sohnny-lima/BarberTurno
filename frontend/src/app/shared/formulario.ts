@@ -1,11 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { effect, inject } from '@angular/core';
 import { AbstractControl, FormGroup, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { ProblemDetail } from '../core/modelos/identidad';
+import { marcarPresentado } from '../core/notificaciones/errores-presentados';
+import { NegocioActual } from '../core/negocio/negocio-actual';
 
 export const confirmarPassword: ValidatorFn = (grupo: AbstractControl): ValidationErrors | null =>
   grupo.get('password')?.value === grupo.get('confirmacion')?.value ? null : { confirmacion: true };
 
+/** Devuelve el mensaje que la vista muestra junto a la acción; por eso no se repite en un snackbar. */
 export function mostrarErrores(formulario: FormGroup, error: HttpErrorResponse): string {
+  marcarPresentado(error);
   const problema = error.error as Partial<ProblemDetail> | null;
   if (error.status === 400) {
     for (const detalle of problema?.errores ?? []) {
@@ -31,6 +36,19 @@ export function mostrarErrores(formulario: FormGroup, error: HttpErrorResponse):
   return error.status === 0 || error.status >= 500
     ? 'No pudimos completar la solicitud. Intente nuevamente.'
     : problema?.detail || 'No pudimos completar la solicitud.';
+}
+/**
+ * Con la barbería suspendida el formulario queda en solo lectura (V2-DA-49) y vuelve a editarse
+ * si se reactiva. Solo presentación: el servidor sigue rechazando la escritura con 409. Debe
+ * llamarse en un contexto de inyección; devuelve la señal para desactivar los botones.
+ */
+export function soloLecturaSegunNegocio(formulario: AbstractControl) {
+  const negocio = inject(NegocioActual);
+  effect(() => {
+    if (negocio.soloLectura()) formulario.disable({ emitEvent: false });
+    else formulario.enable({ emitEvent: false });
+  });
+  return negocio.soloLectura;
 }
 export function errorCampo(control: AbstractControl): string {
   return (

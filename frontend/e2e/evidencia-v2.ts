@@ -148,6 +148,14 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
         .first();
     if (!(await control.count()))
       control = page.locator('a.enlace').filter({ visible: true }).first();
+    // Una pantalla en solo lectura (V2-DA-49) a 360 px puede no tener controles activos en el
+    // contenido: el foco se comprueba entonces en la cabecera («Abrir menú»), con la misma exigencia.
+    if (!(await control.count()))
+      control = page
+        .getByRole('banner')
+        .locator('button:enabled')
+        .filter({ visible: true })
+        .first();
     await expect(control).toBeVisible();
     await control.focus();
     await page.keyboard.press('Shift+Tab');
@@ -184,10 +192,28 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
           superpuesta,
           foco,
           ruta: new URL(page.url()).pathname.replace(/^\/invitacion\/.+/, '/invitacion/:token'),
+          // Resultado completo: la prueba falla solo con serias o críticas (CG-6); el resto se
+          // registra con sus nodos, y los incompletos son los que axe no pudo decidir solo.
           axe: {
+            version: axe.testEngine.version,
+            reglas: {
+              superadas: axe.passes.length,
+              violadas: axe.violations.length,
+              incompletas: axe.incomplete.length,
+              inaplicables: axe.inapplicable.length,
+            },
             seriasOCriticas: relevantes.length,
             total: axe.violations.length,
-            otras: axe.violations.map((v) => ({ id: v.id, impacto: v.impact })),
+            otras: axe.violations.map((v) => ({
+              id: v.id,
+              impacto: v.impact,
+              nodos: v.nodes.map((n) => n.target.join(' ')),
+            })),
+            incompletas: axe.incomplete.map((v) => ({
+              id: v.id,
+              impacto: v.impact,
+              nodos: v.nodes.length,
+            })),
           },
           disposicion: 'sin desbordamiento; escritorio sin barra móvil ni superposición del riel',
         },

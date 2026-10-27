@@ -18,8 +18,20 @@ describe('Estados del contenedor de barbería', () => {
     [404, 404, null, 'No encontramos esa barbería. Revise la dirección.', 'Barbería no encontrada'],
     [401, 404, null, 'Esta barbería no está disponible por ahora.', 'Barbería no disponible'],
     [200, 404, 'CLIENTE', 'Esta barbería no está disponible por ahora.', 'Barbería no disponible'],
-    [200, 404, 'BARBERO', 'Barbería suspendida: puede consultar, pero no hacer cambios.', null],
-    [200, 404, 'ADMIN', 'Barbería suspendida: puede consultar, pero no hacer cambios.', null],
+    [
+      200,
+      404,
+      'BARBERO',
+      'Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive.',
+      null,
+    ],
+    [
+      200,
+      404,
+      'ADMIN',
+      'Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive.',
+      null,
+    ],
   ] as const)(
     'sesión %s, público %s, rol %s: estado explícito sin catálogo ajeno',
     (sesion, publico, rol, texto, titulo) => {

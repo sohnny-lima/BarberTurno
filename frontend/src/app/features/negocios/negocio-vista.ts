@@ -56,7 +56,7 @@ import { EstadoContenido } from '../../shared/estado-contenido';
       @if (negocio.estado()?.tipo === 'suspendido') {
         <app-estado-contenido
           tipo="aviso"
-          texto="Barbería suspendida: puede consultar, pero no hacer cambios."
+          texto="Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive."
         />
       }
       <router-outlet />

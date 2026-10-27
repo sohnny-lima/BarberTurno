@@ -326,11 +326,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   const consultaFallida = await fallida;
   await expect(page.getByRole('alert')).toContainText('Su servicio y profesional se conservan');
   await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled();
-  // El interceptor común anuncia también el error por snackbar; se cierra para revisar la alerta.
-  await page
-    .locator('mat-snack-bar-container')
-    .getByRole('button', { name: 'Cerrar', exact: true })
-    .click();
+  // El error se anuncia una sola vez, en la alerta junto a la acción (sin snackbar duplicado).
   await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'reservar-error');
   const reintento = page.waitForResponse(
@@ -1354,10 +1350,8 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
   const alerta = page.locator('.alerta');
   await expect(alerta).toContainText('No se pudieron cargar las citas.');
   await expect(page.locator('.vacio')).toHaveCount(0);
-  const cerrarAviso = page
-    .locator('mat-snack-bar-container')
-    .getByRole('button', { name: 'Cerrar', exact: true });
-  if (await cerrarAviso.isVisible()) await cerrarAviso.click();
+  // El error se anuncia una sola vez, en la alerta junto a la acción (sin snackbar duplicado).
+  await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'mis-citas-error');
   const consulta = page.waitForResponse((r) =>
     r.url().includes('/api/n/barberturno/reservas/mias?'),
@@ -1447,10 +1441,7 @@ test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia
     .getByRole('alert')
     .filter({ hasText: 'No pudimos completar la solicitud. Intente nuevamente.' });
   await expect(alerta).toBeVisible();
-  await page
-    .locator('mat-snack-bar-container')
-    .getByRole('button', { name: 'Cerrar', exact: true })
-    .click();
+  // El error se anuncia una sola vez, en la alerta junto a la acción (sin snackbar duplicado).
   await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'agenda-error');
   const reintento = page.waitForResponse(
@@ -1969,23 +1960,9 @@ test('21 · suspensión desde plataforma: público no disponible, personal consu
     const rechazoEnCurso = await enCurso;
     expect(rechazoEnCurso.status()).toBe(409);
     expect((await rechazoEnCurso.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
-    await expect(personal.locator('main')).toContainText(
-      'Barbería suspendida: puede consultar, pero no hacer cambios.',
-    );
-    await expect(personal.locator('main [role="alert"]')).toContainText(/suspendid/i);
-    expect(await personal.locator('mat-snack-bar-container').count()).toBe(0);
-    await personal.reload();
-    await expect(personal.locator('main')).toContainText(
-      'Barbería suspendida: puede consultar, pero no hacer cambios.',
-    );
-    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
-    const escritura = personal.waitForResponse(
-      (r) => r.url().endsWith('/configuracion') && r.request().method() === 'PUT',
-    );
-    await personal.getByRole('button', { name: 'Guardar configuración', exact: true }).click();
-    const rechazada = await escritura;
-    expect(rechazada.status()).toBe(409);
-    expect((await rechazada.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
+    const avisoSuspension =
+      'Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive.';
+    await expect(personal.locator('main')).toContainText(avisoSuspension);
     await expect(personal.locator('main [role="alert"]')).toContainText(/suspendid/i);
     await expect(personal.locator('main [role="alert"]')).toHaveCount(1);
     expect(await personal.locator('mat-snack-bar-container').count()).toBe(0);
@@ -1994,6 +1971,35 @@ test('21 · suspensión desde plataforma: público no disponible, personal consu
       .boundingBox();
     const alerta = await personal.locator('main [role="alert"]').boundingBox();
     expect(alerta!.y).toBeGreaterThanOrEqual(boton!.y + boton!.height);
+    // Desde el rechazo, la pantalla queda en solo lectura sin recargar.
+    await expect(
+      personal.getByRole('button', { name: 'Guardar configuración', exact: true }),
+    ).toBeDisabled();
+    await expect(personal.getByLabel('Nombre', { exact: true })).toBeDisabled();
+    await personal.reload();
+    await expect(personal.locator('main')).toContainText(avisoSuspension);
+    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
+    await expect(personal.getByLabel('Nombre', { exact: true })).toBeDisabled();
+    await expect(personal.getByLabel('Horizonte en días', { exact: true })).toBeDisabled();
+    await expect(
+      personal.getByRole('button', { name: 'Guardar configuración', exact: true }),
+    ).toBeDisabled();
+    // La protección sigue en el servidor: una escritura directa con la misma sesión da 409.
+    const vigente = await personal.request.get('/api/n/barberturno/configuracion');
+    expect(vigente.status()).toBe(200);
+    const xsrf = (await personal.context().cookies()).find((c) => c.name === 'XSRF-TOKEN')!;
+    const directa = await personal.request.put('/api/n/barberturno/configuracion', {
+      data: await vigente.json(),
+      headers: { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) },
+    });
+    expect(directa.status()).toBe(409);
+    expect((await directa.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
+    await personal.goto('/n/barberturno/equipo');
+    await expect(personal.locator('main')).toContainText(avisoSuspension);
+    await expect(personal.getByRole('button', { name: /^Cambiar rol de / }).first()).toBeDisabled();
+    await expect(personal.getByRole('switch', { name: 'Mostrar revocadas' })).toBeEnabled();
+    await personal.goto('/n/barberturno/configuracion');
+    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
     await capturarGestion(personal, info, 'suspendida-personal');
     const publica = publico.waitForResponse((r) => r.url().endsWith('/api/n/barberturno/negocio'));
     await publico.goto('/n/barberturno/reservar');

@@ -48,7 +48,7 @@
       ></app-seccion-formulario
     >
     <div class="acciones-formulario">
-      <button mat-flat-button type="submit" [disabled]="guardando()">
+      <button mat-flat-button type="submit" [disabled]="guardando() || soloLectura()">
         {{ guardando() ? 'Guardando…' : 'Guardar configuración' }}
       </button>
     </div>

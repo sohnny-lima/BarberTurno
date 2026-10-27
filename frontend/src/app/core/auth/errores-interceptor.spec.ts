@@ -6,6 +6,11 @@ import { provideRouter, Router } from '@angular/router';
 import { erroresInterceptor } from './errores-interceptor';
 import { SesionService } from './sesion-service';
 import { NegocioActual } from '../negocio/negocio-actual';
+import { FormGroup } from '@angular/forms';
+import { mostrarErrores } from '../../shared/formulario';
+
+/** El snackbar se decide en una microtarea, después del manejador de la vista. */
+const microtareas = () => new Promise<void>((resolver) => queueMicrotask(resolver));
 
 describe('Interceptor de errores', () => {
   let http: HttpClient;
@@ -41,13 +46,14 @@ describe('Interceptor de errores', () => {
       queryParams: { returnUrl: '/' },
     });
   });
-  it('401 de sesión inicial no navega ni muestra error', () => {
+  it('401 de sesión inicial no navega ni muestra error', async () => {
     http.get('/api/auth/sesion').subscribe({ error: () => undefined });
     peticiones.expectOne('/api/auth/sesion').flush({}, { status: 401, statusText: 'Unauthorized' });
     expect(router.navigate).not.toHaveBeenCalled();
+    await microtareas();
     expect(abrir).not.toHaveBeenCalled();
   });
-  it('401 NO_AUTENTICADO del login muestra el error sin redirigir', () => {
+  it('401 NO_AUTENTICADO del login muestra el error sin redirigir', async () => {
     http.post('/api/auth/login', {}).subscribe({ error: () => undefined });
     peticiones
       .expectOne('/api/auth/login')
@@ -56,16 +62,18 @@ describe('Interceptor de errores', () => {
         { status: 401, statusText: 'Unauthorized' },
       );
     expect(router.navigate).not.toHaveBeenCalled();
+    await microtareas();
     expect(abrir).toHaveBeenCalledWith('Se requiere una sesión válida.', 'Cerrar', {
       duration: 6000,
     });
   });
-  it('401 del login muestra detail sin redirigir', () => {
+  it('401 del login muestra detail sin redirigir', async () => {
     http.post('/api/auth/login', {}).subscribe({ error: () => undefined });
     peticiones
       .expectOne('/api/auth/login')
       .flush({ detail: 'Credenciales inválidas.' }, { status: 401, statusText: 'Unauthorized' });
     expect(router.navigate).not.toHaveBeenCalled();
+    await microtareas();
     expect(abrir).toHaveBeenCalledWith('Credenciales inválidas.', 'Cerrar', { duration: 6000 });
   });
   it('403 CAMBIO_PASSWORD_REQUERIDO lleva al cambio', () => {
@@ -75,7 +83,7 @@ describe('Interceptor de errores', () => {
       .flush({ codigo: 'CAMBIO_PASSWORD_REQUERIDO' }, { status: 403, statusText: 'Forbidden' });
     expect(router.navigate).toHaveBeenCalledWith(['/cambiar-password']);
   });
-  it('400 conserva errores por campo para el formulario y muestra detail', () => {
+  it('400 conserva errores por campo para el formulario y muestra detail', async () => {
     const error = vi.fn();
     const problema = {
       detail: 'Revise sus datos.',
@@ -86,16 +94,18 @@ describe('Interceptor de errores', () => {
       .expectOne('/api/n/prueba/registro')
       .flush(problema, { status: 400, statusText: 'Bad Request' });
     expect(error.mock.calls[0][0].error).toEqual(problema);
+    await microtareas();
     expect(abrir).toHaveBeenCalledWith(problema.detail, 'Cerrar', { duration: 6000 });
   });
-  it.each([403, 409, 422])('muestra detail en snackbar con estado %s', (status) => {
+  it.each([403, 409, 422])('muestra detail en snackbar con estado %s', async (status) => {
     http.get('/api/perfil').subscribe({ error: () => undefined });
     peticiones
       .expectOne('/api/perfil')
       .flush({ detail: 'Respuesta del servidor.' }, { status, statusText: 'Error' });
+    await microtareas();
     expect(abrir).toHaveBeenCalledWith('Respuesta del servidor.', 'Cerrar', { duration: 6000 });
   });
-  it('el registro por invitación conserva el rechazo por suspensión sin duplicar el aviso global', () => {
+  it('el registro por invitación conserva el rechazo por suspensión sin duplicar el aviso global', async () => {
     const error = vi.fn();
     const problema = {
       codigo: 'NEGOCIO_SUSPENDIDO',
@@ -107,10 +117,11 @@ describe('Interceptor de errores', () => {
       statusText: 'Conflict',
     });
     expect(error.mock.calls[0][0].error).toEqual(problema);
+    await microtareas();
     expect(abrir).not.toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
   });
-  it('una suspensión llegada con la sesión abierta muestra el aviso fijo, sin snackbar', () => {
+  it('una suspensión llegada con la sesión abierta muestra el aviso fijo, sin snackbar', async () => {
     const negocio = TestBed.inject(NegocioActual);
     negocio.seleccionar('a');
     negocio.cargar().subscribe();
@@ -127,6 +138,7 @@ describe('Interceptor de errores', () => {
       .expectOne('/api/n/a/configuracion')
       .flush({ codigo: 'CUPO_EXCEDIDO', detail: 'Cupo.' }, { status: 409, statusText: 'Conflict' });
     expect(negocio.estado()?.tipo).toBe('disponible');
+    await microtareas();
     expect(abrir).toHaveBeenCalledTimes(1);
     const error = vi.fn();
     http.put('/api/n/a/configuracion', {}, { context: negocio.contexto() }).subscribe({ error });
@@ -138,26 +150,54 @@ describe('Interceptor de errores', () => {
       );
     expect(error.mock.calls[0][0].error.codigo).toBe('NEGOCIO_SUSPENDIDO');
     expect(negocio.estado()?.tipo).toBe('suspendido');
+    await microtareas();
     expect(abrir).toHaveBeenCalledTimes(1);
   });
-  it.each([500, 503])('oculta detalles técnicos del estado %s', (status) => {
+  it.each([500, 503])('oculta detalles técnicos del estado %s', async (status) => {
     http.get('/api/perfil').subscribe({ error: () => undefined });
     peticiones
       .expectOne('/api/perfil')
       .flush({ detail: 'Detalle técnico que no debe mostrarse.' }, { status, statusText: 'Error' });
+    await microtareas();
     expect(abrir).toHaveBeenCalledWith(
       'No pudimos completar la solicitud. Intente nuevamente.',
       'Cerrar',
       { duration: 6000 },
     );
   });
-  it('fallo de red muestra el mensaje genérico', () => {
+  it('fallo de red muestra el mensaje genérico', async () => {
     http.get('/api/perfil').subscribe({ error: () => undefined });
     peticiones.expectOne('/api/perfil').error(new ProgressEvent('error'));
+    await microtareas();
     expect(abrir).toHaveBeenCalledWith(
       'No pudimos completar la solicitud. Intente nuevamente.',
       'Cerrar',
       { duration: 6000 },
     );
+  });
+  it('un error que la vista muestra junto a la acción no se repite en un snackbar', async () => {
+    let mensaje = '';
+    http.put('/api/n/a/configuracion', {}).subscribe({
+      error: (error) => (mensaje = mostrarErrores(new FormGroup({}), error)),
+    });
+    peticiones
+      .expectOne('/api/n/a/configuracion')
+      .flush(
+        { codigo: 'CONFLICTO', detail: 'Límite inválido.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await microtareas();
+    expect(mensaje).toBe('Límite inválido.');
+    expect(abrir).not.toHaveBeenCalled();
+    // Sin vista que lo presente, el mismo error sí llega al snackbar.
+    http.put('/api/n/a/configuracion', {}).subscribe({ error: () => undefined });
+    peticiones
+      .expectOne('/api/n/a/configuracion')
+      .flush(
+        { codigo: 'CONFLICTO', detail: 'Límite inválido.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await microtareas();
+    expect(abrir).toHaveBeenCalledExactlyOnceWith('Límite inválido.', 'Cerrar', { duration: 6000 });
   });
 });

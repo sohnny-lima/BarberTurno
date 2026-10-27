@@ -2,7 +2,9 @@
   titulo="Servicios"
   subtitulo="Administre el catálogo. Los servicios desactivados conservan el historial."
 >
-  <button mat-flat-button [disabled]="cargando()" (click)="editar()">Nuevo servicio</button>
+  <button mat-flat-button [disabled]="cargando() || soloLectura()" (click)="editar()">
+    Nuevo servicio
+  </button>
 </app-cabecera-pagina>
 <div class="herramientas">
   <mat-slide-toggle
@@ -24,7 +26,7 @@
   />
 } @else if (!filas().length) {
   <app-estado-contenido tipo="vacio" texto="No hay servicios para mostrar.">
-    <button mat-flat-button (click)="editar()">Nuevo servicio</button>
+    <button mat-flat-button [disabled]="soloLectura()" (click)="editar()">Nuevo servicio</button>
   </app-estado-contenido>
 } @else {
   <app-lista-adaptable nombre="Servicios" [tabla]="tabla" [tarjetas]="tarjetas" />
@@ -94,7 +96,7 @@
 <ng-template #accionesFila let-fila>
   <button
     mat-stroked-button
-    [disabled]="cargando()"
+    [disabled]="cargando() || soloLectura()"
     [attr.aria-label]="'Editar servicio ' + fila.nombre"
     (click)="editar(fila)"
   >
@@ -103,7 +105,7 @@
   <button
     mat-stroked-button
     [class.riesgo]="fila.activo"
-    [disabled]="cargando()"
+    [disabled]="cargando() || soloLectura()"
     [attr.aria-label]="(fila.activo ? 'Desactivar ' : 'Activar ') + fila.nombre"
     (click)="cambiarEstado(fila)"
   >

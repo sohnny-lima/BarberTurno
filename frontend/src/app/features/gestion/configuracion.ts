@@ -10,7 +10,7 @@ import { ConfiguracionApi } from '../../core/api/configuracion-api';
 import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { EstadoContenido } from '../../shared/estado-contenido';
-import { errorCampo, mostrarErrores } from '../../shared/formulario';
+import { errorCampo, mostrarErrores, soloLecturaSegunNegocio } from '../../shared/formulario';
 import { SeccionFormulario } from '../../shared/seccion-formulario';
 
 const numero = (min: number) =>
@@ -62,6 +62,7 @@ export class Configuracion {
     toleranciaInicioMin: numero(0),
     confirmacionManual: new FormControl(false, { nonNullable: true }),
   });
+  readonly soloLectura = soloLecturaSegunNegocio(this.formulario);
   readonly campos = [
     {
       clave: 'horizonteDias',
