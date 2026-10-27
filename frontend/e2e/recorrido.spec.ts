@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, type Response, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
 import { sql } from './base-datos';
+import { capturarV2 } from './evidencia-v2';
 import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
 import type { Pagina } from '../src/app/core/modelos/pagina';
@@ -11,22 +12,7 @@ import type { ReservaDto } from '../src/app/core/modelos/reservas';
 import type { UsuarioAdminDto } from '../src/app/core/modelos/usuarios';
 
 async function capturarNucleo(page: Page, testInfo: TestInfo, nombre: string) {
-  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  // Esperar los estados finales de Material evita capturar un cajón o diálogo a medio abrir.
-  await page.evaluate(async () => {
-    await Promise.all(
-      document
-        .getAnimations()
-        .filter((animacion) => Number.isFinite(animacion.effect?.getComputedTiming().endTime))
-        .map((animacion) => animacion.finished.catch(() => undefined)),
-    );
-  });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({
-    path: `../docs/pruebas/v2-07/capturas/v2-07-1/${testInfo.project.name}-${nombre}.png`,
-    fullPage: true,
-    animations: 'disabled',
-  });
+  await capturarV2(page, testInfo, nombre);
 }
 
 async function abrirContexto(page: Page) {
@@ -1675,40 +1661,13 @@ test('16 · logout y reingreso vacían el negocio y el papel anterior', async ({
   await salirConRespuesta(page);
 });
 
-async function capturarGestion(page: Page, info: TestInfo, nombre: string, subtarea = 'v2-07-2') {
-  await page.bringToFront();
-  await expect(page.locator('main')).toBeVisible();
+async function capturarGestion(page: Page, info: TestInfo, nombre: string) {
   await expect(
     page.locator(
       'main > app-negocio-vista, main > app-aceptacion, main > app-negocios, main > app-plataforma',
     ),
   ).toBeVisible();
-  await expect(page.locator('main app-estado-contenido .esqueletos')).toHaveCount(0);
-  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  const dialogo = page.getByRole('dialog');
-  if (await dialogo.isVisible()) {
-    await dialogo.locator('input, button, a[href]').filter({ visible: true }).first().focus();
-    await page.keyboard.press('Tab');
-    expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(
-      true,
-    );
-  } else {
-    await page.locator('main').focus();
-    await page.keyboard.press('Tab');
-  }
-  expect(await page.evaluate(() => document.activeElement?.matches(':focus-visible'))).toBe(true);
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolver) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolver())),
-      ),
-  );
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({
-    path: `../docs/pruebas/v2-07/capturas/${subtarea}/${info.project.name}-${nombre}.png`,
-    fullPage: true,
-    animations: 'disabled',
-  });
+  await capturarV2(page, info, nombre);
 }
 
 test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada', async ({
@@ -1725,6 +1684,7 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
     .getByRole('button', { name: 'Salir de la barbería', exact: true })
     .click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(/propietario/i);
+  await capturarGestion(page, info, 'ultimo-propietario');
   await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await test.step(
@@ -1756,6 +1716,7 @@ test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y r
   await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
   expect((await ajena).status()).toBe(403);
   await expect(page.locator('main')).toContainText('Esta invitación es para otra cuenta.');
+  await capturarGestion(page, info, 'invitacion-otra-cuenta');
   await salirConRespuesta(page);
   await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
   await expect(page.locator('main')).toContainText('Ingrese o cree una cuenta');
@@ -1900,7 +1861,7 @@ test('20 · plataforma exige rol global, crea barbería y gestiona su invitació
   await expect(page.locator('main')).toContainText('Barberías de la plataforma');
   await expect(page.locator('app-barberia-actual section')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Agenda', exact: true })).toHaveCount(0);
-  await capturarGestion(page, info, 'plataforma', 'v2-07-3');
+  await capturarGestion(page, info, 'plataforma');
   await page.getByRole('button', { name: 'Nueva barbería', exact: true }).click();
   const dialogo = page.getByRole('dialog');
   await dialogo.getByLabel('Nombre', { exact: true }).fill('Barbería Prueba');
@@ -1908,7 +1869,7 @@ test('20 · plataforma exige rol global, crea barbería y gestiona su invitació
   await dialogo
     .getByLabel('Correo del propietario', { exact: true })
     .fill('propietario-inicial@ejemplo.test');
-  await capturarGestion(page, info, 'alta', 'v2-07-3');
+  await capturarGestion(page, info, 'alta');
   const alta = page.waitForResponse(
     (r) => r.url().endsWith('/api/plataforma/negocios') && r.request().method() === 'POST',
   );
@@ -1919,7 +1880,7 @@ test('20 · plataforma exige rol global, crea barbería y gestiona su invitació
   await expect(dialogo).toHaveCount(0);
   await expect(page.locator('app-enlace-invitacion')).toContainText('una sola vez');
   await expect(page.locator('app-enlace-invitacion')).toContainText('/invitacion/');
-  await capturarGestion(page, info, 'alta-enlace', 'v2-07-3');
+  await capturarGestion(page, info, 'alta-enlace');
   expect((await (await page.request.get(creada.enlaceInvitacion)).json()).estado).toBe('PENDIENTE');
   await page.reload();
   await expect(page.locator('app-plataforma')).toBeVisible();
@@ -1940,7 +1901,7 @@ test('20 · plataforma exige rol global, crea barbería y gestiona su invitació
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect((await (await page.request.get(creada.enlaceInvitacion)).json()).estado).toBe('REVOCADA');
   await expect(page.locator('app-enlace-invitacion')).toContainText('hora de Lima');
-  await capturarGestion(page, info, 'invitacion-reenviada', 'v2-07-3');
+  await capturarGestion(page, info, 'invitacion-reenviada');
   await page
     .getByRole('button', { name: 'Revocar invitación de Barbería Prueba', exact: true })
     .click();
@@ -1996,7 +1957,7 @@ test('21 · suspensión desde plataforma: público no disponible, personal consu
     await expect(
       page.getByRole('button', { name: 'Reactivar BarberTurno', exact: true }),
     ).toBeVisible();
-    await capturarGestion(page, info, 'suspendida-plataforma', 'v2-07-3');
+    await capturarGestion(page, info, 'suspendida-plataforma');
     await personal.reload();
     await expect(personal.locator('main')).toContainText(
       'Barbería suspendida: puede consultar, pero no hacer cambios.',
@@ -2010,7 +1971,14 @@ test('21 · suspensión desde plataforma: público no disponible, personal consu
     expect(rechazada.status()).toBe(409);
     expect((await rechazada.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
     await expect(personal.locator('main [role="alert"]')).toContainText(/suspendid/i);
-    await capturarGestion(personal, info, 'suspendida-personal', 'v2-07-3');
+    await expect(personal.locator('main [role="alert"]')).toHaveCount(1);
+    expect(await personal.locator('mat-snack-bar-container').count()).toBe(0);
+    const boton = await personal
+      .getByRole('button', { name: 'Guardar configuración', exact: true })
+      .boundingBox();
+    const alerta = await personal.locator('main [role="alert"]').boundingBox();
+    expect(alerta!.y).toBeGreaterThanOrEqual(boton!.y + boton!.height);
+    await capturarGestion(personal, info, 'suspendida-personal');
     const publica = publico.waitForResponse((r) => r.url().endsWith('/api/n/barberturno/negocio'));
     await publico.goto('/n/barberturno/reservar');
     expect((await publica).status()).toBe(404);
@@ -2018,7 +1986,7 @@ test('21 · suspensión desde plataforma: público no disponible, personal consu
       'Esta barbería no está disponible por ahora.',
     );
     await expect(publico.locator('app-reservar')).toHaveCount(0);
-    await capturarGestion(publico, info, 'suspendida-publica', 'v2-07-3');
+    await capturarGestion(publico, info, 'suspendida-publica');
     await page.getByRole('button', { name: 'Reactivar BarberTurno', exact: true }).click();
     const reactivacion = page.waitForResponse(
       (r) => r.url().endsWith('/estado') && r.request().method() === 'PATCH',

@@ -78,8 +78,10 @@
       @if (fila.estado === 'ACTIVA' && fila.correo) {
         <p class="ayuda">{{ fila.correo }}</p>
       }
-      <p>{{ nombres[fila.rol] }}</p>
-      <p class="ayuda">{{ motivo(fila) }}</p>
+      <p>Rol: {{ nombres[fila.rol] }}</p>
+      @if (fila.motivoRevocacion) {
+        <p class="ayuda">Motivo: {{ motivo(fila) }}</p>
+      }
       <div class="acciones-fila">
         <ng-container
           [ngTemplateOutlet]="acciones"

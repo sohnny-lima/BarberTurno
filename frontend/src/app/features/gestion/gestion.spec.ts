@@ -208,6 +208,9 @@ describe('Gestión del negocio', () => {
       { status: 409, statusText: 'Conflict' },
     );
     expect(f.componentInstance.mensaje()).toContain('El cupo');
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('form [role="alert"]')?.textContent).toContain('El cupo');
+    expect(f.nativeElement.querySelectorAll('[role="alert"]')).toHaveLength(1);
   });
 });
 

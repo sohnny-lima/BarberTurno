@@ -1,5 +1,6 @@
 import { RutasNegocio } from '../core/negocio/rutas-negocio';
 import { NegocioActual } from '../core/negocio/negocio-actual';
+import { NOMBRES_PAPEL } from '../core/modelos/negocios';
 import { BarberiaActual } from './barberia-actual';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import {
@@ -165,13 +166,12 @@ export class Shell {
         ];
     }
   });
-  readonly nombreRol = computed(() =>
-    !this.negocio.rol() && this.puedePlataforma()
-      ? 'Administrador de plataforma'
-      : { CLIENTE: 'Cliente', BARBERO: 'Barbero', ADMIN: 'Administrador' }[
-          this.negocio.rol() ?? 'CLIENTE'
-        ],
-  );
+  readonly nombreRol = computed(() => {
+    if (!this.negocio.slug())
+      return this.puedePlataforma() ? 'Administración de la plataforma' : '';
+    const rol = this.negocio.usuario()?.rolNegocio;
+    return this.negocio.rol() === 'CLIENTE' ? 'Cliente' : rol ? NOMBRES_PAPEL[rol] : '';
+  });
   parametrosEnlace(ruta: string) {
     if ((ruta === '/registro' || ruta === '/ingresar') && this.negocio.slug())
       return { returnUrl: this.negocio.ruta('reservar') };
@@ -230,9 +230,17 @@ export class Shell {
     }
   }
   icono(ruta: string) {
+    if (ruta.endsWith('/equipo'))
+      return 'M15 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0M5 21v-2a7 7 0 0 1 14 0v2M18 4a3 3 0 0 1 0 6M21 20v-2a6 6 0 0 0-3-5';
+    if (ruta.endsWith('/invitaciones')) return 'M3 5h18v14H3zM3 6l9 7 9-7';
+    if (ruta.endsWith('/configuracion'))
+      return 'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0';
+    if (ruta.startsWith('/plataforma') || ruta === '/negocios')
+      return 'M3 9l2-6h14l2 6v3H3zM5 12v9h14v-9M9 21v-6h6v6M8 3v6M16 3v6';
+    if (ruta.endsWith('/agenda')) return 'M4 5h16v16H4zM8 3v4M16 3v4M4 10h16M8 14h2M14 14h2M8 18h2';
     if (ruta === '/perfil' || ruta.endsWith('/usuarios') || ruta.endsWith('/barberos'))
       return 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21v-2a8 8 0 0 1 16 0v2';
-    if (ruta === '/mis-citas' || ruta.endsWith('/reportes'))
+    if (ruta.endsWith('/mis-citas') || ruta.endsWith('/reportes'))
       return 'M6 3h12v18H6zM9 7h6M9 11h6M9 15h4';
     if (ruta.endsWith('/servicios'))
       return 'M9 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0M9 17a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 9l13 11M8 15L21 4';

@@ -1,6 +1,6 @@
 <app-cabecera-pagina titulo="Configuración" subtitulo="Parámetros de esta barbería." />
-@if (mensaje()) {
-  <app-estado-contenido tipo="error" [texto]="mensaje()" />
+@if (errorCarga()) {
+  <app-estado-contenido tipo="error" [texto]="errorCarga()" />
 }
 @if (guardado()) {
   <p role="status">Configuración guardada. Se aplicará en la siguiente carga.</p>
@@ -52,5 +52,8 @@
         {{ guardando() ? 'Guardando…' : 'Guardar configuración' }}
       </button>
     </div>
+    @if (mensaje()) {
+      <app-estado-contenido tipo="error" [texto]="mensaje()" />
+    }
   </form>
 }

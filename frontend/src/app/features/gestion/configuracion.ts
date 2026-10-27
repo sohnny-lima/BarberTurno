@@ -47,6 +47,7 @@ export class Configuracion {
   readonly cargando = signal(false);
   readonly guardando = signal(false);
   readonly mensaje = signal('');
+  readonly errorCarga = signal('');
   readonly guardado = signal(false);
   readonly errorCampo = errorCampo;
   readonly formulario = new FormGroup({
@@ -99,6 +100,7 @@ export class Configuracion {
   cargar() {
     this.cargando.set(true);
     this.mensaje.set('');
+    this.errorCarga.set('');
     this.api
       .consultar()
       .pipe(
@@ -107,7 +109,7 @@ export class Configuracion {
       )
       .subscribe({
         next: (datos) => this.formulario.reset(datos),
-        error: (error) => this.mensaje.set(mostrarErrores(this.formulario, error)),
+        error: (error) => this.errorCarga.set(mostrarErrores(this.formulario, error)),
       });
   }
   guardar() {
@@ -116,6 +118,7 @@ export class Configuracion {
     this.guardando.set(true);
     this.guardado.set(false);
     this.mensaje.set('');
+    this.errorCarga.set('');
     this.api
       .guardar(this.formulario.getRawValue())
       .pipe(

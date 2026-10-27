@@ -132,6 +132,7 @@ describe('Selector y elección de papel', () => {
   });
   it('el bloque muestra barbería y papel efectivo; Cambiar papel abre las mismas opciones', async () => {
     const negocio = prepararNegocio('ADMIN');
+    negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio: 'PROPIETARIO' });
     const vista = TestBed.createComponent(BarberiaActual);
     vista.detectChanges();
     http.expectOne('/api/mis-negocios').flush([{ ...norte, slug: 'prueba' }]);
@@ -147,7 +148,7 @@ describe('Selector y elección de papel', () => {
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/n', 'prueba', 'reservar'], {
       queryParams: { papel: 'cliente' },
     });
-    negocio.actualizarSesion({ ...negocio.usuario()!, rol: 'CLIENTE' });
+    negocio.actualizarSesion({ ...negocio.usuario()!, rol: 'CLIENTE', rolNegocio: null });
     vista.detectChanges();
     http.expectOne('/api/mis-negocios').flush([{ ...norte, slug: 'prueba' }]);
     vista.detectChanges();

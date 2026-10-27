@@ -94,6 +94,21 @@ describe('Interceptor de errores', () => {
       .flush({ detail: 'Respuesta del servidor.' }, { status, statusText: 'Error' });
     expect(abrir).toHaveBeenCalledWith('Respuesta del servidor.', 'Cerrar', { duration: 6000 });
   });
+  it('el registro por invitación conserva el rechazo por suspensión sin duplicar el aviso global', () => {
+    const error = vi.fn();
+    const problema = {
+      codigo: 'NEGOCIO_SUSPENDIDO',
+      detail: 'El negocio está suspendido y solo admite lecturas del personal.',
+    };
+    http.post('/api/invitaciones/capacidad-ficticia/registro', {}).subscribe({ error });
+    peticiones.expectOne('/api/invitaciones/capacidad-ficticia/registro').flush(problema, {
+      status: 409,
+      statusText: 'Conflict',
+    });
+    expect(error.mock.calls[0][0].error).toEqual(problema);
+    expect(abrir).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
   it.each([500, 503])('oculta detalles técnicos del estado %s', (status) => {
     http.get('/api/perfil').subscribe({ error: () => undefined });
     peticiones

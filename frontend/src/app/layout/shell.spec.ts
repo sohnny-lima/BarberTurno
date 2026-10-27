@@ -76,12 +76,15 @@ describe('Shell adaptable', () => {
       'Mis citas',
       'Mi cuenta',
     ]);
+    expect(vista.componentInstance.nombreRol()).toBe('Cliente');
     negocio.seleccionar(null);
     vista.detectChanges();
     expect(vista.componentInstance.enlaces().map((enlace) => enlace.texto)).toEqual([
       'Sus barberías',
       'Mi cuenta',
     ]);
+    expect(vista.componentInstance.nombreRol()).toBe('');
+    expect(vista.nativeElement.querySelector('.usuario div span')).toBeNull();
   });
   it('plataforma sin membresía tiene zona separada y ningún menú del negocio', () => {
     TestBed.inject(SesionService).cargar().subscribe();
@@ -100,25 +103,27 @@ describe('Shell adaptable', () => {
       'Sus barberías',
       'Mi cuenta',
     ]);
-    expect(f.componentInstance.nombreRol()).toBe('Administrador de plataforma');
+    expect(f.componentInstance.nombreRol()).toBe('Administración de la plataforma');
     expect(f.nativeElement.querySelector('nav[aria-label="Plataforma"]')?.textContent).toContain(
       'Plataforma',
     );
     expect(f.nativeElement.querySelector('app-barberia-actual section')).toBeNull();
   });
-  it.each(['PROPIETARIO', 'ENCARGADO', 'BARBERO'] as const)(
-    'gestión usa rolNegocio %s de la sesión local',
-    (rolNegocio) => {
-      entrar(rolNegocio === 'BARBERO' ? 'BARBERO' : 'ADMIN');
-      const negocio = TestBed.inject(NegocioActual);
-      negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio });
-      const vista = TestBed.createComponent(Shell);
-      const textos = vista.componentInstance.enlaces().map((e) => e.texto);
-      expect(textos.includes('Equipo')).toBe(rolNegocio !== 'BARBERO');
-      expect(textos.includes('Invitaciones')).toBe(rolNegocio !== 'BARBERO');
-      expect(textos.includes('Configuración')).toBe(rolNegocio === 'PROPIETARIO');
-    },
-  );
+  it.each([
+    ['PROPIETARIO', 'Propietario'],
+    ['ENCARGADO', 'Encargado'],
+    ['BARBERO', 'Barbero'],
+  ] as const)('gestión usa rolNegocio %s de la sesión local', (rolNegocio, nombre) => {
+    entrar(rolNegocio === 'BARBERO' ? 'BARBERO' : 'ADMIN');
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio });
+    const vista = TestBed.createComponent(Shell);
+    const textos = vista.componentInstance.enlaces().map((e) => e.texto);
+    expect(textos.includes('Equipo')).toBe(rolNegocio !== 'BARBERO');
+    expect(textos.includes('Invitaciones')).toBe(rolNegocio !== 'BARBERO');
+    expect(textos.includes('Configuración')).toBe(rolNegocio === 'PROPIETARIO');
+    expect(vista.componentInstance.nombreRol()).toBe(nombre);
+  });
   it('los enlaces conservan el papel cliente como query y lo excluyen de Mi cuenta', async () => {
     const router = TestBed.inject(Router);
     router.resetConfig([{ path: 'n/prueba/mis-citas', children: [] }]);

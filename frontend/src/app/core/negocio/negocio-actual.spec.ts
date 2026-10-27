@@ -206,11 +206,12 @@ describe('Contexto multinegocio y transporte', () => {
       }
     },
   );
-  it('409 NEGOCIO_SUSPENDIDO muestra el mensaje del servidor', () => {
+  it('409 NEGOCIO_SUSPENDIDO llega a la acción sin duplicar el mensaje global', () => {
     negocio.seleccionar('a');
+    const error = vi.fn();
     TestBed.inject(ReservasApi)
       .crear({ servicioId: 1, barberoId: 2, inicio: '2026-11-01T10:00:00-05:00' })
-      .subscribe({ error: () => undefined });
+      .subscribe({ error });
     http.expectOne('/api/n/a/reservas').flush(
       {
         codigo: 'NEGOCIO_SUSPENDIDO',
@@ -218,11 +219,11 @@ describe('Contexto multinegocio y transporte', () => {
       },
       { status: 409, statusText: 'Conflict' },
     );
-    expect(abrir).toHaveBeenCalledWith(
+    expect(error.mock.calls[0][0].error.detail).toBe(
       'Barbería suspendida: puede consultar, pero no hacer cambios.',
-      'Cerrar',
-      { duration: 6000 },
     );
+    expect(error.mock.calls[0][0].error.codigo).toBe('NEGOCIO_SUSPENDIDO');
+    expect(abrir).not.toHaveBeenCalled();
   });
   it('una membresía perdida vuelve al selector aunque quede una ficha de cliente', () => {
     negocio.seleccionar('a');

@@ -54,7 +54,8 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
               }
             },
           });
-      } else {
+      } else if (error.status !== 409 || problema?.codigo !== 'NEGOCIO_SUSPENDIDO') {
+        // La vista conserva el rechazo junto a la acción y el aviso fijo de suspensión.
         const mensaje =
           error.status === 0 || error.status >= 500
             ? 'No pudimos completar la solicitud. Intente nuevamente.'

@@ -62,12 +62,10 @@ export class BarberiaActual {
   readonly puedeCambiarPapel = () =>
     this.relacion()?.papeles.includes('CLIENTE') &&
     this.relacion()?.papeles.some((p) => p !== 'CLIENTE');
-  readonly nombrePapel = () =>
-    this.negocio.rol() === 'CLIENTE'
-      ? 'Cliente'
-      : this.negocio.rol()
-        ? NOMBRES_PAPEL[this.relacion()?.rol ?? 'BARBERO']
-        : 'Visitante';
+  readonly nombrePapel = () => {
+    const rol = this.negocio.usuario()?.rolNegocio;
+    return this.negocio.rol() === 'CLIENTE' ? 'Cliente' : rol ? NOMBRES_PAPEL[rol] : 'Visitante';
+  };
   constructor() {
     toObservable(
       computed(() => ({ ambito: this.negocio.ambito(), usuario: this.negocio.usuario() })),
