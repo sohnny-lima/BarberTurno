@@ -1,0 +1,28 @@
+{
+  "navegador": "firefox",
+  "version": "155.0",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 926
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mat-button-toggle-button mat-focus-indicator",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "-3px"
+  },
+  "ruta": "/n/barberturno/agenda",
+  "axe": {
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

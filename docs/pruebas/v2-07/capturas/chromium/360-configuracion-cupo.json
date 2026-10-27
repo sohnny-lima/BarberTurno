@@ -1,0 +1,28 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 1484
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-switch mdc-switch--unselected",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "ruta": "/n/barberturno/configuracion",
+  "axe": {
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

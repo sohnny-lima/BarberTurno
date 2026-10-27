@@ -1,0 +1,28 @@
+{
+  "navegador": "firefox",
+  "version": "155.0",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 901
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "ruta": "/n/barberturno/reservar",
+  "axe": {
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

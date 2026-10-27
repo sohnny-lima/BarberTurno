@@ -1,0 +1,28 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 900
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "A",
+    "clase": "mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "ruta": "/n/no-existe/reservar",
+  "axe": {
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

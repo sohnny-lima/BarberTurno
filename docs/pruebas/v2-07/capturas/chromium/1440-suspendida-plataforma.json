@@ -12,6 +12,7 @@
   "superpuesta": false,
   "foco": {
     "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed cdk-focused cdk-keyboard-focused",
     "visible": true,
     "estilo": "solid",
     "ancho": "3px",

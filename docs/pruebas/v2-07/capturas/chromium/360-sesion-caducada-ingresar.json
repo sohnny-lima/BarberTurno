@@ -1,0 +1,28 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 800
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "ruta": "/ingresar",
+  "axe": {
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}
