@@ -7,7 +7,12 @@ import { EstadoContenido } from './estado-contenido';
 @Component({
   selector: 'app-enlace-invitacion',
   imports: [MatButtonModule, FechaLimaPipe, EstadoContenido],
-  template: `<section aria-label="Enlace de invitación">
+  template: `<section [attr.aria-label]="titulo() || 'Enlace de invitación'">
+    @if (titulo()) {
+      <p>
+        <strong>{{ titulo() }}</strong>
+      </p>
+    }
     <p class="enlace">{{ enlaceCompleto() }}</p>
     <button mat-stroked-button (click)="copiar()">Copiar</button>
     <span role="status">{{ mensaje() }}</span>
@@ -42,6 +47,8 @@ import { EstadoContenido } from './estado-contenido';
 export class EnlaceInvitacion {
   readonly enlace = input.required<string>();
   readonly expiraEn = input<string | null>(null);
+  /** Para quién es el enlace: sin él, un secreto de un solo uso queda sin referencia. */
+  readonly titulo = input('');
   readonly mensaje = signal('');
   readonly enlaceCompleto = () =>
     new URL(this.enlace().replace(/^\/api\/invitaciones\//, '/invitacion/'), location.origin).href;

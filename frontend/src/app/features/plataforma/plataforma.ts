@@ -36,7 +36,7 @@ export class Plataforma {
   private readonly dialogos = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   readonly filas = signal<NegocioPlataformaDto[]>([]);
-  readonly enlace = signal<{ valor: string; expiraEn: string | null } | null>(null);
+  readonly enlace = signal<{ valor: string; expiraEn: string | null; para: string } | null>(null);
   readonly cargando = signal(false);
   readonly operando = signal(false);
   readonly mensaje = signal('');
@@ -75,7 +75,7 @@ export class Plataforma {
       )
       .subscribe((creado) => {
         if (creado) {
-          this.enlace.set({ valor: creado.enlaceInvitacion, expiraEn: null });
+          this.enlace.set({ valor: creado.enlaceInvitacion, expiraEn: null, para: creado.nombre });
           this.cargar();
         }
       });
@@ -104,6 +104,7 @@ export class Plataforma {
             this.enlace.set({
               valor: emitida.enlaceInvitacion,
               expiraEn: emitida.invitacion.expiraEn,
+              para: fila.nombre,
             });
           }),
         ),

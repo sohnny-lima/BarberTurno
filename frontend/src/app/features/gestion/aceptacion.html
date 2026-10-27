@@ -4,7 +4,13 @@
 } @else {
   <app-seccion-formulario>
     @if (invitacion(); as dato) {
-      <h2>{{ dato.negocio }} le invita como {{ nombres[dato.rol] }}</h2>
+      <h2>
+        @if (dato.estado === 'PENDIENTE') {
+          {{ dato.negocio }} le invita como {{ nombres[dato.rol] }}
+        } @else {
+          Invitación de {{ dato.negocio }} como {{ nombres[dato.rol] }}
+        }
+      </h2>
       <p class="ayuda">{{ dato.correoEnmascarado }}</p>
     }
     @if (aviso()) {

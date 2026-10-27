@@ -1792,7 +1792,9 @@ test('18 · revocación durante la sesión vuelve al selector aunque conserva fi
     await escribir(gestor, `/api/n/barberturno/equipo/${miembro.id}/revocacion`, null);
     await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
     await expect(page).toHaveURL(/\/negocios$/);
-    await expect(page.locator('main')).toContainText('Ya no tiene acceso a BarberTurno.');
+    await expect(page.locator('main')).toContainText(
+      'Ya no tiene acceso como personal a BarberTurno. Puede seguir entrando como cliente.',
+    );
     await capturarGestion(page, info, 'acceso-revocado');
     await page.goto('/n/barberturno/equipo');
     await expect(page.locator('main')).toContainText('No tiene acceso a esta sección.');

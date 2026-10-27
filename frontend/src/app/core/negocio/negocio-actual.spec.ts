@@ -240,7 +240,9 @@ describe('Contexto multinegocio y transporte', () => {
       .flush({ codigo: 'PROHIBIDO' }, { status: 403, statusText: 'Forbidden' });
     http.expectOne('/api/n/a/sesion').flush({ ...usuarioNegocio('CLIENTE'), rolNegocio: null });
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/negocios']);
-    expect(negocio.avisoSelector()).toBe('Ya no tiene acceso a Barbería A.');
+    expect(negocio.avisoSelector()).toBe(
+      'Ya no tiene acceso como personal a Barbería A. Puede seguir entrando como cliente.',
+    );
   });
   it('logout limpia identidad, contexto, avisos y almacenamiento opcional', () => {
     const sesion = TestBed.inject(SesionService);

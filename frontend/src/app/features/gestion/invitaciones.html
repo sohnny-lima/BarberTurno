@@ -31,6 +31,7 @@
     <app-enlace-invitacion
       [enlace]="dato.enlaceInvitacion"
       [expiraEn]="dato.invitacion.expiraEn"
+      [titulo]="'Enlace para ' + dato.invitacion.correo"
     /><button mat-button (click)="emitida.set(null)">Ocultar enlace</button>
   }
 </app-seccion-formulario>

@@ -42,7 +42,14 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
               if (!negocio.vigente(origen)) return;
               negocio.actualizarSesion(usuario);
               if (!usuario.rol || (eraPersonal && !usuario.rolNegocio)) {
-                negocio.avisoSelector.set('Ya no tiene acceso a ' + nombre + '.');
+                // Si conserva su ficha, el selector la sigue mostrando: el aviso no lo contradice.
+                negocio.avisoSelector.set(
+                  eraPersonal && usuario.rol === 'CLIENTE'
+                    ? 'Ya no tiene acceso como personal a ' +
+                        nombre +
+                        '. Puede seguir entrando como cliente.'
+                    : 'Ya no tiene acceso a ' + nombre + '.',
+                );
                 void router.navigate(['/negocios']);
               } else snackbar.open('No tiene acceso a esta sección.', 'Cerrar', { duration: 6000 });
             },

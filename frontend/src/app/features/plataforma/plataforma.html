@@ -7,12 +7,11 @@
 >
 <a mat-button routerLink="/negocios">Ir a mis barberías</a>
 @if (enlace(); as dato) {
-  <app-enlace-invitacion [enlace]="dato.valor" [expiraEn]="dato.expiraEn" /><button
-    mat-button
-    (click)="enlace.set(null)"
-  >
-    Ocultar enlace
-  </button>
+  <app-enlace-invitacion
+    [enlace]="dato.valor"
+    [expiraEn]="dato.expiraEn"
+    [titulo]="'Invitación inicial de ' + dato.para"
+  /><button mat-button (click)="enlace.set(null)">Ocultar enlace</button>
 }
 @if (mensaje()) {
   <app-estado-contenido
