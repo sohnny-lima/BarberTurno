@@ -36,6 +36,20 @@ class CookieBearerTokenResolverTest {
         }
     }
 
+    /** V2-DA-48: fuera de /api/ no se necesita identidad; la cookie no se lee ni se valida. */
+    @ParameterizedTest @ValueSource(strings = {"/barberturno/", "/barberturno/n/a/agenda", "/barberturno/index.html",
+            "/barberturno/actuator/health", "/barberturno/apiario", "/barberturno/api"})
+    void fueraDeApi_noLeeLaCookie(String ruta) {
+        var peticion = peticion("GET", ruta);
+        peticion.setCookies(new Cookie("BT_SESION", "anterior"), new Cookie("BT_SESION", "otra"));
+        assertThat(resolver.resolve(peticion)).isNull();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"/barberturno/api/perfil", "/barberturno/api/n/a/sesion"})
+    void dentroDeApi_sigueLeyendoLaCookie(String ruta) {
+        assertThat(resolver.resolve(peticion("GET", ruta))).isEqualTo("anterior");
+    }
+
     private MockHttpServletRequest peticion(String metodo, String ruta) {
         var peticion = new MockHttpServletRequest(metodo, ruta);
         peticion.setContextPath("/barberturno");

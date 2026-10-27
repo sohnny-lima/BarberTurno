@@ -95,8 +95,12 @@ test('visual · pantallas existentes canónicas y tarjetas de equipo y plataform
     (r) => r.url().endsWith('/configuracion') && r.request().method() === 'PUT',
   );
   await page.getByRole('button', { name: 'Guardar configuración', exact: true }).click();
-  expect((await cupo).status()).toBe(409);
-  await expect(page.locator('main [role="alert"]')).toContainText(/cupo/i);
+  const rechazo = await cupo;
+  expect(rechazo.status()).toBe(409);
+  expect((await rechazo.json()).codigo).toBe('CONFLICTO');
+  await expect(page.locator('main [role="alert"]')).toContainText(
+    'El límite no puede ser inferior al número de barberos activos.',
+  );
   await capturarV2(page, info, 'configuracion-cupo');
 
   if (page.viewportSize()!.width === 1440) {

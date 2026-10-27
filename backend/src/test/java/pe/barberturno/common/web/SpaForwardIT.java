@@ -37,6 +37,20 @@ class SpaForwardIT {
                 .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
     }
 
+    /** V2-DA-48: una cookie caducada o revocada no impide cargar la aplicación; la API la sigue rechazando. */
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/n/barberturno/agenda", "/negocios", "/ingresar"})
+    void navegar_conCookieInvalida_sirveLaEntradaAngularYLaApiLaRechaza(String ruta) throws Exception {
+        var cookie = new jakarta.servlet.http.Cookie("BT_SESION", "sesion-invalida-de-la-prueba");
+        mvc.perform(get(ruta).accept("text/html").cookie(cookie))
+                .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
+        mvc.perform(get("/main-prueba.js").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+    }
+
     @Test
     void navegar_conContextPath_conservaLaRutaDeReenvio() throws Exception {
         mvc.perform(get("/barberturno/agenda").contextPath("/barberturno").accept("text/html"))
