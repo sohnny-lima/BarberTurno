@@ -109,15 +109,17 @@ export async function capturarV2(page: Page, info: TestInfo, nombre: string) {
       const estilo = getComputedStyle(elemento);
       return {
         etiqueta: elemento.tagName,
+        clase: elemento.className,
         visible: elemento.matches(':focus-visible'),
         estilo: estilo.outlineStyle,
         ancho: estilo.outlineWidth,
         desfase: estilo.outlineOffset,
       };
     });
-    expect(foco.visible).toBe(true);
-    expect(foco.estilo).not.toBe('none');
-    expect(parseFloat(foco.ancho)).toBeGreaterThanOrEqual(3);
+    const descripcion = `${nombre}: ${foco.etiqueta}.${foco.clase}`;
+    expect(foco.visible, descripcion).toBe(true);
+    expect(foco.estilo, descripcion).not.toBe('none');
+    expect(parseFloat(foco.ancho), descripcion).toBeGreaterThanOrEqual(3);
     expect(await page.locator('.saltar').evaluate((el) => el.matches(':focus-visible'))).toBe(
       false,
     );

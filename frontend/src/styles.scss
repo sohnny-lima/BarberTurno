@@ -86,13 +86,25 @@ body {
 a {
   color: var(--color-verde);
 }
+// Las cuatro últimas: Material anula el contorno en esos controles (`.mdc-button` también en
+// los enlaces con aspecto de botón) con igual especificidad.
 :focus-visible,
 button[mat-button]:focus-visible,
 button[mat-flat-button]:focus-visible,
 button[mat-stroked-button]:focus-visible,
-[mat-menu-item]:focus-visible {
+[mat-menu-item]:focus-visible,
+.mat-mdc-button-base.mdc-button:focus-visible,
+.mat-mdc-slide-toggle .mdc-switch:focus-visible,
+mat-step-header.mat-step-header:focus-visible,
+.mat-mdc-menu-item.mat-mdc-menu-item:focus-visible {
   outline: 3px solid var(--color-verde);
   outline-offset: 2px;
+}
+// El grupo de botones y la cabecera de pestañas recortan lo que sobresale: contorno hacia dentro.
+.mat-button-toggle .mat-button-toggle-button:focus-visible,
+.mat-mdc-tab.mdc-tab:focus-visible {
+  outline: 3px solid var(--color-verde);
+  outline-offset: -3px;
 }
 input[matInput]:focus-visible {
   outline: 3px solid var(--color-verde);
