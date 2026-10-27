@@ -20,9 +20,23 @@
   },
   "ruta": "/n/barberturno/configuracion",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 40,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 49
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 6
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

@@ -20,9 +20,33 @@
   },
   "ruta": "/plataforma/negocios",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 33,
+      "violadas": 0,
+      "incompletas": 3,
+      "inaplicables": 56
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-allowed-role",
+        "impacto": "minor",
+        "nodos": 2
+      },
+      {
+        "id": "aria-hidden-focus",
+        "impacto": "serious",
+        "nodos": 3
+      },
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 5
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

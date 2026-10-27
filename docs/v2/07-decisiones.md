@@ -275,4 +275,29 @@
 - **Problema (detectado por la batería de capturas de V2-07.6; anterior a V2-07):** `CookieBearerTokenResolver` leía y validaba `BT_SESION` en **cualquier** petición. Con una cookie caducada o revocada (p. ej., tras un restablecimiento de contraseña o la desactivación de la cuenta), la carga directa de una ruta de la aplicación (`/n/{slug}/agenda`, `/negocios`, `/`) respondía el JSON del 401 en lugar de la entrada Angular: la persona veía un texto técnico y no la pantalla de ingreso (CG-4).
 - **Decisión:** el lector devuelve nulo fuera de `/api/`. Ninguna ruta fuera de la API necesita identidad: la entrada Angular y sus archivos son públicos (`SpaForwardFilter.esRecursoPublico`), `/actuator/health` es público y sin detalles, y el resto queda en `denyAll`. Dentro de `/api/` nada cambia: una cookie inválida sigue dando 401 `NO_AUTENTICADO`, también en `GET /api/auth/sesion` y `/api/n/{slug}/sesion`, y la interfaz lleva a «Ingresar» con `returnUrl`. Una ruta de API codificada queda sin identidad (fallo hacia menos acceso; DA-36 ya la rechaza con 400).
 - **Pruebas:** `CookieBearerTokenResolverTest` (fuera de `/api/` no lee la cookie, incluso ambigua; dentro sí), `SpaForwardIT` (cookie inválida: entrada Angular y archivos 200; API 401) y la captura `sesion-caducada-ingresar` del E2E.
-- **Alcance:** solo v2. La entrega académica (`main`) conserva el comportamiento anterior; queda anotado como observación para v1, sin cambios.
+- **Alcance:** solo v2. La entrega académica (`main`) conserva el comportamiento anterior; queda registrado aparte como **INC-V1-01** (`incidencias-v1.md`), sin cambios en v1.
+
+### V2-DA-49 · Con la barbería suspendida, la interfaz del personal queda en solo lectura (27/10/2026)
+- **Problema (observación de la crítica de diseño de V2-07.6, priorizada por el responsable):** con la barbería suspendida, el personal veía formularios y acciones de escritura activos; solo al enviarlos el servidor respondía 409 `NEGOCIO_SUSPENDIDO` (V2-DA-38) y se mostraba el motivo.
+- **Decisión:** `NegocioActual.soloLectura` refleja el estado `suspendido` que ya informó el servidor: la consulta pública da 404 y la sesión del negocio responde, o llega un 409 `NEGOCIO_SUSPENDIDO` con la sesión abierta (V2-07.6, `marcarSuspendido`). Con ella, las pantallas del personal desactivan sus escrituras:
+  - configuración e invitaciones, con el formulario completo;
+  - horarios y bloqueos, con sus formularios y «Eliminar»;
+  - servicios y barberos, en «Nuevo», «Editar» y «Activar/Desactivar»;
+  - usuarios, en «Restablecer contraseña» y «Activar/Desactivar»;
+  - equipo, en «Cambiar rol», «Revocar acceso» y «Salir»;
+  - la agenda, en sus transiciones, «Reprogramar» y «Cancelar».
+- **Lo que no se desactiva:** las lecturas siguen disponibles (filtros, «Mostrar revocadas», «Ver cambios», reportes y su descarga). El aviso fijo indica el motivo: «Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive.».
+- **Por qué no es una regla de negocio en el frontend:** solo presenta un estado que el servidor ya comunicó. No concede ni retira permisos, y el servidor sigue rechazando toda escritura. Una escritura directa con la misma sesión da 409 `NEGOCIO_SUSPENDIDO` en el E2E 21.
+- **Pruebas:**
+  - unitaria en `gestion.spec.ts`: configuración, equipo e invitaciones en solo lectura, con «Mostrar revocadas» activo;
+  - E2E 21: tras el 409 con la sesión abierta, la pantalla pasa a solo lectura sin recargar; tras recargar siguen desactivados, la escritura directa da 409, y en equipo «Cambiar rol» está desactivado y el interruptor de lectura activo;
+  - captura `suspendida-personal`.
+- **Alternativa descartada:** `fieldset disabled` sobre toda la vista, porque desactivaría también los filtros y la navegación de lectura.
+
+### V2-DA-50 · Un error se anuncia una sola vez (27/10/2026)
+- **Problema (observación heredada de v1, priorizada por el responsable):** el interceptor abría un snackbar con el `detail` de cualquier error, y la vista mostraba el mismo mensaje junto a la acción. El mismo error se veía y se anunciaba dos veces.
+- **Decisión:** la vista que presenta el error junto a la acción lo marca con `marcarPresentado`. Lo hacen `mostrarErrores` (todas sus llamadas pintan el mensaje en una región `role="alert"` o `status`), el asistente de reserva, horarios y la aceptación de invitaciones. El interceptor difiere el snackbar a una microtarea, que se ejecuta después del manejador de la vista, y solo lo abre si nadie presentó el error. Los errores sin aviso en la página (p. ej., una acción de una fila que no muestra mensaje propio) siguen llegando al snackbar. Las ramas especiales del interceptor no cambian: 401, 403 revalidado y 409 `NEGOCIO_SUSPENDIDO`.
+- **Accesibilidad:** el anuncio se conserva, porque el mensaje de la página está en una región `role="alert"` o `status`.
+- **Pruebas:**
+  - en `errores-interceptor.spec.ts`, el mismo 409 presentado no abre snackbar y sin presentar sí lo abre; las aserciones del snackbar esperan la microtarea, también las negativas;
+  - los E2E de error de reservar, mis citas y agenda exigen ahora que no haya snackbar (antes lo cerraban).

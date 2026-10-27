@@ -20,12 +20,29 @@
   },
   "ruta": "/n/barberturno/invitaciones",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 44,
+      "violadas": 1,
+      "incompletas": 1,
+      "inaplicables": 45
+    },
     "seriasOCriticas": 0,
     "total": 1,
     "otras": [
       {
         "id": "aria-allowed-role",
-        "impacto": "minor"
+        "impacto": "minor",
+        "nodos": [
+          "article"
+        ]
+      }
+    ],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 2
       }
     ]
   },

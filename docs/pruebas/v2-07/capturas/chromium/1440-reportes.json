@@ -20,9 +20,23 @@
   },
   "ruta": "/n/barberturno/admin/reportes",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 45,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 44
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 3
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

@@ -20,9 +20,33 @@
   },
   "ruta": "/n/sur/equipo",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 29,
+      "violadas": 0,
+      "incompletas": 3,
+      "inaplicables": 60
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-allowed-role",
+        "impacto": "minor",
+        "nodos": 2
+      },
+      {
+        "id": "aria-hidden-focus",
+        "impacto": "serious",
+        "nodos": 3
+      },
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 2
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

@@ -7,12 +7,12 @@
   },
   "captura": {
     "width": 1440,
-    "height": 1287
+    "height": 1166
   },
   "superpuesta": false,
   "foco": {
-    "etiqueta": "BUTTON",
-    "clase": "mdc-switch mdc-switch--unselected",
+    "etiqueta": "A",
+    "clase": "enlace",
     "visible": true,
     "estilo": "solid",
     "ancho": "3px",
@@ -20,9 +20,17 @@
   },
   "ruta": "/n/barberturno/configuracion",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 39,
+      "violadas": 0,
+      "incompletas": 0,
+      "inaplicables": 50
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": []
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

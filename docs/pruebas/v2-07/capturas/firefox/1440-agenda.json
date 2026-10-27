@@ -20,9 +20,28 @@
   },
   "ruta": "/n/barberturno/agenda",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 42,
+      "violadas": 0,
+      "incompletas": 2,
+      "inaplicables": 47
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-prohibited-attr",
+        "impacto": "serious",
+        "nodos": 1
+      },
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 4
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

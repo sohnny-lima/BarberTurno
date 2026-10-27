@@ -20,9 +20,28 @@
   },
   "ruta": "/negocios",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 32,
+      "violadas": 0,
+      "incompletas": 2,
+      "inaplicables": 57
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-hidden-focus",
+        "impacto": "serious",
+        "nodos": 3
+      },
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 1
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

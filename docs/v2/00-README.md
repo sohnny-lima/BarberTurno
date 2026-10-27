@@ -19,6 +19,7 @@ Una plataforma para varias barberías independientes, con datos separados por ne
 | 08 | [Pruebas, migración y reversión](08-pruebas-migracion-reversion.md) | Niveles de prueba, batería de aislamiento, evaluación de conversaciones, entorno aislado, migración futura, reversión y preservación de v1 |
 | 09 | [Costes](09-costes.md) | WhatsApp, IA, alojamiento y requisitos de Meta, con fuentes y supuestos |
 | 10 | [Backlog](10-backlog.md) | V2-01…V2-17 con dependencias y criterios, **recomendación de MVP** y **primera tarea (V2-01)** |
+| — | [Incidencias de v1](incidencias-v1.md) | Defectos de `main`/Azure detectados al trabajar en v2, registrados aparte y sin corregir desde v2 (INC-V1-01) |
 
 ## 3. Reglas de trabajo en v2
 - **Precedencia** (como v1): requisitos (`02`) > arquitectura (`04`, `05`, `07`) > backlog (`10`) > código. Lo que v2 no redefine se hereda de `docs/requisitos.md` y `docs/arquitectura.md`.

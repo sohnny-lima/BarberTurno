@@ -1,0 +1,7 @@
+# Incidencias de v1 detectadas durante v2
+
+Registro aparte de los defectos de la entrega académica (`main`) y del despliegue de Azure que aparecen al trabajar en v2. **No se corrigen desde v2.** `main`, Azure y los entregables no se modifican sin autorización expresa del responsable. Los pendientes heredados de v1 siguen en `docs/cierre.md` de `main`.
+
+| ID | Fecha | Incidencia | Afecta | Cómo se comprobó | Estado |
+|---|---|---|---|---|---|
+| INC-V1-01 | 26/10/2026 | Sesión caducada o revocada: al cargar directamente una ruta de la aplicación (`/`, `/agenda`, …) con una cookie `BT_SESION` caducada o revocada, el servidor responde el JSON del 401 en lugar de la entrada Angular, así que la persona ve un texto técnico y no la pantalla de ingreso. La causa es que `CookieBearerTokenResolver` lee la cookie en cualquier petición. | `main` (`efd52aa`) y Azure (`d2f3107`): el lector no limita la lectura a `/api/` | Lectura del código de los dos commits (27/10/2026). En v2 el defecto se reprodujo con la batería de capturas (`sesion-caducada-ingresar`) y se corrigió con **V2-DA-48** (`e75e405`). **No se reprodujo contra v1 ni contra Azure.** | Abierta, sin cambios en v1. Corrección posible: el mismo cambio de V2-DA-48, con `CookieBearerTokenResolverTest` y `SpaForwardIT`. Requiere decisión del responsable (rama, verificación y redespliegue). |

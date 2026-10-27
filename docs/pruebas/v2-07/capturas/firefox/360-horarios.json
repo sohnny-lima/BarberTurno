@@ -20,9 +20,23 @@
   },
   "ruta": "/n/barberturno/admin/horarios",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 43,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 46
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 31
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }

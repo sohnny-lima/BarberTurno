@@ -20,9 +20,23 @@
   },
   "ruta": "/n/barberturno/reservar",
   "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 41,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 48
+    },
     "seriasOCriticas": 0,
     "total": 0,
-    "otras": []
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": 2
+      }
+    ]
   },
   "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
 }
