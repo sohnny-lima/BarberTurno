@@ -137,7 +137,9 @@ public class SecurityConfig {
                             public <O extends CsrfFilter> O postProcess(O filtro) {
                                 // El resource server excluye bearer de CSRF por defecto.
                                 // Con JWT en cookie toda escritura sigue necesitando CSRF.
-                                filtro.setRequireCsrfProtectionMatcher(CsrfFilter.DEFAULT_CSRF_MATCHER);
+                                // El webhook de WhatsApp se autentica con su firma (V2-DA-15): única exención.
+                                filtro.setRequireCsrfProtectionMatcher(peticion -> CsrfFilter.DEFAULT_CSRF_MATCHER.matches(peticion)
+                                        && !esWebhookWhatsApp(peticion));
                                 return filtro;
                             }
                         }))
@@ -159,6 +161,8 @@ public class SecurityConfig {
                     permisos.requestMatchers(SpaForwardFilter::esRecursoPublico).permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/actuator/health").permitAll();
                     permisos.requestMatchers(HttpMethod.HEAD, "/actuator/health").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/whatsapp/webhook").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/whatsapp/webhook").permitAll();
                     if (apiDocsHabilitada) {
                         permisos.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**").permitAll();
                     }
@@ -216,5 +220,10 @@ public class SecurityConfig {
                     permisos.anyRequest().denyAll();
                 });
         return http.build();
+    }
+
+    /** Notificación del webhook de WhatsApp: la única escritura sin CSRF, con autenticación propia. */
+    static boolean esWebhookWhatsApp(jakarta.servlet.http.HttpServletRequest peticion) {
+        return "POST".equals(peticion.getMethod()) && "/api/whatsapp/webhook".equals(peticion.getServletPath());
     }
 }

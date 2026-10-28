@@ -121,6 +121,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
                 || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
+                || ruta.equals("/api/whatsapp/webhook")
                 || (metodo.equals("GET") || metodo.equals("HEAD")) && ruta.matches("/api/invitaciones/[^/]+")
                 || ruta.matches("/api/invitaciones/[^/]+/aceptacion");
     }

@@ -271,6 +271,7 @@ public class ManejadorErrores {
             return switch (restriccion) {
                 case "usuario_correo_uk" -> ErrorCodigo.CORREO_DUPLICADO;
                 case "servicio_nombre_uk" -> ErrorCodigo.NOMBRE_DUPLICADO;
+                case "canal_whatsapp_numero_uk" -> ErrorCodigo.NUMERO_WHATSAPP_EN_USO;
                 default -> ErrorCodigo.CONFLICTO;
             };
         }

@@ -14,6 +14,31 @@ class EsquemaV2IT extends TenancyPruebaBase {
         });
     }
     @Test void v107_indicesEmpiezanPorElNegocio() { IndicesNegocioEsquemaPruebas.comprobar(jdbc); }
+    @Test void v113_whatsappSinRls_permisosPorColumnaYRestriccionesComoAplicacion() throws Exception {
+        WhatsAppEsquemaPruebas.comprobar(jdbc);
+        assertThatThrownBy(() -> jdbc.update("""
+                insert into evento_whatsapp_entrante (clave_idempotencia, tipo, phone_number_id, cuerpo, estado, proximo_intento, recibido_en)
+                values ('m:esquema', 'MENSAJE', '1', '{}'::jsonb, 'DESCARTADO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"""))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("evento_whatsapp_motivo_coherente"));
+        long b = negocioB();
+        var primera = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "wa-1"));
+        long segunda = enNegocio(1L, () -> jdbc.queryForObject("""
+                insert into cliente (nombre, telefono, creado_en, actualizado_en)
+                values ('Segunda ficha ficticia', '51900000099', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) returning id""", Long.class));
+        var otroNegocio = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "wa-b"));
+        // La aplicación aún no escribe wa_id desde el dominio (V2-10); la prueba lo fija con SQL bajo RLS.
+        enNegocio(1L, () -> jdbc.update("update cliente set wa_id='51900000001' where id=?", primera.ficha()));
+        enNegocio(b, () -> jdbc.update("update cliente set wa_id='51900000001' where id=?", otroNegocio.ficha()));
+        assertThatThrownBy(() -> enNegocio(1L, () -> jdbc.update("update cliente set wa_id='51900000001' where id=?", segunda)))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("cliente_wa_uk"));
+        assertThatThrownBy(() -> enNegocio(1L, () -> jdbc.update("update cliente set wa_id='+51900' where id=?", segunda)))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("cliente_wa_formato"));
+    }
+
+    private static String restriccion(Throwable fallo) {
+        var causa = (org.postgresql.util.PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
+        return causa.getServerErrorMessage().getConstraint();
+    }
     @Test void v106_estadoDeFichaSincronizadoYAplicacionSoloLeeElIndice() throws Exception {
         long b = negocioB();
         for (long id : new long[]{1L, b}) {
