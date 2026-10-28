@@ -66,7 +66,7 @@ class CanalWhatsAppIT extends PlataformaPruebaBase {
         assertThat(http(admin, "PUT", ruta(a), datos("100000000000001"), token(admin)).statusCode()).isEqualTo(200);
 
         ejecutor.ejecutar(a, () -> {
-            jdbc.update("insert into conversacion (negocio_id, wa_id, creado_en, actualizado_en) values (?, '51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a);
+            sql.update("insert into conversacion (negocio_id, wa_id, creado_en, actualizado_en) values (?, '51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a);
             return null;
         });
 
@@ -76,8 +76,11 @@ class CanalWhatsAppIT extends PlataformaPruebaBase {
         assertThat(jdbc.queryForObject("select phone_number_id from canal_whatsapp where negocio_id=?", String.class, a))
                 .isEqualTo("100000000000001");
 
-        var actualizacionMismoNumero = http(admin, "PUT", ruta(a), datos("100000000000001"), token(admin));
+        String datosActualizados = "{\"wabaId\":\"900000000000002\",\"phoneNumberId\":\"100000000000001\",\"numeroVisible\":\"+15550000002\"}";
+        var actualizacionMismoNumero = http(admin, "PUT", ruta(a), datosActualizados, token(admin));
         assertThat(actualizacionMismoNumero.statusCode()).isEqualTo(200);
+        var fila = jdbc.queryForMap("select waba_id, numero_visible from canal_whatsapp where negocio_id=?", a);
+        assertThat(fila).containsEntry("waba_id", "900000000000002").containsEntry("numero_visible", "+15550000002");
     }
 
     @Test void carreraDeDosNegociosPorElMismoNumero_unoGanaYElOtro409() throws Exception {

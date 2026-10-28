@@ -28,7 +28,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class ServidorGraphFalso implements AutoCloseable {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
-    private final HttpServer server;
+    private HttpServer server;
     private final List<PeticionRegistrada> peticiones = new CopyOnWriteArrayList<>();
     private final Queue<AccionRespuesta> colaRespuestas = new ConcurrentLinkedQueue<>();
     private volatile AccionRespuesta respuestaPorDefecto;
@@ -56,6 +56,10 @@ public class ServidorGraphFalso implements AutoCloseable {
      * Inicializa el servidor en un puerto efímero de {@code 127.0.0.1}.
      */
     public ServidorGraphFalso() {
+        crearServidor();
+    }
+
+    private synchronized void crearServidor() {
         try {
             this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             this.server.createContext("/", this::atender);
@@ -68,22 +72,37 @@ public class ServidorGraphFalso implements AutoCloseable {
     }
 
     /**
-     * Arranca el servidor HTTP en segundo plano.
+     * Arranca el servidor HTTP en segundo plano si no está iniciado.
+     * Si fue detenido previamente, recrea el servidor antes de arrancarlo.
      */
     public synchronized void iniciar() {
         if (!iniciado) {
+            if (server == null) {
+                crearServidor();
+            }
             server.start();
             iniciado = true;
         }
     }
 
     /** {@return {@code true} si el servidor ya ha sido iniciado} */
-    public boolean estaIniciado() {
+    public synchronized boolean estaIniciado() {
         return iniciado;
     }
 
+    /**
+     * Reinicia el estado del servidor falso para una nueva prueba,
+     * vaciando la lista de peticiones recibidas y la cola de respuestas programadas.
+     */
+    public synchronized void reiniciar() {
+        limpiar();
+    }
+
     /** {@return puerto local en el que escucha el servidor} */
-    public int puerto() {
+    public synchronized int puerto() {
+        if (server == null) {
+            crearServidor();
+        }
         return server.getAddress().getPort();
     }
 
@@ -228,9 +247,10 @@ public class ServidorGraphFalso implements AutoCloseable {
     }
 
     @Override
-    public void close() {
-        if (iniciado) {
+    public synchronized void close() {
+        if (iniciado && server != null) {
             server.stop(0);
+            server = null;
             iniciado = false;
         }
     }

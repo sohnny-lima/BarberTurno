@@ -7,7 +7,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,17 +63,16 @@ public abstract class WhatsAppSalidaPruebaBase {
 
     protected static final ServidorGraphFalso servidorGraph = new ServidorGraphFalso();
 
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(servidorGraph::close));
+    }
+
     @DynamicPropertySource
     static void registrarPropiedades(DynamicPropertyRegistry registry) {
         if (!servidorGraph.estaIniciado()) {
             servidorGraph.iniciar();
         }
         registry.add("barberturno.whatsapp.salida.graph.url-base", servidorGraph::urlBase);
-    }
-
-    @AfterAll
-    static void cerrarServidorGraph() {
-        servidorGraph.close();
     }
 
     @Autowired protected JdbcTemplate jdbc;
@@ -106,7 +104,7 @@ public abstract class WhatsAppSalidaPruebaBase {
     void prepararBase() throws Exception {
         LimpiezaBaseDatos.limpiar(sql);
         reloj.reiniciar();
-        servidorGraph.limpiar();
+        servidorGraph.reiniciar();
 
         // El propietario solo prepara las filas de negocio, igual que PeticionNegocioPruebaBase.
         try (var conexion = DriverManager.getConnection(entorno.getRequiredProperty("spring.datasource.url"),
