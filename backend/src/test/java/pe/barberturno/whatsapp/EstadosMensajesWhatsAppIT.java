@@ -32,6 +32,9 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
     @Autowired
     private AvisoFalloWhatsApp avisos;
 
+    @Autowired
+    private ProcesadorEventosWhatsApp procesadorEventos;
+
     private long insertarMensajeSaliente(long negocioId, long conversacionId, EstadoMensaje estado,
             String wamid, TipoMensaje enviadoComo, OptionalLong reservaId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject("""
@@ -239,7 +242,54 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.INEXISTENTE", "delivered", WA_CLIENTE, null, null));
             return null;
-        }))).isInstanceOf(Exception.class);
+        }))).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("wamid.INEXISTENTE");
+    }
+
+    @Test
+    void wamidDesconocido_conReceptorReal_reintentaHastaErrorTerminalEnProcesador() {
+        // Evento ESTADO con wamid que no existe en mensaje_whatsapp ni tiene callback data
+        String wamidInexistente = "wamid.TOTALMENTE_DESCONOCIDO";
+        var cuerpo = mapper.createObjectNode().put("phoneNumberId", NUMERO_A);
+        cuerpo.putObject("contacto").put("waId", WA_CLIENTE).put("nombre", "Cliente");
+        var dato = cuerpo.putObject("dato").put("id", wamidInexistente);
+        dato.put("recipient_id", WA_CLIENTE);
+        dato.put("status", "delivered");
+        dato.put("timestamp", String.valueOf(reloj.instant().getEpochSecond()));
+
+        String clave = "s:desconocido:e2e";
+        sql.update("""
+                INSERT INTO evento_whatsapp_entrante(clave_idempotencia, tipo, phone_number_id, cuerpo, recibido_en, proximo_intento)
+                VALUES (?, 'ESTADO', ?, cast(? as jsonb), ?, ?)
+                """, clave, NUMERO_A, mapper.writeValueAsString(cuerpo),
+                Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()));
+
+        long eventoId = sql.queryForObject(
+                "SELECT id FROM evento_whatsapp_entrante WHERE clave_idempotencia = ?", Long.class, clave);
+
+        // Se procesa con el receptor real ActualizadorEstadosWhatsApp conectado:
+        // cada intento falla por wamid desconocido, se reprograma con PoliticaReintentos y tras 5 intentos termina en ERROR
+        for (int intento = 1; intento <= 5; intento++) {
+            Instant tiempoFallo = reloj.instant();
+            int procesados = procesadorEventos.procesarLote();
+            assertThat(procesados).isEqualTo(intento == 5 ? 1 : 0);
+
+            var fila = sql.queryForMap("SELECT * FROM evento_whatsapp_entrante WHERE id = ?", eventoId);
+            assertThat(fila.get("intentos")).isEqualTo(intento);
+
+            Duration espera = PoliticaReintentos.espera(intento, Duration.ofSeconds(5), Duration.ofMinutes(5));
+            if (intento < 5) {
+                assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
+                assertThat(fila.get("motivo")).isNull();
+                assertThat(((Timestamp) fila.get("proximo_intento")).toInstant()).isEqualTo(tiempoFallo.plus(espera));
+                assertThat(procesadorEventos.procesarLote()).as("No debe reclamarse antes del vencimiento").isZero();
+                reloj.adelantar(espera);
+            } else {
+                assertThat(fila.get("estado")).isEqualTo("ERROR");
+                assertThat(fila.get("motivo")).isEqualTo("FALLO_PROCESAMIENTO");
+                assertThat(((Timestamp) fila.get("procesado_en")).toInstant()).isEqualTo(tiempoFallo);
+            }
+        }
     }
 
     @Test
@@ -299,7 +349,12 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
     @Test
     void estadoPositivo_desdeResultadoDesconocido_vaciaErrorCodigoYCodigoMeta() {
         long conv = crearConversacion(a, WA_CLIENTE);
-        long msg = insertarMensajeFallido(a, conv, MotivoFallo.RESULTADO_DESCONOCIDO, null, OptionalLong.empty());
+        long msg = insertarMensajeFallido(a, conv, MotivoFallo.RESULTADO_DESCONOCIDO, 131000, OptionalLong.empty());
+
+        var filaAntes = filaMensaje(a, msg);
+        assertThat(filaAntes.get("estado")).isEqualTo("FALLIDO");
+        assertThat(filaAntes.get("error_codigo")).isEqualTo(MotivoFallo.RESULTADO_DESCONOCIDO.name());
+        assertThat(filaAntes.get("codigo_meta")).isEqualTo(131000);
 
         ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.RECUPERADO_OK", "delivered", WA_CLIENTE,
@@ -310,8 +365,8 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("ENTREGADO");
         assertThat(fila.get("wamid")).isEqualTo("wamid.RECUPERADO_OK");
-        assertThat(fila.get("error_codigo")).isNull();
-        assertThat(fila.get("codigo_meta")).isNull();
+        assertThat(fila.get("error_codigo")).as("error_codigo debe quedar limpio").isNull();
+        assertThat(fila.get("codigo_meta")).as("codigo_meta no nulo previo debe quedar limpio").isNull();
     }
 
     @Test
@@ -372,23 +427,36 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(notifsDespuesTercerAviso).as("Un failed repetido sin cambio de motivo no debe generar otro aviso").isEqualTo(2);
     }
 
+    private static class ExcepcionControladaParaRollback extends RuntimeException {
+        ExcepcionControladaParaRollback(String mensaje) {
+            super(mensaje);
+        }
+    }
+
     @Test
     void avisoInterno_transaccionRevertida_noGeneraAvisos() {
         long conv = crearConversacion(a, WA_CLIENTE);
         long reserva = crearReserva(a, WA_CLIENTE);
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.REVERTIR", TipoMensaje.TEXTO, OptionalLong.of(reserva));
 
-        try {
-            ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
-                receptorEstados.recibir(estadoEntrante(a, "wamid.REVERTIR", "failed", WA_CLIENTE, null, 131051));
-                throw new RuntimeException("Fallo forzado para revertir la transacción");
-            }));
-        } catch (RuntimeException esperado) {
-            // Esperado
-        }
+        assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.REVERTIR", "failed", WA_CLIENTE, null, 131051));
 
+            // Verificamos dentro de la transacción que el cambio a FALLIDO y la notificación sí ocurrieron
+            var filaEnTx = sql.queryForMap("SELECT estado, error_codigo FROM mensaje_whatsapp WHERE id = ?", msg);
+            assertThat(filaEnTx.get("estado")).isEqualTo("FALLIDO");
+            assertThat(filaEnTx.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
+            assertThat(contarNotificaciones(a, titular.getId())).isEqualTo(1);
+
+            // Provocamos la excepción específica identificable para revertir la transacción
+            throw new ExcepcionControladaParaRollback("Fallo forzado para revertir la transacción");
+        }))).isInstanceOf(ExcepcionControladaParaRollback.class)
+                .hasMessage("Fallo forzado para revertir la transacción");
+
+        // Fuera de la transacción, comprobamos que el rollback deshizo tanto el aviso como el estado
         assertThat(contarNotificaciones(a, titular.getId())).isZero();
         assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(a, msg).get("error_codigo")).isNull();
     }
 
     @Test

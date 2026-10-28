@@ -191,7 +191,8 @@ class ClienteGraphWhatsAppTest {
 
     @Test
     void enviar_respuesta3xx_sinSeguirRedireccion_clasificadoComoSolicitudRechazada() {
-        servidor.encolarRespuesta(302, "<html><body>Moved</body></html>");
+        String destinoTrampa = servidor.urlBase() + "/v26.0/trampa-redireccion";
+        servidor.encolarRedireccion(302, destinoTrampa, "<html><body>Moved</body></html>");
 
         ResultadoEnvio resultado = cliente.enviar("10001", cuerpoPrueba());
 
@@ -200,6 +201,12 @@ class ClienteGraphWhatsAppTest {
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.estadoHttp()).isEqualTo(302);
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
+
+        // Acredita que el cliente NO siguió la redirección hacia el endpoint indicado en Location
+        assertThat(servidor.peticiones()).hasSize(1);
+        assertThat(servidor.ultimaPeticion().ruta()).isEqualTo("/v26.0/10001/messages");
+        assertThat(servidor.peticiones().stream().map(ServidorGraphFalso.PeticionRegistrada::ruta))
+                .doesNotContain("/v26.0/trampa-redireccion");
     }
 
     @Test

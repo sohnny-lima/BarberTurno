@@ -12,8 +12,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -22,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
  * ({@code POST /{versión}/{phone_number_id}/messages}, 12-v2-09-whatsapp-salida.md §2 y §4.1).
  * Permite encolar respuestas de éxito, errores estructurados de Meta, retrasos y cortes de conexión,
  * y registra cada petición recibida sin realizar llamadas reales a Meta.
+ * Cuenta con ejecutor multi-hilo propio y drenado de peticiones activas para evitar bloqueos entre pruebas.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -29,8 +35,11 @@ public class ServidorGraphFalso implements AutoCloseable {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private HttpServer server;
+    private ExecutorService ejecutor;
     private final List<PeticionRegistrada> peticiones = new CopyOnWriteArrayList<>();
     private final Queue<AccionRespuesta> colaRespuestas = new ConcurrentLinkedQueue<>();
+    private final AtomicInteger peticionesActivas = new AtomicInteger();
+    private final Set<Thread> hilosActivos = ConcurrentHashMap.newKeySet();
     private volatile AccionRespuesta respuestaPorDefecto;
     private volatile boolean iniciado;
 
@@ -61,7 +70,15 @@ public class ServidorGraphFalso implements AutoCloseable {
 
     private synchronized void crearServidor() {
         try {
+            if (this.ejecutor == null || this.ejecutor.isShutdown()) {
+                this.ejecutor = Executors.newCachedThreadPool(r -> {
+                    Thread t = new Thread(r, "servidor-graph-falso");
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
             this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            this.server.setExecutor(this.ejecutor);
             this.server.createContext("/", this::atender);
             this.respuestaPorDefecto = (exchange) -> responderJson(exchange, 200,
                     "{\"messaging_product\":\"whatsapp\",\"contacts\":[{\"input\":\"51999000001\",\"wa_id\":\"51999000001\"}],"
@@ -91,8 +108,29 @@ public class ServidorGraphFalso implements AutoCloseable {
     }
 
     /**
+     * Drena las peticiones HTTP activas interrumpiendo los hilos que estén en espera demorada
+     * y esperando hasta que el contador de peticiones en curso llegue a cero o venza el plazo.
+     * @param limite tiempo máximo de espera para el drenado
+     */
+    public void drenarPeticionesActivas(Duration limite) {
+        for (Thread t : hilosActivos) {
+            t.interrupt();
+        }
+        long fin = System.currentTimeMillis() + limite.toMillis();
+        while (peticionesActivas.get() > 0 && System.currentTimeMillis() < fin) {
+            try {
+                Thread.sleep(15);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
+    /**
      * Reinicia el estado del servidor falso para una nueva prueba,
-     * vaciando la lista de peticiones recibidas y la cola de respuestas programadas.
+     * drenando las peticiones activas, vaciando la lista de peticiones recibidas
+     * y la cola de respuestas programadas.
      */
     public synchronized void reiniciar() {
         limpiar();
@@ -112,9 +150,11 @@ public class ServidorGraphFalso implements AutoCloseable {
     }
 
     /**
-     * Limpia la lista de peticiones recibidas y vacía la cola de respuestas programadas.
+     * Limpia la lista de peticiones recibidas y vacía la cola de respuestas programadas
+     * tras drenar cualquier petición activa.
      */
     public void limpiar() {
+        drenarPeticionesActivas(Duration.ofSeconds(2));
         peticiones.clear();
         colaRespuestas.clear();
     }
@@ -192,7 +232,22 @@ public class ServidorGraphFalso implements AutoCloseable {
     }
 
     /**
+     * Encola una respuesta de redirección HTTP 3xx con cabecera Location.
+     * @param estadoHttp código HTTP de redirección (p. ej. 301 o 302)
+     * @param destino URL o ruta hacia la que se redirige
+     * @param cuerpo cuerpo HTML o informativo de la redirección
+     */
+    public void encolarRedireccion(int estadoHttp, String destino, String cuerpo) {
+        colaRespuestas.add(exchange -> {
+            exchange.getResponseHeaders().set("Location", destino);
+            responderJson(exchange, estadoHttp, cuerpo);
+        });
+    }
+
+    /**
      * Encola una demora antes de responder, útil para forzar tiempos de espera agotados.
+     * Si el hilo se interrumpe durante la espera (por ejemplo, al reiniciar o drenar),
+     * sale limpiamente sin intentar escribir en la conexión.
      * @param espera tiempo a esperar antes de responder
      * @param estadoHttp código HTTP
      * @param cuerpo cuerpo a enviar tras la demora
@@ -203,28 +258,45 @@ public class ServidorGraphFalso implements AutoCloseable {
                 Thread.sleep(espera.toMillis());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                try {
+                    exchange.close();
+                } catch (Exception ignored) {
+                }
+                return;
             }
             responderJson(exchange, estadoHttp, cuerpo);
         });
     }
 
     private void atender(HttpExchange exchange) throws IOException {
-        byte[] cuerpoBytes = leerTodo(exchange.getRequestBody());
-        String cuerpoTexto = new String(cuerpoBytes, StandardCharsets.UTF_8);
-        JsonNode cuerpoJson = null;
+        peticionesActivas.incrementAndGet();
+        Thread hiloActual = Thread.currentThread();
+        hilosActivos.add(hiloActual);
         try {
-            cuerpoJson = MAPPER.readTree(cuerpoBytes);
-        } catch (Exception ignored) {
-            // Cuerpo no JSON o vacío
-        }
-        peticiones.add(new PeticionRegistrada(exchange.getRequestMethod(), exchange.getRequestURI().toString(),
-                exchange.getRequestHeaders(), cuerpoTexto, cuerpoJson));
+            byte[] cuerpoBytes = leerTodo(exchange.getRequestBody());
+            String cuerpoTexto = new String(cuerpoBytes, StandardCharsets.UTF_8);
+            JsonNode cuerpoJson = null;
+            try {
+                cuerpoJson = MAPPER.readTree(cuerpoBytes);
+            } catch (Exception ignored) {
+                // Cuerpo no JSON o vacío
+            }
+            peticiones.add(new PeticionRegistrada(exchange.getRequestMethod(), exchange.getRequestURI().toString(),
+                    exchange.getRequestHeaders(), cuerpoTexto, cuerpoJson));
 
-        AccionRespuesta accion = colaRespuestas.poll();
-        if (accion == null) {
-            accion = respuestaPorDefecto;
+            AccionRespuesta accion = colaRespuestas.poll();
+            if (accion == null) {
+                accion = respuestaPorDefecto;
+            }
+            try {
+                accion.responder(exchange);
+            } catch (IOException e) {
+                // El cliente pudo cerrar la conexión por timeout
+            }
+        } finally {
+            hilosActivos.remove(hiloActual);
+            peticionesActivas.decrementAndGet();
         }
-        accion.responder(exchange);
     }
 
     private static void responderJson(HttpExchange exchange, int estadoHttp, String cuerpo) throws IOException {
@@ -248,10 +320,17 @@ public class ServidorGraphFalso implements AutoCloseable {
 
     @Override
     public synchronized void close() {
+        drenarPeticionesActivas(Duration.ofMillis(500));
         if (iniciado && server != null) {
             server.stop(0);
             server = null;
             iniciado = false;
         }
+        if (ejecutor != null) {
+            ejecutor.shutdownNow();
+            ejecutor = null;
+        }
+        peticiones.clear();
+        colaRespuestas.clear();
     }
 }

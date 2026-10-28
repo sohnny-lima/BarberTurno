@@ -3,13 +3,18 @@ package pe.barberturno.whatsapp;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,9 +97,16 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         var peticion = servidorGraph.ultimaPeticion();
         assertThat(peticion.ruta()).isEqualTo("/v26.0/" + NUMERO_A + "/messages");
+        assertThat(peticion.cuerpoJson().get("messaging_product").asString()).isEqualTo("whatsapp");
+        assertThat(peticion.cuerpoJson().get("recipient_type").asString()).isEqualTo("individual");
+        assertThat(peticion.cuerpoJson().get("to").asString()).isEqualTo(WA_CLIENTE);
         assertThat(peticion.cuerpoJson().get("biz_opaque_callback_data").asString())
                 .isEqualTo("bt:m:" + mensajeId + ":1");
         assertThat(peticion.cuerpoJson().get("type").asString()).isEqualTo("text");
+
+        var textNode = peticion.cuerpoJson().get("text");
+        assertThat(textNode.get("body").asString()).isEqualTo("Turno confirmado");
+        assertThat(textNode.get("preview_url").asBoolean()).as("preview_url debe ser false por CI-8").isFalse();
     }
 
     // --- CI-2: Validaciones previas al envío sin peticiones a Graph ---
@@ -164,14 +176,52 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
     void ventanaCerrada_paraTextoEInteractivo_fallaAntesDelEnvioSinPeticionesAGraph() {
         // Conversación con última entrada hace 25 horas (ventana de 24h cerrada)
         long conversacionId = crearConversacionConVentana(a, WA_CLIENTE, reloj.instant().minus(Duration.ofHours(25)));
-        long mensajeId = encolarTextoDirecto(a, conversacionId, "Texto", OptionalLong.empty());
+        long mensajeTexto = encolarTextoDirecto(a, conversacionId, "Texto fuera de ventana", OptionalLong.empty());
+
+        ObjectNode interactivo = mapper.createObjectNode();
+        interactivo.put("type", "button");
+        interactivo.putObject("body").put("text", "¿Opciones?");
+        long mensajeInteractivo = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status ->
+                salida.encolarInteractivo(conversacionId, interactivo, OrigenMensaje.ASISTENTE, OptionalLong.empty())));
 
         enviador.enviarLote();
 
+        var filaTexto = filaMensaje(a, mensajeTexto);
+        assertThat(filaTexto.get("estado")).isEqualTo("FALLIDO");
+        assertThat(filaTexto.get("error_codigo")).isEqualTo(MotivoFallo.VENTANA_CERRADA.name());
+
+        var filaInteractivo = filaMensaje(a, mensajeInteractivo);
+        assertThat(filaInteractivo.get("estado")).isEqualTo("FALLIDO");
+        assertThat(filaInteractivo.get("error_codigo")).isEqualTo(MotivoFallo.VENTANA_CERRADA.name());
+
+        assertThat(servidorGraph.peticiones()).as("Ningún mensaje debe enviarse a Graph con ventana cerrada").isEmpty();
+    }
+
+    @Test
+    void ventanaAbiertaAlEncolar_cerradaAntesDelEnvio_avisoSeEnviaComoPlantilla() {
+        // 1. Encolamos el aviso cuando la ventana está abierta (última entrada reciente)
+        long conversacionId = crearConversacion(a, WA_CLIENTE);
+        Map<String, String> params = Map.of(
+                "negocio", "BarberTurno A",
+                "fecha", "Mañana 15:00",
+                "profesional", "Barbero A",
+                "codigo", "BT-999");
+        long mensajeId = encolarAvisoDirecto(a, conversacionId, PlantillaUtility.BT_RECORDATORIO_CITA, params, OptionalLong.empty());
+
+        // 2. La ventana se cierra antes del envío (adelantamos el reloj 24 horas y 1 minuto)
+        reloj.adelantar(Duration.ofHours(24).plusMinutes(1));
+
+        servidorGraph.encolarExito("wamid.AVISO_CONVERTIDO_PLANTILLA");
+        enviador.enviarLote();
+
+        // 3. Acredita que la ventana se evalúa en la preparación del envío: sale como PLANTILLA y no como TEXTO
         var fila = filaMensaje(a, mensajeId);
-        assertThat(fila.get("estado")).isEqualTo("FALLIDO");
-        assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.VENTANA_CERRADA.name());
-        assertThat(servidorGraph.peticiones()).isEmpty();
+        assertThat(fila.get("estado")).isEqualTo("ENVIADO");
+        assertThat(fila.get("enviado_como")).isEqualTo("PLANTILLA");
+
+        var peticion = servidorGraph.ultimaPeticion();
+        assertThat(peticion.cuerpoJson().get("type").asString()).isEqualTo("template");
+        assertThat(peticion.cuerpoJson().get("template").get("name").asString()).isEqualTo("bt_recordatorio_cita");
     }
 
     // --- CI-8: Límites de ventana, selección de plantillas y formato ---
@@ -238,10 +288,43 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(fila.get("enviado_como")).isEqualTo("PLANTILLA");
 
         var peticion = servidorGraph.ultimaPeticion();
-        assertThat(peticion.cuerpoJson().get("type").asString()).isEqualTo("template");
-        var template = peticion.cuerpoJson().get("template");
+        var cuerpo = peticion.cuerpoJson();
+        assertThat(cuerpo.get("messaging_product").asString()).isEqualTo("whatsapp");
+        assertThat(cuerpo.get("recipient_type").asString()).isEqualTo("individual");
+        assertThat(cuerpo.get("to").asString()).isEqualTo(WA_CLIENTE);
+        assertThat(cuerpo.get("type").asString()).isEqualTo("template");
+        assertThat(cuerpo.get("biz_opaque_callback_data").asString()).isEqualTo("bt:m:" + mensajeId + ":1");
+
+        var template = cuerpo.get("template");
         assertThat(template.get("name").asString()).isEqualTo("bt_recordatorio_cita");
         assertThat(template.get("language").get("code").asString()).isEqualTo("es");
+
+        var components = template.get("components");
+        assertThat(components.isArray()).isTrue();
+        assertThat(components).hasSize(1);
+        var bodyComponent = components.get(0);
+        assertThat(bodyComponent.get("type").asString()).isEqualTo("body");
+
+        var parameters = bodyComponent.get("parameters");
+        assertThat(parameters.isArray()).isTrue();
+        assertThat(parameters).hasSize(4);
+
+        // Parámetros en orden estricto de PlantillaUtility: negocio, fecha, profesional, codigo
+        assertThat(parameters.get(0).get("type").asString()).isEqualTo("text");
+        assertThat(parameters.get(0).get("parameter_name").asString()).isEqualTo("negocio");
+        assertThat(parameters.get(0).get("text").asString()).isEqualTo("BarberTurno A");
+
+        assertThat(parameters.get(1).get("type").asString()).isEqualTo("text");
+        assertThat(parameters.get(1).get("parameter_name").asString()).isEqualTo("fecha");
+        assertThat(parameters.get(1).get("text").asString()).isEqualTo("Hoy 16:00");
+
+        assertThat(parameters.get(2).get("type").asString()).isEqualTo("text");
+        assertThat(parameters.get(2).get("parameter_name").asString()).isEqualTo("profesional");
+        assertThat(parameters.get(2).get("text").asString()).isEqualTo("Barbero A");
+
+        assertThat(parameters.get(3).get("type").asString()).isEqualTo("text");
+        assertThat(parameters.get(3).get("parameter_name").asString()).isEqualTo("codigo");
+        assertThat(parameters.get(3).get("text").asString()).isEqualTo("BT-201");
     }
 
     @Test
@@ -291,20 +374,53 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void concurrencia_dosEnviadoresALaVez_envianCadaMensajeUnaSolaVez() throws Exception {
+        List<Long> idsMensajes = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
             long conv = crearConversacion(a, "5199900000" + i);
-            encolarTextoDirecto(a, conv, "Mensaje conc " + i, OptionalLong.empty());
-            servidorGraph.encolarExito("wamid.CONC_" + i);
+            long id = encolarTextoDirecto(a, conv, "Mensaje conc " + i, OptionalLong.empty());
+            idsMensajes.add(id);
         }
 
+        CyclicBarrier barreraSolapamiento = new CyclicBarrier(2);
+        AtomicInteger peticionesSincronizadas = new AtomicInteger();
+
+        // Encolamos 6 respuestas de éxito; para las 2 primeras forzamos que ambos hilos se sincronicen
+        // en la barrera dentro de la petición HTTP a Graph, garantizando solapamiento simultáneo
+        for (int i = 0; i < 6; i++) {
+            int indice = i;
+            servidorGraph.encolarInterceptando(() -> {
+                if (indice < 2) {
+                    try {
+                        peticionesSincronizadas.incrementAndGet();
+                        barreraSolapamiento.await(10, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Error en barrera de concurrencia", e);
+                    }
+                }
+            }, "wamid.CONC_" + i);
+        }
+
+        int reclamados;
         try (var hilos = Executors.newFixedThreadPool(2)) {
             var f1 = hilos.submit(() -> enviador.enviarLote());
             var f2 = hilos.submit(() -> enviador.enviarLote());
-            int reclamados = f1.get(15, TimeUnit.SECONDS) + f2.get(15, TimeUnit.SECONDS);
-            assertThat(reclamados).isEqualTo(6);
+            reclamados = f1.get(15, TimeUnit.SECONDS) + f2.get(15, TimeUnit.SECONDS);
         }
 
+        assertThat(peticionesSincronizadas.get())
+                .as("Ambos enviadores deben haberse sincronizado concurrentemente en el servidor falso")
+                .isEqualTo(2);
+        assertThat(reclamados).isEqualTo(6);
+
+        // Verificamos exactamente una petición por identificador de mensaje, sin duplicados
         assertThat(servidorGraph.peticiones()).hasSize(6);
+        List<String> callbacks = servidorGraph.peticiones().stream()
+                .map(p -> p.cuerpoJson().get("biz_opaque_callback_data").asString())
+                .toList();
+        assertThat(callbacks).hasSameSizeAs(Set.copyOf(callbacks));
+        for (long id : idsMensajes) {
+            assertThat(callbacks).contains("bt:m:" + id + ":1");
+        }
         assertThat(contarMensajes(a, EstadoMensaje.ENVIADO)).isEqualTo(6);
     }
 
@@ -366,17 +482,41 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long conv = crearConversacion(a, WA_CLIENTE);
         long msg = encolarTextoDirecto(a, conv, "Texto reintentable", OptionalLong.empty());
 
-        for (int i = 1; i <= 5; i++) {
+        // Esperas exponenciales configuradas: base 30s, x2, tope 5m (300s):
+        // Intento 1 -> espera 30s
+        // Intento 2 -> espera 60s
+        // Intento 3 -> espera 120s
+        // Intento 4 -> espera 240s
+        // Intento 5 -> REINTENTOS_AGOTADOS
+        int[] esperasSegundos = {30, 60, 120, 240};
+
+        for (int intento = 1; intento <= 5; intento++) {
+            Instant momentoFallo = reloj.instant();
             servidorGraph.encolarErrorMeta(429, 130429, "Rate limit hit");
             enviador.enviarLote();
+
             var fila = filaMensaje(a, msg);
-            assertThat(fila.get("intentos")).isEqualTo(i);
-            if (i < 5) {
+            assertThat(fila.get("intentos")).isEqualTo(intento);
+
+            if (intento <= 4) {
+                int esperaEsperada = esperasSegundos[intento - 1];
                 assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
-                reloj.adelantar(Duration.ofMinutes(6)); // avanzamos para superar la espera
+                assertThat(((Timestamp) fila.get("proximo_intento")).toInstant())
+                        .as("proximo_intento tras intento %d debe ser ahora + %ds", intento, esperaEsperada)
+                        .isEqualTo(momentoFallo.plusSeconds(esperaEsperada));
+
+                // Verificamos ausencia de petición antes del vencimiento (1 segundo antes)
+                reloj.adelantar(Duration.ofSeconds(esperaEsperada - 1));
+                enviador.enviarLote();
+                assertThat(filaMensaje(a, msg).get("intentos")).isEqualTo(intento);
+
+                // Adelantamos el segundo restante para cumplir la espera
+                reloj.adelantar(Duration.ofSeconds(1));
             } else {
+                // Tras 5 intentos, termina en FALLIDO con REINTENTOS_AGOTADOS y sin proximo_intento
                 assertThat(fila.get("estado")).isEqualTo("FALLIDO");
                 assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.REINTENTOS_AGOTADOS.name());
+                assertThat(fila.get("proximo_intento")).isNull();
             }
         }
     }
@@ -488,16 +628,34 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg2 = encolarTextoDirecto(a, conv2, "Msg 2", OptionalLong.empty());
         long msg3 = encolarTextoDirecto(a, conv3, "Msg 3", OptionalLong.empty());
 
-        assertThat(filaMensaje(a, msg2).get("intentos")).isEqualTo(0);
-        assertThat(filaMensaje(a, msg3).get("intentos")).isEqualTo(0);
+        // Durante el envío del msg 1 (t=0 -> t=35s):
+        // Inspeccionamos que msg2 y msg3 aún NO han sido reclamados (intentos=0, PENDIENTE)
+        servidorGraph.encolarInterceptando(() -> {
+            var fila2 = filaMensaje(a, msg2);
+            var fila3 = filaMensaje(a, msg3);
+            assertThat(fila2.get("intentos")).as("msg2 no debe estar reclamado durante envío de msg1").isEqualTo(0);
+            assertThat(fila3.get("intentos")).as("msg3 no debe estar reclamado durante envío de msg1").isEqualTo(0);
+            assertThat(fila2.get("estado")).isEqualTo("PENDIENTE");
+            assertThat(fila3.get("estado")).isEqualTo("PENDIENTE");
+            reloj.adelantar(Duration.ofSeconds(35));
+        }, "wamid.LENTO_1");
 
-        servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_1");
-        servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_2");
-        servidorGraph.encolarExito("wamid.LENTO_3");
+        // Durante el envío del msg 2 (t=35s -> t=70s acumulados, superando los 60s de reclamo inicial):
+        // Inspeccionamos que msg3 aún NO ha sido reclamado (intentos=0)
+        servidorGraph.encolarInterceptando(() -> {
+            var fila3 = filaMensaje(a, msg3);
+            assertThat(fila3.get("intentos")).as("msg3 no debe estar reclamado durante envío de msg2").isEqualTo(0);
+            assertThat(fila3.get("estado")).isEqualTo("PENDIENTE");
+            reloj.adelantar(Duration.ofSeconds(35));
+        }, "wamid.LENTO_2");
+
+        // Durante el envío del msg 3 (t=70s -> t=80s acumulados):
+        servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_3");
 
         int reclamados = enviador.enviarLote();
         assertThat(reclamados).isEqualTo(3);
 
+        // Los tres mensajes se procesaron con éxito sin que sus reclamos vencieran prematuramente
         assertThat(filaMensaje(a, msg1).get("estado")).isEqualTo("ENVIADO");
         assertThat(filaMensaje(a, msg2).get("estado")).isEqualTo("ENVIADO");
         assertThat(filaMensaje(a, msg3).get("estado")).isEqualTo("ENVIADO");
@@ -507,45 +665,60 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
     }
 
     @Test
-    void fichaAntigua_noCierraMensajeReclamadoDeNuevo() {
+    void fichaAntigua_noCierraMensajeReclamadoDeNuevo() throws Exception {
         long conv = crearConversacion(a, WA_CLIENTE);
-        long msg = encolarTextoDirecto(a, conv, "Msg con ficha", OptionalLong.empty());
+        long msg = encolarTextoDirecto(a, conv, "Msg con ficha antigua", OptionalLong.empty());
 
-        var reclamo1 = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
-            Instant ahora = reloj.instant();
-            return cola.reclamar(ahora, ahora.plusSeconds(60)).orElseThrow();
-        }));
-        assertThat(reclamo1.ficha()).isEqualTo(1);
+        CountDownLatch intento1LlegoAServidor = new CountDownLatch(1);
+        CountDownLatch retenerIntento1 = new CountDownLatch(1);
 
-        reloj.adelantar(Duration.ofSeconds(61));
+        // Intento 1: se retiene en el servidor falso
+        servidorGraph.encolarInterceptando(() -> {
+            intento1LlegoAServidor.countDown();
+            try {
+                retenerIntento1.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "wamid.INTENTO_1_TARDIO");
 
-        var reclamo2 = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
-            Instant ahora = reloj.instant();
-            return cola.reclamar(ahora, ahora.plusSeconds(60)).orElseThrow();
-        }));
-        assertThat(reclamo2.ficha()).isEqualTo(2);
+        // Intento 2: responderá inmediatamente con éxito
+        servidorGraph.encolarExito("wamid.INTENTO_2_VIGENTE");
 
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
-            var mensajeConFicha1 = cola.bloquear(reclamo1);
-            assertThat(mensajeConFicha1).as("La ficha antigua no debe encontrar el mensaje reclamado de nuevo").isEmpty();
-            return null;
-        }));
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            // 1. Lanzamos el primer enviador en segundo plano (intento 1 con ficha 1)
+            var futureIntento1 = pool.submit(() -> enviador.enviarLote());
 
-        var fila = filaMensaje(a, msg);
-        assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
-        assertThat(fila.get("intentos")).isEqualTo(2);
+            // 2. Esperamos a que el intento 1 haya llegado a la llamada HTTP de Graph
+            assertThat(intento1LlegoAServidor.await(5, TimeUnit.SECONDS)).isTrue();
 
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
-            var mensajeConFicha2 = cola.bloquear(reclamo2).orElseThrow();
-            assertThat(cola.preparar(mensajeConFicha2, TipoMensaje.TEXTO, reloj.instant()))
-                    .as("La ficha vigente debe permitir preparar el mensaje").isTrue();
-            boolean cambiado = cola.cambiar(mensajeConFicha2, EstadoMensaje.ENVIADO, "wamid.FICHA_2", null, null, 0, null, reloj.instant());
-            assertThat(cambiado).as("La ficha vigente debe permitir cerrar el mensaje como ENVIADO").isTrue();
-            return null;
-        }));
-        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENVIADO");
-        assertThat(filaMensaje(a, msg).get("wamid")).isEqualTo("wamid.FICHA_2");
-        assertThat(filaMensaje(a, msg).get("enviado_como")).isEqualTo("TEXTO");
+            // 3. Adelantamos el reloj 61 segundos para vencer el plazo de reclamo de 60s
+            reloj.adelantar(Duration.ofSeconds(61));
+
+            // 4. En el hilo principal ejecutamos enviarLote(): reclama con ficha 2, envía y cierra en ENVIADO
+            int reclamadosIntento2 = enviador.enviarLote();
+            assertThat(reclamadosIntento2).isEqualTo(1);
+
+            var filaTrasIntento2 = filaMensaje(a, msg);
+            assertThat(filaTrasIntento2.get("estado")).isEqualTo("ENVIADO");
+            assertThat(filaTrasIntento2.get("wamid")).isEqualTo("wamid.INTENTO_2_VIGENTE");
+            assertThat(filaTrasIntento2.get("intentos")).isEqualTo(2);
+
+            // 5. Liberamos la respuesta HTTP tardía del intento 1
+            retenerIntento1.countDown();
+            futureIntento1.get(5, TimeUnit.SECONDS);
+
+            // 6. Comprobamos que el cierre del intento 1 con ficha antigua es inocuo y no sobrescribe el wamid vigente
+            var filaFinal = filaMensaje(a, msg);
+            assertThat(filaFinal.get("estado")).isEqualTo("ENVIADO");
+            assertThat(filaFinal.get("wamid"))
+                    .as("La ficha antigua no debe sobrescribir el wamid vigente")
+                    .isEqualTo("wamid.INTENTO_2_VIGENTE");
+            assertThat(filaFinal.get("intentos")).isEqualTo(2);
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test
@@ -629,9 +802,20 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(peticion.cuerpoJson().get("recipient_type").asString()).isEqualTo("individual");
         assertThat(peticion.cuerpoJson().get("to").asString()).isEqualTo(WA_CLIENTE);
         assertThat(peticion.cuerpoJson().get("type").asString()).isEqualTo("interactive");
-        assertThat(peticion.cuerpoJson().get("interactive").get("type").asString()).isEqualTo("button");
-        assertThat(peticion.cuerpoJson().get("interactive").get("body").get("text").asString()).isEqualTo("¿Confirmas tu cita?");
         assertThat(peticion.cuerpoJson().get("biz_opaque_callback_data").asString()).isEqualTo("bt:m:" + msg + ":1");
+
+        var interactive = peticion.cuerpoJson().get("interactive");
+        assertThat(interactive.get("type").asString()).isEqualTo("button");
+        assertThat(interactive.get("body").get("text").asString()).isEqualTo("¿Confirmas tu cita?");
+
+        var actionNode = interactive.get("action");
+        var buttonsNode = actionNode.get("buttons");
+        assertThat(buttonsNode.isArray()).isTrue();
+        assertThat(buttonsNode).hasSize(1);
+        var btnNode = buttonsNode.get(0);
+        assertThat(btnNode.get("type").asString()).isEqualTo("reply");
+        assertThat(btnNode.get("reply").get("id").asString()).isEqualTo("btn_si");
+        assertThat(btnNode.get("reply").get("title").asString()).isEqualTo("Sí");
     }
 
     @Test
@@ -722,6 +906,72 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(contarNotificaciones(a, titularInactivo.getId())).isZero();
         assertThat(contarNotificaciones(a, encargadoRevocado.getId())).isZero();
         assertThat(contarNotificaciones(a, barberoCuenta.getId())).isZero();
+
+        // Verificamos destinatarios exactos en A sin duplicados
+        List<Long> destinatariosA = ejecutor.ejecutar(a, () -> sql.queryForList(
+                "SELECT usuario_id FROM notificacion WHERE negocio_id = ?", Long.class, a));
+        assertThat(destinatariosA).containsExactlyInAnyOrder(titular.getId(), encargado.getId(), barberoCuentaActual.getId());
+
+        // Aislamiento: cero avisos en el negocio B
+        assertThat(ejecutor.ejecutar(b, () -> sql.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE negocio_id = ?", Integer.class, b))).isZero();
+    }
+
+    @Test
+    void avisoInterno_profesionalConCuentaInactivaOMembresiaRevocada_noRecibeAviso() {
+        Usuario barberoInactivo = usuarios.saveAndFlush(new Usuario("Barbero inactivo", "barbero-inactivo@ejemplo.test",
+                "999000021", "hash", Rol.BARBERO, reloj.instant(), reloj.instant()));
+        sql.update("UPDATE usuario SET activo = false WHERE id = ?", barberoInactivo.getId());
+        membresias.save(new Membresia(a, barberoInactivo.getId(), RolNegocio.BARBERO, reloj.instant()));
+        long barberoInactivoId = ejecutor.ejecutar(a, () -> barberos.saveAndFlush(
+                new Barbero(barberoInactivo, "Barbero Cuenta Inactiva", reloj.instant())).getId());
+
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        ejecutor.ejecutar(a, () -> sql.update("UPDATE reserva SET barbero_id = ? WHERE id = ?", barberoInactivoId, reserva));
+
+        long msg = encolarTextoDirecto(a, conv, "Msg con profesional inactivo", OptionalLong.of(reserva));
+
+        servidorGraph.encolarErrorMeta(400, 131026, "Receiver is not valid");
+        enviador.enviarLote();
+
+        // Los gestores activos sí reciben
+        assertThat(contarNotificaciones(a, titular.getId())).isEqualTo(1);
+        assertThat(contarNotificaciones(a, encargado.getId())).isEqualTo(1);
+        // El profesional con cuenta inactiva NO recibe aviso
+        assertThat(contarNotificaciones(a, barberoInactivo.getId())).isZero();
+
+        List<Long> destinatariosA = ejecutor.ejecutar(a, () -> sql.queryForList(
+                "SELECT usuario_id FROM notificacion WHERE negocio_id = ?", Long.class, a));
+        assertThat(destinatariosA).containsExactlyInAnyOrder(titular.getId(), encargado.getId());
+        assertThat(ejecutor.ejecutar(b, () -> sql.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE negocio_id = ?", Integer.class, b))).isZero();
+    }
+
+    @Test
+    void avisoInterno_coincidenciaProfesionalYGestor_noGeneraAvisosDuplicados() {
+        // El titular (PROPIETARIO) es asignado directamente como el profesional de la reserva
+        long barberoTitularId = ejecutor.ejecutar(a, () -> barberos.saveAndFlush(
+                new Barbero(titular, "Titular Profesional", reloj.instant())).getId());
+
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        ejecutor.ejecutar(a, () -> sql.update("UPDATE reserva SET barbero_id = ? WHERE id = ?", barberoTitularId, reserva));
+
+        long msg = encolarTextoDirecto(a, conv, "Msg gestor y profesional coinciden", OptionalLong.of(reserva));
+
+        servidorGraph.encolarErrorMeta(400, 131026, "Receiver is not valid");
+        enviador.enviarLote();
+
+        // Titular debe recibir exactamente 1 notificación (sin duplicados a pesar de tener dos roles)
+        assertThat(contarNotificaciones(a, titular.getId())).isEqualTo(1);
+        assertThat(contarNotificaciones(a, encargado.getId())).isEqualTo(1);
+
+        List<Long> destinatariosA = ejecutor.ejecutar(a, () -> sql.queryForList(
+                "SELECT usuario_id FROM notificacion WHERE negocio_id = ?", Long.class, a));
+        assertThat(destinatariosA).containsExactlyInAnyOrder(titular.getId(), encargado.getId());
+        assertThat(ejecutor.ejecutar(b, () -> sql.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE negocio_id = ?", Integer.class, b))).isZero();
     }
 
     @Test

@@ -2,15 +2,20 @@ package pe.barberturno.common.tenancy;
 
 import java.util.List;
 import java.util.Map;
+import org.postgresql.util.PSQLException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Verificación del esquema de salida de WhatsApp de V114 visto por el rol de la aplicación
  * {@code barberturno_v2_app} (12-v2-09-whatsapp-salida.md §3 y §6, CI-11).
  * Comprueba RLS habilitada y forzada en {@code conversacion} y {@code mensaje_whatsapp}, políticas
- * de aislamiento de negocio, permisos estrictos por columna (sin DELETE), restricciones con nombre,
- * claves foráneas compuestas e índices parciales del outbox.
+ * únicas {@code ALL} de aislamiento de negocio, permisos estrictos por columna y a nivel de tabla
+ * (incluyendo denegación de DELETE, TRUNCATE, REFERENCES y TRIGGER), aislamiento sin contexto,
+ * restricciones {@code CHECK} con validación de SQLState y nombre de restricción, claves foráneas
+ * compuestas y definiciones completas de índices parciales del outbox.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -38,23 +43,22 @@ public final class WhatsAppSalidaEsquemaPruebas {
             assertThat(jdbc.queryForObject("select relrowsecurity and relforcerowsecurity from pg_class where oid=?::regclass",
                     Boolean.class, tabla)).as("%s con RLS FORCE", tabla).isTrue();
 
-            var politicas = jdbc.queryForList("select cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
-            assertThat(politicas).as("políticas de %s", tabla).isNotEmpty();
-            assertThat(politicas.getFirst().get("qual").toString()).contains("negocio_id = app_negocio_actual()");
-            assertThat(politicas.getFirst().get("with_check").toString()).contains("negocio_id = app_negocio_actual()");
+            // Verificación de política única ALL por tabla
+            var politicas = jdbc.queryForList("select polname, cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
+            assertThat(politicas).as("políticas de %s", tabla).hasSize(1);
+            var pol = politicas.getFirst();
+            assertThat(pol.get("cmd")).as("comando de política en %s", tabla).isEqualTo("ALL");
+            assertThat(pol.get("qual").toString()).as("qual de %s", tabla).contains("negocio_id = app_negocio_actual()");
+            assertThat(pol.get("with_check").toString()).as("with_check de %s", tabla).contains("negocio_id = app_negocio_actual()");
 
             assertThat(jdbc.queryForMap("select is_nullable, column_default from information_schema.columns where table_name=? and column_name='negocio_id'", tabla))
                     .containsEntry("is_nullable", "NO")
                     .containsEntry("column_default", "app_negocio_actual()");
 
-            // Permisos a nivel de tabla: SELECT e INSERT permitidos; UPDATE, DELETE, TRUNCATE denegados
-            for (String permiso : List.of("SELECT", "INSERT")) {
+            // Permisos a nivel de tabla: SELECT e INSERT permitidos; UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER denegados
+            for (String permiso : List.of("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")) {
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
-                        .as("%s %s permitido", tabla, permiso).isTrue();
-            }
-            for (String permiso : List.of("UPDATE", "DELETE", "TRUNCATE")) {
-                assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
-                        .as("%s a nivel de tabla %s denegado", tabla, permiso).isFalse();
+                        .as("%s %s", tabla, permiso).isEqualTo(List.of("SELECT", "INSERT").contains(permiso));
             }
 
             // Permisos por columna
@@ -68,26 +72,132 @@ public final class WhatsAppSalidaEsquemaPruebas {
             }
         }
 
-        // 2. FKs compuestas que involucran conversacion y mensaje_whatsapp
+        // 2. Aislamiento sin contexto de negocio
+        jdbc.execute("SELECT set_config('app.negocio_id', '', false)");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM conversacion", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensaje_whatsapp", Integer.class)).isZero();
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                VALUES ('51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """)).isInstanceOf(DataAccessException.class);
+
+        // 3. FKs compuestas que involucran conversacion y mensaje_whatsapp
         List<String> fksCompuestas = jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2
                 """, String.class);
         assertThat(fksCompuestas).contains("conversacion_cliente_fk", "mensaje_conversacion_fk", "mensaje_reserva_fk");
 
-        // 3. Restricciones e índices de conversacion
+        // 4. Restricciones con nombre en conversacion y mensaje_whatsapp
         List<String> restriccionesConversacion = jdbc.queryForList(
                 "select conname from pg_constraint where conrelid='conversacion'::regclass", String.class);
-        assertThat(restriccionesConversacion).contains("conversacion_negocio_id_uk", "conversacion_wa_uk", "conversacion_cliente_uk");
+        assertThat(restriccionesConversacion).contains("conversacion_negocio_id_uk", "conversacion_wa_uk",
+                "conversacion_cliente_uk", "conversacion_wa_formato", "conversacion_modo_valido");
 
-        // 4. Índices de mensaje_whatsapp
-        List<String> indicesMensaje = jdbc.queryForList(
-                "select indexname from pg_indexes where tablename='mensaje_whatsapp'", String.class);
-        assertThat(indicesMensaje).contains("mensaje_wamid_uk", "mensaje_salida_cola_ix", "mensaje_conversacion_pendiente_ix");
+        List<String> restriccionesMensaje = jdbc.queryForList(
+                "select conname from pg_constraint where conrelid='mensaje_whatsapp'::regclass", String.class);
+        assertThat(restriccionesMensaje).contains("mensaje_direccion_valida", "mensaje_origen_valido",
+                "mensaje_tipo_valido", "mensaje_estado_valido", "mensaje_enviado_como_valido", "mensaje_error_valido",
+                "mensaje_intentos_validos", "mensaje_error_coherente", "mensaje_pendiente_programado",
+                "mensaje_envio_coherente", "mensaje_entrada_coherente");
 
-        // 5. Ajuste de V2-08: clave_idempotencia de evento_whatsapp_entrante ampliada a 160 caracteres
+        // 5. Definiciones completas de índices de mensaje_whatsapp
+        assertThat(jdbc.queryForObject("select indexdef from pg_indexes where tablename='mensaje_whatsapp' and indexname='mensaje_wamid_uk'", String.class))
+                .as("definición de mensaje_wamid_uk")
+                .contains("UNIQUE INDEX", "(wamid)", "WHERE (wamid IS NOT NULL)");
+
+        assertThat(jdbc.queryForObject("select indexdef from pg_indexes where tablename='mensaje_whatsapp' and indexname='mensaje_salida_cola_ix'", String.class))
+                .as("definición de mensaje_salida_cola_ix")
+                .contains("(negocio_id, proximo_intento, id)")
+                .contains("PENDIENTE");
+
+        assertThat(jdbc.queryForObject("select indexdef from pg_indexes where tablename='mensaje_whatsapp' and indexname='mensaje_conversacion_pendiente_ix'", String.class))
+                .as("definición de mensaje_conversacion_pendiente_ix")
+                .contains("(negocio_id, conversacion_id, id)")
+                .contains("PENDIENTE");
+
+        // 6. Operaciones inválidas que comprueban los CHECK con SQLState 23514 y nombre de restricción
+        jdbc.execute("SELECT set_config('app.negocio_id', '1', false)");
+        Long convId = jdbc.queryForObject("""
+                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                VALUES ('51900000999', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT (negocio_id, wa_id) DO UPDATE SET actualizado_en = CURRENT_TIMESTAMP
+                RETURNING id
+                """, Long.class);
+
+        // a) conversacion_wa_formato
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                VALUES ('no-numerico', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), "conversacion_wa_formato");
+
+        // b) conversacion_modo_valido
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO conversacion (wa_id, modo, creado_en, actualizado_en)
+                VALUES ('51900000998', 'INVALIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), "conversacion_modo_valido");
+
+        // c) mensaje_intentos_validos
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    intentos, proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_intentos_validos");
+
+        // d) mensaje_error_coherente
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    error_codigo, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'FALLIDO',
+                    null, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_error_coherente");
+
+        // e) mensaje_pendiente_programado
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    null, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_pendiente_programado");
+
+        // f) mensaje_envio_coherente
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    wamid, enviado_como, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
+                    null, 'TEXTO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_envio_coherente");
+
+        // g) mensaje_entrada_coherente
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'ENTRANTE', 'CLIENTE', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_entrada_coherente");
+
+        // h) mensaje_enviado_como_valido
+        verificarRestriccion(() -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    wamid, enviado_como, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
+                    'wamid.val', 'OTRO_INVALIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_enviado_como_valido");
+
+        // 7. Ajuste de V2-08: clave_idempotencia de evento_whatsapp_entrante ampliada a 160 caracteres
         assertThat(jdbc.queryForObject("""
                 select character_maximum_length from information_schema.columns
                 where table_name='evento_whatsapp_entrante' and column_name='clave_idempotencia'
                 """, Integer.class)).isEqualTo(160);
+    }
+
+    private static void verificarRestriccion(Runnable accion, String restriccionEsperada) {
+        assertThatThrownBy(accion::run)
+                .isInstanceOf(DataAccessException.class)
+                .satisfies(fallo -> {
+                    var causa = (PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
+                    assertThat(causa.getSQLState()).as("SQLState 23514 (check_violation)").isEqualTo("23514");
+                    assertThat(causa.getServerErrorMessage().getConstraint()).as("nombre de restricción").isEqualTo(restriccionEsperada);
+                });
     }
 }

@@ -146,26 +146,46 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
     }
 
     @Test
-    void encolar_conConversacionDeOtroNegocio_lanzaNoEncontrado() {
+    void encolar_conConversacionDeOtroNegocio_lanzaNoEncontradoYRevierteEfectosPrevios() {
         long conversacionB = crearConversacion(b, WA_CLIENTE);
+        long reservaA = crearReserva(a, WA_CLIENTE);
 
         assertThatThrownBy(() -> ejecutor.ejecutar(a, () ->
-                new TransactionTemplate(gestor).execute(status ->
-                        salida.encolarTexto(conversacionB, "Texto a negocio ajeno", OrigenMensaje.SISTEMA, OptionalLong.empty()))))
+                new TransactionTemplate(gestor).execute(status -> {
+                    // Escritura testigo previa en la misma transacción que debe revertirse tras el fallo
+                    sql.update("UPDATE reserva SET precio_ref = 99.99 WHERE id = ?", reservaA);
+                    return salida.encolarTexto(conversacionB, "Texto a negocio ajeno", OrigenMensaje.SISTEMA, OptionalLong.empty());
+                })))
                 .isInstanceOf(NegocioException.class)
                 .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
+
+        // Comprobamos la reversión completa de la escritura testigo y la ausencia de mensajes encolados
+        var precio = ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT precio_ref FROM reserva WHERE id = ?", java.math.BigDecimal.class, reservaA));
+        assertThat(precio).isNotEqualByComparingTo("99.99").isEqualByComparingTo("25.00");
+        assertThat(contarMensajes(a, EstadoMensaje.PENDIENTE)).isZero();
+        assertThat(contarMensajes(b, EstadoMensaje.PENDIENTE)).isZero();
     }
 
     @Test
-    void encolar_conReservaDeOtroNegocio_lanzaNoEncontrado() {
+    void encolar_conReservaDeOtroNegocio_lanzaNoEncontradoYRevierteEfectosPrevios() {
         long conversacionA = crearConversacion(a, WA_CLIENTE);
         long reservaB = crearReserva(b, WA_CLIENTE);
+        long reservaA = crearReserva(a, WA_CLIENTE);
 
         assertThatThrownBy(() -> ejecutor.ejecutar(a, () ->
-                new TransactionTemplate(gestor).execute(status ->
-                        salida.encolarTexto(conversacionA, "Texto con reserva ajena", OrigenMensaje.SISTEMA, OptionalLong.of(reservaB)))))
+                new TransactionTemplate(gestor).execute(status -> {
+                    // Escritura testigo previa en la misma transacción que debe revertirse tras el fallo
+                    sql.update("UPDATE reserva SET precio_ref = 88.88 WHERE id = ?", reservaA);
+                    return salida.encolarTexto(conversacionA, "Texto con reserva ajena", OrigenMensaje.SISTEMA, OptionalLong.of(reservaB));
+                })))
                 .isInstanceOf(NegocioException.class)
                 .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
+
+        // Comprobamos la reversión completa de la escritura testigo y la ausencia de mensajes encolados
+        var precio = ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT precio_ref FROM reserva WHERE id = ?", java.math.BigDecimal.class, reservaA));
+        assertThat(precio).isNotEqualByComparingTo("88.88").isEqualByComparingTo("25.00");
+        assertThat(contarMensajes(a, EstadoMensaje.PENDIENTE)).isZero();
+        assertThat(contarMensajes(b, EstadoMensaje.PENDIENTE)).isZero();
     }
 
     @Test
