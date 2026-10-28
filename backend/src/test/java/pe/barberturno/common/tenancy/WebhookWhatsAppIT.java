@@ -9,8 +9,13 @@ import java.util.HexFormat;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import pe.barberturno.whatsapp.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /** CH-1…CH-3: verificación, firma sobre el cuerpo crudo, idempotencia en la base y exención de CSRF acotada (V2-CP-06). */
 @TestPropertySource(properties = {"barberturno.whatsapp.verify-token=token-ficticio-it",
@@ -18,6 +23,9 @@ import static org.assertj.core.api.Assertions.*;
 class WebhookWhatsAppIT extends PlataformaPruebaBase {
     static final String SECRETO = "secreto-ficticio-it";
     static final String RUTA = "/api/whatsapp/webhook";
+    @Autowired ProcesadorEventosWhatsApp procesador;
+    @MockitoBean ReceptorMensajesWhatsApp mensajes;
+    @MockitoBean ReceptorEstadosWhatsApp estados;
 
     static byte[] ejemplo() throws Exception {
         try (var entrada = WebhookWhatsAppIT.class.getResourceAsStream("/whatsapp/mensajes-y-estados.json")) {
@@ -129,6 +137,38 @@ class WebhookWhatsAppIT extends PlataformaPruebaBase {
         assertThat(eventos()).isZero();
         // La misma notificación con la cookie de una sesión también entra por la firma, no por la sesión.
         assertThat(publicar(admin, RUTA, cuerpo, firmar(cuerpo)).statusCode()).isEqualTo(200);
+        assertThat(eventos()).isEqualTo(4);
+    }
+
+    /** §7: recepción (V2-08.1) y procesamiento (V2-08.2) juntos; V2-CP-06 completo, incluida la repetición tras procesar. */
+    @Test void extremoAExtremo_postFirmadoYProcesado_unaEntregaPorEventoAunqueMetaRepita() throws Exception {
+        assertThat(http(admin, "PUT", "/api/plataforma/negocios/" + a + "/canal-whatsapp",
+                "{\"wabaId\":\"900000000000001\",\"phoneNumberId\":\"100000000000001\",\"numeroVisible\":\"+15550000001\"}",
+                token(admin)).statusCode()).isEqualTo(200);
+        var anonima = anonima();
+        byte[] cuerpo = ejemplo();
+        for (int vez = 0; vez < 2; vez++) assertThat(publicar(anonima, RUTA, cuerpo, firmar(cuerpo)).statusCode()).isEqualTo(200);
+        assertThat(procesador.procesarLote()).isEqualTo(4);
+        var recibidos = ArgumentCaptor.forClass(MensajeEntrante.class);
+        verify(mensajes, times(2)).recibir(recibidos.capture());
+        assertThat(recibidos.getAllValues()).extracting(MensajeEntrante::wamid)
+                .containsExactly("wamid.FICTICIO-MENSAJE-001", "wamid.FICTICIO-MENSAJE-002");
+        assertThat(recibidos.getAllValues()).allSatisfy(mensaje -> {
+            assertThat(mensaje.negocioId()).isEqualTo(a);
+            assertThat(mensaje.clienteId()).as("sin ficha con ese wa_id: no se crea").isEmpty();
+        });
+        assertThat(recibidos.getAllValues().getFirst().waId()).isEqualTo("51900000001");
+        assertThat(recibidos.getAllValues().getFirst().nombrePerfil()).isEqualTo("Cliente Ficticio");
+        var avisos = ArgumentCaptor.forClass(EstadoEntrante.class);
+        verify(estados, times(2)).recibir(avisos.capture());
+        assertThat(avisos.getAllValues()).extracting(EstadoEntrante::estado).containsExactly("delivered", "read");
+        assertThat(jdbc.queryForList("select estado || ':' || negocio_id from evento_whatsapp_entrante", String.class))
+                .containsOnly("PROCESADO:" + a).hasSize(4);
+        assertThat(jdbc.queryForObject("select count(*) from cliente where wa_id is not null", Integer.class)).isZero();
+        // Meta repite la notificación después de procesarla: ni fila nueva ni segunda entrega.
+        assertThat(publicar(anonima, RUTA, cuerpo, firmar(cuerpo)).statusCode()).isEqualTo(200);
+        assertThat(procesador.procesarLote()).isZero();
+        verifyNoMoreInteractions(mensajes, estados);
         assertThat(eventos()).isEqualTo(4);
     }
 }

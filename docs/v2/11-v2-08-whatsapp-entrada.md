@@ -123,7 +123,7 @@ Por cada `entry[].changes[]` con `field = messages` y `value.messaging_product =
 
 - Sin token o sin secreto, el *webhook* **falla cerrado** (403 y 401) y se registra un aviso al arrancar, sin ningún valor (V2-DA-55).
 - Las pruebas usan valores ficticios fijados en la propia prueba; ningún secreto se versiona.
-- `@EnableScheduling` va en `ConfiguracionWhatsApp`. El procesador es un *bean* condicionado a `procesador.habilitado`, y sus pruebas llaman directamente al método público que procesa un lote.
+- `@EnableScheduling` va en `ConfiguracionWhatsApp`. `ProcesadorEventosWhatsApp` está siempre presente y sus pruebas llaman directamente a `procesarLote()`; solo el disparo periódico (`ProgramadorEventosWhatsApp`) se condiciona a `procesador.habilitado`. *(Precisado el 28/10/2026, tras el hallazgo del encargo 110b.)*
 
 ## 5. Reparto y archivos (un implementador por archivo)
 | Subtarea | Implementador | Archivos bajo su responsabilidad |
