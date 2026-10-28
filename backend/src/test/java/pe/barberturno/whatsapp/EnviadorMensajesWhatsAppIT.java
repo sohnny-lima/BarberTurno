@@ -17,6 +17,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.support.TransactionTemplate;
+import pe.barberturno.platform.Membresia;
+import pe.barberturno.platform.MotivoRevocacion;
+import pe.barberturno.platform.RolNegocio;
+import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.users.Rol;
+import pe.barberturno.users.Usuario;
 import tools.jackson.databind.node.ObjectNode;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -515,18 +521,20 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         }));
         assertThat(reclamo2.ficha()).isEqualTo(2);
 
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             var mensajeConFicha1 = cola.bloquear(reclamo1);
             assertThat(mensajeConFicha1).as("La ficha antigua no debe encontrar el mensaje reclamado de nuevo").isEmpty();
+            return null;
         }));
 
         var fila = filaMensaje(msg);
         assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
         assertThat(fila.get("intentos")).isEqualTo((short) 2);
 
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             var mensajeConFicha2 = cola.bloquear(reclamo2).orElseThrow();
             cola.cambiar(mensajeConFicha2, EstadoMensaje.ENVIADO, "wamid.FICHA_2", null, null, 0, null, reloj.instant());
+            return null;
         }));
         assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENVIADO");
         assertThat(filaMensaje(msg).get("wamid")).isEqualTo("wamid.FICHA_2");
@@ -681,7 +689,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         Usuario encargadoRevocado = usuarios.saveAndFlush(new Usuario("Encargado revocado", "encargado-revocado@ejemplo.test",
                 "999000011", "hash", Rol.CLIENTE, reloj.instant(), reloj.instant()));
         var mRevocada = new Membresia(a, encargadoRevocado.getId(), RolNegocio.ENCARGADO, reloj.instant());
-        mRevocada.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
+        mRevocada.revocar(MotivoRevocacion.DECISION_GESTOR, reloj.instant());
         membresias.save(mRevocada);
 
         Usuario barberoCuentaB = usuarios.saveAndFlush(new Usuario("Barbero B", "barbero-b@ejemplo.test",

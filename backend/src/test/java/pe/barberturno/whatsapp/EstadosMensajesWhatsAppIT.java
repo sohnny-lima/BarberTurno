@@ -339,9 +339,10 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.of(reserva));
 
         // Primer aviso: simulamos el aviso de RESULTADO_DESCONOCIDO cuando el mensaje estaba pendiente
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
-            MensajeWhatsApp msgObj = sql.entityManager().find(MensajeWhatsApp.class, msg);
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            MensajeWhatsApp msgObj = entityManager.find(MensajeWhatsApp.class, msg);
             avisos.avisar(msgObj, MotivoFallo.RESULTADO_DESCONOCIDO);
+            return null;
         }));
 
         // El mensaje pasa a FALLIDO con RESULTADO_DESCONOCIDO
@@ -378,7 +379,7 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.REVERTIR", TipoMensaje.TEXTO, OptionalLong.of(reserva));
 
         try {
-            ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+            ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
                 receptorEstados.recibir(estadoEntrante(a, "wamid.REVERTIR", "failed", WA_CLIENTE, null, 131051));
                 throw new RuntimeException("Fallo forzado para revertir la transacción");
             }));
@@ -397,9 +398,10 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msgDesconocido = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.of(reserva));
 
         // 1. Texto exacto para RESULTADO_DESCONOCIDO
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
-            MensajeWhatsApp msgObj = sql.entityManager().find(MensajeWhatsApp.class, msgDesconocido);
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            MensajeWhatsApp msgObj = entityManager.find(MensajeWhatsApp.class, msgDesconocido);
             avisos.avisar(msgObj, MotivoFallo.RESULTADO_DESCONOCIDO);
+            return null;
         }));
 
         String textoDesconocido = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
@@ -408,9 +410,10 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 + reserva + ". Compruébelo con el cliente.");
 
         // 2. Texto exacto para otro motivo (ej. DESTINO_NO_VALIDO)
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
-            MensajeWhatsApp msgObj = sql.entityManager().find(MensajeWhatsApp.class, msgDesconocido);
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            MensajeWhatsApp msgObj = entityManager.find(MensajeWhatsApp.class, msgDesconocido);
             avisos.avisar(msgObj, MotivoFallo.DESTINO_NO_VALIDO);
+            return null;
         }));
 
         String textoDestino = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",

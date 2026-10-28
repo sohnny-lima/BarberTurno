@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,6 +92,7 @@ public abstract class WhatsAppSalidaPruebaBase {
     @Autowired protected ServicioRepository servicios;
     @Autowired protected ClienteRepository clientes;
     @Autowired protected PlatformTransactionManager gestor;
+    @Autowired protected EntityManager entityManager;
 
     protected long a;
     protected long b;
