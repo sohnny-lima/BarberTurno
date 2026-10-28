@@ -165,3 +165,4 @@ Por cada `entry[].changes[]` con `field = messages` y `value.messaging_product =
 - **P2-05** (responsable): aplicación de Meta, número de prueba y *app secret*. Sin ellos, la conexión real no está acreditada (§2).
 - **Retención de `evento_whatsapp_entrante.cuerpo`:** datos personales; se fija con P2-06 en V2-10. Hasta entonces solo hay datos ficticios en v2.
 - **Integración con V2-07:** V2-07 retira los alias en `ResolutorNegocio` y añade decisiones V2-DA-42…51 y la §10 del *backlog*. Se esperan conflictos pequeños en `ResolutorNegocio.esGlobal`, `07-decisiones.md` y `10-backlog.md`, que se resolverán al integrar la segunda de las dos ramas.
+- **Vaciado de los E2E:** el `vaciar()` de `frontend/e2e/base-datos.ts` (reescrito por V2-07) debe incluir `canal_whatsapp` y `evento_whatsapp_entrante` al integrar, igual que `LimpiezaBaseDatos`: las dos tablas referencian `negocio` y `TRUNCATE usuario CASCADE` no las alcanza.
