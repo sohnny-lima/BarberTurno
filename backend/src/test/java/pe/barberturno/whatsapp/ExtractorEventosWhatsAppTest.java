@@ -77,5 +77,4 @@ class ExtractorEventosWhatsAppTest {
         assertThat(eventosEstado).hasSize(1);
         assertThat(eventosEstado.getFirst().clave()).isEqualTo("s:" + wamid128 + ":delivered").hasSize(140);
     }
-    }
 }

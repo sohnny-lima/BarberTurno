@@ -10,9 +10,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.node.ObjectNode;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -23,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@ExtendWith(OutputCaptureExtension.class)
 class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Autowired
@@ -30,6 +36,18 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Autowired
     private SalidaWhatsApp salida;
+
+    @Autowired
+    private ColaSalidaWhatsApp cola;
+
+    @Autowired
+    private ReceptorEstadosWhatsApp receptorEstados;
+
+    @Autowired
+    private AvisoFalloWhatsApp avisos;
+
+    @Autowired
+    private SalidaWhatsAppPropiedades opciones;
 
     private long encolarTextoDirecto(long negocioId, long conversacionId, String texto, OptionalLong reservaId) {
         return ejecutor.ejecutar(negocioId, () -> new TransactionTemplate(gestor).execute(status ->
@@ -448,5 +466,264 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         assertThat(filaMensaje(msg).get("estado")).isEqualTo("FALLIDO");
         assertThat(sql.queryForObject("SELECT count(*) FROM notificacion WHERE negocio_id = ?", Integer.class, a)).isZero();
+    }
+
+    @Test
+    void loteLento_reclamoDeUnoEnUno_plazoEmpiezaAlReclamarCadaMensaje() {
+        long conv1 = crearConversacion(a, "51999000011");
+        long conv2 = crearConversacion(a, "51999000012");
+        long conv3 = crearConversacion(a, "51999000013");
+
+        long msg1 = encolarTextoDirecto(a, conv1, "Msg 1", OptionalLong.empty());
+        long msg2 = encolarTextoDirecto(a, conv2, "Msg 2", OptionalLong.empty());
+        long msg3 = encolarTextoDirecto(a, conv3, "Msg 3", OptionalLong.empty());
+
+        assertThat(filaMensaje(msg2).get("intentos")).isEqualTo((short) 0);
+        assertThat(filaMensaje(msg3).get("intentos")).isEqualTo((short) 0);
+
+        servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_1");
+        servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_2");
+        servidorGraph.encolarExito("wamid.LENTO_3");
+
+        int reclamados = enviador.enviarLote();
+        assertThat(reclamados).isEqualTo(3);
+
+        assertThat(filaMensaje(msg1).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(msg2).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(msg3).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(msg1).get("intentos")).isEqualTo((short) 1);
+        assertThat(filaMensaje(msg2).get("intentos")).isEqualTo((short) 1);
+        assertThat(filaMensaje(msg3).get("intentos")).isEqualTo((short) 1);
+    }
+
+    @Test
+    void fichaAntigua_noCierraMensajeReclamadoDeNuevo() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = encolarTextoDirecto(a, conv, "Msg con ficha", OptionalLong.empty());
+
+        var reclamo1 = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            Instant ahora = reloj.instant();
+            return cola.reclamar(ahora, ahora.plusSeconds(60)).orElseThrow();
+        }));
+        assertThat(reclamo1.ficha()).isEqualTo(1);
+
+        reloj.adelantar(Duration.ofSeconds(61));
+
+        var reclamo2 = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            Instant ahora = reloj.instant();
+            return cola.reclamar(ahora, ahora.plusSeconds(60)).orElseThrow();
+        }));
+        assertThat(reclamo2.ficha()).isEqualTo(2);
+
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+            var mensajeConFicha1 = cola.bloquear(reclamo1);
+            assertThat(mensajeConFicha1).as("La ficha antigua no debe encontrar el mensaje reclamado de nuevo").isEmpty();
+        }));
+
+        var fila = filaMensaje(msg);
+        assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
+        assertThat(fila.get("intentos")).isEqualTo((short) 2);
+
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+            var mensajeConFicha2 = cola.bloquear(reclamo2).orElseThrow();
+            cola.cambiar(mensajeConFicha2, EstadoMensaje.ENVIADO, "wamid.FICHA_2", null, null, 0, null, reloj.instant());
+        }));
+        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(msg).get("wamid")).isEqualTo("wamid.FICHA_2");
+    }
+
+    @Test
+    void conciliacionDuranteEspera_avisoSentPasaAEnviadoYSinReenvio() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        long msg = encolarTextoDirecto(a, conv, "Msg a conciliar", OptionalLong.of(reserva));
+
+        servidorGraph.encolarDemora(Duration.ofSeconds(3), 200, "{\"messages\":[{\"id\":\"tardio\"}]}");
+        enviador.enviarLote();
+
+        var filaDespuesIntento1 = filaMensaje(msg);
+        assertThat(filaDespuesIntento1.get("estado")).isEqualTo("PENDIENTE");
+        assertThat(filaDespuesIntento1.get("inciertos")).isEqualTo((short) 1);
+        assertThat(servidorGraph.peticiones()).hasSize(1);
+
+        reloj.adelantar(Duration.ofSeconds(30));
+        var datoEstado = mapper.createObjectNode()
+                .put("id", "wamid.CONCILIADO_EN_ESPERA")
+                .put("status", "sent")
+                .put("recipient_id", WA_CLIENTE)
+                .put("biz_opaque_callback_data", "bt:m:" + msg + ":1");
+        var avisoSent = new EstadoEntrante(10L, a, "wamid.CONCILIADO_EN_ESPERA", "sent", WA_CLIENTE, reloj.instant(), datoEstado);
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(avisoSent);
+            return null;
+        });
+
+        var filaConciliada = filaMensaje(msg);
+        assertThat(filaConciliada.get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaConciliada.get("wamid")).isEqualTo("wamid.CONCILIADO_EN_ESPERA");
+        assertThat(filaConciliada.get("proximo_intento")).isNull();
+
+        reloj.adelantar(Duration.ofMinutes(2));
+        enviador.enviarLote();
+
+        assertThat(servidorGraph.peticiones()).as("No debe haber reenvío tras la conciliación").hasSize(1);
+    }
+
+    @Test
+    void noEnviado_puertoCerrado_reprogramaSinIncrementarInciertos() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = encolarTextoDirecto(a, conv, "Msg puerto cerrado", OptionalLong.empty());
+
+        ClienteGraphWhatsApp clienteConexionFallida = (numero, cuerpo) -> new ResultadoEnvio.NoEnviado();
+        var enviadorNoEnviado = new EnviadorMensajesWhatsApp(cola, canales, directorio, membresias, ejecutor,
+                clienteConexionFallida, avisos, opciones, reloj, mapper, gestor);
+
+        enviadorNoEnviado.enviarLote();
+
+        var fila = filaMensaje(msg);
+        assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
+        assertThat(fila.get("intentos")).isEqualTo((short) 1);
+        assertThat(fila.get("inciertos")).as("NoEnviado no debe incrementar inciertos").isEqualTo((short) 0);
+        assertThat(((Timestamp) fila.get("proximo_intento")).toInstant())
+                .isEqualTo(reloj.instant().plus(Duration.ofSeconds(30)));
+    }
+
+    @Test
+    void enviarLote_conMensajeInteractivo_enviaCuerpoExactoConObjetoIntactoYEnviadoComoInteractivo() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        ObjectNode interactivo = mapper.createObjectNode();
+        interactivo.put("type", "button");
+        interactivo.putObject("body").put("text", "¿Confirmas tu cita?");
+        var action = interactivo.putObject("action");
+        var buttons = action.putArray("buttons");
+        buttons.addObject().put("type", "reply").putObject("reply").put("id", "btn_si").put("title", "Sí");
+
+        long msg = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status ->
+                salida.encolarInteractivo(conv, interactivo, OrigenMensaje.ASISTENTE, OptionalLong.empty())));
+
+        servidorGraph.encolarExito("wamid.INTERACTIVO_001");
+        enviador.enviarLote();
+
+        var fila = filaMensaje(msg);
+        assertThat(fila.get("estado")).isEqualTo("ENVIADO");
+        assertThat(fila.get("enviado_como")).isEqualTo("INTERACTIVO");
+
+        var peticion = servidorGraph.ultimaPeticion();
+        assertThat(peticion.cuerpoJson().get("messaging_product").asString()).isEqualTo("whatsapp");
+        assertThat(peticion.cuerpoJson().get("recipient_type").asString()).isEqualTo("individual");
+        assertThat(peticion.cuerpoJson().get("to").asString()).isEqualTo(WA_CLIENTE);
+        assertThat(peticion.cuerpoJson().get("type").asString()).isEqualTo("interactive");
+        assertThat(peticion.cuerpoJson().get("interactive").get("type").asString()).isEqualTo("button");
+        assertThat(peticion.cuerpoJson().get("interactive").get("body").get("text").asString()).isEqualTo("¿Confirmas tu cita?");
+        assertThat(peticion.cuerpoJson().get("biz_opaque_callback_data").asString()).isEqualTo("bt:m:" + msg + ":1");
+    }
+
+    @Test
+    void enviarLote_lasTresFormas_incluyenBizOpaqueCallbackDataConFichaExacta() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msgTexto = encolarTextoDirecto(a, conv, "Texto simple", OptionalLong.empty());
+
+        ObjectNode btn = mapper.createObjectNode();
+        btn.put("type", "button");
+        btn.putObject("body").put("text", "Opciones");
+        long msgInteractivo = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status ->
+                salida.encolarInteractivo(conv, btn, OrigenMensaje.ASISTENTE, OptionalLong.empty())));
+
+        Map<String, String> params = Map.of("negocio", "BarberTurno", "codigo", "BT-9", "fecha", "Hoy", "profesional", "Barbero");
+        long msgPlantilla = encolarPlantillaDirecto(a, conv, PlantillaUtility.BT_CITA_MODIFICADA_POR_NEGOCIO, params, OptionalLong.empty());
+
+        servidorGraph.encolarExito("wamid.T");
+        servidorGraph.encolarExito("wamid.I");
+        servidorGraph.encolarExito("wamid.P");
+
+        enviador.enviarLote();
+
+        var peticiones = servidorGraph.peticiones();
+        assertThat(peticiones).hasSize(3);
+        assertThat(peticiones.get(0).cuerpoJson().get("biz_opaque_callback_data").asString()).isEqualTo("bt:m:" + msgTexto + ":1");
+        assertThat(peticiones.get(1).cuerpoJson().get("biz_opaque_callback_data").asString()).isEqualTo("bt:m:" + msgInteractivo + ":1");
+        assertThat(peticiones.get(2).cuerpoJson().get("biz_opaque_callback_data").asString()).isEqualTo("bt:m:" + msgPlantilla + ":1");
+    }
+
+    @Test
+    void enviadoComo_guardadoEnBaseDeDatosAntesDeLaPeticionHttp() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = encolarTextoDirecto(a, conv, "Texto verificacion enviado_como", OptionalLong.empty());
+
+        AtomicReference<String> observadoEnBase = new AtomicReference<>();
+        AtomicReference<String> estadoEnBase = new AtomicReference<>();
+
+        servidorGraph.encolarInterceptando(() -> {
+            var fila = filaMensaje(msg);
+            observadoEnBase.set((String) fila.get("enviado_como"));
+            estadoEnBase.set((String) fila.get("estado"));
+        }, "wamid.PREVIO_HTTP");
+
+        enviador.enviarLote();
+
+        assertThat(observadoEnBase.get())
+                .as("enviado_como debe estar persistido en BD antes de la llamada HTTP")
+                .isEqualTo("TEXTO");
+        assertThat(estadoEnBase.get())
+                .as("El estado durante la llamada HTTP debe ser PENDIENTE")
+                .isEqualTo("PENDIENTE");
+
+        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENVIADO");
+    }
+
+    @Test
+    void avisoInterno_destinatariosExcluyenCuentasInactivasYMembresiasRevocadasYEligenProfesionalActual() {
+        Usuario titularInactivo = usuarios.saveAndFlush(new Usuario("Titular inactivo", "titular-inactivo@ejemplo.test",
+                "999000010", "hash", Rol.CLIENTE, reloj.instant(), reloj.instant()));
+        sql.update("UPDATE usuario SET activo = false WHERE id = ?", titularInactivo.getId());
+        membresias.save(new Membresia(a, titularInactivo.getId(), RolNegocio.PROPIETARIO, reloj.instant()));
+
+        Usuario encargadoRevocado = usuarios.saveAndFlush(new Usuario("Encargado revocado", "encargado-revocado@ejemplo.test",
+                "999000011", "hash", Rol.CLIENTE, reloj.instant(), reloj.instant()));
+        var mRevocada = new Membresia(a, encargadoRevocado.getId(), RolNegocio.ENCARGADO, reloj.instant());
+        mRevocada.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
+        membresias.save(mRevocada);
+
+        Usuario barberoCuentaB = usuarios.saveAndFlush(new Usuario("Barbero B", "barbero-b@ejemplo.test",
+                "999000012", "hash", Rol.BARBERO, reloj.instant(), reloj.instant()));
+        membresias.save(new Membresia(a, barberoCuentaB.getId(), RolNegocio.BARBERO, reloj.instant()));
+        long barberoB = ejecutor.ejecutar(a, () -> barberos.saveAndFlush(
+                new Barbero(barberoCuentaB, "Barbero B", reloj.instant())).getId());
+
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        sql.update("UPDATE reserva SET barbero_id = ? WHERE id = ?", barberoB, reserva);
+
+        long msg = encolarTextoDirecto(a, conv, "Msg fallo permanente", OptionalLong.of(reserva));
+
+        servidorGraph.encolarErrorMeta(400, 131026, "Receiver is not valid");
+        enviador.enviarLote();
+
+        assertThat(contarNotificaciones(a, titular.getId())).isEqualTo(1);
+        assertThat(contarNotificaciones(a, encargado.getId())).isEqualTo(1);
+        assertThat(contarNotificaciones(a, barberoCuentaB.getId())).isEqualTo(1);
+
+        assertThat(contarNotificaciones(a, titularInactivo.getId())).isZero();
+        assertThat(contarNotificaciones(a, encargadoRevocado.getId())).isZero();
+        assertThat(contarNotificaciones(a, barberoCuenta.getId())).isZero();
+    }
+
+    @Test
+    void registros_enFalloDeEnvioYEnAviso_noContienenDatosPersonalesNiToken(CapturedOutput salida) {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        String textoSecreto = "Texto con datos medicos privados y sensibles";
+        long msg = encolarTextoDirecto(a, conv, textoSecreto, OptionalLong.of(reserva));
+
+        servidorGraph.encolarErrorMeta(400, 131026, "Receiver is not valid");
+        enviador.enviarLote();
+
+        assertThat(filaMensaje(msg).get("estado")).isEqualTo("FALLIDO");
+
+        String registros = salida.getAll();
+        assertThat(registros).contains("Mensaje WhatsApp " + msg)
+                .doesNotContain(WA_CLIENTE)
+                .doesNotContain(textoSecreto)
+                .doesNotContain("token-ficticio-prueba");
     }
 }

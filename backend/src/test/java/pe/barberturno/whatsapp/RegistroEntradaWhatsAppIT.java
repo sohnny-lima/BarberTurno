@@ -26,7 +26,7 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         ObjectNode dato = mapper.createObjectNode();
         dato.put("from", waId);
         dato.putObject("text").put("body", "Texto entrante");
-        return new MensajeEntrante(1L, negocioId, OptionalLong.empty(), "Cliente Perfil",
+        return new MensajeEntrante(1L, negocioId, waId, OptionalLong.empty(), "Cliente Perfil",
                 "wamid.ENTRANTE_001", "text", enviadoEn, dato);
     }
 

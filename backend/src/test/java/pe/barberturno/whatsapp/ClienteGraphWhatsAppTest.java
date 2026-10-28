@@ -88,7 +88,7 @@ class ClienteGraphWhatsAppTest {
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isTrue();
-        assertThat(rechazado.codigoMeta()).contains(codigoMeta);
+        assertThat(rechazado.codigoMeta()).hasValue(codigoMeta);
         assertThat(rechazado.motivo()).isNull();
     }
 
@@ -116,7 +116,7 @@ class ClienteGraphWhatsAppTest {
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.VENTANA_CERRADA);
-        assertThat(rechazado.codigoMeta()).contains(131047);
+        assertThat(rechazado.codigoMeta()).hasValue(131047);
     }
 
     @ParameterizedTest
@@ -130,7 +130,7 @@ class ClienteGraphWhatsAppTest {
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.DESTINO_NO_VALIDO);
-        assertThat(rechazado.codigoMeta()).contains(codigoMeta);
+        assertThat(rechazado.codigoMeta()).hasValue(codigoMeta);
     }
 
     @ParameterizedTest
@@ -144,7 +144,7 @@ class ClienteGraphWhatsAppTest {
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.PLANTILLA_RECHAZADA);
-        assertThat(rechazado.codigoMeta()).contains(codigoMeta);
+        assertThat(rechazado.codigoMeta()).hasValue(codigoMeta);
     }
 
     @ParameterizedTest
@@ -158,7 +158,7 @@ class ClienteGraphWhatsAppTest {
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.CREDENCIAL_RECHAZADA);
-        assertThat(rechazado.codigoMeta()).contains(codigoMeta);
+        assertThat(rechazado.codigoMeta()).hasValue(codigoMeta);
     }
 
     @ParameterizedTest
@@ -172,7 +172,7 @@ class ClienteGraphWhatsAppTest {
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.CUENTA_RESTRINGIDA);
-        assertThat(rechazado.codigoMeta()).contains(codigoMeta);
+        assertThat(rechazado.codigoMeta()).hasValue(codigoMeta);
     }
 
     @ParameterizedTest
@@ -186,7 +186,7 @@ class ClienteGraphWhatsAppTest {
         var rechazado = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazado.transitorio()).isFalse();
         assertThat(rechazado.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
-        assertThat(rechazado.codigoMeta()).contains(codigoMeta);
+        assertThat(rechazado.codigoMeta()).hasValue(codigoMeta);
     }
 
     @Test

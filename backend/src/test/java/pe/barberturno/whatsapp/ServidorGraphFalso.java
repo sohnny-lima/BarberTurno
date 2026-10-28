@@ -127,6 +127,23 @@ public class ServidorGraphFalso implements AutoCloseable {
     }
 
     /**
+     * Encola una respuesta exitosa ejecutando una acción interceptora mientras se procesa la petición HTTP
+     * (útil para verificar el estado de la base de datos antes del cierre del mensaje).
+     * @param interceptor acción a ejecutar antes de enviar la respuesta HTTP
+     * @param wamid identificador devuelto en {@code messages[0].id}
+     */
+    public void encolarInterceptando(Runnable interceptor, String wamid) {
+        colaRespuestas.add(exchange -> {
+            if (interceptor != null) {
+                interceptor.run();
+            }
+            responderJson(exchange, 200,
+                    "{\"messaging_product\":\"whatsapp\",\"contacts\":[{\"input\":\"51999000001\",\"wa_id\":\"51999000001\"}],"
+                            + "\"messages\":[{\"id\":\"" + wamid + "\"}]}");
+        });
+    }
+
+    /**
      * Encola una respuesta de error estructurada con formato de la Graph API de Meta.
      * @param estadoHttp código HTTP de respuesta
      * @param codigoMeta código de error en {@code error.code}

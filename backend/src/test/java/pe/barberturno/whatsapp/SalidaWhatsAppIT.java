@@ -150,7 +150,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 new TransactionTemplate(gestor).execute(status ->
                         salida.encolarTexto(conversacionB, "Texto a negocio ajeno", OrigenMensaje.SISTEMA, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
     }
 
     @Test
@@ -162,7 +162,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 new TransactionTemplate(gestor).execute(status ->
                         salida.encolarTexto(conversacionA, "Texto con reserva ajena", OrigenMensaje.SISTEMA, OptionalLong.of(reservaB)))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
     }
 
     @Test
@@ -173,7 +173,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 new TransactionTemplate(gestor).execute(status ->
                         salida.encolarTexto(conversacionId, "Texto con cliente", OrigenMensaje.CLIENTE, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 
     @ParameterizedTest
@@ -186,7 +186,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 new TransactionTemplate(gestor).execute(status ->
                         salida.encolarTexto(conversacionId, textoInvalido, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 
     @Test
@@ -198,7 +198,50 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 new TransactionTemplate(gestor).execute(status ->
                         salida.encolarTexto(conversacionId, textoLargo, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"flow", "location_request_message", "product", "catalogue_message", ""})
+    void encolarInteractivo_conTipoDistintoDeButtonOList_lanzaValidacion(String tipoInvalido) {
+        long conversacionId = crearConversacion(a, WA_CLIENTE);
+        ObjectNode interactivo = mapper.createObjectNode();
+        if (!tipoInvalido.isEmpty()) {
+            interactivo.put("type", tipoInvalido);
+        }
+        interactivo.putObject("body").put("text", "Cuerpo del mensaje");
+
+        assertThatThrownBy(() -> ejecutor.ejecutar(a, () ->
+                new TransactionTemplate(gestor).execute(status ->
+                        salida.encolarInteractivo(conversacionId, interactivo, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
+    }
+
+    @Test
+    void encolarInteractivo_sinBodyTextOEnBlanco_lanzaValidacion() {
+        long conversacionId = crearConversacion(a, WA_CLIENTE);
+
+        // Sin objeto body
+        ObjectNode sinBody = mapper.createObjectNode();
+        sinBody.put("type", "button");
+        assertThatThrownBy(() -> ejecutor.ejecutar(a, () ->
+                new TransactionTemplate(gestor).execute(status ->
+                        salida.encolarInteractivo(conversacionId, sinBody, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
+
+        // body.text en blanco
+        for (String textoInvalido : List.of("", "   ", "\t")) {
+            ObjectNode bodyEnBlanco = mapper.createObjectNode();
+            bodyEnBlanco.put("type", "button");
+            bodyEnBlanco.putObject("body").put("text", textoInvalido);
+            assertThatThrownBy(() -> ejecutor.ejecutar(a, () ->
+                    new TransactionTemplate(gestor).execute(status ->
+                            salida.encolarInteractivo(conversacionId, bodyEnBlanco, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
+                    .isInstanceOf(NegocioException.class)
+                    .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
+        }
     }
 
     @Test
@@ -209,16 +252,34 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 new TransactionTemplate(gestor).execute(status ->
                         salida.encolarInteractivo(conversacionId, null, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
 
-        ObjectNode interactivoEnorme = mapper.createObjectNode();
-        interactivoEnorme.put("contenido", "x".repeat(9000)); // > 8192 bytes
+        // Objeto interactivo válido con type "button" y body.text pero que excede 8192 bytes
+        ObjectNode interactivoExcesivo = mapper.createObjectNode();
+        interactivoExcesivo.put("type", "button");
+        interactivoExcesivo.putObject("body").put("text", "Elige una opción");
+        interactivoExcesivo.put("relleno", "x".repeat(8200));
 
         assertThatThrownBy(() -> ejecutor.ejecutar(a, () ->
                 new TransactionTemplate(gestor).execute(status ->
-                        salida.encolarInteractivo(conversacionId, interactivoEnorme, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
+                        salida.encolarInteractivo(conversacionId, interactivoExcesivo, OrigenMensaje.SISTEMA, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
+    }
+
+    @Test
+    void encolarInteractivo_conTipoListValido_insertaConforme() {
+        long conversacionId = crearConversacion(a, WA_CLIENTE);
+        ObjectNode interactivoLista = mapper.createObjectNode();
+        interactivoLista.put("type", "list");
+        interactivoLista.putObject("body").put("text", "Selecciona el servicio");
+
+        long id = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status ->
+                salida.encolarInteractivo(conversacionId, interactivoLista, OrigenMensaje.ASISTENTE, OptionalLong.empty())));
+
+        var fila = filaMensaje(id);
+        assertThat(fila.get("tipo")).isEqualTo("INTERACTIVO");
+        assertThat(fila.get("contenido").toString()).contains("\"type\":\"list\"");
     }
 
     @Test
@@ -231,6 +292,6 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                         salida.encolarPlantilla(conversacionId, PlantillaUtility.BT_CITA_CANCELADA_POR_NEGOCIO,
                                 parametrosIncompletos, OptionalLong.empty()))))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 }

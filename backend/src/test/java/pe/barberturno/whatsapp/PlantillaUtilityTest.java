@@ -85,19 +85,19 @@ class PlantillaUtilityTest {
 
         assertThatThrownBy(() -> plantilla.validar(null))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
 
         // Falta "fecha"
         Map<String, String> incompleto = Map.of("negocio", "Barbería", "codigo", "BT-1");
         assertThatThrownBy(() -> plantilla.validar(incompleto))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
 
         // Parámetro sobrante "otro"
         Map<String, String> conExtra = Map.of("negocio", "Barbería", "codigo", "BT-1", "fecha", "hoy", "extra", "valor");
         assertThatThrownBy(() -> plantilla.validar(conExtra))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 
     @ParameterizedTest
@@ -111,7 +111,7 @@ class PlantillaUtilityTest {
 
         assertThatThrownBy(() -> plantilla.validar(parametros))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 
     @Test
@@ -126,7 +126,7 @@ class PlantillaUtilityTest {
         Map<String, String> invalido201 = Map.of("negocio", exceso201, "codigo", "BT-101", "fecha", "28/10/2026");
         assertThatThrownBy(() -> plantilla.validar(invalido201))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 
     @Test
@@ -138,6 +138,6 @@ class PlantillaUtilityTest {
         Map<String, String> cuatroEspacios = Map.of("negocio", "Barbería    Ficticia", "codigo", "BT-101", "fecha", "28/10/2026");
         assertThatThrownBy(() -> plantilla.validar(cuatroEspacios))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.VALIDACION));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.VALIDACION));
     }
 }

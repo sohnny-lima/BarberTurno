@@ -22,13 +22,13 @@ import pe.barberturno.common.tenancy.ContextoNegocio;
 import pe.barberturno.common.tenancy.DirectorioNegocios;
 import pe.barberturno.common.tenancy.EjecutorEnNegocio;
 import pe.barberturno.customers.ClienteRepository;
+import pe.barberturno.catalog.Servicio;
+import pe.barberturno.catalog.ServicioRepository;
 import pe.barberturno.platform.Membresia;
 import pe.barberturno.platform.MembresiaRepository;
 import pe.barberturno.platform.RolNegocio;
 import pe.barberturno.scheduling.Barbero;
 import pe.barberturno.scheduling.BarberoRepository;
-import pe.barberturno.scheduling.Servicio;
-import pe.barberturno.scheduling.ServicioRepository;
 import pe.barberturno.support.JdbcNegocioPruebas;
 import pe.barberturno.support.LimpiezaBaseDatos;
 import pe.barberturno.support.RelojAjustable;
@@ -143,7 +143,7 @@ public abstract class WhatsAppSalidaPruebaBase {
         barberoA = ejecutor.ejecutar(a, () -> barberos.saveAndFlush(
                 new Barbero(barberoCuenta, "Barbero A", reloj.instant())).getId());
         servicioA = ejecutor.ejecutar(a, () -> servicios.saveAndFlush(
-                new Servicio("Corte clásico", 30, java.math.BigDecimal.valueOf(25.0), reloj.instant())).getId());
+                new Servicio("Corte clásico", "Descripción ficticia", (short) 30, java.math.BigDecimal.valueOf(25.0), reloj.instant())).getId());
     }
 
     @AfterEach

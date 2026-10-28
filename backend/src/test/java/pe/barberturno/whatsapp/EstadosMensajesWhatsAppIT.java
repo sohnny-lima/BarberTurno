@@ -5,7 +5,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import static org.assertj.core.api.Assertions.*;
@@ -19,10 +23,14 @@ import static org.assertj.core.api.Assertions.*;
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
+@ExtendWith(OutputCaptureExtension.class)
 class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Autowired
     private ReceptorEstadosWhatsApp receptorEstados;
+
+    @Autowired
+    private AvisoFalloWhatsApp avisos;
 
     private long insertarMensajeSaliente(long negocioId, long conversacionId, EstadoMensaje estado,
             String wamid, TipoMensaje enviadoComo, OptionalLong reservaId) {
@@ -35,6 +43,19 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 """, Long.class, negocioId, conversacionId, wamid, estado.name(),
                 enviadoComo == null ? null : enviadoComo.name(),
                 estado == EstadoMensaje.PENDIENTE ? Timestamp.from(reloj.instant()) : null,
+                reservaId.isPresent() ? reservaId.getAsLong() : null,
+                Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant())));
+    }
+
+    private long insertarMensajeFallido(long negocioId, long conversacionId, MotivoFallo motivo,
+            Integer codigoMeta, OptionalLong reservaId) {
+        return ejecutor.ejecutar(negocioId, () -> sql.queryForObject("""
+                INSERT INTO mensaje_whatsapp(negocio_id, conversacion_id, direccion, origen, tipo,
+                    contenido, wamid, estado, enviado_como, intentos, inciertos, proximo_intento, error_codigo, codigo_meta,
+                    reserva_id, creado_en, actualizado_en)
+                VALUES (?, ?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"Prueba"}'::jsonb, null, 'FALLIDO', 'TEXTO',
+                    2, 2, null, ?, ?, ?, ?, ?) RETURNING id
+                """, Long.class, negocioId, conversacionId, motivo.name(), codigoMeta,
                 reservaId.isPresent() ? reservaId.getAsLong() : null,
                 Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant())));
     }
@@ -237,5 +258,182 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         });
 
         assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENTREGADO");
+    }
+
+    @Test
+    void failed_desdePendiente_fijaFalloEntregaYCodigoMeta() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.empty());
+
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_DESDE_PEND", "failed", WA_CLIENTE,
+                    "bt:m:" + msg + ":1", 131051));
+            return null;
+        });
+
+        var fila = filaMensaje(msg);
+        assertThat(fila.get("estado")).isEqualTo("FALLIDO");
+        assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
+        assertThat(fila.get("codigo_meta")).isEqualTo(131051);
+        assertThat(fila.get("wamid")).isEqualTo("wamid.FALLO_DESDE_PEND");
+    }
+
+    @Test
+    void failed_desdeResultadoDesconocido_fijaFalloEntregaYCodigoMeta() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = insertarMensajeFallido(a, conv, MotivoFallo.RESULTADO_DESCONOCIDO, null, OptionalLong.empty());
+
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_POST_DESCONOCIDO", "failed", WA_CLIENTE,
+                    "bt:m:" + msg + ":1", 131047));
+            return null;
+        });
+
+        var fila = filaMensaje(msg);
+        assertThat(fila.get("estado")).isEqualTo("FALLIDO");
+        assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
+        assertThat(fila.get("codigo_meta")).isEqualTo(131047);
+        assertThat(fila.get("wamid")).isEqualTo("wamid.FALLO_POST_DESCONOCIDO");
+    }
+
+    @Test
+    void estadoPositivo_desdeResultadoDesconocido_vaciaErrorCodigoYCodigoMeta() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = insertarMensajeFallido(a, conv, MotivoFallo.RESULTADO_DESCONOCIDO, null, OptionalLong.empty());
+
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.RECUPERADO_OK", "delivered", WA_CLIENTE,
+                    "bt:m:" + msg + ":1", null));
+            return null;
+        });
+
+        var fila = filaMensaje(msg);
+        assertThat(fila.get("estado")).isEqualTo("ENTREGADO");
+        assertThat(fila.get("wamid")).isEqualTo("wamid.RECUPERADO_OK");
+        assertThat(fila.get("error_codigo")).isNull();
+        assertThat(fila.get("codigo_meta")).isNull();
+    }
+
+    @Test
+    void aislamiento_datoDeConciliacionDeNegocioA_recibidoEnCanalB_noConcilia() {
+        long convA = crearConversacion(a, WA_CLIENTE);
+        long msgA = insertarMensajeSaliente(a, convA, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.empty());
+
+        // Se recibe el aviso en el contexto de negocio B con el dato de conciliación de msgA
+        assertThatThrownBy(() -> ejecutor.ejecutar(b, () -> {
+            receptorEstados.recibir(estadoEntrante(b, "wamid.DE_B_PARA_A", "sent", WA_CLIENTE,
+                    "bt:m:" + msgA + ":1", null));
+            return null;
+        })).isInstanceOf(IllegalStateException.class);
+
+        // El mensaje en negocio A no se concilia y permanece pendiente sin wamid
+        var filaA = filaMensaje(msgA);
+        assertThat(filaA.get("estado")).isEqualTo("PENDIENTE");
+        assertThat(filaA.get("wamid")).isNull();
+    }
+
+    @Test
+    void avisoInterno_unAvisoPorTransicion_resultadoDesconocidoAFailedGeneraSegundoAvisoYFailedRepetidoNo() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.of(reserva));
+
+        // Primer aviso: simulamos el aviso de RESULTADO_DESCONOCIDO cuando el mensaje estaba pendiente
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+            MensajeWhatsApp msgObj = sql.entityManager().find(MensajeWhatsApp.class, msg);
+            avisos.avisar(msgObj, MotivoFallo.RESULTADO_DESCONOCIDO);
+        }));
+
+        // El mensaje pasa a FALLIDO con RESULTADO_DESCONOCIDO
+        ejecutor.ejecutar(a, () -> sql.update(
+                "UPDATE mensaje_whatsapp SET estado = 'FALLIDO', error_codigo = 'RESULTADO_DESCONOCIDO' WHERE id = ?", msg));
+
+        int notifsDespuesPrimerAviso = contarNotificaciones(a, titular.getId());
+        assertThat(notifsDespuesPrimerAviso).isEqualTo(1);
+
+        // Llega aviso 'failed' -> transición a FALLO_ENTREGA -> genera SEGUNDO aviso
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_TRANSICION", "failed", WA_CLIENTE,
+                    "bt:m:" + msg + ":1", 131051));
+            return null;
+        });
+
+        int notifsDespuesSegundoAviso = contarNotificaciones(a, titular.getId());
+        assertThat(notifsDespuesSegundoAviso).as("La transición a FALLO_ENTREGA debe generar un segundo aviso").isEqualTo(2);
+
+        // Llega otro aviso 'failed' repetido con el mismo wamid o ficha
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_TRANSICION", "failed", WA_CLIENTE, null, 131051));
+            return null;
+        });
+
+        int notifsDespuesTercerAviso = contarNotificaciones(a, titular.getId());
+        assertThat(notifsDespuesTercerAviso).as("Un failed repetido sin cambio de motivo no debe generar otro aviso").isEqualTo(2);
+    }
+
+    @Test
+    void avisoInterno_transaccionRevertida_noGeneraAvisos() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.REVERTIR", TipoMensaje.TEXTO, OptionalLong.of(reserva));
+
+        try {
+            ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+                receptorEstados.recibir(estadoEntrante(a, "wamid.REVERTIR", "failed", WA_CLIENTE, null, 131051));
+                throw new RuntimeException("Fallo forzado para revertir la transacción");
+            }));
+        } catch (RuntimeException esperado) {
+            // Esperado
+        }
+
+        assertThat(contarNotificaciones(a, titular.getId())).isZero();
+        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENVIADO");
+    }
+
+    @Test
+    void avisoInterno_textosExactosSegunMotivo() {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long reserva = crearReserva(a, WA_CLIENTE);
+        long msgDesconocido = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.of(reserva));
+
+        // 1. Texto exacto para RESULTADO_DESCONOCIDO
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+            MensajeWhatsApp msgObj = sql.entityManager().find(MensajeWhatsApp.class, msgDesconocido);
+            avisos.avisar(msgObj, MotivoFallo.RESULTADO_DESCONOCIDO);
+        }));
+
+        String textoDesconocido = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
+                String.class, titular.getId());
+        assertThat(textoDesconocido).isEqualTo("No se pudo confirmar si se envió por WhatsApp el mensaje de la reserva BT-"
+                + reserva + ". Compruébelo con el cliente.");
+
+        // 2. Texto exacto para otro motivo (ej. DESTINO_NO_VALIDO)
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).executeWithoutResult(status -> {
+            MensajeWhatsApp msgObj = sql.entityManager().find(MensajeWhatsApp.class, msgDesconocido);
+            avisos.avisar(msgObj, MotivoFallo.DESTINO_NO_VALIDO);
+        }));
+
+        String textoDestino = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
+                String.class, titular.getId());
+        assertThat(textoDestino).isEqualTo("No se pudo enviar por WhatsApp el mensaje de la reserva BT-"
+                + reserva + ": " + MotivoFallo.DESTINO_NO_VALIDO.descripcion() + ". Contacte al cliente por otro medio.");
+    }
+
+    @Test
+    void registros_enAvisoDuplicado_noContienenDatosPersonalesNiToken(CapturedOutput salida) {
+        long conv = crearConversacion(a, WA_CLIENTE);
+        long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.ORIGINAL", TipoMensaje.TEXTO, OptionalLong.empty());
+
+        // Llega aviso duplicado con un wamid distinto para el mismo mensaje por reconciliación
+        ejecutor.ejecutar(a, () -> {
+            receptorEstados.recibir(estadoEntrante(a, "wamid.SEGUNDO_DISTINTO", "sent", WA_CLIENTE,
+                    "bt:m:" + msg + ":1", null));
+            return null;
+        });
+
+        String registros = salida.getAll();
+        assertThat(registros).contains("segundo identificador")
+                .doesNotContain(WA_CLIENTE)
+                .doesNotContain("token-ficticio-prueba");
     }
 }
