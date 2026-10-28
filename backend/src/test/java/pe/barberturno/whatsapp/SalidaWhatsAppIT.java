@@ -38,7 +38,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                         OptionalLong.of(reservaId))));
 
         assertThat(id).isPositive();
-        var fila = filaMensaje(id);
+        var fila = filaMensaje(a, id);
         assertThat(fila.get("negocio_id")).isEqualTo(a);
         assertThat(fila.get("conversacion_id")).isEqualTo(conversacionId);
         assertThat(fila.get("reserva_id")).isEqualTo(reservaId);
@@ -67,7 +67,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long id = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status ->
                 salida.encolarInteractivo(conversacionId, interactivo, OrigenMensaje.ASISTENTE, OptionalLong.empty())));
 
-        var fila = filaMensaje(id);
+        var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("INTERACTIVO");
         assertThat(fila.get("origen")).isEqualTo("ASISTENTE");
         assertThat(fila.get("reserva_id")).isNull();
@@ -88,7 +88,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 salida.encolarPlantilla(conversacionId, PlantillaUtility.BT_CITA_MODIFICADA_POR_NEGOCIO,
                         parametros, OptionalLong.of(reservaId))));
 
-        var fila = filaMensaje(id);
+        var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("PLANTILLA");
         assertThat(fila.get("origen")).isEqualTo("SISTEMA");
         assertThat(fila.get("contenido").toString())
@@ -110,7 +110,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 salida.encolarAviso(conversacionId, PlantillaUtility.BT_RECORDATORIO_CITA,
                         parametros, OptionalLong.of(reservaId))));
 
-        var fila = filaMensaje(id);
+        var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("PLANTILLA");
         assertThat(fila.get("origen")).isEqualTo("SISTEMA");
         assertThat(fila.get("contenido").toString())
@@ -278,7 +278,7 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long id = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status ->
                 salida.encolarInteractivo(conversacionId, interactivoLista, OrigenMensaje.ASISTENTE, OptionalLong.empty())));
 
-        var fila = filaMensaje(id);
+        var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("INTERACTIVO");
         assertThat(fila.get("contenido").toString()).contains("\"type\":\"list\"");
     }

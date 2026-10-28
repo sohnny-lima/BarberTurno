@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.node.ObjectNode;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,10 +35,10 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
     void recibir_mensajeEntrante_creaConversacionSiNoExisteConUltimaEntradaEn() {
         Instant enviado = reloj.instant().minus(Duration.ofMinutes(10));
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorMensajes.recibir(mensaje(a, WA_CLIENTE, enviado));
             return null;
-        });
+        }));
 
         var fila = ejecutor.ejecutar(a, () ->
                 sql.queryForMap("SELECT * FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));
@@ -45,7 +46,7 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(((Timestamp) fila.get("ultima_entrada_en")).toInstant()).isEqualTo(enviado);
 
         // No crea fichas de cliente ni almacena contenido
-        assertThat(sql.queryForObject("SELECT count(*) FROM cliente WHERE negocio_id = ?", Integer.class, a)).isZero();
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT count(*) FROM cliente WHERE negocio_id = ?", Integer.class, a))).isZero();
     }
 
     @Test
@@ -54,10 +55,10 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         Instant t2 = reloj.instant().minus(Duration.ofMinutes(15));
         crearConversacionConVentana(a, WA_CLIENTE, t1);
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorMensajes.recibir(mensaje(a, WA_CLIENTE, t2));
             return null;
-        });
+        }));
 
         var fila = ejecutor.ejecutar(a, () ->
                 sql.queryForMap("SELECT ultima_entrada_en FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));
@@ -70,10 +71,10 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         Instant tAtrasado = reloj.instant().minus(Duration.ofHours(5));
         crearConversacionConVentana(a, WA_CLIENTE, tReciente);
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorMensajes.recibir(mensaje(a, WA_CLIENTE, tAtrasado));
             return null;
-        });
+        }));
 
         var fila = ejecutor.ejecutar(a, () ->
                 sql.queryForMap("SELECT ultima_entrada_en FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));
@@ -88,10 +89,10 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         Instant futuro = ahora.plus(Duration.ofHours(2)); // Dispositivo del cliente con reloj adelantado
         crearConversacionConVentana(a, WA_CLIENTE, ahora.minus(Duration.ofHours(1)));
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorMensajes.recibir(mensaje(a, WA_CLIENTE, futuro));
             return null;
-        });
+        }));
 
         var fila = ejecutor.ejecutar(a, () ->
                 sql.queryForMap("SELECT ultima_entrada_en FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));
@@ -108,10 +109,10 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         crearConversacionConVentana(b, WA_CLIENTE, tB);
 
         Instant nuevoA = reloj.instant().minus(Duration.ofMinutes(5));
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorMensajes.recibir(mensaje(a, WA_CLIENTE, nuevoA));
             return null;
-        });
+        }));
 
         var filaA = ejecutor.ejecutar(a, () ->
                 sql.queryForMap("SELECT ultima_entrada_en FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));

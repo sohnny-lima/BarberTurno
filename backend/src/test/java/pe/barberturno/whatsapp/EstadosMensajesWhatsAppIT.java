@@ -85,27 +85,27 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.empty());
 
         // 1. sent -> ENVIADO (con conciliación o directo)
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.EST_1", "sent", WA_CLIENTE, "bt:m:" + msg + ":1", null));
             return null;
-        });
-        var filaSent = filaMensaje(msg);
+        }));
+        var filaSent = filaMensaje(a, msg);
         assertThat(filaSent.get("estado")).isEqualTo("ENVIADO");
         assertThat(filaSent.get("wamid")).isEqualTo("wamid.EST_1");
 
         // 2. delivered -> ENTREGADO
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.EST_1", "delivered", WA_CLIENTE, null, null));
             return null;
-        });
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENTREGADO");
+        }));
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENTREGADO");
 
         // 3. read -> LEIDO
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.EST_1", "read", WA_CLIENTE, null, null));
             return null;
-        });
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("LEIDO");
+        }));
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("LEIDO");
     }
 
     @Test
@@ -114,25 +114,25 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.DESORDEN", TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Llega delivered primero -> ENTREGADO
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.DESORDEN", "delivered", WA_CLIENTE, null, null));
             return null;
-        });
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENTREGADO");
+        }));
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENTREGADO");
 
         // Llega sent atrasado -> no retrocede, sigue en ENTREGADO
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.DESORDEN", "sent", WA_CLIENTE, null, null));
             return null;
-        });
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENTREGADO");
+        }));
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENTREGADO");
 
         // Llega delivered duplicado -> sigue en ENTREGADO
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.DESORDEN", "delivered", WA_CLIENTE, null, null));
             return null;
-        });
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENTREGADO");
+        }));
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENTREGADO");
     }
 
     @Test
@@ -141,12 +141,12 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENTREGADO, "wamid.ENTREGADO_OK", TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Llega failed después de delivered -> debe ignorarse
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.ENTREGADO_OK", "failed", WA_CLIENTE, null, 131051));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("ENTREGADO");
         assertThat(fila.get("error_codigo")).isNull();
     }
@@ -157,12 +157,12 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long reserva = crearReserva(a, WA_CLIENTE);
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.FALLARA", TipoMensaje.TEXTO, OptionalLong.of(reserva));
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.FALLARA", "failed", WA_CLIENTE, null, 131051));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("FALLIDO");
         assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
         assertThat(fila.get("codigo_meta")).isEqualTo(131051);
@@ -172,8 +172,8 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(contarNotificaciones(a, encargado.getId())).isEqualTo(1);
         assertThat(contarNotificaciones(a, barberoCuenta.getId())).isEqualTo(1);
 
-        String texto = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? LIMIT 1",
-                String.class, titular.getId());
+        String texto = ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? LIMIT 1",
+                String.class, titular.getId()));
         assertThat(texto).contains("No se pudo enviar por WhatsApp el mensaje de la reserva BT-" + reserva)
                 .contains(MotivoFallo.FALLO_ENTREGA.descripcion());
     }
@@ -185,13 +185,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Llega aviso sent de Meta con el dato de conciliación bt:m:<id>:<ficha>
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.CONCILIADO_001", "sent", WA_CLIENTE,
                     "bt:m:" + msg + ":1", null));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("ENVIADO");
         assertThat(fila.get("wamid")).isEqualTo("wamid.CONCILIADO_001");
         assertThat(fila.get("proximo_intento")).isNull();
@@ -204,13 +204,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.PRIMERO", TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Llega otro aviso con un segundo wamid (por un reintento duplicado)
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.SEGUNDO_DUPLICADO", "sent", WA_CLIENTE,
                     "bt:m:" + msg + ":1", null));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("wamid"))
                 .as("El segundo wamid duplicado no debe sobrescribir el primero")
                 .isEqualTo("wamid.PRIMERO");
@@ -222,13 +222,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msgA = insertarMensajeSaliente(a, convA, EstadoMensaje.ENVIADO, "wamid.DE_A", TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Se recibe el aviso en el contexto del negocio B con el wamid de A
-        assertThatThrownBy(() -> ejecutor.ejecutar(b, () -> {
+        assertThatThrownBy(() -> ejecutor.ejecutar(b, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(b, "wamid.DE_A", "delivered", WA_CLIENTE, null, null));
             return null;
-        })).isInstanceOf(Exception.class);
+        }))).isInstanceOf(Exception.class);
 
         // El mensaje en A permanece intacto
-        assertThat(filaMensaje(msgA).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(a, msgA).get("estado")).isEqualTo("ENVIADO");
     }
 
     @Test
@@ -236,10 +236,10 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long conv = crearConversacion(a, WA_CLIENTE);
 
         // Wamid que no existe en el sistema ni tiene dato de conciliación válido
-        assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> {
+        assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.INEXISTENTE", "delivered", WA_CLIENTE, null, null));
             return null;
-        })).isInstanceOf(Exception.class);
+        }))).isInstanceOf(Exception.class);
     }
 
     @Test
@@ -252,12 +252,12 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         sql.update("UPDATE negocio SET estado = 'SUSPENDIDO' WHERE id = ?", a);
 
         // El aviso de estado aún debe aplicarse porque es contabilidad de un mensaje ya salido
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.CANAL_DESCONECTADO", "delivered", WA_CLIENTE, null, null));
             return null;
-        });
+        }));
 
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENTREGADO");
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENTREGADO");
     }
 
     @Test
@@ -265,13 +265,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long conv = crearConversacion(a, WA_CLIENTE);
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.empty());
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_DESDE_PEND", "failed", WA_CLIENTE,
                     "bt:m:" + msg + ":1", 131051));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("FALLIDO");
         assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
         assertThat(fila.get("codigo_meta")).isEqualTo(131051);
@@ -283,13 +283,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long conv = crearConversacion(a, WA_CLIENTE);
         long msg = insertarMensajeFallido(a, conv, MotivoFallo.RESULTADO_DESCONOCIDO, null, OptionalLong.empty());
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_POST_DESCONOCIDO", "failed", WA_CLIENTE,
                     "bt:m:" + msg + ":1", 131047));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("FALLIDO");
         assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
         assertThat(fila.get("codigo_meta")).isEqualTo(131047);
@@ -301,13 +301,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long conv = crearConversacion(a, WA_CLIENTE);
         long msg = insertarMensajeFallido(a, conv, MotivoFallo.RESULTADO_DESCONOCIDO, null, OptionalLong.empty());
 
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.RECUPERADO_OK", "delivered", WA_CLIENTE,
                     "bt:m:" + msg + ":1", null));
             return null;
-        });
+        }));
 
-        var fila = filaMensaje(msg);
+        var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("ENTREGADO");
         assertThat(fila.get("wamid")).isEqualTo("wamid.RECUPERADO_OK");
         assertThat(fila.get("error_codigo")).isNull();
@@ -320,14 +320,14 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msgA = insertarMensajeSaliente(a, convA, EstadoMensaje.PENDIENTE, null, TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Se recibe el aviso en el contexto de negocio B con el dato de conciliación de msgA
-        assertThatThrownBy(() -> ejecutor.ejecutar(b, () -> {
+        assertThatThrownBy(() -> ejecutor.ejecutar(b, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(b, "wamid.DE_B_PARA_A", "sent", WA_CLIENTE,
                     "bt:m:" + msgA + ":1", null));
             return null;
-        })).isInstanceOf(IllegalStateException.class);
+        }))).isInstanceOf(IllegalStateException.class);
 
         // El mensaje en negocio A no se concilia y permanece pendiente sin wamid
-        var filaA = filaMensaje(msgA);
+        var filaA = filaMensaje(a, msgA);
         assertThat(filaA.get("estado")).isEqualTo("PENDIENTE");
         assertThat(filaA.get("wamid")).isNull();
     }
@@ -353,20 +353,20 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(notifsDespuesPrimerAviso).isEqualTo(1);
 
         // Llega aviso 'failed' -> transición a FALLO_ENTREGA -> genera SEGUNDO aviso
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_TRANSICION", "failed", WA_CLIENTE,
                     "bt:m:" + msg + ":1", 131051));
             return null;
-        });
+        }));
 
         int notifsDespuesSegundoAviso = contarNotificaciones(a, titular.getId());
         assertThat(notifsDespuesSegundoAviso).as("La transición a FALLO_ENTREGA debe generar un segundo aviso").isEqualTo(2);
 
         // Llega otro aviso 'failed' repetido con el mismo wamid o ficha
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.FALLO_TRANSICION", "failed", WA_CLIENTE, null, 131051));
             return null;
-        });
+        }));
 
         int notifsDespuesTercerAviso = contarNotificaciones(a, titular.getId());
         assertThat(notifsDespuesTercerAviso).as("Un failed repetido sin cambio de motivo no debe generar otro aviso").isEqualTo(2);
@@ -388,7 +388,7 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         }
 
         assertThat(contarNotificaciones(a, titular.getId())).isZero();
-        assertThat(filaMensaje(msg).get("estado")).isEqualTo("ENVIADO");
+        assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENVIADO");
     }
 
     @Test
@@ -404,8 +404,9 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
             return null;
         }));
 
-        String textoDesconocido = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
-                String.class, titular.getId());
+        String textoDesconocido = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
+                String.class, titular.getId()));
         assertThat(textoDesconocido).isEqualTo("No se pudo confirmar si se envió por WhatsApp el mensaje de la reserva BT-"
                 + reserva + ". Compruébelo con el cliente.");
 
@@ -416,8 +417,9 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
             return null;
         }));
 
-        String textoDestino = sql.queryForObject("SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
-                String.class, titular.getId());
+        String textoDestino = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT mensaje FROM notificacion WHERE usuario_id = ? ORDER BY id DESC LIMIT 1",
+                String.class, titular.getId()));
         assertThat(textoDestino).isEqualTo("No se pudo enviar por WhatsApp el mensaje de la reserva BT-"
                 + reserva + ": " + MotivoFallo.DESTINO_NO_VALIDO.descripcion() + ". Contacte al cliente por otro medio.");
     }
@@ -428,11 +430,11 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = insertarMensajeSaliente(a, conv, EstadoMensaje.ENVIADO, "wamid.ORIGINAL", TipoMensaje.TEXTO, OptionalLong.empty());
 
         // Llega aviso duplicado con un wamid distinto para el mismo mensaje por reconciliación
-        ejecutor.ejecutar(a, () -> {
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.SEGUNDO_DISTINTO", "sent", WA_CLIENTE,
                     "bt:m:" + msg + ":1", null));
             return null;
-        });
+        }));
 
         String registros = salida.getAll();
         assertThat(registros).contains("segundo identificador")

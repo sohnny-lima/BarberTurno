@@ -99,6 +99,8 @@ public abstract class WhatsAppSalidaPruebaBase {
     protected Usuario barberoCuenta;
     protected long barberoA;
     protected long servicioA;
+    protected long barberoB;
+    protected long servicioB;
 
     @BeforeEach
     void prepararBase() throws Exception {
@@ -144,6 +146,14 @@ public abstract class WhatsAppSalidaPruebaBase {
                 new Barbero(barberoCuenta, "Barbero A", reloj.instant())).getId());
         servicioA = ejecutor.ejecutar(a, () -> servicios.saveAndFlush(
                 new Servicio("Corte clásico", "Descripción ficticia", (short) 30, java.math.BigDecimal.valueOf(25.0), reloj.instant())).getId());
+
+        Usuario barberoCuentaB = usuarios.saveAndFlush(new Usuario("Profesional B", "barbero-b-ficticio@ejemplo.test", "999000004",
+                "hash-ficticio-no-utilizable", Rol.BARBERO, reloj.instant(), reloj.instant()));
+        membresias.save(new Membresia(b, barberoCuentaB.getId(), RolNegocio.BARBERO, reloj.instant()));
+        barberoB = ejecutor.ejecutar(b, () -> barberos.saveAndFlush(
+                new Barbero(barberoCuentaB, "Barbero B", reloj.instant())).getId());
+        servicioB = ejecutor.ejecutar(b, () -> servicios.saveAndFlush(
+                new Servicio("Corte clásico B", "Descripción ficticia B", (short) 30, java.math.BigDecimal.valueOf(25.0), reloj.instant())).getId());
     }
 
     @AfterEach
@@ -210,52 +220,56 @@ public abstract class WhatsAppSalidaPruebaBase {
             var inicio = Timestamp.from(OffsetDateTime.parse("2026-11-01T10:00:00-05:00").toInstant());
             var fin = Timestamp.from(OffsetDateTime.parse("2026-11-01T10:30:00-05:00").toInstant());
 
+            long barberoId = (negocioId == b) ? barberoB : barberoA;
+            long servicioId = (negocioId == b) ? servicioB : servicioA;
+
             return sql.queryForObject("""
                     INSERT INTO reserva(negocio_id, cliente_id, barbero_id, servicio_id, inicio, fin,
                         duracion_ref_min, precio_ref, estado, creada_por, creado_en, actualizado_en)
                     VALUES (?, ?, ?, ?, ?, ?, 30, 25.00, 'CONFIRMADA', ?, ?, ?) RETURNING id
-                    """, Long.class, negocioId, clienteId, barberoA, servicioA, inicio, fin,
+                    """, Long.class, negocioId, clienteId, barberoId, servicioId, inicio, fin,
                     titular.getId(), Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()));
         });
     }
 
     /**
-     * Consulta el contenido de un mensaje en la tabla {@code mensaje_whatsapp}.
+     * Consulta el contenido de un mensaje en la tabla {@code mensaje_whatsapp} bajo el contexto del negocio indicado.
+     * @param negocioId negocio propietario del mensaje
      * @param mensajeId identificador del mensaje
      * @return mapa con las columnas de la fila
      */
-    protected Map<String, Object> filaMensaje(long mensajeId) {
-        return sql.queryForMap("SELECT * FROM mensaje_whatsapp WHERE id = ?", mensajeId);
+    protected Map<String, Object> filaMensaje(long negocioId, long mensajeId) {
+        return ejecutor.ejecutar(negocioId, () -> sql.queryForMap("SELECT * FROM mensaje_whatsapp WHERE id = ?", mensajeId));
     }
 
     /**
-     * Consulta todos los mensajes de un negocio.
+     * Consulta todos los mensajes de un negocio bajo su propio contexto RLS.
      * @param negocioId negocio a consultar
      * @return lista de mapas con las columnas de los mensajes
      */
     protected List<Map<String, Object>> filasMensajes(long negocioId) {
-        return sql.queryForList("SELECT * FROM mensaje_whatsapp WHERE negocio_id = ? ORDER BY id", negocioId);
+        return ejecutor.ejecutar(negocioId, () -> sql.queryForList("SELECT * FROM mensaje_whatsapp WHERE negocio_id = ? ORDER BY id", negocioId));
     }
 
     /**
-     * Cuenta cuántos mensajes hay en un estado dado para un negocio.
+     * Cuenta cuántos mensajes hay en un estado dado para un negocio bajo su propio contexto RLS.
      * @param negocioId negocio a consultar
      * @param estado estado del mensaje
      * @return número de mensajes
      */
     protected int contarMensajes(long negocioId, EstadoMensaje estado) {
-        return sql.queryForObject("SELECT count(*) FROM mensaje_whatsapp WHERE negocio_id = ? AND estado = ?",
-                Integer.class, negocioId, estado.name());
+        return ejecutor.ejecutar(negocioId, () -> sql.queryForObject("SELECT count(*) FROM mensaje_whatsapp WHERE negocio_id = ? AND estado = ?",
+                Integer.class, negocioId, estado.name()));
     }
 
     /**
-     * Cuenta cuántas notificaciones internas hay para un usuario en un negocio.
+     * Cuenta cuántas notificaciones internas hay para un usuario en un negocio bajo su propio contexto RLS.
      * @param negocioId negocio a consultar
      * @param usuarioId usuario destinatario
      * @return número de notificaciones
      */
     protected int contarNotificaciones(long negocioId, long usuarioId) {
-        return sql.queryForObject("SELECT count(*) FROM notificacion WHERE negocio_id = ? AND usuario_id = ?",
-                Integer.class, negocioId, usuarioId);
+        return ejecutor.ejecutar(negocioId, () -> sql.queryForObject("SELECT count(*) FROM notificacion WHERE negocio_id = ? AND usuario_id = ?",
+                Integer.class, negocioId, usuarioId));
     }
 }
