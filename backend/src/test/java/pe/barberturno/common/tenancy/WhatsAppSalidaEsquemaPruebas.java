@@ -181,7 +181,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     wamid, enviado_como, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
-                    'wamid.val', 'OTRO_INVALIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    'wamid.val', 'OTRO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, convId), "mensaje_enviado_como_valido");
 
         // 7. Ajuste de V2-08: clave_idempotencia de evento_whatsapp_entrante ampliada a 160 caracteres
