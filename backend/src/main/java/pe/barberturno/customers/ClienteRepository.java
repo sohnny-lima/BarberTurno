@@ -16,6 +16,15 @@ import pe.barberturno.common.tenancy.RepositorioTransaccional;
 @Transactional(readOnly = true)
 public interface ClienteRepository extends RepositorioTransaccional<Cliente, Long> {
     /**
+     * Busca exclusivamente el remitente verificado dentro del negocio del número receptor.
+     * No deduce vínculos del teléfono ni crea fichas (V2-RN-09).
+     * @param negocioId negocio resuelto por el canal de WhatsApp
+     * @param waId identificador exacto del remitente, formado por dígitos
+     * @return ficha de ese negocio o vacío si aún no tiene vínculo con WhatsApp
+     */
+    Optional<Cliente> findByNegocioIdAndWaId(long negocioId, String waId);
+
+    /**
      * Obtiene una ficha con el negocio explícito además de RLS.
      * @param negocioId ámbito resuelto por el servidor
      * @param id identificador de ficha solicitado
