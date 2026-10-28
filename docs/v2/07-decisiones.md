@@ -244,3 +244,40 @@
   2. **Cambiar el rol de una membresía revocada → 409 `TRANSICION_INVALIDA`**, sin cambios: una membresía revocada solo se restablece por las vías de V2-DA-37.
   3. **Revocar una membresía ya revocada:** si su motivo es `PERFIL_DESACTIVADO`, pasa a `DECISION_GESTOR` (la decisión del gestor prevalece y la reactivación del perfil ya no devuelve el acceso); con cualquier otro motivo, la operación es idempotente (200) y conserva el motivo y el instante originales. Los permisos del actor (encargado solo sobre `BARBERO`) se comprueban igual.
 - **Prueba (`EquipoIT`):** promover y degradar a una persona con perfil activo lo conserva activo y no cambia el cupo; cambio de rol sobre revocada → 409 sin cambios; perfil desactivado (membresía `PERFIL_DESACTIVADO`) → revocación del propietario → reactivación del perfil → sin acceso y motivo `DECISION_GESTOR`; revocar una `SALIDA` → 200 con motivo e instante intactos.
+
+### V2-DA-52 · Entrada de WhatsApp: el *webhook* solo guarda y el procesador reclama con ficha (28/10/2026)
+- **Decisión:**
+  - El *webhook* inserta los eventos sin resolver el negocio (`negocio_id` nulo).
+  - El procesador los reclama en una transacción corta y sin negocio, con `FOR UPDATE SKIP LOCKED`, que incrementa `intentos` y aplaza `proximo_intento` el tiempo del reclamo.
+  - Termina cada evento en otra transacción, ya con el contexto del negocio, después de bloquear la fila y comprobar que `intentos` sigue siendo el de su reclamo (la «ficha»).
+- **Por qué:**
+  - Un solo negocio por transacción (`04-arquitectura-datos.md` §5): `EjecutorEnNegocio` exige fijar el negocio antes de abrir la transacción, así que el reclamo y el trabajo no pueden compartirla.
+  - La ficha impide que un procesador lento termine un evento que otro ya reclamó tras vencer el plazo, y el vencimiento recupera los eventos de un proceso caído.
+  - El *webhook* responde antes, porque no consulta canales.
+- **Alternativa:** reclamar y procesar en la misma transacción. Exigiría cambiar de negocio dentro de ella o abrir una transacción anidada, y ninguna de las dos cosas se permite.
+
+### V2-DA-53 · Mensajes a un negocio no operativo: se descartan con motivo (28/10/2026)
+- **Decisión:** un evento cuyo número no está registrado, cuyo canal está desconectado o cuyo negocio está suspendido o sin propietario activo queda `DESCARTADO`, con un `motivo` codificado. No se entrega al puerto ni se abre el contexto del negocio.
+- **Por qué:** con la barbería suspendida no se admiten escrituras (V2-DA-38), y sin propietario no hay canal (`06-flujos.md` §1). En V2-08 todavía no hay salida con la que avisar al cliente.
+- **Revisable en V2-09/V2-10:** una respuesta fija («esta barbería no atiende por WhatsApp ahora») si se considera útil.
+
+### V2-DA-54 · Ficha por `wa_id` exacto, sin crearla en V2-08 (28/10/2026)
+- **Decisión:**
+  - El procesador busca la ficha **solo** por `(negocio del número, wa_id del remitente)`, y entrega al puerto `ReceptorMensajesWhatsApp` el `clienteId`, o vacío si no hay ficha.
+  - No la busca por teléfono ni en otro negocio, y no crea fichas ni conversaciones: eso llega en V2-10, tras el consentimiento (`06-flujos.md` §6).
+  - El remitente sale de `messages[].from` (verificado por WhatsApp), nunca del texto ni de `contacts[]`.
+- **Por qué:** V2-RN-09 (una ficha creada con un teléfono no se vincula sola a un `wa_id`) y V2-RN-02 (el negocio sale del número receptor). Crear fichas sin consentimiento contradiría el flujo de privacidad.
+
+### V2-DA-55 · Columnas añadidas a la cola y configuración que falla cerrada (28/10/2026)
+- **Decisión:**
+  - `evento_whatsapp_entrante` añade `tipo` (`MENSAJE` o `ESTADO`) y `motivo` (código, sin texto libre) al DDL de §3.
+  - `cliente` añade `wa_id`, solo con dígitos y único por negocio, y amplía `cliente_identificable`.
+  - Sin `BT_WHATSAPP_VERIFY_TOKEN` o sin `BT_WHATSAPP_APP_SECRET`, la verificación da 403 y toda notificación 401: nunca se acepta un evento sin firma comprobada. Al arrancar se registra un aviso, sin valores.
+- **Por qué:** el procesador necesita distinguir mensajes y estados sin volver a analizar el cuerpo; el motivo permite diagnosticar sin registrar datos personales; un secreto vacío no puede convertirse en una firma válida.
+
+### V2-DA-56 · Alta manual del canal por la plataforma (28/10/2026)
+- **Decisión:**
+  - `ADMIN_PLATAFORMA` registra o actualiza el canal de un negocio con `PUT /api/plataforma/negocios/{id}/canal-whatsapp` y lo desconecta con `POST …/desconexion`. Las dos operaciones se auditan en `auditoria_plataforma`.
+  - Un `phone_number_id` que ya es de otro negocio da 409 `NUMERO_WHATSAPP_EN_USO` (código nuevo). No hay pantalla en V2-08.
+- **Por qué:** V2-RF-09 prevé el alta asistida por la plataforma en el MVP. Una ruta de API auditable evita escribir datos de un negocio desde la configuración del despliegue, y el índice único de `phone_number_id` impone V2-RN-07 también en la base.
+- **Alternativa:** registrar el número de prueba desde variables de entorno al arrancar. Más simple, pero mezcla configuración y datos de negocio, y no deja auditoría.
