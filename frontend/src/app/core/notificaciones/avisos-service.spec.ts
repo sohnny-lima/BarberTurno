@@ -1,6 +1,7 @@
 import { prepararNegocio } from '../negocio/negocio-prueba';
 import { NegocioActual } from '../negocio/negocio-actual';
-import { provideHttpClient } from '@angular/common/http';
+import { negocioInterceptor } from '../negocio/negocio-interceptor';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -32,7 +33,7 @@ describe('Contador y sondeo de avisos', () => {
     );
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withInterceptors([negocioInterceptor])),
         provideHttpClientTesting(),
         { provide: SesionService, useValue: { usuario } },
         { provide: Router, useValue: { events: eventos } },
@@ -71,6 +72,37 @@ describe('Contador y sondeo de avisos', () => {
       vi.advanceTimersByTime(60_000);
       http.expectNone((r) => r.url.endsWith('/notificaciones/conteo'));
       expect(servicio.noLeidas()).toBe(0);
+    },
+  );
+  // RutasNegocio deja el ámbito a null en NavigationStart y el NavigationEnd de esa misma
+  // navegación llega antes de que el efecto propague la clave nula: sin TestBed.tick() intermedio.
+  it.each(['salir a /negocios', 'cerrar la sesión'] as const)(
+    'al %s no envía conteos caducados y vuelve a contar al entrar de nuevo',
+    (caso) => {
+      const servicio = iniciar();
+      const negocio = TestBed.inject(NegocioActual);
+      if (caso === 'cerrar la sesión') {
+        usuario.set(null);
+        negocio.limpiar();
+      } else {
+        negocio.seleccionar(null);
+      }
+      eventos.next(new NavigationEnd(1, '/negocios', '/negocios'));
+      servicio.actualizar();
+      http.expectNone((r) => r.url.endsWith('/notificaciones/conteo'));
+      expect(servicio.noLeidas()).toBe(0);
+      TestBed.tick();
+      vi.advanceTimersByTime(60_000);
+      http.expectNone((r) => r.url.endsWith('/notificaciones/conteo'));
+      if (caso === 'cerrar la sesión') usuario.set(identidad);
+      prepararNegocio('CLIENTE');
+      TestBed.tick();
+      vi.advanceTimersByTime(0);
+      http.expectOne('/api/n/prueba/notificaciones/conteo').flush({ noLeidas: 3 });
+      expect(servicio.noLeidas()).toBe(3);
+      eventos.next(new NavigationEnd(2, '/n/prueba/mis-citas', '/n/prueba/mis-citas'));
+      http.expectOne('/api/n/prueba/notificaciones/conteo').flush({ noLeidas: 2 });
+      expect(servicio.noLeidas()).toBe(2);
     },
   );
   it('no consulta sin sesión y mantiene cero', () => {

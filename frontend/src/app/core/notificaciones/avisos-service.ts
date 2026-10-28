@@ -4,6 +4,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import {
   catchError,
+  defer,
   distinctUntilChanged,
   EMPTY,
   filter,
@@ -48,36 +49,43 @@ export class AvisosService {
         ),
         distinctUntilChanged(),
         tap(() => this.contador.set(0)),
+        // El origen se fija al activarse la clave: al salir de la barbería, el NavigationEnd llega
+        // antes de que la clave pase a null y negocioInterceptor descarta esa consulta sin enviarla.
+        // Ningún fallo síncrono puede terminar el sondeo durante el resto de la vida de la página.
         switchMap((id) =>
           id === null
             ? EMPTY
-            : fromEvent(this.documento, 'visibilitychange').pipe(
-                startWith(null),
-                map(() => this.documento.visibilityState === 'visible'),
-                distinctUntilChanged(),
-                switchMap((visible) =>
-                  visible
-                    ? merge(
-                        timer(0, 60_000),
-                        this.router.events.pipe(
-                          filter((evento) => evento instanceof NavigationEnd),
-                        ),
-                        this.refrescar,
-                      ).pipe(
-                        switchMap(() =>
-                          this.http
-                            .get<{ noLeidas: number }>(this.negocio.url('/notificaciones/conteo'), {
-                              context: this.negocio.contexto(),
-                            })
-                            .pipe(
+            : defer(() => {
+                const api = this.negocio.cliente();
+                return fromEvent(this.documento, 'visibilitychange').pipe(
+                  startWith(null),
+                  map(() => this.documento.visibilityState === 'visible'),
+                  distinctUntilChanged(),
+                  switchMap((visible) =>
+                    visible
+                      ? merge(
+                          timer(0, 60_000),
+                          this.router.events.pipe(
+                            filter((evento) => evento instanceof NavigationEnd),
+                          ),
+                          this.refrescar,
+                        ).pipe(
+                          switchMap(() =>
+                            defer(() =>
+                              this.http.get<{ noLeidas: number }>(
+                                api.url('/notificaciones/conteo'),
+                                { context: api.contexto() },
+                              ),
+                            ).pipe(
                               tap((dato) => this.contador.set(dato.noLeidas)),
                               catchError(() => EMPTY),
                             ),
-                        ),
-                      )
-                    : EMPTY,
-                ),
-              ),
+                          ),
+                        )
+                      : EMPTY,
+                  ),
+                );
+              }).pipe(catchError(() => EMPTY)),
         ),
         takeUntilDestroyed(),
       )
