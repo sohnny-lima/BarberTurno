@@ -35,6 +35,10 @@ class EsquemaV2IT extends TenancyPruebaBase {
                 .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("cliente_wa_formato"));
     }
 
+    @Test void v114_whatsappSalidaConRls_permisosPorColumnaYRestriccionesComoAplicacion() {
+        WhatsAppSalidaEsquemaPruebas.comprobar(jdbc);
+    }
+
     private static String restriccion(Throwable fallo) {
         var causa = (org.postgresql.util.PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
         return causa.getServerErrorMessage().getConstraint();
@@ -143,11 +147,12 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void fkCompuestas_sonLasSieteRelacionesDelPlan() {
+    void fkCompuestas_sonLasDiezRelacionesDelPlan() {
         assertThat(jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2 order by conname
                 """, String.class)).containsExactly("auditoria_reserva_reserva_fk", "bloqueo_barbero_fk",
-                "jornada_barbero_fk", "notificacion_reserva_fk", "reserva_barbero_fk", "reserva_cliente_fk", "reserva_servicio_fk");
+                "conversacion_cliente_fk", "jornada_barbero_fk", "mensaje_conversacion_fk", "mensaje_reserva_fk",
+                "notificacion_reserva_fk", "reserva_barbero_fk", "reserva_cliente_fk", "reserva_servicio_fk");
     }
 
     @Test void vinculo_soloDisparadorEscribeConClienteForceInclusoActualizacionYBorrado() {

@@ -54,8 +54,28 @@ class ExtractorEventosWhatsAppTest {
                 "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"account_update\",\"value\":{}}]}]}",
                 "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"otro\",\"metadata\":{\"phone_number_id\":\"1\"},\"messages\":[{\"id\":\"x\"}]}}]}]}",
                 "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"whatsapp\",\"metadata\":{\"phone_number_id\":\"12a\"},\"messages\":[{\"id\":\"x\"}]}}]}]}",
-                "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"whatsapp\",\"metadata\":{\"phone_number_id\":\"1\"},\"messages\":[{\"from\":\"5\"},{\"id\":7},{\"id\":\"" + "a".repeat(127) + "\"}],\"statuses\":[{\"id\":\"s\"}],\"errors\":[{\"code\":1}]}}]}]}")) {
+                "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"whatsapp\",\"metadata\":{\"phone_number_id\":\"1\"},\"messages\":[{\"from\":\"5\"},{\"id\":7},{\"id\":\"" + "a".repeat(159) + "\"}],\"statuses\":[{\"id\":\"s\"}],\"errors\":[{\"code\":1}]}}]}]}")) {
             assertThat(extractor.extraer(mapper.readTree(json))).as(json).isEmpty();
         }
+    }
+
+    @Test void claveDeIdempotencia_limiteCientoSesentaCaracteresEnLosExtremos() throws Exception {
+        // Longitud 160 exacta ("m:" + 158 caracteres = 160) -> admitido
+        String json160 = "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"whatsapp\",\"metadata\":{\"phone_number_id\":\"1\"},\"messages\":[{\"id\":\"" + "x".repeat(158) + "\"}]}}]}]}";
+        var eventos160 = extractor.extraer(mapper.readTree(json160));
+        assertThat(eventos160).hasSize(1);
+        assertThat(eventos160.getFirst().clave()).hasSize(160);
+
+        // Longitud 161 ("m:" + 159 caracteres = 161) -> ignorado
+        String json161 = "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"whatsapp\",\"metadata\":{\"phone_number_id\":\"1\"},\"messages\":[{\"id\":\"" + "x".repeat(159) + "\"}]}}]}]}";
+        assertThat(extractor.extraer(mapper.readTree(json161))).isEmpty();
+
+        // Wamid de 128 caracteres con status 'delivered': "s:" + 128 + ":delivered" = 140 caracteres -> admitido
+        String wamid128 = "w".repeat(128);
+        String jsonEstado = "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messaging_product\":\"whatsapp\",\"metadata\":{\"phone_number_id\":\"1\"},\"statuses\":[{\"id\":\"" + wamid128 + "\",\"status\":\"delivered\"}]}}]}]}";
+        var eventosEstado = extractor.extraer(mapper.readTree(jsonEstado));
+        assertThat(eventosEstado).hasSize(1);
+        assertThat(eventosEstado.getFirst().clave()).isEqualTo("s:" + wamid128 + ":delivered").hasSize(140);
+    }
     }
 }

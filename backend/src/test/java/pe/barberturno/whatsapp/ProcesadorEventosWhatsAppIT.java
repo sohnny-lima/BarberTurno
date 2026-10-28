@@ -325,6 +325,29 @@ class ProcesadorEventosWhatsAppIT {
         assertThat(fila(id)).containsEntry("estado", "PROCESADO").containsEntry("negocio_id", a);
     }
 
+    @Test void avisoDeEstado_conCanalDesconectadoOSuspendido_seEntregaSinDescartar() {
+        sql.update("update canal_whatsapp set estado='DESCONECTADO' where negocio_id=?", a);
+        sql.update("update negocio set estado='SUSPENDIDO' where id=?", a);
+        long id = estado("s:estado:desconectado", WA, "delivered", "123");
+
+        assertThat(procesador.procesarLote()).isEqualTo(1);
+
+        assertThat(fila(id)).containsEntry("estado", "PROCESADO").containsEntry("negocio_id", a);
+        verify(estados).recibir(argThat(e -> e.eventoId() == id && e.negocioId() == a));
+    }
+
+    @Test void avisoDeEstado_conNumeroNoRegistrado_descartaSinContexto() {
+        var cuerpo = cuerpo(WA, "123", true);
+        ((tools.jackson.databind.node.ObjectNode) cuerpo.path("dato")).put("status", "delivered");
+        insertar("s:estado:noRegistrado", "ESTADO", "99999", cuerpo);
+        long id = sql.queryForObject("select id from evento_whatsapp_entrante where clave_idempotencia='s:estado:noRegistrado'", Long.class);
+
+        assertThat(procesador.procesarLote()).isEqualTo(1);
+
+        assertThat(fila(id)).containsEntry("estado", "DESCARTADO").containsEntry("motivo", "NUMERO_NO_REGISTRADO");
+        verifyNoInteractions(estados);
+    }
+
     @ParameterizedTest @NullAndEmptySource
     @ValueSource(strings = {"abc", "1.5", "999999999999999999999999999999", "9223372036854775807"})
     void timestampAusenteOInvalido_enAmbosPuertos_usaRecibidoEn(String timestamp) {
