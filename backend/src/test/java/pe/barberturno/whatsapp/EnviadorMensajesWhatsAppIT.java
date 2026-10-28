@@ -537,11 +537,15 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             var mensajeConFicha2 = cola.bloquear(reclamo2).orElseThrow();
-            cola.cambiar(mensajeConFicha2, EstadoMensaje.ENVIADO, "wamid.FICHA_2", null, null, 0, null, reloj.instant());
+            assertThat(cola.preparar(mensajeConFicha2, TipoMensaje.TEXTO, reloj.instant()))
+                    .as("La ficha vigente debe permitir preparar el mensaje").isTrue();
+            boolean cambiado = cola.cambiar(mensajeConFicha2, EstadoMensaje.ENVIADO, "wamid.FICHA_2", null, null, 0, null, reloj.instant());
+            assertThat(cambiado).as("La ficha vigente debe permitir cerrar el mensaje como ENVIADO").isTrue();
             return null;
         }));
         assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENVIADO");
         assertThat(filaMensaje(a, msg).get("wamid")).isEqualTo("wamid.FICHA_2");
+        assertThat(filaMensaje(a, msg).get("enviado_como")).isEqualTo("TEXTO");
     }
 
     @Test
