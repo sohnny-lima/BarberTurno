@@ -19,7 +19,7 @@ import org.hibernate.type.SqlTypes;
 public class EventoEntrante {
     @Id
     private Long id;
-    @Column(name = "clave_idempotencia", nullable = false, length = 128)
+    @Column(name = "clave_idempotencia", nullable = false, length = 160)
     private String claveIdempotencia;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 8)
     private TipoEvento tipo;
