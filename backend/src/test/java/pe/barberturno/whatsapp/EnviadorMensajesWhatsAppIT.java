@@ -199,8 +199,9 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void ventanaAbiertaAlEncolar_cerradaAntesDelEnvio_avisoSeEnviaComoPlantilla() {
-        // 1. Encolamos el aviso cuando la ventana está abierta (última entrada reciente)
-        long conversacionId = crearConversacion(a, WA_CLIENTE);
+        // 1. Encolamos el aviso cuando la ventana está a punto de cerrarse (aún abierta: 23h 54m < 23h 55m)
+        Instant ahora = reloj.instant();
+        long conversacionId = crearConversacionConVentana(a, WA_CLIENTE, ahora.minus(Duration.ofHours(23).plusMinutes(54)));
         Map<String, String> params = Map.of(
                 "negocio", "BarberTurno A",
                 "fecha", "Mañana 15:00",
@@ -208,8 +209,9 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 "codigo", "BT-999");
         long mensajeId = encolarAvisoDirecto(a, conversacionId, PlantillaUtility.BT_RECORDATORIO_CITA, params, OptionalLong.empty());
 
-        // 2. La ventana se cierra antes del envío (adelantamos el reloj 24 horas y 1 minuto)
-        reloj.adelantar(Duration.ofHours(24).plusMinutes(1));
+        // 2. La ventana se cierra antes del envío (adelantamos solo 2 minutos: la ventana pasa a 23h 56m y se cierra,
+        // sin que el mensaje caduque pues su antigüedad es de solo 2 minutos << 6 horas)
+        reloj.adelantar(Duration.ofMinutes(2));
 
         servidorGraph.encolarExito("wamid.AVISO_CONVERTIDO_PLANTILLA");
         enviador.enviarLote();

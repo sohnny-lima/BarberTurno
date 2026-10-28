@@ -238,12 +238,13 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
     void wamidDesconocido_lanzaExcepcionParaReintento() {
         long conv = crearConversacion(a, WA_CLIENTE);
 
-        // Wamid que no existe en el sistema ni tiene dato de conciliación válido
+        // Wamid que no existe en el sistema ni tiene dato de conciliación válido:
+        // el código deliberadamente no expone identificadores externos en el mensaje de excepción
         assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             receptorEstados.recibir(estadoEntrante(a, "wamid.INEXISTENTE", "delivered", WA_CLIENTE, null, null));
             return null;
         }))).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("wamid.INEXISTENTE");
+                .hasMessage("El mensaje del estado aún no está localizado.");
     }
 
     @Test
@@ -446,7 +447,8 @@ class EstadosMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
             var filaEnTx = sql.queryForMap("SELECT estado, error_codigo FROM mensaje_whatsapp WHERE id = ?", msg);
             assertThat(filaEnTx.get("estado")).isEqualTo("FALLIDO");
             assertThat(filaEnTx.get("error_codigo")).isEqualTo(MotivoFallo.FALLO_ENTREGA.name());
-            assertThat(contarNotificaciones(a, titular.getId())).isEqualTo(1);
+            assertThat(sql.queryForObject("SELECT count(*) FROM notificacion WHERE negocio_id = ? AND usuario_id = ?",
+                    Integer.class, a, titular.getId())).isEqualTo(1);
 
             // Provocamos la excepción específica identificable para revertir la transacción
             throw new ExcepcionControladaParaRollback("Fallo forzado para revertir la transacción");

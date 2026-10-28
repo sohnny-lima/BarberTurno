@@ -44,7 +44,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     Boolean.class, tabla)).as("%s con RLS FORCE", tabla).isTrue();
 
             // Verificación de política única ALL por tabla
-            var politicas = jdbc.queryForList("select polname, cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
+            var politicas = jdbc.queryForList("select policyname, cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
             assertThat(politicas).as("políticas de %s", tabla).hasSize(1);
             var pol = politicas.getFirst();
             assertThat(pol.get("cmd")).as("comando de política en %s", tabla).isEqualTo("ALL");
