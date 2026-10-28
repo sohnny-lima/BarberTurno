@@ -12,6 +12,40 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FichaClienteIT extends IdentidadPruebaBase {
     @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteService fichas;
 
+    @Test void buscarPorWaId_exigeNegocioExplicitoYRespetaRlsConElMismoRemitenteEnDosNegocios() throws Exception {
+        long b = negocioB();
+        String waId = "51999000001";
+        long fichaA = fichaWhatsApp(1L, waId, "999000001");
+        long fichaB = fichaWhatsApp(b, waId, "999000002");
+        enNegocio(1L, () -> {
+            assertThat(clientes.findByNegocioIdAndWaId(1L, waId)).get()
+                    .satisfies(c -> { assertThat(c.getId()).isEqualTo(fichaA); assertThat(c.getWaId()).isEqualTo(waId); });
+            assertThat(clientes.findByNegocioIdAndWaId(b, waId)).isEmpty();
+            return null;
+        });
+        enNegocio(b, () -> {
+            assertThat(clientes.findByNegocioIdAndWaId(b, waId)).get().extracting(pe.barberturno.customers.Cliente::getId)
+                    .isEqualTo(fichaB);
+            assertThat(clientes.findByNegocioIdAndWaId(1L, waId)).isEmpty();
+            return null;
+        });
+    }
+
+    @Test void buscarPorWaId_noDeduceElVinculoDelTelefonoNiDeUnaCoincidenciaParcial() {
+        fichaWhatsApp(1L, null, "51999000001");
+        fichaWhatsApp(1L, "519990000010", "999000002");
+        assertThat(clientes.findByNegocioIdAndWaId(1L, "51999000001")).isEmpty();
+        assertThat(clientes.findByNegocioIdAndWaId(1L, "51999000002")).isEmpty();
+        assertThat(clientes.count()).isEqualTo(2);
+    }
+
+    private long fichaWhatsApp(long negocio, String waId, String telefono) {
+        return enNegocio(negocio, () -> jdbc.queryForObject("""
+                insert into cliente(nombre,telefono,wa_id,activo,creado_en,actualizado_en)
+                values ('Ficha ficticia', ?, ?, true, ?, ?) returning id
+                """, Long.class, telefono, waId, java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant())));
+    }
+
     @Test void contextoA_noConsultaNiGestionaFichaReservasOCuentaQueSoloExistenEnB() throws Exception {
         long b = negocioB();
         var actor = propietario("titular");
