@@ -28,8 +28,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         completa.migrate(); comprobarMigracionCompleta(completa);
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id"))
-                    .as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             ConfiguracionNegocioEsquemaPruebas.comprobarPermisos(jdbc);
             ConfiguracionNegocioEsquemaPruebas.rechazarColumnasReservadas(aplicacion);
             assertThat(jdbc.update("update negocio set nombre='Nombre permitido', estado='SUSPENDIDO', actualizado_en=CURRENT_TIMESTAMP where id=1")).isEqualTo(1);
@@ -54,7 +53,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         completa.migrate(); comprobarMigracionCompleta(completa);
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
             for (String accion : List.of("REENVIAR_INVITACION_PROPIETARIO", "REVOCAR_INVITACION_PROPIETARIO")) {
                 assertThat(jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,?,1,CURRENT_TIMESTAMP)", cuenta, accion)).isEqualTo(1);
@@ -79,7 +78,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         completa.migrate(); comprobarMigracionCompleta(completa);
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             assertThat(jdbc.queryForObject("select count(*) from invitacion", Long.class)).isZero();
             InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
             aplicacion.commit();
@@ -105,7 +104,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L);
             var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
             InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
             assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma", Long.class)).isZero();
@@ -350,6 +349,29 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo(restriccion);
         } finally {
             aplicacion.rollback();
+        }
+    }
+
+    /** Columnas añadidas por migraciones posteriores a las versiones de partida; deben nacer nulas en las filas migradas. */
+    static final java.util.Map<String, java.util.Set<String>> COLUMNAS_NUEVAS = java.util.Map.of("cliente", java.util.Set.of("wa_id"));
+
+    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas y nulas (V113). */
+    @SuppressWarnings("unchecked")
+    static void comprobarConservados(org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.Map<String, Object> antes) {
+        for (var tabla : antes.entrySet()) {
+            var previas = (List<java.util.Map<String, Object>>) tabla.getValue();
+            var actuales = jdbc.queryForList("select * from " + tabla.getKey() + " order by id");
+            assertThat(actuales).as(tabla.getKey()).hasSameSizeAs(previas);
+            for (int i = 0; i < previas.size(); i++) {
+                var actual = new LinkedHashMap<>(actuales.get(i));
+                for (var columna : previas.get(i).entrySet()) {
+                    assertThat(actual).as("%s fila %d", tabla.getKey(), i).containsEntry(columna.getKey(), columna.getValue());
+                }
+                actual.keySet().removeAll(previas.get(i).keySet());
+                assertThat(actual.keySet()).as("columnas nuevas de %s", tabla.getKey())
+                        .isSubsetOf(COLUMNAS_NUEVAS.getOrDefault(tabla.getKey(), java.util.Set.of()));
+                assertThat(actual.values()).as("columnas nuevas nulas en %s", tabla.getKey()).allMatch(java.util.Objects::isNull);
+            }
         }
     }
 }
