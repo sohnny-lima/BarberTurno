@@ -52,6 +52,18 @@ barberturno:
     max-activas-por-cliente: 3
     confirmacion-manual: false
     tolerancia-inicio-min: 15
+  # V2-08: secretos solo por el entorno; vacíos, el webhook falla cerrado (V2-DA-55).
+  whatsapp:
+    verify-token: ${BT_WHATSAPP_VERIFY_TOKEN:}
+    app-secret: ${BT_WHATSAPP_APP_SECRET:}
+    procesador:
+      habilitado: true
+      intervalo: 1500ms
+      lote: 20
+      max-intentos: 5
+      espera-base: 5s
+      espera-maxima: 5m
+      reclamo: 60s
 
 # El advice registra errores sanitizados; Hibernate no debe imprimir valores
 # personales de claves duplicadas devueltos por PostgreSQL.

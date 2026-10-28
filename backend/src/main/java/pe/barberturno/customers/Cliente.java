@@ -26,6 +26,9 @@ public class Cliente {
     private String nombre;
     @Column(length = 16)
     private String telefono;
+    // V2-08 solo lee el remitente verificado; su escritura llega con el consentimiento (V2-10).
+    @Column(name = "wa_id", length = 20, insertable = false, updatable = false)
+    private String waId;
     @Column(name = "privacidad_aceptada_en")
     private Instant privacidadAceptadaEn;
     @Column(nullable = false)
@@ -85,6 +88,8 @@ public class Cliente {
     public String getNombre() { return nombre; }
     /** {@return teléfono local opcional} */
     public String getTelefono() { return telefono; }
+    /** {@return identificador de WhatsApp del remitente verificado, o {@code null} si la ficha no tiene canal} */
+    public String getWaId() { return waId; }
     /** {@return consentimiento copiado al crear la ficha} */
     public Instant getPrivacidadAceptadaEn() { return privacidadAceptadaEn; }
     /** {@return si la ficha permite actuar como cliente en este negocio} */

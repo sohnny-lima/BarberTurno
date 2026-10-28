@@ -16,6 +16,10 @@ barberturno:
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}
+  # Las pruebas del procesador llaman al lote directamente (V2-DA-08).
+  whatsapp:
+    procesador:
+      habilitado: false
 
   admin:
     correo: ${BT_ADMIN_CORREO:}

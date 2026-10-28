@@ -43,7 +43,7 @@
   - `statuses[]` con `id`, `status`, `timestamp` y `recipient_id`.
 
 ## 3. Contrato de datos (`V113__whatsapp_entrada.sql`, responsable: Claude)
-- **`canal_whatsapp`:** el DDL de `04-arquitectura-datos.md` §3.
+- **`canal_whatsapp`:** el DDL de `04-arquitectura-datos.md` §3, con restricciones de formato (solo dígitos en los identificadores) y `numero_visible varchar(21)` para admitir el `+` y 20 dígitos.
 - **`evento_whatsapp_entrante`:** el DDL de §3, más dos columnas (V2-DA-55):
   - `tipo varchar(8) NOT NULL CHECK (tipo IN ('MENSAJE','ESTADO'))`;
   - `motivo varchar(24)`: un código, nunca texto libre ni datos personales. Valores: `NUMERO_NO_REGISTRADO`, `CANAL_DESCONECTADO`, `NEGOCIO_NO_OPERATIVO`, `REMITENTE_INVALIDO` y `FALLO_PROCESAMIENTO`.
