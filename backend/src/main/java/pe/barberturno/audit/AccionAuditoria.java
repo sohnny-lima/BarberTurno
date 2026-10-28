@@ -33,5 +33,7 @@ public enum AccionAuditoria {
     /**
      * Inasistencia registrada desde el inicio de reserva RN-12.
      */
-    NO_ASISTIO
+    NO_ASISTIO,
+    /** Fallo de salida de WhatsApp: solo avisos internos, nunca auditoría de reserva. */
+    WHATSAPP
     }

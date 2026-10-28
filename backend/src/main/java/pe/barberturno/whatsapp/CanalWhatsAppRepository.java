@@ -17,6 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public interface CanalWhatsAppRepository extends Repository<CanalWhatsApp, Long> {
     /**
+     * Recorre la plataforma para despachar la outbox bajo un contexto distinto por canal registrado.
+     * @return ids de negocio con canal, incluidos los desconectados, en orden ascendente
+     */
+    @Query("select c.negocioId from CanalWhatsApp c order by c.negocioId")
+    java.util.List<Long> listarNegociosConCanal();
+
+    /**
      * Localiza el canal del número que recibió un mensaje.
      * @param phoneNumberId identificador del número receptor ({@code metadata.phone_number_id})
      * @return canal registrado con ese número, activo o desconectado, o vacío
