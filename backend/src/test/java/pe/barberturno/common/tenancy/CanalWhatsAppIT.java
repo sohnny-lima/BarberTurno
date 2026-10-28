@@ -62,6 +62,24 @@ class CanalWhatsAppIT extends PlataformaPruebaBase {
                 .containsExactly("100000000000001");
     }
 
+    @Test void cambioDeNumero_conConversacionesExistentes_da409Conflicto() throws Exception {
+        assertThat(http(admin, "PUT", ruta(a), datos("100000000000001"), token(admin)).statusCode()).isEqualTo(200);
+
+        ejecutor.ejecutar(a, () -> {
+            jdbc.update("insert into conversacion (negocio_id, wa_id, creado_en, actualizado_en) values (?, '51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a);
+            return null;
+        });
+
+        var intentoCambio = http(admin, "PUT", ruta(a), datos("100000000000099"), token(admin));
+        assertThat(intentoCambio.statusCode()).isEqualTo(409);
+        assertThat(codigo(intentoCambio)).isEqualTo("CONFLICTO");
+        assertThat(jdbc.queryForObject("select phone_number_id from canal_whatsapp where negocio_id=?", String.class, a))
+                .isEqualTo("100000000000001");
+
+        var actualizacionMismoNumero = http(admin, "PUT", ruta(a), datos("100000000000001"), token(admin));
+        assertThat(actualizacionMismoNumero.statusCode()).isEqualTo(200);
+    }
+
     @Test void carreraDeDosNegociosPorElMismoNumero_unoGanaYElOtro409() throws Exception {
         var barrera = new CyclicBarrier(2);
         List<Future<HttpResponse<String>>> respuestas = new ArrayList<>();
