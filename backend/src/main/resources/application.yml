@@ -18,6 +18,11 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  # V2-09: dos hilos para que el envío por la Graph API no retrase el procesador de entrada (V2-DA-57).
+  task:
+    scheduling:
+      pool:
+        size: 2
 
 server:
   forward-headers-strategy: framework
@@ -64,6 +69,25 @@ barberturno:
       espera-base: 5s
       espera-maxima: 5m
       reclamo: 60s
+    # V2-09: salida por la Graph API oficial (12-v2-09-whatsapp-salida.md §4.7); sin token no se envía.
+    salida:
+      habilitado: true
+      intervalo: 2s
+      lote: 20
+      max-intentos: 5
+      espera-base: 30s
+      espera-maxima: 5m
+      max-inciertos: 2
+      espera-conciliacion: 2m
+      reclamo: 60s
+      antiguedad-maxima: 6h
+      margen-ventana: 5m
+      graph:
+        url-base: https://graph.facebook.com
+        version: v26.0
+        token: ${BT_WHATSAPP_ACCESS_TOKEN:}
+        conexion: 5s
+        respuesta: 15s
 
 # El advice registra errores sanitizados; Hibernate no debe imprimir valores
 # personales de claves duplicadas devueltos por PostgreSQL.

@@ -175,7 +175,7 @@ CREATE TABLE conversacion (
   negocio_id bigint NOT NULL REFERENCES negocio(id),
   wa_id      varchar(20) NOT NULL,                  -- la conversación existe antes de la ficha (consentimiento pendiente)
   cliente_id bigint,                                -- se rellena al aceptar la privacidad (06-flujos.md §6)
-  modo   varchar(8)  NOT NULL DEFAULT 'ASISTENTE' CHECK (modo IN ('ASISTENTE','HUMANO')),
+  modo   varchar(10) NOT NULL DEFAULT 'ASISTENTE' CHECK (modo IN ('ASISTENTE','HUMANO')),  -- antes varchar(8), que no admitía ASISTENTE (28/10/2026)
   estado jsonb       NOT NULL DEFAULT '{}',          -- datos ya fijados: servicio, profesional, fecha, franja (ciclo de vida en §7.1)
   ultima_entrada_en timestamptz,                     -- ventana de 24 h (V2-RN-13)
   version integer NOT NULL DEFAULT 0,
@@ -274,6 +274,7 @@ En la primera tarea, `negocio_id` se añade **en tres pasos** (columna anulable 
 - Toda respuesta se guarda como `mensaje_whatsapp` `SALIENTE`/`PENDIENTE` **en la misma transacción** que el cambio de estado que la origina (outbox). Así, si la reserva se revierte, el mensaje «reservada» no existe.
 - `EnviadorMensajes` (`@Scheduled`): envía por la Graph API con el token del canal, guarda el `wamid`, reintenta 429/5xx con espera exponencial y marca `FALLIDO` los errores permanentes (número inválido, ventana cerrada, plantilla rechazada). Un fallo de entrega **no** deshace la operación: genera un aviso interno al personal para que contacte al cliente.
 - Avisos de estado (`sent`, `delivered`, `read`, `failed`) actualizan el mensaje por `wamid`.
+- *(Precisión del 28/10/2026, V2-09: el contrato completo de la salida, con las columnas añadidas a `mensaje_whatsapp`, el reclamo de uno en uno, la conciliación por `biz_opaque_callback_data` y la garantía de entrega, está en `12-v2-09-whatsapp-salida.md` y en V2-DA-57…62. V2-09 crea `conversacion` al recibir un mensaje, solo con `wa_id` y `ultima_entrada_en`; la ficha sigue llegando con V2-10.)*
 - Ventana de 24 h: `conversacion.ultima_entrada_en`; fuera de ella solo plantillas (`bt_recordatorio_cita`, `bt_cita_modificada_por_negocio`, `bt_cita_cancelada_por_negocio`, categoría *utility*, en español). Las plantillas se crean en la cuenta de cada negocio al conectar el canal.
 - Para reducir coste (desde el 01/10/2026 los mensajes de servicio que superan 1000/mes por número se cobran), el diseño **agrupa** la información en mensajes interactivos (listas y botones) en lugar de varios textos seguidos.
 

@@ -260,6 +260,7 @@
 - **Decisión:** un evento cuyo número no está registrado, cuyo canal está desconectado o cuyo negocio está suspendido o sin propietario activo queda `DESCARTADO`, con un `motivo` codificado. No se entrega al puerto ni se abre el contexto del negocio.
 - **Por qué:** con la barbería suspendida no se admiten escrituras (V2-DA-38), y sin propietario no hay canal (`06-flujos.md` §1). En V2-08 todavía no hay salida con la que avisar al cliente.
 - **Revisable en V2-09/V2-10:** una respuesta fija («esta barbería no atiende por WhatsApp ahora») si se considera útil.
+- **Excepción (28/10/2026, V2-09, hallazgo 111-7):** los avisos de **estado** de un canal registrado se procesan aunque el canal esté desconectado o el negocio no sea operativo, porque registran el resultado de mensajes que ya salieron. Los mensajes siguen esta regla.
 
 ### V2-DA-54 · Ficha por `wa_id` exacto, sin crearla en V2-08 (28/10/2026)
 - **Decisión:**
@@ -267,6 +268,7 @@
   - No la busca por teléfono ni en otro negocio, y no crea fichas ni conversaciones: eso llega en V2-10, tras el consentimiento (`06-flujos.md` §6).
   - El remitente sale de `messages[].from` (verificado por WhatsApp), nunca del texto ni de `contacts[]`.
 - **Por qué:** V2-RN-09 (una ficha creada con un teléfono no se vincula sola a un `wa_id`) y V2-RN-02 (el negocio sale del número receptor). Crear fichas sin consentimiento contradiría el flujo de privacidad.
+- **Matiz (28/10/2026, V2-09):** la **conversación** se crea ya en V2-09, al recibir un mensaje, solo con `wa_id` y `ultima_entrada_en`, porque la ventana de 24 h la necesita (V2-DA-60). La ficha sigue sin crearse hasta V2-10.
 
 ### V2-DA-55 · Columnas añadidas a la cola y configuración que falla cerrada (28/10/2026)
 - **Decisión:**
@@ -281,3 +283,52 @@
   - Un `phone_number_id` que ya es de otro negocio da 409 `NUMERO_WHATSAPP_EN_USO` (código nuevo). No hay pantalla en V2-08.
 - **Por qué:** V2-RF-09 prevé el alta asistida por la plataforma en el MVP. Una ruta de API auditable evita escribir datos de un negocio desde la configuración del despliegue, y el índice único de `phone_number_id` impone V2-RN-07 también en la base.
 - **Alternativa:** registrar el número de prueba desde variables de entorno al arrancar. Más simple, pero mezcla configuración y datos de negocio, y no deja auditoría.
+- **Ajuste (28/10/2026, V2-09, hallazgo 111-8):** sustituir el `phone_number_id` de un canal cuyo negocio ya tiene conversaciones da 409 `CONFLICTO`: los avisos de estado de lo enviado por el número antiguo dejarían de encontrar su canal.
+### V2-DA-57 · Outbox por negocio con ficha y orden por conversación (28/10/2026)
+- **Decisión:**
+  - `mensaje_whatsapp` es una tabla de negocio con RLS forzada: el enviador no puede reclamar sin contexto. Recorre los `negocio_id` de `canal_whatsapp` (tabla de plataforma) y, por cada uno, reclama **de uno en uno** con `SKIP LOCKED` en transacciones cortas dentro de `EjecutorEnNegocio`, para que el plazo del reclamo empiece justo antes de trabajar cada mensaje (propuesta 111-3).
+  - El reclamo incrementa `intentos`, que es la ficha (como en V2-DA-52); la preparación y el cierre se condicionan a ella, y la petición HTTP va entre ambos, sin transacción ni bloqueos. La forma del envío (`enviado_como`) se guarda en la preparación, antes de la petición.
+  - No se reclama un mensaje si hay otro `PENDIENTE` anterior de la misma conversación: el cliente los recibe en el orden en que se encolaron.
+  - Columnas añadidas al DDL de §3: `reserva_id`, `enviado_como`, `inciertos`, `codigo_meta`; `error_codigo` acotado a los motivos. Permisos exactos tras `REVOKE ALL` (V100 concede todos por defecto), entidades de solo lectura y escrituras SQL acotadas.
+  - Dos hilos de programación (`spring.task.scheduling.pool.size: 2`), para que el envío no retrase el procesador de entrada.
+- **Por qué:** RLS no admite una consulta global (V2-DA-07) y un *security definer* la saltaría; mantener una transacción abierta durante la llamada a Meta retendría conexiones y bloqueos. El volumen previsto (cientos de mensajes al día y decenas de negocios) admite una transacción corta por negocio y pasada.
+- **Consecuencias:** un mensaje con errores transitorios retrasa los siguientes de su conversación hasta agotar sus reintentos (unos 7 min). Con muchos negocios habría que recorrer solo los que tengan pendientes (una marca en una tabla de plataforma); queda para la Fase 3.
+
+### V2-DA-58 · Garantía de entrega: no hay «exactamente una vez» (28/10/2026)
+- **Hecho:** la Cloud API no admite una clave de idempotencia en el envío. Si Meta acepta un mensaje y la respuesta no llega, reenviarlo puede duplicarlo y no reenviarlo puede perderlo.
+- **Decisión: al menos una vez, con duplicados acotados y conciliación.**
+  - **Conciliación:** cada envío lleva `biz_opaque_callback_data = "bt:m:<id>:<ficha>"`, que Meta devuelve en los avisos de estado. Un aviso para un `wamid` desconocido cuyo dato apunta a un mensaje del mismo negocio y del mismo destinatario, sin `wamid`, le asigna ese `wamid` y su estado; si el mensaje ya tiene otro `wamid` (un duplicado), solo se registra la anomalía.
+  - **Resultado desconocido** (tiempo de respuesta agotado, conexión cortada o éxito sin `id`): se espera `espera-conciliacion` (2 min) por si un aviso de estado lo concilia y, si no, se reenvía **una sola vez** (`max-inciertos = 2`). Un segundo resultado desconocido deja `FALLIDO`/`RESULTADO_DESCONOCIDO` con aviso al personal («no se pudo confirmar»).
+  - **La petición no llegó a Meta** (consta un fallo al conectar) y los rechazos transitorios: reintento con espera, sin riesgo de duplicar.
+  - **Caída del proceso, o fallo del cierre,** entre la aceptación de Meta y el cierre: el reclamo vence a los 60 s y el mensaje se reenvía, salvo que un aviso de estado lo haya conciliado antes.
+- **Por qué** (propuesta 111-4 de Codex, aceptada): el mensaje acompaña a una operación ya confirmada (V2-RN-11), y perder un aviso de cancelación o de cambio perjudica más al cliente que recibirlo dos veces. La espera de conciliación evita el duplicado en el caso habitual, en que Meta sí aceptó el mensaje y su aviso `sent` llega en segundos.
+- **Alternativa descartada:** como mucho una vez (sin reenviar un resultado desconocido). No duplica, pero pierde los mensajes que no llegaron a Meta y, ante una caída del proceso, seguiría reenviando: la garantía dependería de dónde se produjera el fallo.
+- **Revisable por el responsable:** es una decisión de producto con contrapartida (duplicado frente a pérdida); se puede cambiar con `max-inciertos = 1`.
+
+### V2-DA-59 · Avisos de estado monótonos por `wamid` (28/10/2026)
+- **Decisión:**
+  - `sent` < `delivered` < `read`: un aviso solo hace avanzar el mensaje, así que los duplicados y los desordenados no cambian nada.
+  - `failed` → `FALLIDO`/`FALLO_ENTREGA` con el código de Meta, salvo tras `delivered` o `read`. Cualquier otro `FALLIDO` es definitivo, excepto `RESULTADO_DESCONOCIDO`, que la conciliación puede corregir. Un estado positivo vacía el motivo y el código.
+  - Un aviso para un `wamid` que no se encuentra en el negocio, ni por conciliación, lanza una excepción y se reintenta con la política de V2-08, por la carrera entre la respuesta de Graph y el cierre del enviador; si persiste, el evento acaba en `ERROR`.
+- **Por qué:** Meta reintenta durante días y no garantiza el orden de los avisos; RLS limita la búsqueda al negocio del canal que recibió el aviso.
+
+### V2-DA-60 · Ventana de 24 h y selección de plantillas al enviar (28/10/2026)
+- **Decisión:**
+  - Cada mensaje entrante actualiza `conversacion.ultima_entrada_en` (crea la conversación si no existe, sin ficha ni contenido). Es la única escritura de V2-09 en la entrada; V2-10 la conservará en su orquestador.
+  - La ventana se evalúa **al enviar**, con un margen de 5 min: el texto y el interactivo con la ventana cerrada fallan sin llamar a Meta (`VENTANA_CERRADA`).
+  - `encolarAviso` guarda la plantilla con `textoEnVentana`: con la ventana abierta se envía su texto como mensaje de servicio y, si no, como plantilla. `encolarPlantilla` envía siempre la plantilla.
+  - Catálogo fijo de tres plantillas *utility* en español con parámetros con nombre (12-v2-09 §3.4); Graph API v26.0.
+- **Por qué:** un mensaje encolado con la ventana abierta puede enviarse tras cerrarse (reintentos); desde el 01/10/2026 las plantillas *utility* dentro de la ventana se cobran y los mensajes de servicio tienen 1000 gratuitos al mes por número (`09-costes.md`).
+- **Matiz de V2-DA-54:** crear la conversación (sin ficha) al recibir un mensaje se adelanta de V2-10 a V2-09, porque la ventana la necesita. La ficha sigue creándose en V2-10, tras el consentimiento. La retención de las conversaciones sin ficha queda con P2-06.
+
+### V2-DA-61 · Aviso interno ante un fallo permanente (28/10/2026)
+- **Decisión:**
+  - Toda transición a `FALLIDO` (o cambio de su motivo) de un mensaje con `reserva_id` crea, en la misma transacción, un aviso (`notificacion`, tipo nuevo `AccionAuditoria.WHATSAPP`) a los propietarios y encargados con cuenta y membresía activas y al profesional asignado en ese momento, sin repetir. Es un aviso por transición, no por mensaje.
+  - El texto da el código de la reserva y el motivo, sin datos del cliente ni el contenido del mensaje; para `RESULTADO_DESCONOCIDO` dice «no se pudo confirmar si se envió».
+  - **Pendiente de interfaz:** la cabecera oculta los avisos al rol efectivo `ADMIN` (propietario y encargado), por RN-15 de v1. Mostrárselos es un cambio de pantalla posterior a la integración de V2-07 (`12-v2-09-whatsapp-salida.md` §7).
+  - Sin reserva, solo se registra un `WARN` con el id y el motivo.
+- **Por qué:** `06-flujos.md` §10 exige avisar al personal para que contacte al cliente, y la operación no se deshace. `notificacion` exige una reserva; los mensajes sin reserva (menús, respuestas) tendrán su seguimiento en la bandeja (V2-11).
+
+### V2-DA-62 · Configuración de la salida y token de la Fase 1 (28/10/2026)
+- **Decisión:** `barberturno.whatsapp.salida` en un registro propio (`SalidaWhatsAppPropiedades`), con el token de la app en `BT_WHATSAPP_ACCESS_TOKEN` mientras `canal_whatsapp.token_cifrado` sea nulo (número de prueba, V2-DA-14). Sin token, el enviador no reclama nada y los mensajes quedan pendientes; cuando por fin se preparan, los de más de 6 h caducan (`MENSAJE_CADUCADO`) en lugar de llegar tarde. El token nunca se registra: el `toString` lo oculta. La versión de la Graph API (v26.0) se fija en la configuración.
+- **Por qué:** no cambia el registro de configuración de V2-08 y falla cerrado, como V2-DA-55.

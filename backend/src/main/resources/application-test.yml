@@ -16,10 +16,16 @@ barberturno:
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}
-  # Las pruebas del procesador llaman al lote directamente (V2-DA-08).
+  # Las pruebas del procesador y del enviador llaman al lote directamente (V2-DA-08). La salida apunta
+  # a un origen inexistente y sin token: cada prueba que envía fija su servidor Graph falso y un token ficticio.
   whatsapp:
     procesador:
       habilitado: false
+    salida:
+      habilitado: false
+      graph:
+        url-base: http://127.0.0.1:9
+        token: ""
 
   admin:
     correo: ${BT_ADMIN_CORREO:}
