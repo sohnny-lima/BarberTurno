@@ -86,8 +86,8 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(fila.get("estado")).isEqualTo("ENVIADO");
         assertThat(fila.get("wamid")).isEqualTo("wamid.EXITO_100");
         assertThat(fila.get("enviado_como")).isEqualTo("TEXTO");
-        assertThat(fila.get("intentos")).isEqualTo((short) 1);
-        assertThat(fila.get("inciertos")).isEqualTo((short) 0);
+        assertThat(fila.get("intentos")).isEqualTo(1);
+        assertThat(fila.get("inciertos")).isEqualTo(0);
         assertThat(fila.get("error_codigo")).isNull();
 
         var peticion = servidorGraph.ultimaPeticion();
@@ -322,7 +322,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("ENVIADO");
-        assertThat(fila.get("intentos")).isEqualTo((short) 2);
+        assertThat(fila.get("intentos")).isEqualTo(2);
 
         var peticion = servidorGraph.ultimaPeticion();
         assertThat(peticion.cuerpoJson().get("biz_opaque_callback_data").asString())
@@ -340,14 +340,14 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         enviador.enviarLote();
 
         assertThat(filaMensaje(a, primero).get("estado")).isEqualTo("PENDIENTE");
-        assertThat(filaMensaje(a, primero).get("intentos")).isEqualTo((short) 1);
+        assertThat(filaMensaje(a, primero).get("intentos")).isEqualTo(1);
         assertThat(filaMensaje(a, segundo).get("estado")).isEqualTo("PENDIENTE");
-        assertThat(filaMensaje(a, segundo).get("intentos")).isEqualTo((short) 0);
+        assertThat(filaMensaje(a, segundo).get("intentos")).isEqualTo(0);
 
         // Al pasar de nuevo el enviador en el tiempo actual, el segundo NO se reclama
         // porque el primero de la misma conversación está pendiente aplazado (NOT EXISTS)
         enviador.enviarLote();
-        assertThat(filaMensaje(a, segundo).get("intentos")).isEqualTo((short) 0);
+        assertThat(filaMensaje(a, segundo).get("intentos")).isEqualTo(0);
 
         // Al avanzar el reloj 30s, el primero se reintenta y sale, y luego el segundo
         reloj.adelantar(Duration.ofSeconds(30));
@@ -370,7 +370,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
             servidorGraph.encolarErrorMeta(429, 130429, "Rate limit hit");
             enviador.enviarLote();
             var fila = filaMensaje(a, msg);
-            assertThat(fila.get("intentos")).isEqualTo((short) i);
+            assertThat(fila.get("intentos")).isEqualTo(i);
             if (i < 5) {
                 assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
                 reloj.adelantar(Duration.ofMinutes(6)); // avanzamos para superar la espera
@@ -393,7 +393,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(fila.get("estado")).isEqualTo("FALLIDO");
         assertThat(fila.get("error_codigo")).isEqualTo(MotivoFallo.DESTINO_NO_VALIDO.name());
         assertThat(fila.get("codigo_meta")).isEqualTo(131026);
-        assertThat(fila.get("intentos")).isEqualTo((short) 1);
+        assertThat(fila.get("intentos")).isEqualTo(1);
     }
 
     // --- CI-7: Resultado desconocido (Desconocido) ---
@@ -405,25 +405,25 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg = encolarTextoDirecto(a, conv, "Texto desconocido", OptionalLong.of(reserva));
 
         // Intento 1: tiempo de respuesta agotado
-        servidorGraph.encolarDemora(Duration.ofSeconds(3), 200, "{\"messages\":[{\"id\":\"tardio\"}]}");
+        servidorGraph.encolarDemora(Duration.ofSeconds(2), 200, "{\"messages\":[{\"id\":\"tardio\"}]}");
         enviador.enviarLote();
 
         var fila1 = filaMensaje(a, msg);
         assertThat(fila1.get("estado")).isEqualTo("PENDIENTE");
-        assertThat(fila1.get("inciertos")).isEqualTo((short) 1);
+        assertThat(fila1.get("inciertos")).isEqualTo(1);
         // Espera de conciliación configurada en 2 minutos
         assertThat(((Timestamp) fila1.get("proximo_intento")).toInstant())
                 .isEqualTo(reloj.instant().plus(Duration.ofMinutes(2)));
 
         // Avanzamos 2 minutos y vuelve a ocurrir un tiempo agotado
         reloj.adelantar(Duration.ofMinutes(2));
-        servidorGraph.encolarDemora(Duration.ofSeconds(3), 200, "{\"messages\":[{\"id\":\"tardio2\"}]}");
+        servidorGraph.encolarDemora(Duration.ofSeconds(2), 200, "{\"messages\":[{\"id\":\"tardio2\"}]}");
         enviador.enviarLote();
 
         var fila2 = filaMensaje(a, msg);
         assertThat(fila2.get("estado")).isEqualTo("FALLIDO");
         assertThat(fila2.get("error_codigo")).isEqualTo(MotivoFallo.RESULTADO_DESCONOCIDO.name());
-        assertThat(fila2.get("inciertos")).isEqualTo((short) 2);
+        assertThat(fila2.get("inciertos")).isEqualTo(2);
 
         // CI-9: Aviso interno para RESULTADO_DESCONOCIDO
         int notifTitular = contarNotificaciones(a, titular.getId());
@@ -488,8 +488,8 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long msg2 = encolarTextoDirecto(a, conv2, "Msg 2", OptionalLong.empty());
         long msg3 = encolarTextoDirecto(a, conv3, "Msg 3", OptionalLong.empty());
 
-        assertThat(filaMensaje(a, msg2).get("intentos")).isEqualTo((short) 0);
-        assertThat(filaMensaje(a, msg3).get("intentos")).isEqualTo((short) 0);
+        assertThat(filaMensaje(a, msg2).get("intentos")).isEqualTo(0);
+        assertThat(filaMensaje(a, msg3).get("intentos")).isEqualTo(0);
 
         servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_1");
         servidorGraph.encolarInterceptando(() -> reloj.adelantar(Duration.ofSeconds(10)), "wamid.LENTO_2");
@@ -501,9 +501,9 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(filaMensaje(a, msg1).get("estado")).isEqualTo("ENVIADO");
         assertThat(filaMensaje(a, msg2).get("estado")).isEqualTo("ENVIADO");
         assertThat(filaMensaje(a, msg3).get("estado")).isEqualTo("ENVIADO");
-        assertThat(filaMensaje(a, msg1).get("intentos")).isEqualTo((short) 1);
-        assertThat(filaMensaje(a, msg2).get("intentos")).isEqualTo((short) 1);
-        assertThat(filaMensaje(a, msg3).get("intentos")).isEqualTo((short) 1);
+        assertThat(filaMensaje(a, msg1).get("intentos")).isEqualTo(1);
+        assertThat(filaMensaje(a, msg2).get("intentos")).isEqualTo(1);
+        assertThat(filaMensaje(a, msg3).get("intentos")).isEqualTo(1);
     }
 
     @Test
@@ -533,7 +533,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
-        assertThat(fila.get("intentos")).isEqualTo((short) 2);
+        assertThat(fila.get("intentos")).isEqualTo(2);
 
         ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
             var mensajeConFicha2 = cola.bloquear(reclamo2).orElseThrow();
@@ -550,12 +550,12 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long reserva = crearReserva(a, WA_CLIENTE);
         long msg = encolarTextoDirecto(a, conv, "Msg a conciliar", OptionalLong.of(reserva));
 
-        servidorGraph.encolarDemora(Duration.ofSeconds(3), 200, "{\"messages\":[{\"id\":\"tardio\"}]}");
+        servidorGraph.encolarDemora(Duration.ofSeconds(2), 200, "{\"messages\":[{\"id\":\"tardio\"}]}");
         enviador.enviarLote();
 
         var filaDespuesIntento1 = filaMensaje(a, msg);
         assertThat(filaDespuesIntento1.get("estado")).isEqualTo("PENDIENTE");
-        assertThat(filaDespuesIntento1.get("inciertos")).isEqualTo((short) 1);
+        assertThat(filaDespuesIntento1.get("inciertos")).isEqualTo(1);
         assertThat(servidorGraph.peticiones()).hasSize(1);
 
         reloj.adelantar(Duration.ofSeconds(30));
@@ -594,8 +594,8 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         var fila = filaMensaje(a, msg);
         assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
-        assertThat(fila.get("intentos")).isEqualTo((short) 1);
-        assertThat(fila.get("inciertos")).as("NoEnviado no debe incrementar inciertos").isEqualTo((short) 0);
+        assertThat(fila.get("intentos")).isEqualTo(1);
+        assertThat(fila.get("inciertos")).as("NoEnviado no debe incrementar inciertos").isEqualTo(0);
         assertThat(((Timestamp) fila.get("proximo_intento")).toInstant())
                 .isEqualTo(reloj.instant().plus(Duration.ofSeconds(30)));
     }

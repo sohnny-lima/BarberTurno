@@ -52,7 +52,9 @@ import static org.assertj.core.api.Assertions.assertThat;
         "barberturno.admin.correo=",
         "barberturno.admin.password=",
         "barberturno.admin.nombre=",
-        "barberturno.whatsapp.salida.graph.token=token-ficticio-prueba"
+        "barberturno.whatsapp.salida.graph.token=token-ficticio-prueba",
+        "barberturno.whatsapp.salida.graph.conexion=500ms",
+        "barberturno.whatsapp.salida.graph.respuesta=1s"
 })
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)

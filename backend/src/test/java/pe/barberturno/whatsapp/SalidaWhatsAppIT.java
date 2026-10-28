@@ -46,15 +46,16 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(fila.get("origen")).isEqualTo("ASISTENTE");
         assertThat(fila.get("tipo")).isEqualTo("TEXTO");
         assertThat(fila.get("estado")).isEqualTo("PENDIENTE");
-        assertThat(fila.get("intentos")).isEqualTo((short) 0);
-        assertThat(fila.get("inciertos")).isEqualTo((short) 0);
+        assertThat(fila.get("intentos")).isEqualTo(0);
+        assertThat(fila.get("inciertos")).isEqualTo(0);
         assertThat(fila.get("wamid")).isNull();
         assertThat(fila.get("enviado_como")).isNull();
         assertThat(fila.get("error_codigo")).isNull();
         assertThat(fila.get("codigo_meta")).isNull();
         assertThat(((Timestamp) fila.get("proximo_intento")).toInstant()).isEqualTo(reloj.instant());
         assertThat(((Timestamp) fila.get("creado_en")).toInstant()).isEqualTo(reloj.instant());
-        assertThat(fila.get("contenido").toString()).contains("Hola, confirmamos tu turno.");
+        var contenidoJson = mapper.readTree(fila.get("contenido").toString());
+        assertThat(contenidoJson.path("texto").asText()).isEqualTo("Hola, confirmamos tu turno.");
     }
 
     @Test
@@ -71,7 +72,8 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(fila.get("tipo")).isEqualTo("INTERACTIVO");
         assertThat(fila.get("origen")).isEqualTo("ASISTENTE");
         assertThat(fila.get("reserva_id")).isNull();
-        assertThat(fila.get("contenido").toString()).contains("¿Deseas confirmar?");
+        var contenidoJson = mapper.readTree(fila.get("contenido").toString());
+        assertThat(contenidoJson.path("interactivo").path("body").path("text").asText()).isEqualTo("¿Deseas confirmar?");
     }
 
     @Test
@@ -91,9 +93,9 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("PLANTILLA");
         assertThat(fila.get("origen")).isEqualTo("SISTEMA");
-        assertThat(fila.get("contenido").toString())
-                .contains("bt_cita_modificada_por_negocio")
-                .contains("\"textoEnVentana\":false");
+        var contenidoJson = mapper.readTree(fila.get("contenido").toString());
+        assertThat(contenidoJson.path("plantilla").asText()).isEqualTo("bt_cita_modificada_por_negocio");
+        assertThat(contenidoJson.path("textoEnVentana").asBoolean()).isFalse();
     }
 
     @Test
@@ -113,9 +115,9 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("PLANTILLA");
         assertThat(fila.get("origen")).isEqualTo("SISTEMA");
-        assertThat(fila.get("contenido").toString())
-                .contains("bt_recordatorio_cita")
-                .contains("\"textoEnVentana\":true");
+        var contenidoJson = mapper.readTree(fila.get("contenido").toString());
+        assertThat(contenidoJson.path("plantilla").asText()).isEqualTo("bt_recordatorio_cita");
+        assertThat(contenidoJson.path("textoEnVentana").asBoolean()).isTrue();
     }
 
     @Test
@@ -280,7 +282,8 @@ class SalidaWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         var fila = filaMensaje(a, id);
         assertThat(fila.get("tipo")).isEqualTo("INTERACTIVO");
-        assertThat(fila.get("contenido").toString()).contains("\"type\":\"list\"");
+        var contenidoJson = mapper.readTree(fila.get("contenido").toString());
+        assertThat(contenidoJson.path("interactivo").path("type").asText()).isEqualTo("list");
     }
 
     @Test
