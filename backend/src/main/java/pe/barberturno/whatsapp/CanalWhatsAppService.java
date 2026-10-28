@@ -4,11 +4,16 @@ import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.common.error.NegocioException;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.common.time.TiempoNegocio;
+import pe.barberturno.common.tenancy.EjecutorEnNegocio;
 import pe.barberturno.platform.MembresiaRepository;
 import pe.barberturno.platform.RolPlataforma;
 import pe.barberturno.whatsapp.dto.CanalWhatsAppDto;
@@ -27,6 +32,8 @@ public class CanalWhatsAppService {
     private final CanalWhatsAppRepository canales;
     private final MembresiaRepository membresias;
     private final Clock clock;
+    private final EjecutorEnNegocio ejecutor;
+    private final TransactionTemplate transaccion;
 
     /**
      * Recibe la persistencia de plataforma y el reloj inyectado.
@@ -34,13 +41,19 @@ public class CanalWhatsAppService {
      * @param canales canales de WhatsApp de superficie mínima
      * @param membresias recuento de propietarios activos del negocio
      * @param clock reloj del servidor
+     * @param ejecutor delimita el negocio antes de comprobar conversaciones protegidas por RLS
+     * @param gestor gestor que abre la transacción del registro en ese negocio
      */
     public CanalWhatsAppService(EntityManager entidades, CanalWhatsAppRepository canales,
-            MembresiaRepository membresias, Clock clock) {
+            MembresiaRepository membresias, Clock clock, EjecutorEnNegocio ejecutor,
+            PlatformTransactionManager gestor) {
         this.entidades = entidades;
         this.canales = canales;
         this.membresias = membresias;
         this.clock = clock;
+        this.ejecutor = ejecutor;
+        this.transaccion = new TransactionTemplate(gestor);
+        this.transaccion.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /**
@@ -63,12 +76,17 @@ public class CanalWhatsAppService {
      * @param actor identidad con rol de plataforma revalidado
      * @return canal resultante
      * @throws NegocioException PROHIBIDO sin administración de plataforma; NO_ENCONTRADO si no existe el negocio;
-     *         NEGOCIO_SUSPENDIDO si está suspendido; CONFLICTO si no tiene propietario activo;
+     *         NEGOCIO_SUSPENDIDO si está suspendido; CONFLICTO si no tiene propietario activo o se intenta
+     *         sustituir el número de un canal con conversaciones;
      *         NUMERO_WHATSAPP_EN_USO si el número pertenece a otro negocio (también ante una carrera, por el índice único)
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public CanalWhatsAppDto registrar(long negocioId, RegistrarCanalWhatsAppDto datos, UsuarioAutenticado actor) {
         exigirPlataforma(actor);
+        return ejecutor.ejecutar(negocioId, () -> transaccion.execute(tx -> registrarEnNegocio(negocioId, datos, actor)));
+    }
+
+    private CanalWhatsAppDto registrarEnNegocio(long negocioId, RegistrarCanalWhatsAppDto datos, UsuarioAutenticado actor) {
         String estado = bloquearNegocio(negocioId);
         if ("SUSPENDIDO".equals(estado)) {
             throw new NegocioException(ErrorCodigo.NEGOCIO_SUSPENDIDO, "El negocio está suspendido.");
@@ -81,6 +99,12 @@ public class CanalWhatsAppService {
         });
         var ahora = clock.instant();
         var canal = canales.bloquearPorNegocio(negocioId).orElse(null);
+        if (canal != null && !canal.phoneNumberId().equals(datos.phoneNumberId())
+                && !entidades.createNativeQuery("SELECT id FROM conversacion WHERE negocio_id = :negocio LIMIT 1", Long.class)
+                        .setParameter("negocio", negocioId).getResultList().isEmpty()) {
+            throw new NegocioException(ErrorCodigo.CONFLICTO,
+                    "El número del canal no se puede sustituir porque el negocio ya tiene conversaciones.");
+        }
         // La auditoría va antes del cambio: su INSERT nativo no debe vaciar un UPDATE pendiente fuera del
         // repositorio, donde una carrera por el índice único no se traduciría a NUMERO_WHATSAPP_EN_USO.
         auditar(actor.id(), "REGISTRAR_CANAL_WHATSAPP", negocioId);

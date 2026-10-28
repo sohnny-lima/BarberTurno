@@ -1,7 +1,15 @@
 export interface NotificacionDto {
   id: number;
   reservaId: number;
-  tipo: 'CREAR' | 'CONFIRMAR' | 'REPROGRAMAR' | 'CANCELAR' | 'INICIAR' | 'COMPLETAR' | 'NO_ASISTIO';
+  tipo:
+    | 'CREAR'
+    | 'CONFIRMAR'
+    | 'REPROGRAMAR'
+    | 'CANCELAR'
+    | 'INICIAR'
+    | 'COMPLETAR'
+    | 'NO_ASISTIO'
+    | 'WHATSAPP';
   mensaje: string;
   leida: boolean;
   creadoEn: string;

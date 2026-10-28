@@ -94,8 +94,11 @@ public class ProcesadorEventosWhatsApp {
         var canal = canales.findByPhoneNumberId(evento.phoneNumberId());
         if (canal.isEmpty()) return descartar(evento, null, MotivoEvento.NUMERO_NO_REGISTRADO);
         long negocioId = canal.get().negocioId();
-        if (!canal.get().activo()) return descartar(evento, negocioId, MotivoEvento.CANAL_DESCONECTADO);
-        if (directorio.suspendido(negocioId) || membresias.contarPropietariosActivos(negocioId) == 0) {
+        if (evento.tipo() == TipoEvento.MENSAJE && !canal.get().activo()) {
+            return descartar(evento, negocioId, MotivoEvento.CANAL_DESCONECTADO);
+        }
+        if (evento.tipo() == TipoEvento.MENSAJE
+                && (directorio.suspendido(negocioId) || membresias.contarPropietariosActivos(negocioId) == 0)) {
             return descartar(evento, negocioId, MotivoEvento.NEGOCIO_NO_OPERATIVO);
         }
         if (!waId(evento, mapper.readTree(evento.cuerpo()).path("dato")).matches("^[0-9]{1,20}$")) {

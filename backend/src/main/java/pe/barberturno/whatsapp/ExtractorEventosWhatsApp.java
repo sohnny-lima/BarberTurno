@@ -24,7 +24,7 @@ import tools.jackson.databind.node.ObjectNode;
 public class ExtractorEventosWhatsApp {
     private static final Logger LOG = LoggerFactory.getLogger(ExtractorEventosWhatsApp.class);
     private static final Pattern NUMERO = Pattern.compile("[0-9]{1,32}");
-    private static final int CLAVE_MAXIMA = 128;
+    private static final int CLAVE_MAXIMA = 160;
     private final JsonMapper mapper;
 
     /**
@@ -112,7 +112,7 @@ public class ExtractorEventosWhatsApp {
 
     /**
      * Evento listo para insertarse en {@code evento_whatsapp_entrante}.
-     * @param clave clave de idempotencia ({@code m:…} o {@code s:…:…}), de hasta 128 caracteres
+     * @param clave clave de idempotencia ({@code m:…} o {@code s:…:…}), de hasta 160 caracteres
      * @param tipo mensaje o aviso de estado
      * @param phoneNumberId número receptor, solo dígitos
      * @param cuerpo JSON con {@code phoneNumberId}, {@code contacto} y {@code dato}

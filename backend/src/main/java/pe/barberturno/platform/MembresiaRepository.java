@@ -61,6 +61,28 @@ public interface MembresiaRepository extends Repository<Membresia, Long> {
     long contarPropietariosActivos(@Param("negocioId") long negocioId);
 
     /**
+     * Elige cuentas activas de gestores y del profesional actual de la reserva, con membresía activa.
+     * La reserva y el perfil se consultan bajo RLS y con negocio explícito; UNION evita avisos repetidos.
+     * @param negocioId negocio del mensaje fallido
+     * @param reservaId reserva local asociada al mensaje
+     * @return identidades globales autorizadas, sin duplicados y ordenadas
+     */
+    @Query(value = """
+            SELECT m.usuario_id FROM membresia m JOIN usuario u ON u.id = m.usuario_id
+            WHERE m.negocio_id = :negocioId AND m.estado = 'ACTIVA' AND u.activo
+                AND m.rol IN ('PROPIETARIO', 'ENCARGADO')
+            UNION
+            SELECT b.usuario_id FROM reserva r JOIN barbero b
+                ON b.negocio_id = r.negocio_id AND b.id = r.barbero_id
+                JOIN membresia m ON m.negocio_id = b.negocio_id AND m.usuario_id = b.usuario_id
+                JOIN usuario u ON u.id = b.usuario_id
+            WHERE r.negocio_id = :negocioId AND r.id = :reservaId AND m.estado = 'ACTIVA' AND u.activo
+            ORDER BY 1
+            """, nativeQuery = true)
+    java.util.List<Long> destinatariosFalloWhatsApp(@Param("negocioId") long negocioId,
+            @Param("reservaId") long reservaId);
+
+    /**
      * Serializa cambios de propietarios antes de cualquier bloqueo de usuario (①).
      * @param negocioId ámbito que cabe en int4 según negocio_id_rango
      * @return centinela después de adquirir el bloqueo hasta fin de transacción
