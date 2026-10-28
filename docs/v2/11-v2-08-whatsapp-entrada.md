@@ -139,7 +139,7 @@ Por cada `entry[].changes[]` con `field = messages` y `value.messaging_product =
   - Claude: `tarea/V2-08-whatsapp-entrada`, en `D:\Proyectos\BarberTurno-v2-08`.
   - Codex: `tarea/V2-08-whatsapp-entrada-procesador`, en `D:\Proyectos\BarberTurno-v2-08-procesador`, desde el commit del contrato.
 - **Base de datos:**
-  - Todas las pruebas que usan `barberturno_v2_test` se ejecutan **en serie** con el cerrojo `D:\Proyectos\BarberTurno\.local\coordinacion\bd-v2-test.lock`, que se crea de forma exclusiva antes y se borra después.
+  - Todas las pruebas que usan `barberturno_v2_test` se ejecutan **en serie** con el cerrojo `D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock`, que se crea de forma exclusiva antes y se borra después. Lo hace el ejecutor local `D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1`, fuera de Git, que además carga las variables `BT_*` solo en su proceso, sin mostrarlas.
   - Si el cerrojo existe, se espera; nunca se borra uno ajeno.
   - Nunca se ejecutan dos `mvnw` contra la misma base.
 
