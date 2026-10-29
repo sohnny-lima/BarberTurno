@@ -147,12 +147,23 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void fkCompuestas_sonLasDiezRelacionesDelPlan() {
+    void fkCompuestas_sonLasTreceRelacionesDelPlan() {
         assertThat(jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2 order by conname
-                """, String.class)).containsExactly("auditoria_reserva_reserva_fk", "bloqueo_barbero_fk",
-                "conversacion_cliente_fk", "jornada_barbero_fk", "mensaje_conversacion_fk", "mensaje_reserva_fk",
-                "notificacion_reserva_fk", "reserva_barbero_fk", "reserva_cliente_fk", "reserva_servicio_fk");
+                """, String.class)).containsExactly(
+                "auditoria_actor_cliente_fk",
+                "auditoria_reserva_reserva_fk",
+                "bloqueo_barbero_fk",
+                "conversacion_cliente_fk",
+                "jornada_barbero_fk",
+                "mensaje_conversacion_fk",
+                "mensaje_reserva_fk",
+                "notificacion_reserva_fk",
+                "operacion_cliente_fk",
+                "operacion_conversacion_fk",
+                "reserva_barbero_fk",
+                "reserva_cliente_fk",
+                "reserva_servicio_fk");
     }
 
     @Test void vinculo_soloDisparadorEscribeConClienteForceInclusoActualizacionYBorrado() {

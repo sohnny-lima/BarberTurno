@@ -200,6 +200,8 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             }
             assertThat(jdbc.queryForList("select distinct estado from reserva", String.class)).containsExactlyInAnyOrder(
                     "PENDIENTE", "CONFIRMADA", "EN_ATENCION", "COMPLETADA", "CANCELADA", "NO_ASISTIO");
+            assertThat(jdbc.queryForList("select distinct canal from reserva", String.class)).containsExactly("WEB");
+            assertThat(jdbc.queryForObject("select count(*) from reserva where creada_por is null", Integer.class)).isZero();
             for (String tabla : TABLAS) {
                 assertThat(jdbc.queryForObject("select nextval(pg_get_serial_sequence(?, 'id'))", Long.class, tabla))
                         .as("identidad de " + tabla).isGreaterThan(maximos.get(tabla));
@@ -334,7 +336,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
     private static Map<String, String> huellas(JdbcTemplate jdbc) {
         var resultado = new LinkedHashMap<String, String>();
         for (String tabla : TABLAS) {
-            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto')::text, ',' order by id)) from " + tabla + " t", String.class));
+            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto' - 'canal' - 'actor_cliente_id')::text, ',' order by id)) from " + tabla + " t", String.class));
         }
         return resultado;
     }
@@ -352,10 +354,13 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         }
     }
 
-    /** Columnas añadidas por migraciones posteriores a las versiones de partida; deben nacer nulas en las filas migradas. */
-    static final java.util.Map<String, java.util.Set<String>> COLUMNAS_NUEVAS = java.util.Map.of("cliente", java.util.Set.of("wa_id"));
+    /** Columnas añadidas por migraciones posteriores a las versiones de partida; nacen nulas o con valor por defecto ('WEB' en reserva). */
+    static final java.util.Map<String, java.util.Set<String>> COLUMNAS_NUEVAS = java.util.Map.of(
+            "cliente", java.util.Set.of("wa_id"),
+            "reserva", java.util.Set.of("canal"),
+            "auditoria_reserva", java.util.Set.of("actor_cliente_id"));
 
-    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas y nulas (V113). */
+    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas de V113/V115. */
     @SuppressWarnings("unchecked")
     static void comprobarConservados(org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.Map<String, Object> antes) {
         for (var tabla : antes.entrySet()) {
@@ -370,7 +375,13 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                 actual.keySet().removeAll(previas.get(i).keySet());
                 assertThat(actual.keySet()).as("columnas nuevas de %s", tabla.getKey())
                         .isSubsetOf(COLUMNAS_NUEVAS.getOrDefault(tabla.getKey(), java.util.Set.of()));
-                assertThat(actual.values()).as("columnas nuevas nulas en %s", tabla.getKey()).allMatch(java.util.Objects::isNull);
+                if ("reserva".equals(tabla.getKey())) {
+                    assertThat(actual.get("canal")).as("canal en reserva migrada fila %d", i).isEqualTo("WEB");
+                    assertThat(previas.get(i).get("creada_por")).as("creada_por previo en reserva fila %d", i).isNotNull();
+                    assertThat(actuales.get(i).get("creada_por")).as("creada_por conservado en reserva fila %d", i).isEqualTo(previas.get(i).get("creada_por"));
+                } else {
+                    assertThat(actual.values()).as("columnas nuevas nulas en %s", tabla.getKey()).allMatch(java.util.Objects::isNull);
+                }
             }
         }
     }

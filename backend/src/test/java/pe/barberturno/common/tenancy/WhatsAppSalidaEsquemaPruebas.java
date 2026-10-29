@@ -21,8 +21,9 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  * (incluyendo denegación de DELETE, TRUNCATE, REFERENCES y TRIGGER), aislamiento sin contexto,
  * restricciones {@code CHECK} con validación de SQLState y nombre de restricción, claves foráneas
  * compuestas y definiciones completas de índices parciales del outbox.
- * No deja ningún estado persistente en la conexión ni en la base de datos: opera dentro de una
- * transacción o punto de recuperación local revertido al finalizar.
+ * No deja ningún estado de filas persistente en la conexión ni en la base de datos: opera dentro de una
+ * transacción o punto de recuperación local revertido al finalizar (los INSERT revertidos pueden
+ * consumir valores de secuencia).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -31,12 +32,12 @@ public final class WhatsAppSalidaEsquemaPruebas {
     private WhatsAppSalidaEsquemaPruebas() { }
 
     private static final Map<String, List<String>> ACTUALIZABLES = Map.of(
-            "conversacion", List.of("ultima_entrada_en", "actualizado_en"),
+            "conversacion", List.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en"),
             "mensaje_whatsapp", List.of("wamid", "estado", "intentos", "inciertos",
                     "proximo_intento", "error_codigo", "codigo_meta", "enviado_como", "actualizado_en"));
 
     private static final Map<String, List<String>> FIJAS = Map.of(
-            "conversacion", List.of("id", "negocio_id", "wa_id", "cliente_id", "modo", "estado", "version", "creado_en"),
+            "conversacion", List.of("id", "negocio_id", "wa_id", "modo", "creado_en"),
             "mensaje_whatsapp", List.of("id", "negocio_id", "conversacion_id", "direccion", "origen",
                     "tipo", "contenido", "reserva_id", "creado_en"));
 
@@ -81,22 +82,39 @@ public final class WhatsAppSalidaEsquemaPruebas {
             assertThat(jdbc.queryForObject("select relrowsecurity and relforcerowsecurity from pg_class where oid=?::regclass",
                     Boolean.class, tabla)).as("%s con RLS FORCE", tabla).isTrue();
 
-            // Verificación de política única ALL por tabla
-            var politicas = jdbc.queryForList("select policyname, cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
-            assertThat(politicas).as("políticas de %s", tabla).hasSize(1);
-            var pol = politicas.getFirst();
-            assertThat(pol.get("cmd")).as("comando de política en %s", tabla).isEqualTo("ALL");
-            assertThat(pol.get("qual").toString()).as("qual de %s", tabla).contains("negocio_id = app_negocio_actual()");
-            assertThat(pol.get("with_check").toString()).as("with_check de %s", tabla).contains("negocio_id = app_negocio_actual()");
+            // Verificación de exactamente dos políticas por tabla: aislamiento (PERMISSIVE, ALL) y borrado sin ficha (RESTRICTIVE, DELETE)
+            var politicas = jdbc.queryForList("select policyname, permissive, cmd, qual, with_check from pg_policies where schemaname='public' and tablename=?", tabla);
+            assertThat(politicas).as("políticas de %s", tabla).hasSize(2);
+
+            var polAislamiento = politicas.stream().filter(p -> "ALL".equals(p.get("cmd"))).findFirst().orElseThrow();
+            assertThat(polAislamiento.get("permissive")).as("aislamiento permisivo en %s", tabla).isEqualTo("PERMISSIVE");
+            assertThat(polAislamiento.get("qual").toString()).as("qual aislamiento en %s", tabla).contains("negocio_id = app_negocio_actual()");
+            assertThat(polAislamiento.get("with_check").toString()).as("with_check aislamiento en %s", tabla).contains("negocio_id = app_negocio_actual()");
+
+            var polBorrado = politicas.stream().filter(p -> "DELETE".equals(p.get("cmd"))).findFirst().orElseThrow();
+            assertThat(polBorrado.get("permissive")).as("borrado restrictivo en %s", tabla).isEqualTo("RESTRICTIVE");
+            assertThat(polBorrado.get("with_check")).as("with_check en borrado de %s", tabla).isNull();
+            if ("conversacion".equals(tabla)) {
+                assertThat(polBorrado.get("policyname")).isEqualTo("conversacion_borrado_sin_ficha");
+                assertThat(polBorrado.get("qual").toString()).contains("cliente_id IS NULL");
+            } else {
+                assertThat(polBorrado.get("policyname")).isEqualTo("mensaje_borrado_sin_ficha");
+                assertThat(polBorrado.get("qual").toString())
+                        .contains("cliente_id IS NULL")
+                        .contains("estado")
+                        .contains("PENDIENTE")
+                        .contains("reserva_id IS NULL");
+            }
 
             assertThat(jdbc.queryForMap("select is_nullable, column_default from information_schema.columns where table_name=? and column_name='negocio_id'", tabla))
                     .containsEntry("is_nullable", "NO")
                     .containsEntry("column_default", "app_negocio_actual()");
 
-            // Permisos a nivel de tabla: SELECT e INSERT permitidos; UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER denegados
+            // Permisos a nivel de tabla: SELECT, INSERT y DELETE permitidos; UPDATE, TRUNCATE, REFERENCES y TRIGGER denegados
             for (String permiso : List.of("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")) {
+                boolean permitido = List.of("SELECT", "INSERT", "DELETE").contains(permiso);
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user, ?, ?)", Boolean.class, tabla, permiso))
-                        .as("%s %s", tabla, permiso).isEqualTo(List.of("SELECT", "INSERT").contains(permiso));
+                        .as("%s %s", tabla, permiso).isEqualTo(permitido);
             }
 
             // Permisos por columna
@@ -154,7 +172,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
         List<String> fksCompuestas = jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2
                 """, String.class);
-        assertThat(fksCompuestas).contains("conversacion_cliente_fk", "mensaje_conversacion_fk", "mensaje_reserva_fk");
+        assertThat(fksCompuestas).contains("conversacion_cliente_fk", "mensaje_conversacion_fk", "mensaje_reserva_fk", "operacion_conversacion_fk");
 
         // 4. Restricciones con nombre en conversacion y mensaje_whatsapp
         List<String> restriccionesConversacion = jdbc.queryForList(

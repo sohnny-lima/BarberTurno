@@ -5,16 +5,16 @@ import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.*;
 
-/** V113 visto por el rol de la aplicación: tablas de plataforma sin RLS, permisos por columna y restricciones con nombre. */
+/** Esquema de WhatsApp entrante y canal visto por el rol de la aplicación: tablas de plataforma sin RLS, permisos por columna (con UPDATE de cuerpo en V115) y restricciones con nombre. */
 final class WhatsAppEsquemaPruebas {
     private WhatsAppEsquemaPruebas() { }
 
     static final Map<String, List<String>> ACTUALIZABLES = Map.of(
             "canal_whatsapp", List.of("waba_id", "phone_number_id", "numero_visible", "estado", "actualizado_en"),
-            "evento_whatsapp_entrante", List.of("negocio_id", "estado", "motivo", "intentos", "proximo_intento", "procesado_en"));
+            "evento_whatsapp_entrante", List.of("cuerpo", "negocio_id", "estado", "motivo", "intentos", "proximo_intento", "procesado_en"));
     static final Map<String, List<String>> FIJAS = Map.of(
             "canal_whatsapp", List.of("id", "negocio_id", "token_cifrado", "creado_en"),
-            "evento_whatsapp_entrante", List.of("id", "clave_idempotencia", "tipo", "phone_number_id", "cuerpo", "recibido_en"));
+            "evento_whatsapp_entrante", List.of("id", "clave_idempotencia", "tipo", "phone_number_id", "recibido_en"));
 
     static void comprobar(JdbcTemplate jdbc) {
         for (String tabla : ACTUALIZABLES.keySet()) {
