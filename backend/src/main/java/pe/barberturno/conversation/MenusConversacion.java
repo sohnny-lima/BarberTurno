@@ -90,7 +90,7 @@ public class MenusConversacion {
                     s.duracionMin() + " min · " + textos.precio(s.precio())
             ));
         }
-        if (fin < lista.size()) {
+        if (fin < lista.size() && pag < 9) {
             filas.add(new FilaDef(
                     new CodigoSeleccion.PaginaServicios(pag + 1).codificar(),
                     "Ver más",
@@ -151,7 +151,7 @@ public class MenusConversacion {
                         "Profesional"
                 ));
             }
-            if (fin < lista.size()) {
+            if (fin < lista.size() && pag < 9) {
                 filas.add(new FilaDef(
                         new CodigoSeleccion.PaginaProfesionales(servicioId, pag + 1).codificar(),
                         "Ver más",
@@ -220,7 +220,7 @@ public class MenusConversacion {
                     textos.fecha(f.inicio())
             ));
         }
-        if (fin < lista.size()) {
+        if (fin < lista.size() && pag < 9) {
             filas.add(new FilaDef(
                     new CodigoSeleccion.Dia(servicioId, barberoId, dia, pag + 1).codificar(),
                     "Ver más",
@@ -330,7 +330,7 @@ public class MenusConversacion {
                     textos.fecha(f.inicio())
             ));
         }
-        if (fin < lista.size()) {
+        if (fin < lista.size() && pag < 9) {
             filas.add(new FilaDef(
                     new CodigoSeleccion.DiaCambio(reservaId, dia, pag + 1).codificar(),
                     "Ver más",
@@ -392,17 +392,24 @@ public class MenusConversacion {
         return raiz;
     }
 
-    private static String recortar(String texto, int limiteMaximo) {
+    static String recortar(String texto, int limiteMaximo) {
         if (texto == null) {
+            return "";
+        }
+        if (limiteMaximo <= 0) {
             return "";
         }
         if (texto.length() <= limiteMaximo) {
             return texto;
         }
-        if (limiteMaximo <= 1) {
+        if (limiteMaximo == 1) {
             return "…";
         }
-        return texto.substring(0, limiteMaximo - 1) + "…";
+        int corte = limiteMaximo - 1;
+        if (corte > 0 && Character.isHighSurrogate(texto.charAt(corte - 1))) {
+            corte--;
+        }
+        return texto.substring(0, corte) + "…";
     }
 
     private String diaSemanaAbreviado(DayOfWeek dow) {

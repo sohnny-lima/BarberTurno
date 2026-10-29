@@ -83,9 +83,9 @@ class CodigoSeleccionTest {
         CodigoSeleccion rf = new CodigoSeleccion.FranjaCambio(303L, 1770003600L);
         assertThat(CodigoSeleccion.decodificar(rf.codificar())).contains(rf);
 
-        // 13. Confirmacion (confirma true / false)
-        CodigoSeleccion oS = new CodigoSeleccion.Confirmacion(404L, "abcdefghijklmnopqrstuv", true);
-        CodigoSeleccion oN = new CodigoSeleccion.Confirmacion(404L, "1234567890_-ABCDEFGHIJ", false);
+        // 13. Confirmacion (confirma true / false con nonces canónicos de 16 bytes)
+        CodigoSeleccion oS = new CodigoSeleccion.Confirmacion(404L, "AAAAAAAAAAAAAAAAAAAAAA", true);
+        CodigoSeleccion oN = new CodigoSeleccion.Confirmacion(404L, "_____________________w", false);
         assertThat(CodigoSeleccion.decodificar(oS.codificar())).contains(oS);
         assertThat(CodigoSeleccion.decodificar(oN.codificar())).contains(oN);
     }
@@ -94,17 +94,20 @@ class CodigoSeleccionTest {
     @ValueSource(strings = {
             // Ceros a la izquierda
             "s:01", "b:01:2", "b:1:02", "c:05", "f:01:2:1770000000", "f:1:02:1770000000", "f:1:2:01770000000",
-            "o:01:abcdefghijklmnopqrstuv:S", "rd:01:20261023:0", "rf:01:1770000000",
+            "o:01:AAAAAAAAAAAAAAAAAAAAAA:S", "rd:01:20261023:0", "rf:01:1770000000",
             // bid = 0 donde no se admite (en f:)
             "f:101:0:1770000000",
             // id = 0 donde no se admite
-            "s:0", "c:0", "a:0:C", "rd:0:20261023:0", "rf:0:1770000000", "o:0:abcdefghijklmnopqrstuv:S",
+            "s:0", "c:0", "a:0:C", "rd:0:20261023:0", "rf:0:1770000000", "o:0:AAAAAAAAAAAAAAAAAAAAAA:S",
             // Fecha imposible (estricta)
             "d:101:202:20261302:0", "d:101:202:20260230:0", "d:101:202:20260431:0", "d:101:202:20260010:0",
             "rd:303:20261302:0", "rd:303:20260230:0", "rd:303:20260431:0",
             // Página 10 o fuera de 0-9
             "sp:10", "sp:-1", "bp:101:10", "d:101:202:20261023:10", "rd:303:20261023:10",
-            // Nonce inválido: longitud 21 o 23, o con caracteres no base64url (+, /, =)
+            // Segundos epoch por encima de 253402300799 o desbordantes
+            "f:1:1:253402300800", "rf:1:253402300800", "f:1:1:999999999999999999", "rf:1:999999999999999999",
+            // Nonce inválido: no canónico, longitud distinta de 22 o caracteres no base64url (+, /, =)
+            "o:404:abcdefghijklmnopqrstuv:S", "o:404:1234567890_-ABCDEFGHIJ:S", "o:404:AAAAAAAAAAAAAAAAAAAAAB:S",
             "o:404:abcdefghijklmnopqrstu:S", "o:404:abcdefghijklmnopqrstuvw:S",
             "o:404:abcdefghijklmnopqr+tuv:S", "o:404:abcdefghijklmnopqr/tuv:S", "o:404:abcdefghijklmnopqr=tuv:S",
             // Signos (+ o -)
@@ -112,12 +115,12 @@ class CodigoSeleccionTest {
             // 19 cifras (desbordamiento)
             "s:1234567890123456789", "c:1234567890123456789", "b:1234567890123456789:1",
             // Separador final o extra
-            "s:101:", "m:RESERVAR:", "b:1:2:", "d:1:2:20261023:0:", "o:404:abcdefghijklmnopqrstuv:S:",
+            "s:101:", "m:RESERVAR:", "b:1:2:", "d:1:2:20261023:0:", "o:404:AAAAAAAAAAAAAAAAAAAAAA:S:",
             "s::101", "b:1::2",
             // Prefijo desconocido
             "x:101", "menu:RESERVAR", "reserva:101", "accion:C",
             // Mayúsculas cambiadas / minúsculas donde se exigen mayúsculas
-            "m:reservar", "m:mis_citas", "p:s", "p:n", "a:303:c", "a:303:r", "o:404:abcdefghijklmnopqrstuv:s",
+            "m:reservar", "m:mis_citas", "p:s", "p:n", "a:303:c", "a:303:r", "o:404:AAAAAAAAAAAAAAAAAAAAAA:s",
             // Espacios o basura
             " s:101", "s:101 ", "s: 101", "m: RESERVAR", "d:1:0:20261023:0 ",
             ""
@@ -151,5 +154,41 @@ class CodigoSeleccionTest {
 
         assertThat(representacion).doesNotContain(nonceSecreto);
         assertThat(representacion).contains("505").contains("true");
+    }
+
+    @Test
+    @DisplayName("Segundos epoch en f: y rf: límite exacto 253402300799 decodifica y el siguiente devuelve vacío")
+    void decodificar_segundosEpochLimiteExactoYSiguiente_comportamientoEsperado() {
+        // Límite exacto: 253402300799 (9999-12-31T23:59:59Z)
+        long limiteExacto = 253402300799L;
+        String fValido = "f:101:202:" + limiteExacto;
+        String rfValido = "rf:303:" + limiteExacto;
+
+        assertThat(CodigoSeleccion.decodificar(fValido))
+                .contains(new CodigoSeleccion.Franja(101L, 202L, limiteExacto));
+        assertThat(CodigoSeleccion.decodificar(rfValido))
+                .contains(new CodigoSeleccion.FranjaCambio(303L, limiteExacto));
+
+        // Siguiente segundo no representable: 253402300800
+        long siguiente = 253402300800L;
+        assertThat(CodigoSeleccion.decodificar("f:101:202:" + siguiente)).isEmpty();
+        assertThat(CodigoSeleccion.decodificar("rf:303:" + siguiente)).isEmpty();
+
+        // Valor desbordante de 18 cifras
+        assertThat(CodigoSeleccion.decodificar("f:101:202:999999999999999999")).isEmpty();
+        assertThat(CodigoSeleccion.decodificar("rf:303:999999999999999999")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Nonces en Confirmacion: canónico decodifica y no canónico devuelve vacío")
+    void decodificar_nonceCanonicoYNoCanonico_distingueFormato() {
+        // Canónico de 16 bytes a cero
+        assertThat(CodigoSeleccion.decodificar("o:1:AAAAAAAAAAAAAAAAAAAAAA:S"))
+                .contains(new CodigoSeleccion.Confirmacion(1L, "AAAAAAAAAAAAAAAAAAAAAA", true));
+
+        // No canónicos (bits de relleno en el último carácter no son cero o distorsión)
+        assertThat(CodigoSeleccion.decodificar("o:1:abcdefghijklmnopqrstuv:S")).isEmpty();
+        assertThat(CodigoSeleccion.decodificar("o:1:1234567890_-ABCDEFGHIJ:S")).isEmpty();
+        assertThat(CodigoSeleccion.decodificar("o:1:AAAAAAAAAAAAAAAAAAAAAB:S")).isEmpty();
     }
 }

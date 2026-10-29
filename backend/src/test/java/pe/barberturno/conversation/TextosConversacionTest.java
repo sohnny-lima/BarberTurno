@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.reservations.EstadoReserva;
 
@@ -48,24 +48,26 @@ class TextosConversacionTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = ErrorCodigo.class, names = {
-            "FRANJA_NO_DISPONIBLE",
-            "CLIENTE_CON_RESERVA_SOLAPADA",
-            "LIMITE_RESERVAS_ACTIVAS",
-            "FUERA_DE_POLITICA",
-            "FUERA_DE_HORARIO",
-            "FUERA_DE_HORIZONTE",
-            "INICIO_EN_PASADO",
-            "RECURSO_INACTIVO",
-            "VERSION_DESACTUALIZADA",
-            "TRANSICION_INVALIDA",
-            "NO_ENCONTRADO"
+    @CsvSource({
+            "FRANJA_NO_DISPONIBLE, horario",
+            "CLIENTE_CON_RESERVA_SOLAPADA, otra cita",
+            "LIMITE_RESERVAS_ACTIVAS, límite",
+            "FUERA_DE_POLITICA, anticipación",
+            "FUERA_DE_HORARIO, atención",
+            "FUERA_DE_HORIZONTE, periodo",
+            "INICIO_EN_PASADO, pasó",
+            "RECURSO_INACTIVO, profesional",
+            "VERSION_DESACTUALIZADA, cambió",
+            "TRANSICION_INVALIDA, estado actual",
+            "NO_ENCONTRADO, ya no está disponible"
     })
-    @DisplayName("rechazo: cada código listado tiene texto propio o noDisponible")
-    void rechazo_codigosListados_devuelveTextoPropio(ErrorCodigo codigo) {
+    @DisplayName("rechazo: cada uno de los 11 códigos tiene texto propio distinto del genérico con palabra clave")
+    void rechazo_onceCodigosConTextoPropio_distintoDeGenericoYContienePalabraClave(ErrorCodigo codigo, String palabraClave) {
         String mensaje = textos.rechazo(codigo);
+        String mensajeGenerico = textos.rechazo(ErrorCodigo.ERROR_INTERNO);
 
-        assertThat(mensaje).isNotBlank();
+        assertThat(mensaje).isNotEqualTo(mensajeGenerico);
+        assertThat(mensaje).contains(palabraClave);
         assertThat(mensaje).doesNotContain("Exception").doesNotContain(codigo.name());
         if (codigo == ErrorCodigo.NO_ENCONTRADO) {
             assertThat(mensaje).isEqualTo(textos.noDisponible());
@@ -73,13 +75,14 @@ class TextosConversacionTest {
     }
 
     @Test
-    @DisplayName("rechazo: código no listado o nulo devuelve texto genérico sin detalles internos")
-    void rechazo_codigoGenerico_devuelveTextoGenerico() {
-        String mensajeGenerico = textos.rechazo(ErrorCodigo.ERROR_INTERNO);
-        String mensajeNulo = textos.rechazo(null);
+    @DisplayName("rechazo: código sin texto propio o nulo devuelve exactamente el texto genérico")
+    void rechazo_codigoSinTextoPropioONulo_devuelveExactamenteElGenerico() {
+        String esperado = "No pudimos completar tu solicitud en este momento. Por favor, intenta de nuevo más tarde.";
 
-        assertThat(mensajeGenerico).isEqualTo("No pudimos completar tu solicitud en este momento. Por favor, intenta de nuevo más tarde.");
-        assertThat(mensajeNulo).isEqualTo(mensajeGenerico);
+        assertThat(textos.rechazo(ErrorCodigo.ERROR_INTERNO)).isEqualTo(esperado);
+        assertThat(textos.rechazo(ErrorCodigo.CONFLICTO)).isEqualTo(esperado);
+        assertThat(textos.rechazo(ErrorCodigo.VALIDACION)).isEqualTo(esperado);
+        assertThat(textos.rechazo(null)).isEqualTo(esperado);
     }
 
     @Test

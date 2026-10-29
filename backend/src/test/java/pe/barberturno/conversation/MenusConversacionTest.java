@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -257,11 +258,11 @@ class MenusConversacionTest {
         esperado.putObject("body").put("text", "Resumen de la cita");
         ArrayNode btns = esperado.putObject("action").putArray("buttons");
         btns.addObject().put("type", "reply").putObject("reply")
-                .put("id", "o:88:abcdefghijklmnopqrstuv:S").put("title", "Confirmar");
+                .put("id", "o:88:AAAAAAAAAAAAAAAAAAAAAA:S").put("title", "Confirmar");
         btns.addObject().put("type", "reply").putObject("reply")
-                .put("id", "o:88:abcdefghijklmnopqrstuv:N").put("title", "Cambiar");
+                .put("id", "o:88:AAAAAAAAAAAAAAAAAAAAAA:N").put("title", "Cambiar");
 
-        ObjectNode actual = menus.confirmacion("Resumen de la cita", 88L, "abcdefghijklmnopqrstuv");
+        ObjectNode actual = menus.confirmacion("Resumen de la cita", 88L, "AAAAAAAAAAAAAAAAAAAAAA");
 
         assertThat(actual).isEqualTo(esperado);
     }
@@ -387,7 +388,7 @@ class MenusConversacionTest {
         // Verificar botones
         comprobarIdsDeBotones(menus.menuPrincipal("c"));
         comprobarIdsDeBotones(menus.consentimiento("c"));
-        comprobarIdsDeBotones(menus.confirmacion("c", 10L, "abcdefghijklmnopqrstuv"));
+        comprobarIdsDeBotones(menus.confirmacion("c", 10L, "AAAAAAAAAAAAAAAAAAAAAA"));
 
         Instant ini = Instant.parse("2026-10-23T23:00:00Z");
         CitaOpcion cita = new CitaOpcion(1L, "BT-1", 1L, "S", 1L, "P", ini, ini.plusSeconds(1800), BigDecimal.TEN, EstadoReserva.CONFIRMADA, 1, true, true);
@@ -443,7 +444,7 @@ class MenusConversacionTest {
         List<ObjectNode> todosLosMenus = List.of(
                 menus.menuPrincipal("c"),
                 menus.consentimiento("c"),
-                menus.confirmacion("c", 1L, "abcdefghijklmnopqrstuv"),
+                menus.confirmacion("c", 1L, "AAAAAAAAAAAAAAAAAAAAAA"),
                 menus.servicios("c", crearServicios(3), 0),
                 menus.profesionales("c", 1L, crearProfesionales(3), 0),
                 menus.dias("c", 1L, 0L, LocalDate.of(2026, 10, 23))
@@ -488,5 +489,240 @@ class MenusConversacionTest {
             res.add(new ProfesionalOpcion(i, "Barbero " + i));
         }
         return res;
+    }
+
+    private List<FranjaOpcion> crearFranjas(int cantidad) {
+        List<FranjaOpcion> res = new ArrayList<>();
+        Instant base = Instant.parse("2026-10-23T14:00:00Z");
+        for (int i = 1; i <= cantidad; i++) {
+            Instant ini = base.plusSeconds(i * 1800L);
+            res.add(new FranjaOpcion(1L, "Carlos", ini, ini.plusSeconds(1800L)));
+        }
+        return res;
+    }
+
+    @Test
+    @DisplayName("recortar no parte pares sustitutos en título de fila, descripción, título de botón ni cuerpo")
+    void recortar_caracteresSuplementarios_noSeparaParesSustitutosYNuncaSuperaLimite() {
+        // Emoji estándar de 2 unidades de código UTF-16: 😀 (\uD83D\uDE00)
+        String emoji = "😀";
+        assertThat(emoji).hasSize(2);
+
+        // 1. Título de fila (límite 24):
+        // Con 22 caracteres ASCII + emoji (2) + 'b' (1) = 25 unidades.
+        // Si no manejara sustitutos, cortaría en 23 dejando medio emoji. Con el ajuste, toma 22 chars + "…" = 23 chars.
+        String titulo25 = "a".repeat(22) + emoji + "b";
+        List<ServicioOpcion> listaTitulo = List.of(new ServicioOpcion(1L, titulo25, 30, BigDecimal.TEN));
+        ObjectNode resTitulo = menus.servicios("c", listaTitulo, 0);
+        String tituloRecortado = resTitulo.path("action").path("sections").get(0).path("rows").get(0).path("title").asString();
+
+        assertThat(tituloRecortado).hasSize(23);
+        assertThat(tituloRecortado).isEqualTo("a".repeat(22) + "…");
+        assertThat(Character.isHighSurrogate(tituloRecortado.charAt(tituloRecortado.length() - 2))).isFalse();
+        assertThat(tituloRecortado.length()).isLessThanOrEqualTo(24);
+
+        // 2. Descripción de fila (límite 72):
+        // En citas: c.servicio() + " con " + c.profesional()
+        // Con servicio de 67 'd' + emoji (2) + 'x' (1) + " con " (5) + "P" (1) = 76 unidades.
+        // Corta sin partir el emoji y no supera 72.
+        Instant ahora = Instant.parse("2026-10-23T23:00:00Z");
+        String servicio70 = "d".repeat(67) + emoji + "x";
+        CitaOpcion citaDesc = new CitaOpcion(10L, "BT-1", 1L, servicio70, 2L, "P",
+                ahora, ahora.plusSeconds(1800), BigDecimal.TEN, EstadoReserva.CONFIRMADA, 1, false, false);
+        ObjectNode resCita = menus.citas("c", List.of(citaDesc));
+        String descRecortada = resCita.path("action").path("sections").get(0).path("rows").get(0).path("description").asString();
+
+        assertThat(descRecortada.length()).isLessThanOrEqualTo(72);
+        assertThat(descRecortada).endsWith("…");
+        assertThat(Character.isHighSurrogate(descRecortada.charAt(descRecortada.length() - 2))).isFalse();
+
+        // 3. Título de botón (límite 20): prueba directa de la función recortar
+        // Con 18 'b' + emoji (2) + 'z' (1) = 21 unidades. Al límite 20, produce 18 'b' + "…" = 19 unidades.
+        String boton21 = "b".repeat(18) + emoji + "z";
+        String botonRecortado = MenusConversacion.recortar(boton21, 20);
+        assertThat(botonRecortado).hasSize(19);
+        assertThat(botonRecortado).isEqualTo("b".repeat(18) + "…");
+        assertThat(Character.isHighSurrogate(botonRecortado.charAt(botonRecortado.length() - 2))).isFalse();
+
+        // 4. Cuerpo (límite 1024):
+        // Con 1022 'c' + emoji (2) + 'w' (1) = 1025 unidades.
+        // Al límite 1024, debe tomar 1022 'c' + "…" = 1023 unidades.
+        String cuerpo1025 = "c".repeat(1022) + emoji + "w";
+        ObjectNode resMenu = menus.menuPrincipal(cuerpo1025);
+        String cuerpoRecortado = resMenu.path("body").path("text").asString();
+
+        assertThat(cuerpoRecortado).hasSize(1023);
+        assertThat(cuerpoRecortado).isEqualTo("c".repeat(1022) + "…");
+        assertThat(Character.isHighSurrogate(cuerpoRecortado.charAt(cuerpoRecortado.length() - 2))).isFalse();
+        assertThat(cuerpoRecortado.length()).isLessThanOrEqualTo(1024);
+    }
+
+    @Test
+    @DisplayName("Paginación con 90, 91 y 200 opciones: la página 9 nunca genera «Ver más»")
+    void listas_paginacion90_91_200Opciones_pagina9SinVerMas() {
+        LocalDate dia = LocalDate.of(2026, 10, 23);
+
+        // --- SERVICIOS ---
+        // Con 90 opciones: 10 páginas (0 a 9) de 9. La página 9 tiene exactamente 9 filas y sin «Ver más».
+        List<ServicioOpcion> serv90 = crearServicios(90);
+        ObjectNode resServ90P9 = menus.servicios("c", serv90, 9);
+        ArrayNode filasServ90P9 = (ArrayNode) resServ90P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasServ90P9).hasSize(9);
+        assertThat(filasServ90P9.get(8).path("title").asString()).isNotEqualTo("Ver más");
+        assertThat(filasServ90P9.get(8).path("id").asString()).isEqualTo("s:90");
+
+        // Con 91 opciones: página 8 tiene 9 filas + «Ver más» (sp:9); página 9 tiene 9 filas sin «Ver más».
+        List<ServicioOpcion> serv91 = crearServicios(91);
+        ObjectNode resServ91P8 = menus.servicios("c", serv91, 8);
+        ArrayNode filasServ91P8 = (ArrayNode) resServ91P8.path("action").path("sections").get(0).path("rows");
+        assertThat(filasServ91P8).hasSize(10);
+        assertThat(filasServ91P8.get(9).path("title").asString()).isEqualTo("Ver más");
+        assertThat(filasServ91P8.get(9).path("id").asString()).isEqualTo("sp:9");
+
+        ObjectNode resServ91P9 = menus.servicios("c", serv91, 9);
+        ArrayNode filasServ91P9 = (ArrayNode) resServ91P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasServ91P9).hasSize(9);
+        assertThat(filasServ91P9.get(8).path("title").asString()).isNotEqualTo("Ver más");
+        assertThat(filasServ91P9.get(8).path("id").asString()).isEqualTo("s:90");
+
+        // Con 200 opciones: página 9 tiene 9 filas sin «Ver más».
+        List<ServicioOpcion> serv200 = crearServicios(200);
+        ObjectNode resServ200P9 = menus.servicios("c", serv200, 9);
+        ArrayNode filasServ200P9 = (ArrayNode) resServ200P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasServ200P9).hasSize(9);
+        assertThat(filasServ200P9.get(8).path("title").asString()).isNotEqualTo("Ver más");
+
+        // --- FRANJAS ---
+        List<FranjaOpcion> franjas90 = crearFranjas(90);
+        ObjectNode resFranjas90P9 = menus.franjas("c", 1L, 0L, dia, franjas90, 9);
+        ArrayNode filasFranjas90P9 = (ArrayNode) resFranjas90P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasFranjas90P9).hasSize(9);
+        assertThat(filasFranjas90P9.get(8).path("title").asString()).doesNotContain("Ver más");
+
+        List<FranjaOpcion> franjas91 = crearFranjas(91);
+        ObjectNode resFranjas91P9 = menus.franjas("c", 1L, 0L, dia, franjas91, 9);
+        ArrayNode filasFranjas91P9 = (ArrayNode) resFranjas91P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasFranjas91P9).hasSize(9);
+        assertThat(filasFranjas91P9.get(8).path("title").asString()).doesNotContain("Ver más");
+
+        List<FranjaOpcion> franjas200 = crearFranjas(200);
+        ObjectNode resFranjas200P9 = menus.franjas("c", 1L, 0L, dia, franjas200, 9);
+        ArrayNode filasFranjas200P9 = (ArrayNode) resFranjas200P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasFranjas200P9).hasSize(9);
+        assertThat(filasFranjas200P9.get(8).path("title").asString()).doesNotContain("Ver más");
+
+        // --- FRANJAS CAMBIO ---
+        ObjectNode resCambio91P9 = menus.franjasCambio("c", 100L, dia, franjas91, 9);
+        ArrayNode filasCambio91P9 = (ArrayNode) resCambio91P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filasCambio91P9).hasSize(9);
+        assertThat(filasCambio91P9.get(8).path("title").asString()).doesNotContain("Ver más");
+    }
+
+    @Test
+    @DisplayName("profesionales con 89 y 90 opciones: contenido de la página 9")
+    void profesionales_con89Y90Opciones_contenidoPagina9() {
+        // Con 89 profesionales:
+        // Pág 0: Cualquiera + 8 = 9 (+ Ver más a bp:1:1)
+        // Págs 1 a 8: 8 * 9 = 72 profesionales (acumulado 8 + 72 = 80)
+        // Pág 9: 89 - 80 = 9 profesionales (índices 80 a 88, barberos 81 a 89). No hay Ver más.
+        List<ProfesionalOpcion> prof89 = crearProfesionales(89);
+        ObjectNode res89P9 = menus.profesionales("c", 1L, prof89, 9);
+        ArrayNode filas89P9 = (ArrayNode) res89P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filas89P9).hasSize(9);
+        assertThat(filas89P9.get(0).path("id").asString()).isEqualTo("b:1:81");
+        assertThat(filas89P9.get(8).path("id").asString()).isEqualTo("b:1:89");
+        assertThat(filas89P9.get(8).path("title").asString()).isEqualTo("Barbero 89");
+
+        // Con 90 profesionales:
+        // Pág 9 muestra los mismos 9 profesionales (barberos 81 a 89).
+        // Al estar en página 9, NO se genera «Ver más» para no superar el rango de páginas (0 a 9).
+        List<ProfesionalOpcion> prof90 = crearProfesionales(90);
+        ObjectNode res90P9 = menus.profesionales("c", 1L, prof90, 9);
+        ArrayNode filas90P9 = (ArrayNode) res90P9.path("action").path("sections").get(0).path("rows");
+        assertThat(filas90P9).hasSize(9);
+        assertThat(filas90P9.get(0).path("id").asString()).isEqualTo("b:1:81");
+        assertThat(filas90P9.get(8).path("id").asString()).isEqualTo("b:1:89");
+        assertThat(filas90P9.get(8).path("title").asString()).isNotEqualTo("Ver más");
+    }
+
+    @Test
+    @DisplayName("todos los identificadores de todas las páginas (0 a 9) decodifican al tipo esperado")
+    void todasLasPaginas_todosLosIdentificadores_decodificanAlTipoEsperado() {
+        LocalDate dia = LocalDate.of(2026, 10, 23);
+
+        // 1. Servicios con 91 opciones: páginas 0 a 9
+        List<ServicioOpcion> serv91 = crearServicios(91);
+        for (int p = 0; p <= 9; p++) {
+            ObjectNode res = menus.servicios("c", serv91, p);
+            ArrayNode filas = (ArrayNode) res.path("action").path("sections").get(0).path("rows");
+            assertThat(filas).isNotEmpty();
+            for (JsonNode f : filas) {
+                String id = f.path("id").asString();
+                String title = f.path("title").asString();
+                Optional<CodigoSeleccion> deco = CodigoSeleccion.decodificar(id);
+                assertThat(deco).as("Id en pág " + p + ": " + id).isPresent();
+                if ("Ver más".equals(title)) {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.PaginaServicios.class);
+                } else {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.Servicio.class);
+                }
+            }
+        }
+
+        // 2. Profesionales con 90 opciones: páginas 0 a 9
+        List<ProfesionalOpcion> prof90 = crearProfesionales(90);
+        for (int p = 0; p <= 9; p++) {
+            ObjectNode res = menus.profesionales("c", 1L, prof90, p);
+            ArrayNode filas = (ArrayNode) res.path("action").path("sections").get(0).path("rows");
+            assertThat(filas).isNotEmpty();
+            for (JsonNode f : filas) {
+                String id = f.path("id").asString();
+                String title = f.path("title").asString();
+                Optional<CodigoSeleccion> deco = CodigoSeleccion.decodificar(id);
+                assertThat(deco).as("Id en pág " + p + ": " + id).isPresent();
+                if ("Ver más".equals(title)) {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.PaginaProfesionales.class);
+                } else {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.Profesional.class);
+                }
+            }
+        }
+
+        // 3. Franjas con 91 opciones: páginas 0 a 9
+        List<FranjaOpcion> franjas91 = crearFranjas(91);
+        for (int p = 0; p <= 9; p++) {
+            ObjectNode res = menus.franjas("c", 1L, 0L, dia, franjas91, p);
+            ArrayNode filas = (ArrayNode) res.path("action").path("sections").get(0).path("rows");
+            assertThat(filas).isNotEmpty();
+            for (JsonNode f : filas) {
+                String id = f.path("id").asString();
+                String title = f.path("title").asString();
+                Optional<CodigoSeleccion> deco = CodigoSeleccion.decodificar(id);
+                assertThat(deco).as("Id en pág " + p + ": " + id).isPresent();
+                if ("Ver más".equals(title)) {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.Dia.class);
+                } else {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.Franja.class);
+                }
+            }
+        }
+
+        // 4. FranjasCambio con 91 opciones: páginas 0 a 9
+        for (int p = 0; p <= 9; p++) {
+            ObjectNode res = menus.franjasCambio("c", 100L, dia, franjas91, p);
+            ArrayNode filas = (ArrayNode) res.path("action").path("sections").get(0).path("rows");
+            assertThat(filas).isNotEmpty();
+            for (JsonNode f : filas) {
+                String id = f.path("id").asString();
+                String title = f.path("title").asString();
+                Optional<CodigoSeleccion> deco = CodigoSeleccion.decodificar(id);
+                assertThat(deco).as("Id en pág " + p + ": " + id).isPresent();
+                if ("Ver más".equals(title)) {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.DiaCambio.class);
+                } else {
+                    assertThat(deco.get()).isInstanceOf(CodigoSeleccion.FranjaCambio.class);
+                }
+            }
+        }
     }
 }

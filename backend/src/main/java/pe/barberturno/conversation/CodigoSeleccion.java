@@ -4,6 +4,7 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -16,12 +17,13 @@ import java.util.regex.Pattern;
  * quien lo usa revalida el negocio (RLS), la ficha, el estado y las reglas.
  *
  * <p>Formatos (como máximo 200 caracteres; ids de 1 a 18 cifras, sin ceros a la izquierda y mayores que
- * cero salvo {@code bid = 0} = cualquiera; fecha {@code aaaammdd} real; página de 0 a 9):
+ * cero salvo {@code bid = 0} = cualquiera; fecha {@code aaaammdd} real; página de 0 a 9; segundos epoch
+ * de 1 a 253402300799):
  * {@code m:RESERVAR|MIS_CITAS|INICIO} · {@code p:S|N} · {@code sp:<pág>} · {@code s:<sid>} ·
  * {@code bp:<sid>:<pág>} · {@code b:<sid>:<bid>} · {@code d:<sid>:<bid>:<aaaammdd>:<pág>} ·
  * {@code f:<sid>:<bid>:<seg>} ({@code bid > 0}) · {@code c:<rid>} · {@code a:<rid>:C|R} ·
  * {@code rd:<rid>:<aaaammdd>:<pág>} · {@code rf:<rid>:<seg>} · {@code o:<oid>:<nonce>:S|N}
- * ({@code nonce} base64url sin relleno de 22 caracteres).
+ * ({@code nonce} base64url canónico sin relleno de 16 bytes / 22 caracteres).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -29,6 +31,10 @@ public sealed interface CodigoSeleccion {
 
     /** Longitud máxima de un identificador (límite de Meta para filas de lista). */
     int LONGITUD_MAXIMA = 200;
+
+    private static long maxSegundosEpoch() {
+        return 253_402_300_799L; // 9999-12-31T23:59:59Z
+    }
 
     /**
      * Representa la selección como identificador de botón o fila.
@@ -107,7 +113,12 @@ public sealed interface CodigoSeleccion {
             } else if (id.startsWith("f:")) {
                 Matcher m = Pattern.compile("^f:([1-9][0-9]{0,17}):([1-9][0-9]{0,17}):([1-9][0-9]{0,17})$").matcher(id);
                 if (m.matches()) {
-                    return Optional.of(new Franja(Long.parseLong(m.group(1)), Long.parseLong(m.group(2)), Long.parseLong(m.group(3))));
+                    long sid = Long.parseLong(m.group(1));
+                    long bid = Long.parseLong(m.group(2));
+                    long seg = Long.parseLong(m.group(3));
+                    if (seg >= 1 && seg <= maxSegundosEpoch()) {
+                        return Optional.of(new Franja(sid, bid, seg));
+                    }
                 }
             } else if (id.startsWith("c:")) {
                 Matcher m = Pattern.compile("^c:([1-9][0-9]{0,17})$").matcher(id);
@@ -132,12 +143,20 @@ public sealed interface CodigoSeleccion {
             } else if (id.startsWith("rf:")) {
                 Matcher m = Pattern.compile("^rf:([1-9][0-9]{0,17}):([1-9][0-9]{0,17})$").matcher(id);
                 if (m.matches()) {
-                    return Optional.of(new FranjaCambio(Long.parseLong(m.group(1)), Long.parseLong(m.group(2))));
+                    long rid = Long.parseLong(m.group(1));
+                    long seg = Long.parseLong(m.group(2));
+                    if (seg >= 1 && seg <= maxSegundosEpoch()) {
+                        return Optional.of(new FranjaCambio(rid, seg));
+                    }
                 }
             } else if (id.startsWith("o:")) {
                 Matcher m = Pattern.compile("^o:([1-9][0-9]{0,17}):([A-Za-z0-9_-]{22}):([SN])$").matcher(id);
                 if (m.matches()) {
-                    return Optional.of(new Confirmacion(Long.parseLong(m.group(1)), m.group(2), "S".equals(m.group(3))));
+                    long oid = Long.parseLong(m.group(1));
+                    String nonce = m.group(2);
+                    if (esNonceCanonica16Bytes(nonce)) {
+                        return Optional.of(new Confirmacion(oid, nonce, "S".equals(m.group(3))));
+                    }
                 }
             }
         } catch (Exception e) {
@@ -155,6 +174,19 @@ public sealed interface CodigoSeleccion {
             return LocalDate.parse(texto, DateTimeFormatter.ofPattern("uuuuMMdd").withResolverStyle(ResolverStyle.STRICT));
         } catch (DateTimeException e) {
             return null;
+        }
+    }
+
+    private static boolean esNonceCanonica16Bytes(String nonce) {
+        try {
+            byte[] bytes = Base64.getUrlDecoder().decode(nonce);
+            if (bytes.length != 16) {
+                return false;
+            }
+            String recodificado = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            return recodificado.equals(nonce);
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
