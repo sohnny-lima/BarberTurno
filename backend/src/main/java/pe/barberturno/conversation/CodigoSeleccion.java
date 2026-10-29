@@ -1,8 +1,13 @@
 package pe.barberturno.conversation;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Identificador de un botón o de una fila de lista generado por el servidor (13-v2-10 §3.1). Cada
@@ -26,21 +31,131 @@ public sealed interface CodigoSeleccion {
     int LONGITUD_MAXIMA = 200;
 
     /**
-     * Representa la selección como identificador de botón o fila. Implementación: Gemini (bloque G).
+     * Representa la selección como identificador de botón o fila.
      * @return identificador con el formato de la tabla de la interfaz
      */
     default String codificar() {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        return switch (this) {
+            case Menu m -> "m:" + m.opcion().name();
+            case Privacidad p -> "p:" + (p.acepta() ? "S" : "N");
+            case PaginaServicios sp -> "sp:" + sp.pagina();
+            case Servicio s -> "s:" + s.servicioId();
+            case PaginaProfesionales bp -> "bp:" + bp.servicioId() + ":" + bp.pagina();
+            case Profesional b -> "b:" + b.servicioId() + ":" + b.barberoId();
+            case Dia d -> "d:" + d.servicioId() + ":" + d.barberoId() + ":" + formatearFecha(d.dia()) + ":" + d.pagina();
+            case Franja f -> "f:" + f.servicioId() + ":" + f.barberoId() + ":" + f.inicioEpochSeg();
+            case Cita c -> "c:" + c.reservaId();
+            case AccionCita a -> "a:" + a.reservaId() + ":" + (a.cancelar() ? "C" : "R");
+            case DiaCambio rd -> "rd:" + rd.reservaId() + ":" + formatearFecha(rd.dia()) + ":" + rd.pagina();
+            case FranjaCambio rf -> "rf:" + rf.reservaId() + ":" + rf.inicioEpochSeg();
+            case Confirmacion o -> "o:" + o.operacionId() + ":" + o.nonce() + ":" + (o.confirma() ? "S" : "N");
+        };
     }
 
     /**
      * Decodifica un identificador recibido. Cualquier desviación del formato devuelve vacío, nunca una
-     * excepción. Implementación: Gemini (bloque G).
+     * excepción.
      * @param id identificador del botón o la fila; puede ser nulo
      * @return selección decodificada, o vacío si no cumple exactamente un formato
      */
     static Optional<CodigoSeleccion> decodificar(String id) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        if (id == null || id.isEmpty() || id.length() > LONGITUD_MAXIMA) {
+            return Optional.empty();
+        }
+        try {
+            if (id.startsWith("m:")) {
+                Matcher m = Pattern.compile("^m:(RESERVAR|MIS_CITAS|INICIO)$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Menu(OpcionMenu.valueOf(m.group(1))));
+                }
+            } else if (id.startsWith("p:")) {
+                Matcher m = Pattern.compile("^p:([SN])$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Privacidad("S".equals(m.group(1))));
+                }
+            } else if (id.startsWith("sp:")) {
+                Matcher m = Pattern.compile("^sp:([0-9])$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new PaginaServicios(Integer.parseInt(m.group(1))));
+                }
+            } else if (id.startsWith("s:")) {
+                Matcher m = Pattern.compile("^s:([1-9][0-9]{0,17})$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Servicio(Long.parseLong(m.group(1))));
+                }
+            } else if (id.startsWith("bp:")) {
+                Matcher m = Pattern.compile("^bp:([1-9][0-9]{0,17}):([0-9])$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new PaginaProfesionales(Long.parseLong(m.group(1)), Integer.parseInt(m.group(2))));
+                }
+            } else if (id.startsWith("b:")) {
+                Matcher m = Pattern.compile("^b:([1-9][0-9]{0,17}):(0|[1-9][0-9]{0,17})$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Profesional(Long.parseLong(m.group(1)), Long.parseLong(m.group(2))));
+                }
+            } else if (id.startsWith("d:")) {
+                Matcher m = Pattern.compile("^d:([1-9][0-9]{0,17}):(0|[1-9][0-9]{0,17}):([0-9]{8}):([0-9])$").matcher(id);
+                if (m.matches()) {
+                    long sid = Long.parseLong(m.group(1));
+                    long bid = Long.parseLong(m.group(2));
+                    LocalDate dia = parsearFecha(m.group(3));
+                    if (dia != null) {
+                        int pag = Integer.parseInt(m.group(4));
+                        return Optional.of(new Dia(sid, bid, dia, pag));
+                    }
+                }
+            } else if (id.startsWith("f:")) {
+                Matcher m = Pattern.compile("^f:([1-9][0-9]{0,17}):([1-9][0-9]{0,17}):([1-9][0-9]{0,17})$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Franja(Long.parseLong(m.group(1)), Long.parseLong(m.group(2)), Long.parseLong(m.group(3))));
+                }
+            } else if (id.startsWith("c:")) {
+                Matcher m = Pattern.compile("^c:([1-9][0-9]{0,17})$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Cita(Long.parseLong(m.group(1))));
+                }
+            } else if (id.startsWith("a:")) {
+                Matcher m = Pattern.compile("^a:([1-9][0-9]{0,17}):([CR])$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new AccionCita(Long.parseLong(m.group(1)), "C".equals(m.group(2))));
+                }
+            } else if (id.startsWith("rd:")) {
+                Matcher m = Pattern.compile("^rd:([1-9][0-9]{0,17}):([0-9]{8}):([0-9])$").matcher(id);
+                if (m.matches()) {
+                    long rid = Long.parseLong(m.group(1));
+                    LocalDate dia = parsearFecha(m.group(2));
+                    if (dia != null) {
+                        int pag = Integer.parseInt(m.group(3));
+                        return Optional.of(new DiaCambio(rid, dia, pag));
+                    }
+                }
+            } else if (id.startsWith("rf:")) {
+                Matcher m = Pattern.compile("^rf:([1-9][0-9]{0,17}):([1-9][0-9]{0,17})$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new FranjaCambio(Long.parseLong(m.group(1)), Long.parseLong(m.group(2))));
+                }
+            } else if (id.startsWith("o:")) {
+                Matcher m = Pattern.compile("^o:([1-9][0-9]{0,17}):([A-Za-z0-9_-]{22}):([SN])$").matcher(id);
+                if (m.matches()) {
+                    return Optional.of(new Confirmacion(Long.parseLong(m.group(1)), m.group(2), "S".equals(m.group(3))));
+                }
+            }
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    private static String formatearFecha(LocalDate dia) {
+        return DateTimeFormatter.BASIC_ISO_DATE.format(dia);
+    }
+
+    private static LocalDate parsearFecha(String texto) {
+        try {
+            return LocalDate.parse(texto, DateTimeFormatter.ofPattern("uuuuMMdd").withResolverStyle(ResolverStyle.STRICT));
+        } catch (DateTimeException e) {
+            return null;
+        }
     }
 
     /**

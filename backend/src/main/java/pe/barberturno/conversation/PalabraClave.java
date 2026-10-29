@@ -1,5 +1,8 @@
 package pe.barberturno.conversation;
 
+import java.text.Normalizer;
+import java.util.Locale;
+
 /**
  * Palabras clave que la conversación guiada reconoce en un texto, tras normalizarlo (recorte,
  * minúsculas, sin tildes ni signos). Ningún otro texto se interpreta (13-v2-10 §3.1).
@@ -17,11 +20,28 @@ public enum PalabraClave {
     OTRA;
 
     /**
-     * Normaliza el texto y lo reduce a una palabra clave. Implementación: Gemini (bloque G).
+     * Normaliza el texto y lo reduce a una palabra clave.
      * @param texto texto recibido; nulo o vacío equivale a {@link #OTRA}
      * @return palabra clave reconocida, o {@link #OTRA}
      */
     public static PalabraClave de(String texto) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        if (texto == null) {
+            return OTRA;
+        }
+        String normalizado = Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[\\p{P}\\p{S}]+", " ")
+                .replaceAll("\\s+", " ")
+                .strip();
+        if (normalizado.isEmpty()) {
+            return OTRA;
+        }
+        return switch (normalizado) {
+            case "menu", "hola", "inicio", "0" -> MENU;
+            case "si", "confirmar", "confirmo" -> SI;
+            case "no" -> NO;
+            default -> OTRA;
+        };
     }
 }
