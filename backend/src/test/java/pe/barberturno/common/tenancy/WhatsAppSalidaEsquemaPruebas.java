@@ -110,7 +110,28 @@ public final class WhatsAppSalidaEsquemaPruebas {
             }
         }
 
-        // 2. Aislamiento sin contexto de negocio
+        // 2. Preparación de filas visibles bajo contexto y comprobación de aislamiento sin contexto
+        jdbc.execute("SELECT set_config('app.negocio_id', '1', true)");
+        Long convId = jdbc.queryForObject("""
+                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                VALUES ('51900000999', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT (negocio_id, wa_id) DO UPDATE SET actualizado_en = CURRENT_TIMESTAMP
+                RETURNING id
+                """, Long.class);
+
+        Long msgId = jdbc.queryForObject("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
+                """, Long.class, convId);
+
+        // Con contexto activo, las filas preparadas son visibles
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM conversacion", Integer.class)).isGreaterThanOrEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensaje_whatsapp", Integer.class)).isGreaterThanOrEqualTo(1);
+
+        // Al retirar el contexto en la conexión delimitada, ninguna fila es visible ni se permite insertar
         jdbc.execute("SELECT set_config('app.negocio_id', '', true)");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM conversacion", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensaje_whatsapp", Integer.class)).isZero();
@@ -120,6 +141,12 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
                     VALUES ('51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     """)).isInstanceOf(DataAccessException.class);
+            assertThatThrownBy(() -> jdbc.update("""
+                    INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                        proximo_intento, creado_en, actualizado_en)
+                    VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, convId)).isInstanceOf(DataAccessException.class);
         } finally {
             con.rollback(spAislamiento);
             try {
@@ -127,6 +154,9 @@ public final class WhatsAppSalidaEsquemaPruebas {
             } catch (SQLException ignored) {
             }
         }
+
+        // Restauramos contexto para el resto de comprobaciones
+        jdbc.execute("SELECT set_config('app.negocio_id', '1', true)");
 
         // 3. FKs compuestas que involucran conversacion y mensaje_whatsapp
         List<String> fksCompuestas = jdbc.queryForList("""
@@ -147,7 +177,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 "mensaje_intentos_validos", "mensaje_error_coherente", "mensaje_pendiente_programado",
                 "mensaje_envio_coherente", "mensaje_entrada_coherente");
 
-        // 5. Definiciones completas de índices de mensaje_whatsapp
+        // 5. Definiciones completas de índices de mensaje_whatsapp con predicados exactos
         assertThat(jdbc.queryForObject("select indexdef from pg_indexes where tablename='mensaje_whatsapp' and indexname='mensaje_wamid_uk'", String.class))
                 .as("definición de mensaje_wamid_uk")
                 .contains("UNIQUE INDEX", "(wamid)", "WHERE (wamid IS NOT NULL)");
@@ -155,43 +185,95 @@ public final class WhatsAppSalidaEsquemaPruebas {
         assertThat(jdbc.queryForObject("select indexdef from pg_indexes where tablename='mensaje_whatsapp' and indexname='mensaje_salida_cola_ix'", String.class))
                 .as("definición de mensaje_salida_cola_ix")
                 .contains("(negocio_id, proximo_intento, id)")
-                .contains("PENDIENTE");
+                .contains("WHERE ((estado)::text = 'PENDIENTE'::text)");
 
         assertThat(jdbc.queryForObject("select indexdef from pg_indexes where tablename='mensaje_whatsapp' and indexname='mensaje_conversacion_pendiente_ix'", String.class))
                 .as("definición de mensaje_conversacion_pendiente_ix")
                 .contains("(negocio_id, conversacion_id, id)")
-                .contains("PENDIENTE");
+                .contains("WHERE ((estado)::text = 'PENDIENTE'::text)");
 
-        // 6. Operaciones inválidas que comprueban los CHECK con SQLState 23514 y nombre de restricción
-        jdbc.execute("SELECT set_config('app.negocio_id', '1', true)");
-        Long convId = jdbc.queryForObject("""
-                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
-                VALUES ('51900000999', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                ON CONFLICT (negocio_id, wa_id) DO UPDATE SET actualizado_en = CURRENT_TIMESTAMP
-                RETURNING id
-                """, Long.class);
+        // 6. Operaciones inválidas que comprueban cada rama de cada CHECK con SQLState 23514 y nombre de restricción
 
-        // a) conversacion_wa_formato
+        // a) conversacion_wa_formato: caracteres no numéricos o prefijos no permitidos
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
                 VALUES ('no-numerico', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """), "conversacion_wa_formato");
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                VALUES ('+51900000997', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), "conversacion_wa_formato");
 
-        // b) conversacion_modo_valido
+        // b) conversacion_modo_valido: modo distinto de ASISTENTE o HUMANO
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO conversacion (wa_id, modo, creado_en, actualizado_en)
                 VALUES ('51900000998', 'INVALIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """), "conversacion_modo_valido");
 
-        // c) mensaje_intentos_validos
+        // c) mensaje_direccion_valida: dirección no permitida
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
-                    intentos, proximo_intento, creado_en, actualizado_en)
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'OTRA', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_direccion_valida");
+
+        // d) mensaje_origen_valido: origen no reconocido en el catálogo
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'BOT', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_origen_valido");
+
+        // e) mensaje_tipo_valido: tipo no admitido
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'AUDIO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_tipo_valido");
+
+        // f) mensaje_estado_valido: estado inválido
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'BORRADOR',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_estado_valido");
+
+        // g) mensaje_enviado_como_valido: enviado_como inválido
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    wamid, enviado_como, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
+                    'wamid.val', 'OTRO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_enviado_como_valido");
+
+        // h) mensaje_error_valido: error_codigo fuera de catálogo
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    error_codigo, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'FALLIDO',
+                    'ERROR_DESCONOCIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_error_valido");
+
+        // i) mensaje_intentos_validos: rama intentos < 0 y rama inciertos < 0
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    intentos, inciertos, proximo_intento, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
-                    -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    -1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, convId), "mensaje_intentos_validos");
 
-        // d) mensaje_error_coherente
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    intentos, inciertos, proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    0, -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_intentos_validos");
+
+        // j) mensaje_error_coherente: FALLIDO sin error_codigo, y PENDIENTE con error_codigo
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     error_codigo, creado_en, actualizado_en)
@@ -199,7 +281,14 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     null, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, convId), "mensaje_error_coherente");
 
-        // e) mensaje_pendiente_programado
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, error_codigo, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, 'VENTANA_CERRADA', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_error_coherente");
+
+        // k) mensaje_pendiente_programado: PENDIENTE sin proximo_intento
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     proximo_intento, creado_en, actualizado_en)
@@ -207,7 +296,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     null, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, convId), "mensaje_pendiente_programado");
 
-        // f) mensaje_envio_coherente
+        // l) mensaje_envio_coherente: ENVIADO sin wamid, y ENVIADO sin enviado_como
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     wamid, enviado_como, creado_en, actualizado_en)
@@ -215,7 +304,14 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     null, 'TEXTO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, convId), "mensaje_envio_coherente");
 
-        // g) mensaje_entrada_coherente
+        verificarRestriccion(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    wamid, enviado_como, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
+                    'wamid.val', null, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_envio_coherente");
+
+        // m) mensaje_entrada_coherente: ENTRANTE con PENDIENTE, y SALIENTE con RECIBIDO
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     proximo_intento, creado_en, actualizado_en)
@@ -223,13 +319,12 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, convId), "mensaje_entrada_coherente");
 
-        // h) mensaje_enviado_como_valido
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
-                    wamid, enviado_como, creado_en, actualizado_en)
-                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
-                    'wamid.val', 'OTRO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, convId), "mensaje_enviado_como_valido");
+                    creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'RECIBIDO',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId), "mensaje_entrada_coherente");
 
         // 7. Ajuste de V2-08: clave_idempotencia de evento_whatsapp_entrante ampliada a 160 caracteres
         assertThat(jdbc.queryForObject("""
