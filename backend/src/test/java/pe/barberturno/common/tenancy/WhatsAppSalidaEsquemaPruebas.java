@@ -11,7 +11,7 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
  * Verificación del esquema de salida de WhatsApp de V114 visto por el rol de la aplicación
@@ -135,25 +135,17 @@ public final class WhatsAppSalidaEsquemaPruebas {
         jdbc.execute("SELECT set_config('app.negocio_id', '', true)");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM conversacion", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensaje_whatsapp", Integer.class)).isZero();
-        Savepoint spAislamiento = con.setSavepoint();
-        try {
-            assertThatThrownBy(() -> jdbc.update("""
-                    INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
-                    VALUES ('51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                    """)).isInstanceOf(DataAccessException.class);
-            assertThatThrownBy(() -> jdbc.update("""
-                    INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
-                        proximo_intento, creado_en, actualizado_en)
-                    VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
-                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                    """, convId)).isInstanceOf(DataAccessException.class);
-        } finally {
-            con.rollback(spAislamiento);
-            try {
-                con.releaseSavepoint(spAislamiento);
-            } catch (SQLException ignored) {
-            }
-        }
+        verificarRls(con, () -> jdbc.update("""
+                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                VALUES ('51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """));
+
+        verificarRls(con, () -> jdbc.update("""
+                INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
+                    proximo_intento, creado_en, actualizado_en)
+                VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, convId));
 
         // Restauramos contexto para el resto de comprobaciones
         jdbc.execute("SELECT set_config('app.negocio_id', '1', true)");
@@ -333,21 +325,45 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, Integer.class)).isEqualTo(160);
     }
 
+    private static void verificarRls(Connection con, Runnable accion) throws SQLException {
+        verificarFallo(con, accion, "42501", null);
+    }
+
     private static void verificarRestriccion(Connection con, Runnable accion, String restriccionEsperada) throws SQLException {
+        verificarFallo(con, accion, "23514", restriccionEsperada);
+    }
+
+    private static void verificarFallo(Connection con, Runnable accion, String sqlStateEsperado, String restriccionEsperada) throws SQLException {
         Savepoint punto = con.setSavepoint();
+        boolean revertido = false;
         try {
-            assertThatThrownBy(accion::run)
-                    .isInstanceOf(DataAccessException.class)
-                    .satisfies(fallo -> {
-                        var causa = (PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
-                        assertThat(causa.getSQLState()).as("SQLState 23514 (check_violation)").isEqualTo("23514");
-                        assertThat(causa.getServerErrorMessage().getConstraint()).as("nombre de restricción").isEqualTo(restriccionEsperada);
-                    });
-        } finally {
+            DataAccessException fallo = catchThrowableOfType(DataAccessException.class, accion::run);
             con.rollback(punto);
+            revertido = true;
             try {
                 con.releaseSavepoint(punto);
             } catch (SQLException ignored) {
+            }
+            assertThat(fallo).as("esperaba fallo con SQLState %s", sqlStateEsperado).isNotNull();
+            assertThat(fallo.getMostSpecificCause()).as("causa debe ser PSQLException").isInstanceOf(PSQLException.class);
+            var causa = (PSQLException) fallo.getMostSpecificCause();
+            assertThat(causa.getSQLState()).as("SQLState %s", sqlStateEsperado)
+                    .isNotEqualTo("25P02")
+                    .isEqualTo(sqlStateEsperado);
+            if (restriccionEsperada != null) {
+                assertThat(causa.getServerErrorMessage()).as("servidor debe devolver error estructurado").isNotNull();
+                assertThat(causa.getServerErrorMessage().getConstraint()).as("nombre de restricción").isEqualTo(restriccionEsperada);
+            }
+        } finally {
+            if (!revertido) {
+                try {
+                    con.rollback(punto);
+                } catch (SQLException ignored) {
+                }
+                try {
+                    con.releaseSavepoint(punto);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
