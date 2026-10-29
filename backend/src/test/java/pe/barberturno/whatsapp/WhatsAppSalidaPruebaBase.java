@@ -62,6 +62,7 @@ public abstract class WhatsAppSalidaPruebaBase {
     protected static final String NUMERO_A = "10001";
     protected static final String NUMERO_B = "10002";
     protected static final String WA_CLIENTE = "51999000001";
+    protected static final OffsetDateTime INICIO_RESERVA_BASE = OffsetDateTime.parse("2026-11-01T10:00:00-05:00");
 
     protected static final ServidorGraphFalso servidorGraph = new ServidorGraphFalso();
 
@@ -203,11 +204,33 @@ public abstract class WhatsAppSalidaPruebaBase {
 
     /**
      * Crea una ficha de cliente y una reserva confirmada en el negocio especificado.
+     * Si no se especifica inicio, utiliza las 10:00 o la siguiente franja consecutiva disponible si ya existen reservas.
      * @param negocioId negocio de la reserva
      * @param waId número de WhatsApp del cliente
      * @return id de la reserva creada
      */
     protected long crearReserva(long negocioId, String waId) {
+        OffsetDateTime inicio = ejecutor.ejecutar(negocioId, () -> {
+            var maxFin = sql.queryForList("""
+                    SELECT max(fin) FROM reserva WHERE negocio_id = ? AND estado <> 'CANCELADA'
+                    """, Timestamp.class, negocioId);
+            if (maxFin.isEmpty() || maxFin.getFirst() == null) {
+                return INICIO_RESERVA_BASE;
+            }
+            OffsetDateTime finMax = OffsetDateTime.ofInstant(maxFin.getFirst().toInstant(), INICIO_RESERVA_BASE.getOffset());
+            return finMax.isAfter(INICIO_RESERVA_BASE) ? finMax : INICIO_RESERVA_BASE;
+        });
+        return crearReserva(negocioId, waId, inicio);
+    }
+
+    /**
+     * Crea una ficha de cliente y una reserva confirmada en el negocio especificado con la fecha y hora de inicio indicada.
+     * @param negocioId negocio de la reserva
+     * @param waId número de WhatsApp del cliente
+     * @param inicioFechaHora fecha y hora de inicio de la reserva
+     * @return id de la reserva creada
+     */
+    protected long crearReserva(long negocioId, String waId, OffsetDateTime inicioFechaHora) {
         return ejecutor.ejecutar(negocioId, () -> {
             var existentes = sql.queryForList("SELECT id FROM cliente WHERE negocio_id = ? AND wa_id = ?",
                     Long.class, negocioId, waId);
@@ -219,8 +242,8 @@ public abstract class WhatsAppSalidaPruebaBase {
                             Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()))
                     : existentes.getFirst();
 
-            var inicio = Timestamp.from(OffsetDateTime.parse("2026-11-01T10:00:00-05:00").toInstant());
-            var fin = Timestamp.from(OffsetDateTime.parse("2026-11-01T10:30:00-05:00").toInstant());
+            var inicio = Timestamp.from(inicioFechaHora.toInstant());
+            var fin = Timestamp.from(inicioFechaHora.plusMinutes(30).toInstant());
 
             long barberoId = (negocioId == b) ? barberoB : barberoA;
             long servicioId = (negocioId == b) ? servicioB : servicioA;
@@ -232,6 +255,17 @@ public abstract class WhatsAppSalidaPruebaBase {
                     """, Long.class, negocioId, clienteId, barberoId, servicioId, inicio, fin,
                     titular.getId(), Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()));
         });
+    }
+
+    /**
+     * Crea una ficha de cliente y una reserva confirmada en el negocio especificado con el instante de inicio indicado.
+     * @param negocioId negocio de la reserva
+     * @param waId número de WhatsApp del cliente
+     * @param inicioInstant instante de inicio de la reserva
+     * @return id de la reserva creada
+     */
+    protected long crearReserva(long negocioId, String waId, Instant inicioInstant) {
+        return crearReserva(negocioId, waId, OffsetDateTime.ofInstant(inicioInstant, INICIO_RESERVA_BASE.getOffset()));
     }
 
     /**

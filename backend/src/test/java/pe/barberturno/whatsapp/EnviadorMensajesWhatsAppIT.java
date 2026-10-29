@@ -3,6 +3,7 @@ package pe.barberturno.whatsapp;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1084,7 +1085,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         long barberoRevocadoId = ejecutor.ejecutar(a, () -> barberos.saveAndFlush(
                 new Barbero(barberoRevocado, "Barbero Membresia Revocada", reloj.instant())).getId());
 
-        long reserva2 = crearReserva(a, WA_CLIENTE);
+        long reserva2 = crearReserva(a, WA_CLIENTE, OffsetDateTime.parse("2026-11-01T10:30:00-05:00"));
         ejecutor.ejecutar(a, () -> sql.update("UPDATE reserva SET barbero_id = ? WHERE id = ?", barberoRevocadoId, reserva2));
 
         long msg2 = encolarTextoDirecto(a, conv, "Msg con profesional revocado", OptionalLong.of(reserva2));
