@@ -108,7 +108,11 @@ class OrquestadorConversacionTest {
     void entradaTrasMasDe24Horas_vaciaElEstadoYAnulaLaVigenteAntesDeAtender() {
         var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PASO, "CONFIRMACION");
         entrada(Optional.of(AHORA.minus(Duration.ofHours(24))), OptionalLong.of(FICHA), estado,
-                new Entrada.Texto(PalabraClave.OTRA));
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.RESERVAR)));
+        var servicio = new ServicioOpcion(3, "Corte", 30, new BigDecimal("25.00"));
+        when(consultas.servicios()).thenReturn(java.util.List.of(servicio));
+        when(textos.elegirServicio()).thenReturn("elige");
+        when(menus.servicios("elige", java.util.List.of(servicio), 0)).thenReturn(interactivo);
         recibir();
         verify(conversaciones).vaciar(CONVERSACION);
         verify(operaciones).anularVigente(CONVERSACION);
@@ -119,7 +123,11 @@ class OrquestadorConversacionTest {
     void entradaReciente_conservaElEstadoYLaOperacion() {
         var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PASO, "CONFIRMACION");
         entrada(Optional.of(AHORA.minus(Duration.ofHours(23))), OptionalLong.of(FICHA), estado,
-                new Entrada.Texto(PalabraClave.OTRA));
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.RESERVAR)));
+        var servicio = new ServicioOpcion(3, "Corte", 30, new BigDecimal("25.00"));
+        when(consultas.servicios()).thenReturn(java.util.List.of(servicio));
+        when(textos.elegirServicio()).thenReturn("elige");
+        when(menus.servicios("elige", java.util.List.of(servicio), 0)).thenReturn(interactivo);
         recibir();
         verify(conversaciones, never()).vaciar(anyLong());
         verify(operaciones, never()).anularVigente(anyLong());
@@ -142,7 +150,8 @@ class OrquestadorConversacionTest {
     @Test
     void aceptarConFranjaPendiente_creaLaFichaYProponeEsaFranja() {
         var franja = new CodigoSeleccion.Franja(3, 4, AHORA.plus(Duration.ofDays(1)).getEpochSecond());
-        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, franja.codificar());
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, franja.codificar())
+                .put(ConversacionesWhatsApp.PASO, "CONSENTIMIENTO");
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), estado, seleccion(new CodigoSeleccion.Privacidad(true)));
         when(consentimiento.aceptar(any(), eq("Ana Pérez"))).thenReturn(FICHA);
         var resumen = new ResumenOperacion(TipoOperacion.CREAR, "Corte", "Carlos", AHORA, AHORA, 30,
@@ -162,8 +171,47 @@ class OrquestadorConversacionTest {
                 seleccion(new CodigoSeleccion.Privacidad(false)));
         when(textos.privacidadRechazada()).thenReturn("sin ficha");
         recibir();
-        verifyNoInteractions(consentimiento, operaciones);
+        verifyNoInteractions(consentimiento);
+        verify(operaciones, never()).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any());
         verify(menus).menuPrincipal("sin ficha");
+    }
+
+    @Test
+    void aceptarSinAvisoPresentado_noCreaFicha() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Privacidad(true)));
+        recibir();
+        verifyNoInteractions(consentimiento);
+        verify(operaciones, never()).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any());
+        verify(menus).menuPrincipal("bienvenida");
+    }
+
+    @Test
+    void textoNoReconocidoTrasUnaPropuesta_anulaLaVigenteYVaciaElEstado() {
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PASO, "CONFIRMACION");
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), estado, new Entrada.Texto(PalabraClave.OTRA));
+        recibir();
+        verify(operaciones).anularVigente(CONVERSACION);
+        verify(conversaciones).vaciar(CONVERSACION);
+        verify(operaciones, never()).confirmarVigente(anyLong(), anyLong());
+    }
+
+    @Test
+    void franjaConInicioNoRepresentable_noProponeYRespondeNoDisponible() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Franja(3, 4, 999_999_999_999_999_999L)));
+        recibir();
+        verify(operaciones, never()).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any());
+        verify(menus).menuPrincipal("no disponible");
+    }
+
+    @Test
+    void franjaCambioConInicioNoRepresentable_noProponeYRespondeNoDisponible() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.FranjaCambio(245, 999_999_999_999_999_999L)));
+        recibir();
+        verify(operaciones, never()).proponerReprogramacion(anyLong(), anyLong(), anyLong(), any());
+        verify(menus).menuPrincipal("no disponible");
     }
 
     @Test
@@ -173,7 +221,8 @@ class OrquestadorConversacionTest {
         var noVigente = new ResultadoOperacion.NoVigente(MotivoNoVigente.NO_ENCONTRADA);
         when(textos.resultado(noVigente)).thenReturn("no válida");
         recibir();
-        verifyNoInteractions(operaciones);
+        verify(operaciones, never()).confirmar(anyLong(), anyLong(), anyLong(), anyString());
+        verify(operaciones, never()).anular(anyLong(), anyLong(), anyLong(), anyString());
         verify(menus).menuPrincipal("no válida");
     }
 
