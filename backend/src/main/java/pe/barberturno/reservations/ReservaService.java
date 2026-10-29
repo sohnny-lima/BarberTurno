@@ -27,6 +27,7 @@ import pe.barberturno.customers.ClienteRepository;
 @Service
 public class ReservaService {
     private final ReservaRepository reservas;
+    private final jakarta.persistence.EntityManager entidades;
     private final UsuarioRepository usuarios;
     private final ClienteRepository clientes;
     private final BarberoRepository barberos;
@@ -50,11 +51,13 @@ public class ReservaService {
      * @param notificaciones escritura de avisos RN-15
      * @param clock reloj inyectado del servidor
      * @param reglasNegocio lectura transaccional del límite, confirmación y anticipación RN-07/20/21
+     * @param entidades refresco bajo bloqueos para evitar entidades obsoletas en la entrega
      * @param autorizacion política única de visibilidad por propietario, asignación o ADMIN
      */
     public ReservaService(ReservaRepository reservas, UsuarioRepository usuarios, ClienteRepository clientes, BarberoRepository barberos,
             ServicioRepository servicios, DisponibilidadService disponibilidad, AuditoriaService auditoria,
-            NotificacionService notificaciones, Clock clock, ReglasNegocioService reglasNegocio, ReservaAutorizacion autorizacion) {
+            NotificacionService notificaciones, Clock clock, ReglasNegocioService reglasNegocio, ReservaAutorizacion autorizacion, jakarta.persistence.EntityManager entidades) {
+        this.entidades = entidades;
         this.reservas = reservas;
         this.usuarios = usuarios;
         this.clientes = clientes;
@@ -187,7 +190,9 @@ public class ReservaService {
                 + TiempoNegocio.aLima(reserva.getInicio()).format(
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
-        notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, AccionAuditoria.CANCELAR, mensaje);
+        if (reserva.getCliente().getUsuario() != null) {
+            notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, AccionAuditoria.CANCELAR, mensaje);
+        }
         var asignado = reserva.getBarbero().getUsuario();
         if (asignado.getId() != actor.id()) {
             notificaciones.notificar(asignado, reserva, AccionAuditoria.CANCELAR, mensaje);
@@ -250,7 +255,9 @@ public class ReservaService {
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima), con " + nuevo.getNombreVisible() + ".";
         var destinatarios = new LinkedHashMap<Long, Usuario>();
-        destinatarios.put(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getUsuario());
+        if (reserva.getCliente().getUsuario() != null) {
+            destinatarios.put(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getUsuario());
+        }
         for (var usuario : List.of(anterior, nuevo.getUsuario())) {
             if (usuario.getId() != actor.id()) destinatarios.put(usuario.getId(), usuario);
         }
@@ -310,7 +317,9 @@ public class ReservaService {
                 + ", " + TiempoNegocio.aLima(reserva.getInicio()).format(
                         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.forLanguageTag("es-PE")))
                 + " (hora de Lima).";
-        notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, accion, mensaje);
+        if (reserva.getCliente().getUsuario() != null) {
+            notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, accion, mensaje);
+        }
         var asignado = reserva.getBarbero().getUsuario();
         if (accion == AccionAuditoria.CONFIRMAR && asignado.getId() != actor.id()) {
             notificaciones.notificar(asignado, reserva, accion, mensaje);
@@ -337,6 +346,179 @@ public class ReservaService {
                     "Indique un motivo de al menos cinco caracteres no blancos.");
         }
         return admin && !reglas.puedeModificar(ahora, inicio, false, null, parametros.anticipacionCambioCliente());
+    }
+
+    /**
+     * Revalida una creación por ficha sin efectuar cambios de dominio, también para propuestas.
+     * Toma ① y ② y refresca las entidades tras esperar; aplica RN-04/05/06/20.
+     * @param fichaId ficha verificada del negocio
+     * @param servicioId servicio elegido
+     * @param barberoId profesional elegido
+     * @param inicio inicio absoluto solicitado
+     * @return entidad nueva sin persistir con las referencias validadas
+     * @throws NegocioException si falta un recurso o incumple las reglas de autoservicio
+     */
+    @Transactional(noRollbackFor = NegocioException.class)
+    public Reserva prepararCreacionFicha(long fichaId, long servicioId, long barberoId, Instant inicio) {
+        return prepararCreacionFicha(fichaId, servicioId, barberoId, inicio, null, null);
+    }
+
+    private Reserva prepararCreacionFicha(long fichaId, long servicioId, long barberoId, Instant inicio,
+            Integer duracionEsperada, java.math.BigDecimal precioEsperado) {
+        var parametros = reglasNegocio.reservas();
+        var ficha = bloquearFicha(fichaId); // ①
+        var perfiles = barberos.bloquearPorIds(List.of(barberoId)); // ②
+        if (perfiles.isEmpty()) throw noEncontrado();
+        var perfil = perfiles.getFirst();
+        entidades.refresh(perfil);
+        var servicio = servicios.findById(servicioId).orElseThrow(this::noEncontrado);
+        entidades.refresh(servicio);
+        if (duracionEsperada != null && (servicio.getDuracionMin() != duracionEsperada
+                || servicio.getPrecio().compareTo(precioEsperado) != 0)) {
+            throw new NegocioException(ErrorCodigo.VERSION_DESACTUALIZADA, "El servicio cambió. Solicite otro resumen.");
+        }
+        if (!servicio.isActivo() || !perfil.isActivo()) {
+            throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO, "El servicio o barbero está inactivo.");
+        }
+        var fin = new ReglasTemporales().calcularFin(inicio, servicio.getDuracionMin());
+        validarFranjaFicha(fichaId, barberoId, inicio, fin, 0);
+        if (reservas.contarFuturasQueOcupan(fichaId, clock.instant()) >= parametros.maxActivasPorCliente()) {
+            throw new NegocioException(ErrorCodigo.LIMITE_RESERVAS_ACTIVAS, "Ha alcanzado el límite de reservas futuras.");
+        }
+        return Reserva.porFicha(ficha, perfil, servicio, inicio,
+                parametros.confirmacionManual() ? EstadoReserva.PENDIENTE : EstadoReserva.CONFIRMADA, clock.instant());
+    }
+
+    /**
+     * Crea como la propia ficha; todas las validaciones preceden a la primera escritura.
+     * @param fichaId actor y propietario verificado
+     * @param servicioId servicio del resumen
+     * @param barberoId profesional del resumen
+     * @param inicio inicio confirmado
+     * @param duracion duración del resumen para detectar cambios de catálogo
+     * @param precio precio del resumen para detectar cambios de catálogo
+     * @return reserva persistida con canal WHATSAPP y sin cuenta creadora
+     * @throws NegocioException si cambió el catálogo o se incumple alguna regla, sin escrituras
+     */
+    @Transactional(noRollbackFor = NegocioException.class)
+    public Reserva crearFicha(long fichaId, long servicioId, long barberoId, Instant inicio,
+            int duracion, java.math.BigDecimal precio) {
+        var reserva = prepararCreacionFicha(fichaId, servicioId, barberoId, inicio, duracion, precio);
+        reservas.saveAndFlush(reserva);
+        auditoria.registrarCambioFicha(reserva, reserva.getCliente(), AccionAuditoria.CREAR, null, null, datosCancelacion(reserva));
+        avisarFicha(reserva, AccionAuditoria.CREAR);
+        return reserva;
+    }
+
+    /**
+     * Revalida propiedad después de ③, versión y RN-07/09 sin cambiar la cita.
+     * @param fichaId ficha actora
+     * @param id cita solicitada
+     * @param version versión que leyó el resumen
+     * @param inicio nuevo inicio, o nulo al cancelar
+     * @return cita bloqueada y validada
+     * @throws NegocioException si la cita es ajena, cambió, está fuera de plazo o la franja no es válida
+     */
+    @Transactional(noRollbackFor = NegocioException.class)
+    public Reserva prepararCambioFicha(long fichaId, long id, int version, Instant inicio) {
+        var parametros = reglasNegocio.reservas();
+        var lectura = reservas.leerParaReprogramar(id).orElseThrow(this::noEncontrado);
+        bloquearFicha(fichaId); // ①; nunca se bloquea una ficha ajena indicada por la cita
+        var perfiles = barberos.bloquearPorIds(List.of(lectura.barberoId())); // ②
+        perfiles.forEach(entidades::refresh);
+        var reserva = reservas.bloquearPorId(id).orElseThrow(this::noEncontrado); // ③
+        entidades.refresh(reserva);
+        if (reserva.getCliente().getId() != fichaId) throw noEncontrado();
+        if (reserva.getVersion() != version || reserva.getBarbero().getId() != lectura.barberoId()) {
+            throw new NegocioException(ErrorCodigo.VERSION_DESACTUALIZADA, "La reserva cambió. Solicite otro resumen.");
+        }
+        if (inicio != null ? reserva.getEstado() != EstadoReserva.CONFIRMADA
+                : reserva.getEstado() != EstadoReserva.CONFIRMADA && reserva.getEstado() != EstadoReserva.PENDIENTE) {
+            throw new NegocioException(ErrorCodigo.TRANSICION_INVALIDA, "El estado no permite esta acción.");
+        }
+        if (!new ReglasTemporales().puedeModificar(clock.instant(), reserva.getInicio(), false, null,
+                parametros.anticipacionCambioCliente())) {
+            throw new NegocioException(ErrorCodigo.FUERA_DE_POLITICA, "La cita está fuera del plazo de modificación.");
+        }
+        if (inicio != null) {
+            validarFranjaFicha(fichaId, reserva.getBarbero().getId(), inicio,
+                    new ReglasTemporales().calcularFin(inicio, reserva.getDuracionRefMin()), id);
+        }
+        return reserva;
+    }
+
+    /**
+     * Mueve la cita conservando profesional, servicio, precio y duración del resumen.
+     * @param fichaId ficha actora y propietaria
+     * @param id cita confirmada
+     * @param version versión del resumen
+     * @param inicio nuevo inicio
+     * @return cita reprogramada con versión incrementada
+     * @throws NegocioException si alguna validación falla antes de escribir
+     */
+    @Transactional(noRollbackFor = NegocioException.class)
+    public Reserva reprogramarFicha(long fichaId, long id, int version, Instant inicio) {
+        var reserva = prepararCambioFicha(fichaId, id, version, inicio);
+        var antes = datosReprogramacion(reserva);
+        reserva.reprogramar(reserva.getBarbero(), inicio, clock.instant());
+        reservas.saveAndFlush(reserva);
+        auditoria.registrarCambioFicha(reserva, reserva.getCliente(), AccionAuditoria.REPROGRAMAR,
+                EstadoReserva.CONFIRMADA, antes, datosReprogramacion(reserva));
+        avisarFicha(reserva, AccionAuditoria.REPROGRAMAR);
+        return reserva;
+    }
+
+    /**
+     * Cancela la cita propia sin borrar su historia ni cambiar el canal original.
+     * @param fichaId ficha actora y propietaria
+     * @param id cita pendiente o confirmada
+     * @param version versión del resumen
+     * @return cita cancelada con versión incrementada
+     * @throws NegocioException si alguna validación falla antes de escribir
+     */
+    @Transactional(noRollbackFor = NegocioException.class)
+    public Reserva cancelarFicha(long fichaId, long id, int version) {
+        var reserva = prepararCambioFicha(fichaId, id, version, null);
+        var anterior = reserva.getEstado();
+        var antes = datosCancelacion(reserva);
+        reserva.cambiarEstado(EstadoReserva.CANCELADA, clock.instant());
+        reservas.saveAndFlush(reserva);
+        auditoria.registrarCambioFicha(reserva, reserva.getCliente(), AccionAuditoria.CANCELAR,
+                anterior, antes, datosCancelacion(reserva));
+        avisarFicha(reserva, AccionAuditoria.CANCELAR);
+        return reserva;
+    }
+
+    private pe.barberturno.customers.Cliente bloquearFicha(long fichaId) {
+        var ficha = clientes.bloquearPorId(fichaId).orElseThrow(this::noEncontrado);
+        entidades.refresh(ficha);
+        if (!ficha.isActivo()) throw noEncontrado();
+        if (ficha.getUsuario() != null) {
+            entidades.refresh(ficha.getUsuario());
+            if (!ficha.getUsuario().isActivo()) {
+                throw new NegocioException(ErrorCodigo.RECURSO_INACTIVO, "El cliente está inactivo.");
+            }
+        }
+        return ficha;
+    }
+
+    private void validarFranjaFicha(long fichaId, long barberoId, Instant inicio, Instant fin, long excluirId) {
+        disponibilidad.validarFranja(barberoId, inicio, fin, excluirId).ifPresent(codigo -> {
+            throw new NegocioException(codigo, "La franja no cumple la disponibilidad.");
+        });
+        if (!reservas.buscarSolapamientosCliente(fichaId, inicio, fin, excluirId).isEmpty()) {
+            throw new NegocioException(ErrorCodigo.CLIENTE_CON_RESERVA_SOLAPADA, "Ya tiene una cita en esa franja.");
+        }
+    }
+
+    private void avisarFicha(Reserva reserva, AccionAuditoria accion) {
+        String mensaje = "Reserva BT-" + reserva.getId() + ": " + accion.name() + ", "
+                + TiempoNegocio.aLima(reserva.getInicio()).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                + " (hora de Lima).";
+        if (reserva.getCliente().getUsuario() != null) {
+            notificaciones.notificar(reserva.getCliente().getUsuario(), reserva, accion, mensaje);
+        }
+        notificaciones.notificar(reserva.getBarbero().getUsuario(), reserva, accion, mensaje);
     }
 
     private Map<String, Object> datosReprogramacion(Reserva reserva) {

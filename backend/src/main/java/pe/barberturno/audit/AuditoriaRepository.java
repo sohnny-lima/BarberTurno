@@ -20,6 +20,6 @@ public interface AuditoriaRepository extends RepositorioTransaccional<AuditoriaR
      * @param reservaId reserva previamente autorizada por el servicio
      * @return cambios del más antiguo al más reciente
      */
-    @Query("select a from AuditoriaReserva a join fetch a.actor where a.reserva.id = :reservaId order by a.creadoEn, a.id")
+    @Query("select a from AuditoriaReserva a left join fetch a.actor left join fetch a.actorCliente where a.reserva.id = :reservaId order by a.creadoEn, a.id")
     List<AuditoriaReserva> buscarHistorial(@Param("reservaId") long reservaId);
 }

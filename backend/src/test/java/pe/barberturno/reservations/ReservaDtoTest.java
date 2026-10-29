@@ -37,6 +37,7 @@ class ReservaDtoTest {
         reserva = mock(Reserva.class);
         when(reserva.getId()).thenReturn(100L);
         var ficha = new pe.barberturno.customers.Cliente(cliente, inicio);
+        org.springframework.test.util.ReflectionTestUtils.setField(ficha, "id", 77L);
         when(reserva.getCliente()).thenReturn(ficha);
         when(reserva.getBarbero()).thenReturn(barbero);
         when(reserva.getServicio()).thenReturn(servicio);

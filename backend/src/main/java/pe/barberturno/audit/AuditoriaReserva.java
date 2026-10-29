@@ -39,9 +39,13 @@ public class AuditoriaReserva {
     @JoinColumn(name = "reserva_id", nullable = false)
     private Reserva reserva;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "actor_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_id")
     private Usuario actor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_cliente_id")
+    private pe.barberturno.customers.Cliente actorCliente;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "accion", nullable = false, length = 12)
@@ -108,6 +112,36 @@ public class AuditoriaReserva {
         this.excepcional = excepcional;
     }
 
+    /**
+     * Registra un cambio de la propia ficha sin inventar una identidad web.
+     * @param reserva reserva ya persistida
+     * @param ficha actor local del negocio
+     * @param accion acción realizada
+     * @param anterior estado previo o nulo al crear
+     * @param antes instantánea previa o nula al crear
+     * @param despues instantánea posterior
+     * @param ahora instante del Clock
+     * @return entrada atribuida exclusivamente a la ficha
+     * @throws NullPointerException si falta la reserva, ficha, acción, datos posteriores o instante
+     */
+    public static AuditoriaReserva porFicha(Reserva reserva, pe.barberturno.customers.Cliente ficha,
+            AccionAuditoria accion, EstadoReserva anterior, Map<String, Object> antes,
+            Map<String, Object> despues, Instant ahora) {
+        var entrada = new AuditoriaReserva();
+        entrada.reserva = Objects.requireNonNull(reserva);
+        entrada.actorCliente = Objects.requireNonNull(ficha);
+        entrada.accion = Objects.requireNonNull(accion);
+        entrada.estadoAnterior = anterior;
+        entrada.estadoNuevo = reserva.getEstado();
+        entrada.datosAnteriores = antes == null ? null : new LinkedHashMap<>(antes);
+        entrada.datosNuevos = new LinkedHashMap<>(despues);
+        entrada.creadoEn = Objects.requireNonNull(ahora);
+        return entrada;
+    }
+
+    /** {@return ficha actora o nula cuando actuó una cuenta web} */
+    public pe.barberturno.customers.Cliente getActorCliente() { return actorCliente; }
+
     /** {@return identificador persistente generado por V1; nulo hasta persistir la entidad} */
     public Long getId() {
         return id;
@@ -118,7 +152,7 @@ public class AuditoriaReserva {
         return reserva;
     }
 
-    /** {@return usuario que ejecutó el cambio auditado, enlazado por actor_id; no nulo} */
+    /** {@return cuenta actora o nula cuando actuó una ficha} */
     public Usuario getActor() {
         return actor;
     }
