@@ -345,13 +345,22 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             }
         }
 
+        /**
+         * Responde al resultado de una confirmación. {@code Ejecutada} (también repetida) muestra el menú y,
+         * como todo menú, anula cualquier otra vigente (revisión 120-1). {@code NoVigente} responde solo con
+         * texto y no toca la vigente: una pulsación inválida o antigua no cambia nada (CJ-5; revisión 120-2).
+         */
         private void resultado(ResultadoOperacion resultado) {
-            if (resultado instanceof ResultadoOperacion.Ejecutada ejecutada) {
-                conversaciones.vaciar(conversacion.id());
-                salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.resultado(resultado)),
-                        OrigenMensaje.SISTEMA, OptionalLong.of(ejecutada.cita().reservaId()));
-            } else {
-                menu(textos.resultado(resultado));
+            switch (resultado) {
+                case ResultadoOperacion.Ejecutada ejecutada -> {
+                    operaciones.anularVigente(conversacion.id());
+                    conversaciones.vaciar(conversacion.id());
+                    salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.resultado(resultado)),
+                            OrigenMensaje.SISTEMA, OptionalLong.of(ejecutada.cita().reservaId()));
+                }
+                case ResultadoOperacion.NoVigente ignorada -> salida.encolarTexto(conversacion.id(),
+                        textos.resultado(resultado), OrigenMensaje.ASISTENTE, OptionalLong.empty());
+                default -> menu(textos.resultado(resultado));
             }
         }
 

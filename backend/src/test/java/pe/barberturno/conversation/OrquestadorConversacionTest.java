@@ -223,7 +223,54 @@ class OrquestadorConversacionTest {
         recibir();
         verify(operaciones, never()).confirmar(anyLong(), anyLong(), anyLong(), anyString());
         verify(operaciones, never()).anular(anyLong(), anyLong(), anyLong(), anyString());
-        verify(menus).menuPrincipal("no válida");
+        verify(operaciones, never()).anularVigente(anyLong());
+        verify(salida).encolarTexto(CONVERSACION, "no válida", OrigenMensaje.ASISTENTE, OptionalLong.empty());
+        verify(menus, never()).menuPrincipal(anyString());
+    }
+
+    @Test
+    void confirmacionConNonceIncorrecto_respondeSoloTextoYConservaLaVigente() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
+        var noVigente = new ResultadoOperacion.NoVigente(MotivoNoVigente.NO_ENCONTRADA);
+        when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(noVigente);
+        when(textos.resultado(noVigente)).thenReturn("no válida");
+        recibir();
+        verify(operaciones, never()).anularVigente(anyLong());
+        verify(conversaciones, never()).vaciar(anyLong());
+        verify(salida).encolarTexto(CONVERSACION, "no válida", OrigenMensaje.ASISTENTE, OptionalLong.empty());
+    }
+
+    @Test
+    void repetirUnaEjecutadaConOtraVigente_anulaLaVigenteAlMostrarElMenu() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
+        var cita = new CitaOpcion(245, "BT-245", 3, "Corte", 4, "Carlos", AHORA, AHORA.plusSeconds(1800),
+                new BigDecimal("25.00"), EstadoReserva.CONFIRMADA, 0, true, true);
+        var repetida = new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, cita, true);
+        when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(repetida);
+        when(textos.resultado(repetida)).thenReturn("listo");
+        recibir();
+        verify(operaciones).anularVigente(CONVERSACION);
+        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.of(245));
+    }
+
+    @Test
+    void aceptarConFranjaValidaPeroSinElPasoDeConsentimiento_noCreaFicha() {
+        var franja = new CodigoSeleccion.Franja(3, 4, AHORA.plus(Duration.ofDays(1)).getEpochSecond());
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, franja.codificar())
+                .put(ConversacionesWhatsApp.PASO, "FRANJA");
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), estado, seleccion(new CodigoSeleccion.Privacidad(true)));
+        recibir();
+        verifyNoInteractions(consentimiento);
+    }
+
+    @Test
+    void franjaConUnSegundoMasQueElMaximo_noPropone() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Franja(3, 4, OrquestadorConversacion.INSTANTE_MAXIMO + 1)));
+        recibir();
+        verify(operaciones, never()).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any());
     }
 
     @Test
