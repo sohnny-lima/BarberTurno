@@ -187,7 +187,7 @@ Validación de los parámetros: exactamente los del catálogo; cada valor no en 
 | `lote` | `20` (mensajes por negocio y pasada) |
 | `max-intentos` | `5` (máximo 100, por `smallint`) |
 | `espera-base` / `espera-maxima` | `30s` / `5m`: con 5 intentos, unos 7 min 30 s de esperas |
-| `max-inciertos` | `2`: un resultado desconocido se reenvía una sola vez |
+| `max-inciertos` | `2`: el segundo desconocido **contabilizado** termina el mensaje. No limita los reenvíos tras un cierre perdido ni tras un 429/5xx posterior (H-116-01/02); el tope absoluto es `max-intentos` |
 | `espera-conciliacion` | `2m` |
 | `reclamo` | `60s` |
 | `antiguedad-maxima` | `6h` |
@@ -229,7 +229,7 @@ Validación de los parámetros: exactamente los del catálogo; cada valor no en 
 ## 7. Pendientes y bloqueos registrados
 - **P2-05:** token, número de prueba, destinatarios y aprobación de las tres plantillas. Sin ellos, la conexión real no está acreditada.
 - **Retención** de `mensaje_whatsapp.contenido`, de las conversaciones sin ficha y de `evento_whatsapp_entrante.cuerpo`: se fija con P2-06 en V2-10.
-- **Garantía de entrega:** al menos una vez, con duplicados acotados y conciliación; no es exactamente una vez (V2-DA-58).
+- **Garantía de entrega:** reintentos acotados por `max-intentos`, con conciliación. No garantiza que el mensaje llegue ni que no se duplique (hasta `max-intentos` envíos en el peor caso); no es exactamente una vez (V2-DA-58, precisada el 29/10/2026).
 - **Visibilidad de los avisos** (hallazgo 111-14): la cabecera oculta los avisos al rol efectivo `ADMIN` (propietario y encargado), herencia de RN-15 de v1. Los avisos de V2-09 se guardan y el profesional los ve, pero mostrarlos a propietarios y encargados es un cambio de interfaz que se hará tras integrar V2-07, que reescribe esa cabecera.
 - **Integración con V2-07:** los conflictos ya anotados en V2-08 (`ResolutorNegocio.esGlobal`, `07-decisiones.md`, `10-backlog.md`) y el `vaciar()` de los E2E, que debe incluir `canal_whatsapp`, `evento_whatsapp_entrante`, `conversacion` y `mensaje_whatsapp`. **Cierre robusto del entorno de revisión** de V2-07: el `finally` del script no se ejecuta si se cierra la consola (visto el 28/10); pendiente de una solución verificada.
 

@@ -141,7 +141,7 @@ Claves: el modelo **nunca** ejecuta la reserva; la confirmación es la pulsació
 |---|---|
 | *Webhook* repetido por Meta | `evento_whatsapp_clave_uk` → se ignora; respuesta 200. |
 | Doble pulsación de [Confirmar] | La primera bloquea y ejecuta la operación (`EJECUTADA`); la segunda la encuentra ejecutada y repite la misma respuesta, sin crear otra reserva. |
-| Error transitorio de la Graph API (429, 5xx, red) | Reintento con espera exponencial (5 intentos, unos 7 min 30 s de esperas). Si no se sabe si Meta lo aceptó (tiempo de respuesta agotado), se espera 2 min a que un aviso de estado lo concilie y se reenvía una sola vez (V2-DA-58, precisado el 28/10/2026). |
+| Error transitorio de la Graph API (429, 5xx, red) | Reintento con espera exponencial (5 intentos, unos 7 min 30 s de esperas). Si no se sabe si Meta lo aceptó (tiempo de respuesta agotado), se espera 2 min a que un aviso de estado lo concilie y se reenvía; el segundo desconocido contabilizado termina el mensaje. Tope absoluto: 5 POST por mensaje; sin garantía de llegada y con posibles duplicados (V2-DA-58, precisado el 29/10/2026; H-116-01/02 abiertos). |
 | Error permanente (número no válido, ventana cerrada, plantilla rechazada) | `FALLIDO` + aviso interno al personal con la reserva afectada. **La operación no se deshace.** |
 | Aviso de estado `failed` de Meta | Igual que un error permanente. |
 | Número receptor desconocido | Evento `DESCARTADO`, registro sin contenido. |

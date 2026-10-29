@@ -304,6 +304,17 @@
 - **Por qué** (propuesta 111-4 de Codex, aceptada): el mensaje acompaña a una operación ya confirmada (V2-RN-11), y perder un aviso de cancelación o de cambio perjudica más al cliente que recibirlo dos veces. La espera de conciliación evita el duplicado en el caso habitual, en que Meta sí aceptó el mensaje y su aviso `sent` llega en segundos.
 - **Alternativa descartada:** como mucho una vez (sin reenviar un resultado desconocido). No duplica, pero pierde los mensajes que no llegaron a Meta y, ante una caída del proceso, seguiría reenviando: la garantía dependería de dónde se produjera el fallo.
 - **Revisable por el responsable:** es una decisión de producto con contrapartida (duplicado frente a pérdida); se puede cambiar con `max-inciertos = 1`.
+- **Precisión de lo que garantiza el código (29/10/2026, revisión de Codex 116; la política no cambia):**
+  - **Persistencia:** el mensaje vive en la outbox desde la transacción que lo origina. Antes de cada POST, el reclamo incrementa y confirma `intentos` (la ficha) en su propia transacción.
+  - **Intentos acotados, no entrega garantizada:** como máximo `max-intentos` POST por mensaje (5 con la configuración actual), también con caídas o reclamos vencidos. Agotados los intentos, o ante un fallo permanente, una caducidad o un segundo desconocido, el mensaje queda `FALLIDO` y no se entrega. «Al menos una vez» describe la intención de reenviar ante la duda, **no** una garantía de que todo mensaje llegue.
+  - **Resultado desconocido:** el cierre confirmado incrementa `inciertos` y guarda, en la misma transacción, el siguiente intento tras la espera de conciliación. Eso **sí** se conserva frente a un reinicio. Con `max-inciertos = 2`, el segundo desconocido **contabilizado** deja `FALLIDO`/`RESULTADO_DESCONOCIDO`.
+  - **Lo que el límite no cubre** (hallazgos H-116-01 y H-116-02, abiertos):
+    - un desconocido cuyo cierre se pierde (caída del proceso entre la respuesta y el cierre) o se descarta por ficha antigua (reclamo vencido y otro enviador) no incrementa `inciertos`;
+    - un rechazo transitorio (429, 5xx) o `NoEnviado` después de un desconocido sigue la vía de reintentos.
+
+    Por eso puede haber **más de un reenvío** tras un primer desconocido, siempre dentro de `max-intentos`.
+  - **Duplicados:** son posibles tantas aceptaciones de Meta como POST cuyo resultado no llegó a cerrarse; con la configuración actual, hasta 5 envíos del mismo mensaje en el peor caso. La conciliación evita los reenvíos cuando el aviso `sent` llega a tiempo, pero no retira una solicitud ya enviada ni deduplica en Meta. `max-inciertos = 1` no elimina los duplicados por cierres perdidos.
+  - **Decisión pendiente del responsable:** si «un único reenvío» debe ser un límite absoluto, hay que cambiar la política. Por ejemplo, con un presupuesto de envíos potencialmente aceptados que se consuma y confirme **antes** del HTTP, y que cuente un intento preparado sin cierre como desconocido. No se aplica sin su decisión.
 
 ### V2-DA-59 · Avisos de estado monótonos por `wamid` (28/10/2026)
 - **Decisión:**
