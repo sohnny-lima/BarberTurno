@@ -1,10 +1,15 @@
 package pe.barberturno.common.tenancy;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.util.List;
 import java.util.Map;
 import org.postgresql.util.PSQLException;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -16,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * (incluyendo denegación de DELETE, TRUNCATE, REFERENCES y TRIGGER), aislamiento sin contexto,
  * restricciones {@code CHECK} con validación de SQLState y nombre de restricción, claves foráneas
  * compuestas y definiciones completas de índices parciales del outbox.
+ * No deja ningún estado persistente en la conexión ni en la base de datos: opera dentro de una
+ * transacción o punto de recuperación local revertido al finalizar.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -34,10 +41,41 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     "tipo", "contenido", "reserva_id", "creado_en"));
 
     /**
-     * Ejecuta todas las comprobaciones del esquema de V114 contra la base de datos de pruebas.
+     * Ejecuta todas las comprobaciones del esquema de V114 contra la base de datos de pruebas sin dejar estado.
      * @param jdbc plantilla JDBC autenticada con el rol de la aplicación
      */
     public static void comprobar(JdbcTemplate jdbc) {
+        jdbc.execute((ConnectionCallback<Void>) con -> {
+            boolean autoCommitOriginal = con.getAutoCommit();
+            Savepoint puntoInicial = null;
+            if (autoCommitOriginal) {
+                con.setAutoCommit(false);
+            } else {
+                puntoInicial = con.setSavepoint();
+            }
+            var jdbcLocal = new JdbcTemplate(new SingleConnectionDataSource(con, true));
+            try {
+                ejecutarComprobaciones(con, jdbcLocal);
+                return null;
+            } finally {
+                if (autoCommitOriginal) {
+                    try {
+                        con.rollback();
+                    } finally {
+                        con.setAutoCommit(true);
+                    }
+                } else {
+                    con.rollback(puntoInicial);
+                    try {
+                        con.releaseSavepoint(puntoInicial);
+                    } catch (SQLException ignored) {
+                    }
+                }
+            }
+        });
+    }
+
+    private static void ejecutarComprobaciones(Connection con, JdbcTemplate jdbc) throws SQLException {
         // 1. RLS y FORCE RLS en conversacion y mensaje_whatsapp
         for (String tabla : List.of("conversacion", "mensaje_whatsapp")) {
             assertThat(jdbc.queryForObject("select relrowsecurity and relforcerowsecurity from pg_class where oid=?::regclass",
@@ -73,13 +111,22 @@ public final class WhatsAppSalidaEsquemaPruebas {
         }
 
         // 2. Aislamiento sin contexto de negocio
-        jdbc.execute("SELECT set_config('app.negocio_id', '', false)");
+        jdbc.execute("SELECT set_config('app.negocio_id', '', true)");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM conversacion", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensaje_whatsapp", Integer.class)).isZero();
-        assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
-                VALUES ('51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """)).isInstanceOf(DataAccessException.class);
+        Savepoint spAislamiento = con.setSavepoint();
+        try {
+            assertThatThrownBy(() -> jdbc.update("""
+                    INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
+                    VALUES ('51999000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """)).isInstanceOf(DataAccessException.class);
+        } finally {
+            con.rollback(spAislamiento);
+            try {
+                con.releaseSavepoint(spAislamiento);
+            } catch (SQLException ignored) {
+            }
+        }
 
         // 3. FKs compuestas que involucran conversacion y mensaje_whatsapp
         List<String> fksCompuestas = jdbc.queryForList("""
@@ -116,7 +163,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 .contains("PENDIENTE");
 
         // 6. Operaciones inválidas que comprueban los CHECK con SQLState 23514 y nombre de restricción
-        jdbc.execute("SELECT set_config('app.negocio_id', '1', false)");
+        jdbc.execute("SELECT set_config('app.negocio_id', '1', true)");
         Long convId = jdbc.queryForObject("""
                 INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
                 VALUES ('51900000999', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -125,19 +172,19 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, Long.class);
 
         // a) conversacion_wa_formato
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO conversacion (wa_id, creado_en, actualizado_en)
                 VALUES ('no-numerico', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """), "conversacion_wa_formato");
 
         // b) conversacion_modo_valido
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO conversacion (wa_id, modo, creado_en, actualizado_en)
                 VALUES ('51900000998', 'INVALIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """), "conversacion_modo_valido");
 
         // c) mensaje_intentos_validos
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     intentos, proximo_intento, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
@@ -145,7 +192,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, convId), "mensaje_intentos_validos");
 
         // d) mensaje_error_coherente
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     error_codigo, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'FALLIDO',
@@ -153,7 +200,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, convId), "mensaje_error_coherente");
 
         // e) mensaje_pendiente_programado
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     proximo_intento, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
@@ -161,7 +208,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, convId), "mensaje_pendiente_programado");
 
         // f) mensaje_envio_coherente
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     wamid, enviado_como, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
@@ -169,7 +216,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, convId), "mensaje_envio_coherente");
 
         // g) mensaje_entrada_coherente
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     proximo_intento, creado_en, actualizado_en)
                 VALUES (?, 'ENTRANTE', 'CLIENTE', 'TEXTO', '{"texto":"ok"}'::jsonb, 'PENDIENTE',
@@ -177,7 +224,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, convId), "mensaje_entrada_coherente");
 
         // h) mensaje_enviado_como_valido
-        verificarRestriccion(() -> jdbc.update("""
+        verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO mensaje_whatsapp (conversacion_id, direccion, origen, tipo, contenido, estado,
                     wamid, enviado_como, creado_en, actualizado_en)
                 VALUES (?, 'SALIENTE', 'SISTEMA', 'TEXTO', '{"texto":"ok"}'::jsonb, 'ENVIADO',
@@ -191,13 +238,22 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 """, Integer.class)).isEqualTo(160);
     }
 
-    private static void verificarRestriccion(Runnable accion, String restriccionEsperada) {
-        assertThatThrownBy(accion::run)
-                .isInstanceOf(DataAccessException.class)
-                .satisfies(fallo -> {
-                    var causa = (PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
-                    assertThat(causa.getSQLState()).as("SQLState 23514 (check_violation)").isEqualTo("23514");
-                    assertThat(causa.getServerErrorMessage().getConstraint()).as("nombre de restricción").isEqualTo(restriccionEsperada);
-                });
+    private static void verificarRestriccion(Connection con, Runnable accion, String restriccionEsperada) throws SQLException {
+        Savepoint punto = con.setSavepoint();
+        try {
+            assertThatThrownBy(accion::run)
+                    .isInstanceOf(DataAccessException.class)
+                    .satisfies(fallo -> {
+                        var causa = (PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
+                        assertThat(causa.getSQLState()).as("SQLState 23514 (check_violation)").isEqualTo("23514");
+                        assertThat(causa.getServerErrorMessage().getConstraint()).as("nombre de restricción").isEqualTo(restriccionEsperada);
+                    });
+        } finally {
+            con.rollback(punto);
+            try {
+                con.releaseSavepoint(punto);
+            } catch (SQLException ignored) {
+            }
+        }
     }
 }
