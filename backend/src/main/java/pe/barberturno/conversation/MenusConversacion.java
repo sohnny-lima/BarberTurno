@@ -1,8 +1,15 @@
 package pe.barberturno.conversation;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Component;
+import pe.barberturno.common.time.TiempoNegocio;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
@@ -19,6 +26,17 @@ import tools.jackson.databind.node.ObjectNode;
 @Component
 public class MenusConversacion {
 
+    private static final int LIMITE_CUERPO = 1024;
+    private static final int LIMITE_TITULO_BOTON = 20;
+    private static final int LIMITE_BOTONES = 3;
+    private static final int LIMITE_TEXTO_BOTON_LISTA = 20;
+    private static final int LIMITE_TITULO_FILA = 24;
+    private static final int LIMITE_DESCRIPCION_FILA = 72;
+    private static final int LIMITE_FILAS = 10;
+    private static final int TAMANO_PAGINA = 9;
+
+    private final TextosConversacion textos = new TextosConversacion();
+
     /** Constructor sin dependencias, usado por Spring y por las pruebas unitarias. */
     public MenusConversacion() { }
 
@@ -28,7 +46,10 @@ public class MenusConversacion {
      * @return objeto interactivo de botones
      */
     public ObjectNode menuPrincipal(String cuerpo) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        return crearBotones(cuerpo, List.of(
+                new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.RESERVAR).codificar(), "Reservar"),
+                new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.MIS_CITAS).codificar(), "Mis citas")
+        ));
     }
 
     /**
@@ -37,7 +58,10 @@ public class MenusConversacion {
      * @return objeto interactivo de botones
      */
     public ObjectNode consentimiento(String cuerpo) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        return crearBotones(cuerpo, List.of(
+                new BotonDef(new CodigoSeleccion.Privacidad(true).codificar(), "Aceptar"),
+                new BotonDef(new CodigoSeleccion.Privacidad(false).codificar(), "No, gracias")
+        ));
     }
 
     /**
@@ -49,7 +73,31 @@ public class MenusConversacion {
      * @return objeto interactivo de lista
      */
     public ObjectNode servicios(String cuerpo, List<ServicioOpcion> servicios, int pagina) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<ServicioOpcion> lista = (servicios != null) ? servicios : List.of();
+        int pag = pagina;
+        int inicio = pag * TAMANO_PAGINA;
+        if (pag < 0 || pag > 9 || (pag > 0 && inicio >= lista.size())) {
+            pag = 0;
+            inicio = 0;
+        }
+        int fin = Math.min(inicio + TAMANO_PAGINA, lista.size());
+        List<FilaDef> filas = new ArrayList<>();
+        for (int i = inicio; i < fin; i++) {
+            ServicioOpcion s = lista.get(i);
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.Servicio(s.id()).codificar(),
+                    s.nombre(),
+                    s.duracionMin() + " min · " + textos.precio(s.precio())
+            ));
+        }
+        if (fin < lista.size()) {
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.PaginaServicios(pag + 1).codificar(),
+                    "Ver más",
+                    "Más opciones"
+            ));
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -63,7 +111,55 @@ public class MenusConversacion {
      */
     public ObjectNode profesionales(String cuerpo, long servicioId, List<ProfesionalOpcion> profesionales,
             int pagina) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<ProfesionalOpcion> lista = (profesionales != null) ? profesionales : List.of();
+        int pag = pagina;
+        List<FilaDef> filas = new ArrayList<>();
+
+        if (pag == 0) {
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.Profesional(servicioId, 0).codificar(),
+                    "Cualquiera",
+                    "El primer profesional libre"
+            ));
+            int fin = Math.min(8, lista.size());
+            for (int i = 0; i < fin; i++) {
+                ProfesionalOpcion p = lista.get(i);
+                filas.add(new FilaDef(
+                        new CodigoSeleccion.Profesional(servicioId, p.id()).codificar(),
+                        p.nombre(),
+                        "Profesional"
+                ));
+            }
+            if (lista.size() > 8) {
+                filas.add(new FilaDef(
+                        new CodigoSeleccion.PaginaProfesionales(servicioId, 1).codificar(),
+                        "Ver más",
+                        "Más profesionales"
+                ));
+            }
+        } else {
+            int inicio = 8 + (pag - 1) * TAMANO_PAGINA;
+            if (pag < 0 || pag > 9 || inicio >= lista.size()) {
+                return profesionales(cuerpo, servicioId, profesionales, 0);
+            }
+            int fin = Math.min(inicio + TAMANO_PAGINA, lista.size());
+            for (int i = inicio; i < fin; i++) {
+                ProfesionalOpcion p = lista.get(i);
+                filas.add(new FilaDef(
+                        new CodigoSeleccion.Profesional(servicioId, p.id()).codificar(),
+                        p.nombre(),
+                        "Profesional"
+                ));
+            }
+            if (fin < lista.size()) {
+                filas.add(new FilaDef(
+                        new CodigoSeleccion.PaginaProfesionales(servicioId, pag + 1).codificar(),
+                        "Ver más",
+                        "Más profesionales"
+                ));
+            }
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -76,7 +172,22 @@ public class MenusConversacion {
      * @return objeto interactivo de lista
      */
     public ObjectNode dias(String cuerpo, long servicioId, long barberoId, LocalDate hoy) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<FilaDef> filas = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            LocalDate dia = hoy.plusDays(i);
+            String id = new CodigoSeleccion.Dia(servicioId, barberoId, dia, 0).codificar();
+            String titulo;
+            if (i == 0) {
+                titulo = "Hoy";
+            } else if (i == 1) {
+                titulo = "Mañana";
+            } else {
+                titulo = diaSemanaAbreviado(dia.getDayOfWeek()) + " "
+                        + String.format(Locale.ROOT, "%02d/%02d", dia.getDayOfMonth(), dia.getMonthValue());
+            }
+            filas.add(new FilaDef(id, titulo, textos.fecha(dia)));
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -92,7 +203,31 @@ public class MenusConversacion {
      */
     public ObjectNode franjas(String cuerpo, long servicioId, long barberoId, LocalDate dia,
             List<FranjaOpcion> franjas, int pagina) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<FranjaOpcion> lista = (franjas != null) ? franjas : List.of();
+        int pag = pagina;
+        int inicio = pag * TAMANO_PAGINA;
+        if (pag < 0 || pag > 9 || (pag > 0 && inicio >= lista.size())) {
+            pag = 0;
+            inicio = 0;
+        }
+        int fin = Math.min(inicio + TAMANO_PAGINA, lista.size());
+        List<FilaDef> filas = new ArrayList<>();
+        for (int i = inicio; i < fin; i++) {
+            FranjaOpcion f = lista.get(i);
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.Franja(servicioId, f.barberoId(), f.inicio().getEpochSecond()).codificar(),
+                    textos.hora(f.inicio()) + " · " + f.profesional(),
+                    textos.fecha(f.inicio())
+            ));
+        }
+        if (fin < lista.size()) {
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.Dia(servicioId, barberoId, dia, pag + 1).codificar(),
+                    "Ver más",
+                    "Más horarios"
+            ));
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -103,7 +238,21 @@ public class MenusConversacion {
      * @return objeto interactivo de lista
      */
     public ObjectNode citas(String cuerpo, List<CitaOpcion> citas) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<CitaOpcion> lista = (citas != null) ? citas : List.of();
+        int limite = Math.min(lista.size(), LIMITE_FILAS);
+        List<FilaDef> filas = new ArrayList<>();
+        for (int i = 0; i < limite; i++) {
+            CitaOpcion c = lista.get(i);
+            OffsetDateTime lima = TiempoNegocio.aLima(c.inicio());
+            String fechaHora = String.format(Locale.ROOT, "%02d/%02d %02d:%02d",
+                    lima.getDayOfMonth(), lima.getMonthValue(), lima.getHour(), lima.getMinute());
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.Cita(c.reservaId()).codificar(),
+                    c.codigo() + " · " + fechaHora,
+                    c.servicio() + " con " + c.profesional()
+            ));
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -114,7 +263,15 @@ public class MenusConversacion {
      * @return objeto interactivo de botones
      */
     public ObjectNode accionesCita(String cuerpo, CitaOpcion cita) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<BotonDef> botones = new ArrayList<>();
+        if (cita != null && cita.puedeCancelar()) {
+            botones.add(new BotonDef(new CodigoSeleccion.AccionCita(cita.reservaId(), true).codificar(), "Cancelar"));
+        }
+        if (cita != null && cita.puedeReprogramar()) {
+            botones.add(new BotonDef(new CodigoSeleccion.AccionCita(cita.reservaId(), false).codificar(), "Reprogramar"));
+        }
+        botones.add(new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.INICIO).codificar(), "Menú"));
+        return crearBotones(cuerpo, botones);
     }
 
     /**
@@ -126,7 +283,22 @@ public class MenusConversacion {
      * @return objeto interactivo de lista
      */
     public ObjectNode diasCambio(String cuerpo, long reservaId, LocalDate hoy) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<FilaDef> filas = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            LocalDate dia = hoy.plusDays(i);
+            String id = new CodigoSeleccion.DiaCambio(reservaId, dia, 0).codificar();
+            String titulo;
+            if (i == 0) {
+                titulo = "Hoy";
+            } else if (i == 1) {
+                titulo = "Mañana";
+            } else {
+                titulo = diaSemanaAbreviado(dia.getDayOfWeek()) + " "
+                        + String.format(Locale.ROOT, "%02d/%02d", dia.getDayOfMonth(), dia.getMonthValue());
+            }
+            filas.add(new FilaDef(id, titulo, textos.fecha(dia)));
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -141,7 +313,31 @@ public class MenusConversacion {
      */
     public ObjectNode franjasCambio(String cuerpo, long reservaId, LocalDate dia, List<FranjaOpcion> franjas,
             int pagina) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        List<FranjaOpcion> lista = (franjas != null) ? franjas : List.of();
+        int pag = pagina;
+        int inicio = pag * TAMANO_PAGINA;
+        if (pag < 0 || pag > 9 || (pag > 0 && inicio >= lista.size())) {
+            pag = 0;
+            inicio = 0;
+        }
+        int fin = Math.min(inicio + TAMANO_PAGINA, lista.size());
+        List<FilaDef> filas = new ArrayList<>();
+        for (int i = inicio; i < fin; i++) {
+            FranjaOpcion f = lista.get(i);
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.FranjaCambio(reservaId, f.inicio().getEpochSecond()).codificar(),
+                    textos.hora(f.inicio()) + " · " + f.profesional(),
+                    textos.fecha(f.inicio())
+            ));
+        }
+        if (fin < lista.size()) {
+            filas.add(new FilaDef(
+                    new CodigoSeleccion.DiaCambio(reservaId, dia, pag + 1).codificar(),
+                    "Ver más",
+                    "Más horarios"
+            ));
+        }
+        return crearLista(cuerpo, filas);
     }
 
     /**
@@ -152,6 +348,76 @@ public class MenusConversacion {
      * @return objeto interactivo de botones
      */
     public ObjectNode confirmacion(String cuerpo, long operacionId, String nonce) {
-        throw new UnsupportedOperationException("Bloque G (Gemini)");
+        return crearBotones(cuerpo, List.of(
+                new BotonDef(new CodigoSeleccion.Confirmacion(operacionId, nonce, true).codificar(), "Confirmar"),
+                new BotonDef(new CodigoSeleccion.Confirmacion(operacionId, nonce, false).codificar(), "Cambiar")
+        ));
     }
+
+    private ObjectNode crearBotones(String cuerpo, List<BotonDef> botones) {
+        ObjectNode raiz = JsonNodeFactory.instance.objectNode();
+        raiz.put("type", "button");
+        raiz.putObject("body").put("text", recortar(cuerpo, LIMITE_CUERPO));
+        ArrayNode botonesArr = raiz.putObject("action").putArray("buttons");
+        int limite = Math.min(botones.size(), LIMITE_BOTONES);
+        for (int i = 0; i < limite; i++) {
+            BotonDef b = botones.get(i);
+            ObjectNode btn = botonesArr.addObject();
+            btn.put("type", "reply");
+            btn.putObject("reply")
+                    .put("id", b.id())
+                    .put("title", recortar(b.titulo(), LIMITE_TITULO_BOTON));
+        }
+        return raiz;
+    }
+
+    private ObjectNode crearLista(String cuerpo, List<FilaDef> filas) {
+        ObjectNode raiz = JsonNodeFactory.instance.objectNode();
+        raiz.put("type", "list");
+        raiz.putObject("body").put("text", recortar(cuerpo, LIMITE_CUERPO));
+        ObjectNode action = raiz.putObject("action");
+        action.put("button", recortar("Ver opciones", LIMITE_TEXTO_BOTON_LISTA));
+        ArrayNode sections = action.putArray("sections");
+        ObjectNode section = sections.addObject();
+        section.put("title", recortar("Opciones", LIMITE_TITULO_FILA));
+        ArrayNode rows = section.putArray("rows");
+        int limite = Math.min(filas.size(), LIMITE_FILAS);
+        for (int i = 0; i < limite; i++) {
+            FilaDef f = filas.get(i);
+            ObjectNode row = rows.addObject();
+            row.put("id", f.id());
+            row.put("title", recortar(f.titulo(), LIMITE_TITULO_FILA));
+            row.put("description", recortar(f.descripcion(), LIMITE_DESCRIPCION_FILA));
+        }
+        return raiz;
+    }
+
+    private static String recortar(String texto, int limiteMaximo) {
+        if (texto == null) {
+            return "";
+        }
+        if (texto.length() <= limiteMaximo) {
+            return texto;
+        }
+        if (limiteMaximo <= 1) {
+            return "…";
+        }
+        return texto.substring(0, limiteMaximo - 1) + "…";
+    }
+
+    private String diaSemanaAbreviado(DayOfWeek dow) {
+        return switch (dow) {
+            case MONDAY -> "lun";
+            case TUESDAY -> "mar";
+            case WEDNESDAY -> "mié";
+            case THURSDAY -> "jue";
+            case FRIDAY -> "vie";
+            case SATURDAY -> "sáb";
+            case SUNDAY -> "dom";
+        };
+    }
+
+    private record BotonDef(String id, String titulo) { }
+
+    private record FilaDef(String id, String titulo, String descripcion) { }
 }
