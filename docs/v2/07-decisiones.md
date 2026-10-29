@@ -343,3 +343,54 @@
 ### V2-DA-62 · Configuración de la salida y token de la Fase 1 (28/10/2026)
 - **Decisión:** `barberturno.whatsapp.salida` en un registro propio (`SalidaWhatsAppPropiedades`), con el token de la app en `BT_WHATSAPP_ACCESS_TOKEN` mientras `canal_whatsapp.token_cifrado` sea nulo (número de prueba, V2-DA-14). Sin token, el enviador no reclama nada y los mensajes quedan pendientes; cuando por fin se preparan, los de más de 6 h caducan (`MENSAJE_CADUCADO`) en lugar de llegar tarde. El token nunca se registra: el `toString` lo oculta. La versión de la Graph API (v26.0) se fija en la configuración.
 - **Por qué:** no cambia el registro de configuración de V2-08 y falla cerrado, como V2-DA-55.
+
+### V2-DA-63 · Conversación guiada: un solo recorrido e identificadores autocontenidos (29/10/2026)
+- **Decisión:** menú principal con **Reservar** y **Mis citas**. El recorrido de reserva se puede seguir sin ficha (consulta de servicios, profesionales y franjas, `06-flujos.md` §6) y pide el consentimiento solo al elegir una franja; tras aceptar, continúa con esa franja. Cada botón o fila lleva en su identificador lo que el paso siguiente necesita (`13-v2-10-conversacion-guiada.md` §3.1). El identificador no es de confianza: el servidor revalida el negocio por RLS, la ficha, el estado y las reglas. `conversacion.estado` guarda solo la intención y el paso. «Hablar con alguien» no aparece hasta V2-11. El *opt-in* y la baja de recordatorios pasan a V2-14, junto a los recordatorios. Los mensajes entrantes no se guardan (no hacen falta sin bandeja ni IA).
+- **Por qué:** un recorrido sin estado oculto es determinista y fácil de probar. Lo que caduca o se sustituye es la operación pendiente, no una sesión de menú. Separar la consulta del consentimiento cumple el flujo de privacidad sin pedirlo antes de tiempo.
+- **Alternativa descartada:** guardar servicio, profesional y fecha en `estado`. Es más frágil frente a mensajes desordenados y reintentos, y contradice el vaciado del §7.1.
+
+### V2-DA-64 · Reservas de una ficha sin cuenta web (29/10/2026)
+- **Problema:** `ReservaService` exige un `UsuarioAutenticado`. Además, `reserva.creado_por` y `auditoria_reserva.actor_id` son `NOT NULL` hacia `usuario`. Una ficha creada por WhatsApp no tiene cuenta.
+- **Decisión (V115):**
+  - en `reserva`: `canal` (`WEB`/`WHATSAPP`, por defecto `WEB`) y `creado_por` anulable solo si `canal = 'WHATSAPP'`;
+  - en `auditoria_reserva`: `actor_cliente_id` (FK compuesta a `cliente`) y exactamente un actor (`num_nonnulls = 1`);
+  - en `ReservaService`: métodos de ficha (crear, reprogramar y cancelar como la propia ficha) con las reglas, el protocolo ①②③ y la revalidación tras los bloqueos de la web, y la propiedad comprobada tras ③;
+  - sin aviso interno al cliente si no tiene cuenta: la respuesta de WhatsApp lo sustituye. El profesional sí recibe su aviso;
+  - los consumidores de `creador` y `actor` (historial, DTO) toleran el actor de ficha.
+- **Alternativas descartadas:**
+  - un usuario técnico «asistente» como creador: atribuye mal la auditoría;
+  - crear una cuenta web para cada ficha: contradice V2-RN-09 y V2-15.
+
+### V2-DA-65 · Una transacción por mensaje y orden de bloqueos de la conversación (29/10/2026)
+- **Decisión:**
+  - todo el tratamiento de un mensaje ocurre en la transacción de entrega de V2-08, que también marca el evento: conversación, ficha, operación, reserva, auditoría, avisos y outbox se confirman o se revierten juntos;
+  - orden de bloqueos: **conversación → operación pendiente → ⓪ → ① → ② → ③**. La web nunca toma los dos primeros, así que no hay ciclos;
+  - dentro de la transacción se comprueba de nuevo que el negocio no está suspendido y que el canal sigue activo: si no, no hay respuesta ni escritura.
+- **Por qué:** sin un *outbox* coherente, un «Listo» podría salir para una reserva revertida (V2-RN-11). Bloquear la conversación serializa los mensajes de un mismo cliente que procesan dos hilos.
+
+### V2-DA-66 · Rechazos de dominio sin revertir la entrega (29/10/2026)
+- **Problema:** una `NegocioException` que atraviesa un método `@Transactional` que participa en la transacción de entrega la marca *rollback-only*. El rechazo («la franja se ocupó») se perdería y el evento se reintentaría hasta `ERROR`.
+- **Decisión:**
+  - los métodos de ficha de `ReservaService` llevan `noRollbackFor = NegocioException.class`, como `AuthService`;
+  - toda `NegocioException` de esos caminos se lanza **antes de la primera escritura**, y una prueba lo demuestra (sin reserva, auditoría ni aviso tras el rechazo);
+  - la operación queda `RECHAZADA` y la respuesta va al outbox;
+  - los errores técnicos (la `EXCLUDE` como red de seguridad, la base) revierten todo y el evento se reintenta: la operación sigue `VIGENTE` y, en el reintento, la revalidación la rechaza.
+- **Alternativas descartadas:**
+  - `REQUIRES_NEW` para la reserva: separa la reserva del outbox y de la operación;
+  - *savepoints* con Hibernate: el contexto de persistencia queda incoherente tras volver al punto.
+
+### V2-DA-67 · Retención configurable de la conversación (29/10/2026)
+- **Decisión:** trabajo programado por negocio (`EjecutorEnNegocio`), en lotes:
+  1. borra las conversaciones **sin ficha** sin entradas en `retencion.conversaciones-sin-ficha` (**30 días**, ya decidido en `04-arquitectura-datos.md` §3 y `06-flujos.md` §6) y sin mensajes `PENDIENTE`, con sus mensajes;
+  2. vacía (`{}`) el cuerpo de los eventos entrantes terminados tras `retencion.cuerpo-eventos`. **Sin valor por defecto:** desactivado hasta que P2-06 fije el plazo.
+- **Defensa en la base (V115):** `DELETE` solo con políticas **restrictivas**, que impiden borrar una conversación con ficha o un mensaje pendiente o ligado a una reserva aunque el código lo intente.
+- **Fuera:** el contenido de los mensajes de conversaciones con ficha (V2-11 y P2-06).
+- **Por qué:** cumple lo decidido sin inventar plazos. Los plazos pendientes quedan como propuesta en `13-v2-10` §10.
+
+### V2-DA-68 · Texto de privacidad por configuración, sin valor en producción (29/10/2026)
+- **Decisión:**
+  - el texto y el enlace del aviso de privacidad vienen de `barberturno.whatsapp.conversacion.privacidad`;
+  - solo `dev` y `test` traen un borrador marcado «BORRADOR (pendiente de P2-06)»;
+  - sin valor, la aplicación no arranca (`@Validated`), así que nunca se usa en producción un texto no aprobado;
+  - el resto de textos de la conversación (menús, resultados) son textos de interfaz del servidor (V2-RN-11), no textos legales.
+- **Por qué:** P2-06 sigue pendiente. El texto legal lo aprueba el responsable (con el docente o el asesor).

@@ -26,6 +26,13 @@ barberturno:
       graph:
         url-base: http://127.0.0.1:9
         token: ""
+    # V2-10: borrador NO aprobado (P2-06); la retención se ejecuta solo cuando una prueba la llama.
+    conversacion:
+      privacidad:
+        texto: "BORRADOR (pendiente de P2-06): para reservar en {negocio} guardaremos tu nombre de WhatsApp y tu número. Aviso de privacidad: {enlace}. ¿Aceptas?"
+        enlace: https://barberturno.ejemplo.test/privacidad
+      retencion:
+        habilitada: false
 
   admin:
     correo: ${BT_ADMIN_CORREO:}

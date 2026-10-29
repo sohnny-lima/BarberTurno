@@ -26,6 +26,12 @@ barberturno:
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}
+  # V2-10: borrador NO aprobado (P2-06). En prod no hay valor por defecto y la aplicación no arranca sin él.
+  whatsapp:
+    conversacion:
+      privacidad:
+        texto: "BORRADOR (pendiente de P2-06): para reservar en {negocio} guardaremos tu nombre de WhatsApp y tu número. Aviso de privacidad: {enlace}. ¿Aceptas?"
+        enlace: https://barberturno.ejemplo.test/privacidad
 
   admin:
     correo: ${BT_ADMIN_CORREO:}
