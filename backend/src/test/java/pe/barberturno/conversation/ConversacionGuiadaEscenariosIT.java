@@ -3,6 +3,8 @@ package pe.barberturno.conversation;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -154,6 +156,7 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
 
         var msgFranjas = ultimoMensaje(a, WA_CLIENTE);
         String idFranja = msgFranjas.primerIdQueEmpieceCon("f:");
+        var selFranja = (CodigoSeleccion.Franja) CodigoSeleccion.decodificar(idFranja).orElseThrow();
 
         // 6. Sin ficha → aviso de privacidad (0 fichas en cliente)
         assertThat(ConversacionPruebas.contarFichas(ejecutor, sql, a)).isZero();
@@ -194,6 +197,12 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         assertThat(filaReserva.get("creada_por")).isNull();
         assertThat(filaReserva.get("cliente_id")).isEqualTo(fichaId);
         assertThat(filaReserva.get("estado")).isEqualTo("CONFIRMADA");
+        assertThat(((Number) filaReserva.get("servicio_id")).longValue()).isEqualTo(selFranja.servicioId());
+        assertThat(((Number) filaReserva.get("barbero_id")).longValue()).isEqualTo(selFranja.barberoId());
+        assertThat(((Timestamp) filaReserva.get("inicio")).toInstant())
+                .isEqualTo(Instant.ofEpochSecond(selFranja.inicioEpochSeg()));
+
+        assertThat(msgResultado.texto()).contains("BT-" + reservaId);
 
         var auditorias = sqlAuditoriasReserva(a, reservaId);
         assertThat(auditorias).singleElement().satisfies(aud -> {
@@ -210,24 +219,39 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
     @Test
     void escenario2_doblePulsacion_mismoBotonEnDosEventos_unaSolaReservaYRepiteTexto() {
         String idConfirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
+        long convId = sqlConversacionId(a, WA_CLIENTE);
 
         // Primer evento de confirmación
         long ev1 = enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", idConfirmar);
         assertThat(filaEvento(ev1).get("estado")).isEqualTo("PROCESADO");
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isEqualTo(1);
-        String texto1 = ultimoMensaje(a, WA_CLIENTE).texto();
+        var msg1 = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(msg1.origen()).isEqualTo("SISTEMA");
+        assertThat(msg1.reservaId()).isNotNull();
+        long reservaId = msg1.reservaId();
+        int msgsAntes = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId);
+        int audsAntes = ConversacionPruebas.contarAuditorias(ejecutor, sql, a);
+        int avisosAntes = ConversacionPruebas.contarNotificaciones(ejecutor, sql, a);
 
         // Segundo evento con el mismo botón en otro evento entrante distinto
         long ev2 = enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", idConfirmar);
         assertThat(filaEvento(ev2).get("estado")).isEqualTo("PROCESADO");
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isEqualTo(1);
-        String texto2 = ultimoMensaje(a, WA_CLIENTE).texto();
-        assertThat(texto2).isEqualTo(texto1);
+        var msg2 = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(msg2.id()).isNotEqualTo(msg1.id());
+        assertThat(ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId)).isEqualTo(msgsAntes + 1);
+        assertThat(msg2.origen()).isEqualTo("SISTEMA");
+        assertThat(msg2.reservaId()).isEqualTo(reservaId);
+        assertThat(msg2.texto()).isEqualTo(msg1.texto());
+        assertThat(ConversacionPruebas.contarAuditorias(ejecutor, sql, a)).isEqualTo(audsAntes);
+        assertThat(ConversacionPruebas.contarNotificaciones(ejecutor, sql, a)).isEqualTo(avisosAntes);
     }
 
     @Test
     void escenario3_caducada_trasDiezMinutos_rechazaSinReservaYMarcaCaducada() {
         String idConfirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
+        long convId = sqlConversacionId(a, WA_CLIENTE);
+        int msgsAntes = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId);
 
         // Adelantar reloj 10 minutos para vencer la vigencia de la operación pendiente
         reloj.adelantar(Duration.ofMinutes(10));
@@ -237,6 +261,12 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
 
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
         assertThat(ConversacionPruebas.contarOperaciones(ejecutor, sql, a, "CADUCADA")).isEqualTo(1);
+
+        assertThat(ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId)).isEqualTo(msgsAntes + 1);
+        var msgCaducada = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(msgCaducada.tipo()).isEqualTo("TEXTO");
+        assertThat(msgCaducada.idsSeleccion()).isEmpty();
+        assertThat(msgCaducada.texto()).contains("más de 10 minutos");
     }
 
     @Test
@@ -275,10 +305,20 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         assertThat(sqlOperacion(a, opAId).get("estado")).isEqualTo("ANULADA");
         assertThat(sqlOperacion(a, opBId).get("estado")).isEqualTo("VIGENTE");
 
-        // Confirmar de A → 0 reservas (A sigue ANULADA)
+        long convId = sqlConversacionId(a, WA_CLIENTE);
+        int msgsAntes = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId);
+
+        // Confirmar de A → respuesta TEXTO (sin menú), 0 reservas (A sigue ANULADA, B sigue VIGENTE)
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", idConfirmarA);
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
         assertThat(sqlOperacion(a, opAId).get("estado")).isEqualTo("ANULADA");
+        assertThat(sqlOperacion(a, opBId).get("estado")).isEqualTo("VIGENTE");
+
+        assertThat(ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId)).isEqualTo(msgsAntes + 1);
+        var msgSustituida = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(msgSustituida.tipo()).isEqualTo("TEXTO");
+        assertThat(msgSustituida.idsSeleccion()).isEmpty();
+        assertThat(msgSustituida.texto()).contains("ya no es válida");
 
         // Después «sí» → se ejecuta la operación vigente B (1 reserva)
         enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", "sí");
@@ -292,10 +332,14 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         long opId = Long.parseLong(idConfirmar.split(":")[1]);
         assertThat(ConversacionPruebas.contarOperaciones(ejecutor, sql, a, "VIGENTE")).isEqualTo(1);
 
-        // «qué tal» no reconocido → muestra menú principal y anula la operación vigente
+        // «qué tal» no reconocido → mensaje INTERACTIVO con menú principal y anula la operación vigente
         long evQueTal = enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", "qué tal");
         assertThat(filaEvento(evQueTal).get("estado")).isEqualTo("PROCESADO");
         assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("ANULADA");
+
+        var msgQueTal = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(msgQueTal.tipo()).isEqualTo("INTERACTIVO");
+        assertThat(msgQueTal.idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
 
         // Un «sí» posterior sin operación vigente no crea reservas y la operación sigue ANULADA
         long evSi = enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", "sí");
@@ -306,41 +350,70 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void escenario6_aislamiento_mismoWaIdEnDosNegocios_datosYAccionesCompletamenteSeparadas() {
-        // Propuesta en negocio A
+        // 1. Consentimiento completo y propuesta vigente en negocio A
         String idConfirmarA = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
         long opAId = Long.parseLong(idConfirmarA.split(":")[1]);
         assertThat(sqlOperacion(a, opAId).get("estado")).isEqualTo("VIGENTE");
+        assertThat(ConversacionPruebas.contarFichasConWa(ejecutor, sql, a, WA_CLIENTE)).isEqualTo(1);
 
-        // El botón Confirmar de una operación de A enviado por el número de B → NO_ENCONTRADA y A sigue VIGENTE
+        // 2. Consentimiento completo y propuesta vigente propia en negocio B con el mismo wa_id
+        String idConfirmarB = alcanzarResumen(b, NUMERO_B, WA_CLIENTE);
+        long opBId = Long.parseLong(idConfirmarB.split(":")[1]);
+        assertThat(sqlOperacion(b, opBId).get("estado")).isEqualTo("VIGENTE");
+        assertThat(ConversacionPruebas.contarFichasConWa(ejecutor, sql, b, WA_CLIENTE)).isEqualTo(1);
+
+        long convB = sqlConversacionId(b, WA_CLIENTE);
+        long convA = sqlConversacionId(a, WA_CLIENTE);
+        assertThat(convB).isNotEqualTo(convA);
+
+        long fichaAId = ((Number) sqlFicha(a, WA_CLIENTE).get("id")).longValue();
+        long fichaBId = ((Number) sqlFicha(b, WA_CLIENTE).get("id")).longValue();
+        assertThat(fichaBId).isNotEqualTo(fichaAId);
+
+        // 3. Confirmar de la operación de A enviado por el número de B → respuesta TEXTO, B sigue VIGENTE y A no cambió
+        int msgsAntesB = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, b, convB);
         long evConfirmarEnB = enviarSeleccion(NUMERO_B, WA_CLIENTE, "Cliente Ficticio", idConfirmarA);
         assertThat(filaEvento(evConfirmarEnB).get("estado")).isEqualTo("PROCESADO");
-        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, b)).isZero();
-        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
-        assertThat(sqlOperacion(a, opAId).get("estado")).isEqualTo("VIGENTE");
 
-        // Confirmar la operación en A
+        assertThat(ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, b, convB)).isEqualTo(msgsAntesB + 1);
+        var msgRespCruzada = ultimoMensaje(b, WA_CLIENTE);
+        assertThat(msgRespCruzada.tipo()).isEqualTo("TEXTO");
+        assertThat(msgRespCruzada.idsSeleccion()).isEmpty();
+        assertThat(msgRespCruzada.texto()).contains("ya no es válida");
+
+        assertThat(sqlOperacion(b, opBId).get("estado")).isEqualTo("VIGENTE");
+        assertThat(sqlOperacion(a, opAId).get("estado")).isEqualTo("VIGENTE");
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, b)).isZero();
+
+        // 4. Confirmar la operación en A → crea reserva legítima de A
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", idConfirmarA);
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isEqualTo(1);
         long reservaAId = ultimoMensaje(a, WA_CLIENTE).reservaId();
+        assertThat(sqlOperacion(a, opAId).get("estado")).isEqualTo("EJECUTADA");
+        assertThat(sqlOperacion(b, opBId).get("estado")).isEqualTo("VIGENTE");
 
-        // El mismo wa_id escribe al negocio B: conversaciones y fichas separadas
-        enviarTexto(NUMERO_B, WA_CLIENTE, "Cliente Ficticio", "hola");
-        long convA = sqlConversacionId(a, WA_CLIENTE);
-        long convB = sqlConversacionId(b, WA_CLIENTE);
-        assertThat(convB).isNotEqualTo(convA);
-        assertThat(ConversacionPruebas.contarFichasConWa(ejecutor, sql, b, WA_CLIENTE)).isZero();
-
-        // «Mis citas» por B no muestra la cita de A
-        var msgMenuB = ultimoMensaje(b, WA_CLIENTE);
-        enviarSeleccion(NUMERO_B, WA_CLIENTE, "Cliente Ficticio", msgMenuB.idExacto("m:MIS_CITAS"));
-        var msgMisCitasB = ultimoMensaje(b, WA_CLIENTE);
-        assertThat(msgMisCitasB.idsSeleccion()).noneMatch(id -> id.contains(String.valueOf(reservaAId)));
-        assertThat(msgMisCitasB.texto()).doesNotContain("BT-" + reservaAId);
-
-        // Una cita c:<id> de A pedida por B → «no disponible» y sin acciones
+        // 5. Una cita c:<id> de A pedida por B → «no disponible», menú sin acciones a:, y no revela datos de A
         enviarSeleccion(NUMERO_B, WA_CLIENTE, "Cliente Ficticio", "c:" + reservaAId);
         var msgCitaAjena = ultimoMensaje(b, WA_CLIENTE);
         assertThat(msgCitaAjena.idsSeleccion()).noneMatch(id -> id.startsWith("a:"));
+        assertThat(msgCitaAjena.idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
+        assertThat(msgCitaAjena.texto()).doesNotContain("BT-" + reservaAId);
+        assertThat(msgCitaAjena.texto()).doesNotContain("Corte clásico");
+        assertThat(msgCitaAjena.texto()).doesNotContain("Barbero A");
+
+        // 6. «Mis citas» por B → no muestra ni lista la cita de A ni sus datos
+        enviarSeleccion(NUMERO_B, WA_CLIENTE, "Cliente Ficticio", "m:MIS_CITAS");
+        var msgMisCitasB = ultimoMensaje(b, WA_CLIENTE);
+        assertThat(msgMisCitasB.idsSeleccion()).noneMatch(id -> id.contains(String.valueOf(reservaAId)));
+        assertThat(msgMisCitasB.idsSeleccion()).noneMatch(id -> id.startsWith("c:"));
+        assertThat(msgMisCitasB.texto()).doesNotContain("BT-" + reservaAId);
+        assertThat(msgMisCitasB.texto()).doesNotContain("Corte clásico");
+        assertThat(msgMisCitasB.texto()).doesNotContain("Barbero A");
+
+        // 7. Aislamiento estricto: B no tiene reservas y A mantiene su única reserva
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, b)).isZero();
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isEqualTo(1);
     }
 
     @Test
@@ -351,17 +424,45 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         long reserva1Id = ultimoMensaje(a, WA_CLIENTE).reservaId();
         long ficha1Id = ((Number) sqlFicha(a, WA_CLIENTE).get("id")).longValue();
 
-        // Cliente 2 (otro wa_id en el mismo negocio) completa consentimiento para tener ficha propia
+        // Cliente 2 (otro wa_id en el mismo negocio) completa consentimiento para tener ficha propia y propuesta vigente
         String waCliente2 = "51999000099";
-        alcanzarResumen(a, NUMERO_A, waCliente2);
+        String idConf2 = alcanzarResumen(a, NUMERO_A, waCliente2);
         long ficha2Id = ((Number) sqlFicha(a, waCliente2).get("id")).longValue();
         assertThat(ficha2Id).isNotEqualTo(ficha1Id);
+        long op2Id = Long.parseLong(idConf2.split(":")[1]);
+        String nonceReal = idConf2.split(":")[2];
+        assertThat(sqlOperacion(a, op2Id).get("estado")).isEqualTo("VIGENTE");
 
-        // Cliente 2 pide c:<id de cita de cliente 1> → no disponible y sin acciones
+        // Confirmar con nonce canónico (16 bytes base64url) pero incorrecto sobre la operación propia op2
+        byte[] bytesIncorrectos = new byte[16];
+        Arrays.fill(bytesIncorrectos, (byte) 0x5A);
+        String nonceIncorrecto = Base64.getUrlEncoder().withoutPadding().encodeToString(bytesIncorrectos);
+        if (nonceIncorrecto.equals(nonceReal)) {
+            bytesIncorrectos[0] = (byte) 0x5B;
+            nonceIncorrecto = Base64.getUrlEncoder().withoutPadding().encodeToString(bytesIncorrectos);
+        }
+        String idConfNonceInvalido = "o:" + op2Id + ":" + nonceIncorrecto + ":S";
+
+        long conv2Id = sqlConversacionId(a, waCliente2);
+        int msgsAntes2 = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, conv2Id);
+
+        enviarSeleccion(NUMERO_A, waCliente2, "Cliente Dos", idConfNonceInvalido);
+        assertThat(ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, conv2Id)).isEqualTo(msgsAntes2 + 1);
+        var msgNonceInvalido = ultimoMensaje(a, waCliente2);
+        assertThat(msgNonceInvalido.tipo()).isEqualTo("TEXTO");
+        assertThat(msgNonceInvalido.idsSeleccion()).isEmpty();
+        assertThat(msgNonceInvalido.texto()).contains("ya no es válida");
+        assertThat(sqlOperacion(a, op2Id).get("estado")).isEqualTo("VIGENTE");
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isEqualTo(1);
+
+        // Cliente 2 pide c:<id de cita de cliente 1> → no disponible, sin acciones y sin filtrar datos de la cita ajena
         enviarSeleccion(NUMERO_A, waCliente2, "Cliente Dos", "c:" + reserva1Id);
         var msgRespCitaAjena = ultimoMensaje(a, waCliente2);
         assertThat(msgRespCitaAjena.idsSeleccion()).noneMatch(id -> id.startsWith("a:"));
         assertThat(msgRespCitaAjena.idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
+        assertThat(msgRespCitaAjena.texto()).doesNotContain("BT-" + reserva1Id);
+        assertThat(msgRespCitaAjena.texto()).doesNotContain("Corte clásico");
+        assertThat(msgRespCitaAjena.texto()).doesNotContain("Barbero A");
 
         // Cliente 3 sin aviso previo envía p:S → 0 fichas creadas
         String waCliente3 = "51999000088";
@@ -404,9 +505,11 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         long r2Id = ultimoMensaje(a, WA_CLIENTE).reservaId();
         var r2Antes = sqlReserva(a, r2Id);
         Instant inicioAntes = ((Timestamp) r2Antes.get("inicio")).toInstant();
+        long servicioAntes = ((Number) r2Antes.get("servicio_id")).longValue();
+        long barberoAntes = ((Number) r2Antes.get("barbero_id")).longValue();
         int versionAntes = ((Number) r2Antes.get("version")).intValue();
 
-        // Reprogramar R2 → día → franja → Confirmar → nuevo inicio y sube versión
+        // Reprogramar R2 → día → franja → Confirmar → nuevo inicio y sube versión, conservando servicio y profesional
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", "m:MIS_CITAS");
         var msgCitas2 = ultimoMensaje(a, WA_CLIENTE);
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", msgCitas2.idExacto("c:" + r2Id));
@@ -420,7 +523,10 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", idDiaCambio);
 
         var msgFranjasCambio = ultimoMensaje(a, WA_CLIENTE);
-        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", msgFranjasCambio.primerIdQueEmpieceCon("rf:"));
+        String idRf = msgFranjasCambio.primerIdQueEmpieceCon("rf:");
+        var selRf = (CodigoSeleccion.FranjaCambio) CodigoSeleccion.decodificar(idRf).orElseThrow();
+        assertThat(selRf.reservaId()).isEqualTo(r2Id);
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", idRf);
 
         var msgResumenReprog = ultimoMensaje(a, WA_CLIENTE);
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", msgResumenReprog.primerIdQueTermineCon(":S"));
@@ -429,9 +535,12 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         Instant inicioDespues = ((Timestamp) r2Despues.get("inicio")).toInstant();
         int versionDespues = ((Number) r2Despues.get("version")).intValue();
 
+        assertThat(inicioDespues).isEqualTo(Instant.ofEpochSecond(selRf.inicioEpochSeg()));
         assertThat(inicioDespues).isNotEqualTo(inicioAntes);
         assertThat(versionDespues).isGreaterThan(versionAntes);
         assertThat(r2Despues.get("estado")).isEqualTo("CONFIRMADA");
+        assertThat(((Number) r2Despues.get("servicio_id")).longValue()).isEqualTo(servicioAntes);
+        assertThat(((Number) r2Despues.get("barbero_id")).longValue()).isEqualTo(barberoAntes);
 
         var audReprog = sqlAuditoriasReserva(a, r2Id);
         assertThat(audReprog).anySatisfy(aud -> {

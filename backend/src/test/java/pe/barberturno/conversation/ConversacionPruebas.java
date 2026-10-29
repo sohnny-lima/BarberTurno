@@ -233,7 +233,9 @@ final class ConversacionPruebas {
             String estado = (String) fila.get("estado");
             JsonNode contenido = mapper.readTree(fila.get("contenido").toString());
             JsonNode interactivo = contenido.path("interactivo");
-            String texto = interactivo.path("body").path("text").asText("");
+            String texto = "TEXTO".equals(tipo)
+                    ? contenido.path("texto").asText("")
+                    : interactivo.path("body").path("text").asText("");
             List<String> ids = new ArrayList<>();
             JsonNode buttons = interactivo.path("action").path("buttons");
             if (buttons.isArray()) {
