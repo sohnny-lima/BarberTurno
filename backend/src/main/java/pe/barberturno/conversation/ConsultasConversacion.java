@@ -34,21 +34,36 @@ public interface ConsultasConversacion {
     Optional<ServicioOpcion> servicio(long servicioId);
 
     /**
-     * Profesionales activos que pueden atender el servicio, ordenados por nombre.
+     * Profesionales activos del negocio para un servicio activo, ordenados por nombre. El modelo no tiene
+     * relación servicio-profesional: todos los profesionales activos se consideran aptos, como en la
+     * disponibilidad de la web.
      * @param servicioId servicio elegido
      * @return profesionales; vacío si el servicio no existe o está inactivo
      */
     List<ProfesionalOpcion> profesionales(long servicioId);
 
     /**
-     * Franjas libres de un día con las reglas de la web ({@code DisponibilidadService}).
+     * Franjas libres de un día para reservar, con las reglas de la web ({@code DisponibilidadService}),
+     * sin sesión web. Con «Cualquiera» devuelve una sola franja por hora de inicio (la del profesional que
+     * elige la disponibilidad), así un día no supera las 90 opciones de la paginación.
      * @param servicioId servicio elegido
      * @param barberoId profesional, o vacío para «Cualquiera»
      * @param dia fecha en Lima
-     * @param excluirReservaId reserva que se reprograma, cuyo hueco no cuenta como ocupado (DA-21)
-     * @return franjas ordenadas por inicio y profesional; vacío si no hay o algún dato no es válido
+     * @return franjas ordenadas por inicio; vacío si no hay o algún dato no es válido
      */
-    List<FranjaOpcion> franjas(long servicioId, OptionalLong barberoId, LocalDate dia, OptionalLong excluirReservaId);
+    List<FranjaOpcion> franjas(long servicioId, OptionalLong barberoId, LocalDate dia);
+
+    /**
+     * Franjas libres de un día para reprogramar una cita de la ficha con el mismo profesional, sin contar
+     * su propio hueco y con su duración de referencia (DA-21). Comprueba la propiedad por ficha, sin
+     * sesión web ni {@code UsuarioAutenticado} fabricado.
+     * @param fichaId ficha de la conversación
+     * @param reservaId cita que se reprograma
+     * @param dia fecha en Lima
+     * @return franjas ordenadas por inicio; vacío si la cita no es de la ficha, no se puede reprogramar o
+     *         no hay franjas
+     */
+    List<FranjaOpcion> franjasCambio(long fichaId, long reservaId, LocalDate dia);
 
     /**
      * Citas futuras de la ficha (las que todavía ocupan franja), con sus permisos.

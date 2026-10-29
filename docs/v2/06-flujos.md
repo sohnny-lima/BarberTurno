@@ -74,11 +74,11 @@ sequenceDiagram
   O-->>C: continúa con la intención del primer mensaje
 ```
 - Sin aceptación no se crea la ficha ni se reserva; sí se puede consultar el catálogo y la disponibilidad. La conversación sin ficha solo guarda `wa_id` y los mensajes, y se purga a los 30 días.
-- El opt-in para **recordatorios** es una pregunta aparte después de la primera reserva («¿Quieres que te recordemos la cita un día antes?»); se guarda `whatsapp_optin_en`. «BAJA» o «STOP» lo retira (`whatsapp_optout_en`) y se confirma.
+- El opt-in para **recordatorios** es una pregunta aparte después de la primera reserva («¿Quieres que te recordemos la cita un día antes?»); se guarda `whatsapp_optin_en`. «BAJA» o «STOP» lo retira (`whatsapp_optout_en`) y se confirma. *(Precisión del 29/10/2026, V2-DA-63: el opt-in y la baja llegan con V2-14.)*
 
 ## 7. WhatsApp: reservar
 ### 7.1 Guiado (Fase 1, también respaldo de la IA)
-Menú principal (botones): **Reservar** · **Mis citas** · **Hablar con alguien**. Reservar → lista de servicios → lista de profesionales («Cualquiera» incluido, RF-21) → elegir día (hoy, mañana, próximos 5 días) → lista de franjas (máx. 10; «ver más») → **resumen + [Confirmar] [Cambiar]** → resultado.
+Menú principal (botones): **Reservar** · **Mis citas** · **Hablar con alguien**. Reservar → lista de servicios → lista de profesionales («Cualquiera» incluido, RF-21) → elegir día (hoy, mañana, próximos 5 días) → lista de franjas (máx. 10; «ver más») → **resumen + [Confirmar] [Cambiar]** → resultado. *(Precisión del 29/10/2026, V2-DA-63: en V2-10 el menú es **Reservar** · **Mis citas**; «Hablar con alguien» llega con V2-11. Sin ficha se recorre hasta la franja y entonces se pide el consentimiento.)*
 
 ### 7.2 Con IA (Fase 2)
 ```mermaid

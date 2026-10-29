@@ -176,7 +176,7 @@ CREATE TABLE conversacion (
   wa_id      varchar(20) NOT NULL,                  -- la conversación existe antes de la ficha (consentimiento pendiente)
   cliente_id bigint,                                -- se rellena al aceptar la privacidad (06-flujos.md §6)
   modo   varchar(10) NOT NULL DEFAULT 'ASISTENTE' CHECK (modo IN ('ASISTENTE','HUMANO')),  -- antes varchar(8), que no admitía ASISTENTE (28/10/2026)
-  estado jsonb       NOT NULL DEFAULT '{}',          -- datos ya fijados: servicio, profesional, fecha, franja (ciclo de vida en §7.1)
+  estado jsonb       NOT NULL DEFAULT '{}',          -- V2-10 (V2-DA-63): solo paso y franja pendiente de consentimiento; los datos viajan en los identificadores (ciclo de vida en §7.1)
   ultima_entrada_en timestamptz,                     -- ventana de 24 h (V2-RN-13)
   version integer NOT NULL DEFAULT 0,
   creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,

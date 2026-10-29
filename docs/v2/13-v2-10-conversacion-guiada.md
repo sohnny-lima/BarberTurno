@@ -32,9 +32,9 @@
 
 ## 2. Flujo por mensaje entrante
 Todo ocurre en la **transacción de entrega** de V2-08 (`ProcesadorEventosWhatsApp.entregar`), con el contexto del negocio del número receptor. El evento se marca `PROCESADO` en esa misma transacción.
-1. `OrquestadorConversacion` (Claude, `@Primary`, `Propagation.MANDATORY`) implementa `ReceptorMensajesWhatsApp`.
-2. Registra la entrada (`RegistroEntradaWhatsApp.registrar`, que ahora devuelve el id de la conversación y la `ultima_entrada_en` anterior) y **bloquea la conversación** (`SELECT … FOR UPDATE`).
-3. **Comprueba de nuevo** que el negocio no está suspendido y que el canal sigue `ACTIVO` dentro de la transacción. Si no, termina sin responder; V2-08 ya descarta estos casos al resolver, y aquí se cierra la ventana entre resolver y entregar.
+1. `OrquestadorConversacion` (Claude, `Propagation.MANDATORY`) es el **único** `ReceptorMensajesWhatsApp`: `RegistroEntradaWhatsApp` deja de implementarlo y el orquestador lo llama.
+2. **Comprueba antes de escribir nada** (`RegistroEntradaWhatsApp.operativo`) que el canal sigue `ACTIVO` y que el negocio no está suspendido y tiene algún propietario activo (como V2-08). Si no, termina sin escritura ni respuesta y el evento queda `PROCESADO` sin efectos. Cierra la ventana entre la resolución y la entrega; la que queda entre esta comprobación y el *commit* la cubre el enviador de V2-09, que no envía para negocios no operativos (consulta 117, punto 9).
+3. Registra la entrada (`RegistroEntradaWhatsApp.registrar`): el `INSERT … ON CONFLICT DO UPDATE` **bloquea la conversación** y devuelve, con `RETURNING old.ultima_entrada_en` (PostgreSQL 18), la entrada anterior leída bajo ese bloqueo.
 4. **Ciclo de vida:** si la entrada anterior es nula o tiene más de 24 h, vacía `estado` y anula la operación vigente.
 5. **Interpreta** el mensaje (`InterpreteEntradas`, Gemini) → `Entrada`.
 6. **Enruta** (Claude): confirmación → operaciones (Codex); selección o palabra clave → paso del menú; sin ficha y el paso la exige → consentimiento; no reconocido o tipo no soportado → texto + menú principal.
@@ -82,12 +82,12 @@ Los escribe Claude en el commit de contrato, con firmas, Javadoc y cuerpos `Unsu
 
 ### 3.3 Consultas y operaciones (Codex)
 - `ConsultasConversacion` (lectura, en la transacción del negocio):
-  - `servicios()` (activos), `profesionales(servicioId)` (activos);
-  - `franjas(servicioId, Optional<barberoId>, LocalDate dia, OptionalLong excluirReservaId)`, con `DisponibilidadService`;
-  - `citasFuturas(fichaId)` y `cita(fichaId, reservaId)`, con los permisos calculados por el servidor (`ReservaAutorizacion`) y vacío si la reserva no es de esa ficha.
+  - `servicios()` y `servicio(id)` (activos); `profesionales(servicioId)`: todos los profesionales activos, porque el modelo no tiene relación servicio-profesional;
+  - `franjas(servicioId, OptionalLong barberoId, LocalDate dia)` para reservar (con «Cualquiera», una franja por hora de inicio) y `franjasCambio(fichaId, reservaId, dia)` para reprogramar, con propiedad por ficha, mismo profesional y duración de referencia (DA-21), **sin sesión web** (`UsuarioActual` no existe en la entrega);
+  - `citasFuturas(fichaId)` (las 10 próximas) y `cita(fichaId, reservaId)`, con los permisos de una **política compartida** con la web que recibe la propiedad por cuenta o por ficha. No se fabrica un `UsuarioAutenticado` con el id de una ficha. Vacío si la reserva no es de esa ficha.
 - `OperacionesConversacion`:
   - `Propuesta proponerCreacion(conversacionId, fichaId, servicioId, barberoId, Instant inicio)`;
-  - `proponerReprogramacion(conversacionId, fichaId, reservaId, barberoId, Instant inicio)`;
+  - `proponerReprogramacion(conversacionId, fichaId, reservaId, Instant inicio)` (mismo profesional y servicio);
   - `proponerCancelacion(conversacionId, fichaId, reservaId)`.
 
   Cada propuesta revalida lo que la web validaría (servicio y profesional activos, franja libre con `validarFranja`, RN-04, RN-20, RN-07/09 con la versión leída). Si pasa, **anula la vigente** de la conversación y crea una nueva `VIGENTE` con `expira_en = ahora + 10 min`. `Propuesta` = `Creada(operacionId, nonce, ResumenOperacion)` | `Rechazada(ErrorCodigo, String)`.
@@ -95,8 +95,8 @@ Los escribe Claude en el commit de contrato, con firmas, Javadoc y cuerpos `Unsu
   - `ResultadoOperacion confirmar(conversacionId, fichaId, operacionId, nonce)`;
   - `ResultadoOperacion confirmarVigente(conversacionId, fichaId)` (el «sí» escrito);
   - `ResultadoOperacion anular(conversacionId, fichaId, operacionId, nonce)`;
-  - `void anularVigente(conversacionId)`.
-- `ResultadoOperacion` (*sealed*): `Ejecutada(tipo, CitaOpcion cita, boolean repetida)`, `Rechazada(ErrorCodigo, String)`, `NoVigente(MotivoNoVigente)`, `Anulada()`. `MotivoNoVigente`: `CADUCADA`, `SUSTITUIDA`, `USADA`, `NO_ENCONTRADA`.
+  - `boolean anularVigente(conversacionId)`.
+- `ResultadoOperacion` (*sealed*): `Ejecutada(tipo, CitaOpcion cita, boolean repetida)`, `Rechazada(ErrorCodigo)`, `NoVigente(MotivoNoVigente)`, `Anulada()`. `Propuesta.Rechazada(ErrorCodigo)`. Los textos salen solo del código (§3.2). `MotivoNoVigente`: `CADUCADA`, `SUSTITUIDA`, `USADA`, `NO_ENCONTRADA`.
 
 ### 3.4 Conversación, consentimiento y retención (Claude)
 - `RegistroEntradaWhatsApp.registrar(MensajeEntrante)` → `EntradaRegistrada(conversacionId, Optional<Instant> entradaAnterior)` (`recibir` se conserva y delega).
@@ -115,12 +115,12 @@ Los escribe Claude en el commit de contrato, con firmas, Javadoc y cuerpos `Unsu
 2. **`conversacion`:**
    - `GRANT UPDATE (cliente_id, estado, version)`;
    - disparador: `cliente_id` no cambia una vez fijado; al fijarlo, la ficha existe en el mismo negocio con `cliente.wa_id = conversacion.wa_id` (invariante de §3);
-   - `GRANT DELETE` con una política **restrictiva** `FOR DELETE USING (cliente_id IS NULL)`.
+   - `GRANT DELETE`, conservando la política permisiva de aislamiento y añadiendo una **restrictiva** `FOR DELETE USING (cliente_id IS NULL)`: un `DELETE` debe cumplir las dos.
 3. **`mensaje_whatsapp`:** `GRANT DELETE` con una política **restrictiva** `FOR DELETE`: solo mensajes no `PENDIENTE`, sin `reserva_id` y de una conversación sin ficha.
 4. **`reserva`:**
-   - `creado_por` pasa a anulable;
+   - **`creada_por`** (nombre real desde V1; `creado_por` es de `bloqueo`) pasa a anulable;
    - `canal varchar(10) NOT NULL DEFAULT 'WEB' CHECK (canal IN ('WEB','WHATSAPP'))`;
-   - `CHECK (creado_por IS NOT NULL OR canal = 'WHATSAPP')`.
+   - `CHECK (creada_por IS NOT NULL OR canal = 'WHATSAPP')`. `canal` es el origen de la **creación** y no cambia si después se cancela o reprograma por otro canal.
 5. **`auditoria_reserva`:** `actor_id` pasa a anulable; `actor_cliente_id bigint` con FK compuesta a `cliente` y `CHECK (num_nonnulls(actor_id, actor_cliente_id) = 1)`.
 6. **`evento_whatsapp_entrante`:** `GRANT UPDATE (cuerpo)`, para vaciar el cuerpo de los eventos terminados (§8).
 
@@ -131,16 +131,16 @@ Las pruebas de esquema existentes que cambian con V115 (permisos de `conversacio
   - La web nunca toma la conversación ni la operación, así que no hay ciclos.
   - Dos mensajes de la misma conversación se serializan en el primer bloqueo.
 - **Rechazo de dominio sin revertir la entrega** (V2-DA-66):
-  - los métodos de ficha de `ReservaService` llevan `@Transactional(noRollbackFor = NegocioException.class)`;
-  - **toda** `NegocioException` de esos caminos se lanza antes de la primera escritura (lo demuestra una prueba: tras el rechazo no hay reserva, auditoría ni aviso nuevos);
+  - los métodos de ficha de `ReservaService` **y las lecturas de `DisponibilidadService` que puedan lanzar `NegocioException`** (`consultarFranjas`, `validarFranja`) llevan `noRollbackFor = NegocioException.class` (o devuelven el rechazo como valor). Ninguna `NegocioException` atraviesa un proxy transaccional con la regla por defecto durante la entrega;
+  - **toda** `NegocioException` de esos caminos se lanza antes del primer cambio de dominio (puede existir ya la ficha creada por el consentimiento en la misma entrega). La prueba ejecuta la **entrega real hasta el *commit***: evento `PROCESADO`, operación `RECHAZADA`, respuesta en la outbox, y sin reserva, auditoría ni aviso nuevos;
   - el ejecutor marca la operación `RECHAZADA` con `resultado = {codigo}` y responde con el texto de §3.2.
 - **Errores técnicos** (p. ej., la `EXCLUDE` como red de seguridad o un fallo de la base) → *rollback* completo; la operación sigue `VIGENTE` y el evento se reintenta. En el reintento, `validarFranja` detecta el conflicto → `RECHAZADA`.
 - **Ejecución** (`confirmar`):
   - bloquea la fila;
   - comprueba la conversación y la ficha (si no coinciden → `NO_ENCONTRADA`, sin cambiar nada) y el *nonce* en tiempo constante (`MessageDigest.isEqual`; si no coincide → `NO_ENCONTRADA`);
   - según el estado: `EJECUTADA` → `Ejecutada(repetida = true)` con el resultado guardado, sin otra escritura en reservas; `ANULADA` → `SUSTITUIDA`; `CADUCADA` o `RECHAZADA` → `USADA`; `expira_en ≤ ahora` → marca `CADUCADA` y devuelve `CADUCADA`;
-  - si sigue vigente, ejecuta el servicio, marca `EJECUTADA` con `{reservaId, version}` y vacía el estado de la conversación.
-- **Doble pulsación** (dos eventos): el segundo encuentra `EJECUTADA` y repite la respuesta de resultado (`06-flujos.md` §10), sin otra reserva.
+  - si sigue vigente, comprueba que las precondiciones guardadas en `datos` siguen valiendo (precio y duración del servicio, profesional y, al cambiar una cita, su `version`); si no, `RECHAZADA` con `VERSION_DESACTUALIZADA` (hay que proponer de nuevo). Después ejecuta el servicio, marca `EJECUTADA` con la **instantánea** de la cita resultante en `resultado` y vacía el estado de la conversación.
+- **Doble pulsación** (dos eventos): el segundo encuentra `EJECUTADA` y repite la respuesta **a partir de la instantánea guardada**, aunque la reserva haya cambiado después (`06-flujos.md` §10), sin otra reserva. Conversación, ficha y *nonce* se comprueban también antes de devolver un resultado ya ejecutado.
 - **Reloj:** siempre el `Clock` inyectado.
 
 ## 6. Aislamiento y propiedad
@@ -174,7 +174,7 @@ Las pruebas de esquema existentes que cambian con V115 (permisos de `conversacio
 | CJ-1 | Menús y listas dentro de los límites de Meta, deterministas, sin «Hablar con alguien»; textos con fecha completa en Lima, hora y precio | Gemini |
 | CJ-2 | Interpretación: todos los formatos de §3.1 se codifican y decodifican de ida y vuelta; cualquier desviación → no reconocido; palabras clave exactas | Gemini |
 | CJ-3 | Sin ficha: consulta posible y sin escrituras en `cliente`; reservar pide consentimiento; aceptar crea la ficha (o enlaza la del mismo `wa_id`) y continúa; rechazar no crea nada; el disparador impide cambiar `cliente_id` o enlazar otra `wa_id` | Claude |
-| CJ-4 | Reserva de principio a fin por botón (V2-CP-07): una reserva `canal = WHATSAPP`, `creado_por` nulo, auditoría con `actor_cliente_id`, respuesta de resultado con el código BT, estado `CONFIRMADA` o `PENDIENTE` según el negocio | Codex |
+| CJ-4 | Reserva de principio a fin por botón (V2-CP-07): una reserva `canal = WHATSAPP`, `creada_por` nula, auditoría con `actor_cliente_id`, respuesta de resultado con el código BT, estado `CONFIRMADA` o `PENDIENTE` según el negocio | Codex |
 | CJ-5 | Confirmaciones: dos pulsaciones → una reserva y la misma respuesta; caducada → no reserva; de otra conversación o ficha, con *nonce* incorrecto o de otro negocio → `NO_ENCONTRADA` sin cambios; propuesta sustituida → `SUSTITUIDA`; «sí» con una vigente → ejecuta; «sí» sin vigente → menú | Codex |
 | CJ-6 | Disponibilidad cambiada entre propuesta y confirmación → `RECHAZADA` con texto, sin reserva, auditoría ni aviso, y con la respuesta en el outbox; 10 reservas simultáneas mezclando web y WhatsApp → 1 éxito (V2-CP-05) | Codex |
 | CJ-7 | Reprogramar y cancelar como en la web (RN-07/09; versión; la cita original intacta si falla); cita de otra ficha o negocio → no disponible | Codex |
@@ -197,7 +197,7 @@ Las pruebas de esquema existentes que cambian con V115 (permisos de `conversacio
 | Bloque | Responsable | Worktree y rama | Archivos (alcance) | Revisa |
 |---|---|---|---|---|
 | 0 · Contrato | Claude | `D:\Proyectos\BarberTurno-v2-10` · `tarea/V2-10-conversacion-guiada` | este documento, decisiones, *backlog*, tipos de §3 | Codex (consulta de diseño, solo lectura) |
-| X · Operaciones y V115 | Codex | `D:\Proyectos\BarberTurno-v2-10-operaciones` · `tarea/V2-10-conversacion-guiada-operaciones` | `V115__conversacion_guiada.sql`; `conversation/{OperacionPendiente*,OperacionesConversacionService,ConsultasConversacionService}.java`; `reservations/ReservaService.java` (ruta de ficha) y los consumidores de `creado_por`/`actor_id`; sus pruebas | Gemini Argon (*diff-first*) + Claude |
+| X · Operaciones y V115 | Codex | `D:\Proyectos\BarberTurno-v2-10-operaciones` · `tarea/V2-10-conversacion-guiada-operaciones` | `V115__conversacion_guiada.sql`; `conversation/{OperacionPendiente*,OperacionesConversacionService,ConsultasConversacionService}.java`; `reservations/ReservaService.java` (ruta de ficha) y los consumidores de `creada_por`/`actor_id`, `ProcesadorEventosWhatsApp` (id escalar de la ficha), `DisponibilidadService` (ruta por ficha y `noRollbackFor`), `AuditoriaRepository`/`AuditoriaDto`, `ReservaDto` (`cliente.fichaId`); sus pruebas | Gemini Argon (*diff-first*) + Claude |
 | G · Menús e interpretación | Gemini | `D:\Proyectos\BarberTurno-v2-10-menus` · `tarea/V2-10-conversacion-guiada-menus` | `conversation/{CodigoSeleccion,InterpreteEntradas,PalabraClave,MenusConversacion,TextosConversacion}.java`; sus pruebas unitarias; después, escenarios, *fixtures* y utilidades | Codex (solo lectura) + Claude |
 | C · Ciclo de vida, consentimiento y retención | Claude | rama de la tarea | `conversation/{OrquestadorConversacion,ConversacionesWhatsApp,ConsentimientoConversacion,RetencionWhatsApp,ProgramadorRetencionWhatsApp}.java`; `whatsapp/RegistroEntradaWhatsApp.java`; sus pruebas | Codex (solo lectura) + Gemini Argon |
 
@@ -206,3 +206,17 @@ Las pruebas de esquema existentes que cambian con V115 (permisos de `conversacio
 - **Configuración compartida** (`application*.yml`): solo Claude.
 - **Ajuste de `WhatsAppSalidaEsquemaPruebas`:** Gemini (es suyo desde V2-09), cuando V115 esté unida.
 - **Pruebas con base:** siempre con el ejecutor serializado. Gemini no puede ejecutar órdenes: Claude compila y ejecuta sus pruebas y registra por separado el autor y el ejecutor.
+
+## 12. Consulta de diseño de Codex (encargo 117, 29/10/2026): «Con propuestas», 10, aceptadas
+| # | Propuesta | Decisión |
+|---|---|---|
+| 1 | La columna es `reserva.creada_por` | Corregido en §4 y V2-DA-64 |
+| 2 | Inventario de consumidores de creador, actor y cuenta del cliente; `ReservaDto.cliente.id` es id de **cuenta** (V2-DA-29) | **V2-DA-69**: `cliente.id` anulable (sigue siendo la cuenta) y `cliente.fichaId` nuevo. El historial (`AuditoriaRepository` con `left join fetch`, `AuditoriaDto.actorNombre`) admite el actor de ficha. Al cliente sin cuenta no se le crea aviso interno (también en `transicionar` de la web). Reportes, Excel, avisos de fallo y datos de demostración no cambian, pero se añade una regresión con reserva sin cuenta. El tipo del *frontend* (`reservas.ts`) se ajusta **al integrar con V2-07** (V2-10 no toca el *frontend*) |
+| 3 | `DisponibilidadService` también puede marcar *rollback-only* | §5: `noRollbackFor` (o rechazo como valor) también en sus lecturas; la prueba confirma la entrega real |
+| 4 | Reprogramar necesita disponibilidad sin sesión web; los permisos de acción viven en `ReservaDto.desde` | `ConsultasConversacion.franjasCambio(fichaId, reservaId, dia)` y política de permisos compartida, por cuenta o por ficha |
+| 5 | Precondiciones y resultado reproducible | `datos` guarda servicio, profesional, inicio, duración, precio y versión. Al confirmar se comparan y, si cambiaron, `RECHAZADA`/`VERSION_DESACTUALIZADA`. `resultado` guarda la instantánea de la cita. **Limitación aceptada:** un «sí» escrito confirma la única vigente cuando se procesa, aunque el cliente pensara en un resumen anterior ya sustituido (V2-RN-10 lo admite: hay un único resumen vigente, el último enviado) |
+| 6 | La entrada anterior, bajo el bloqueo | Ya es así: `RETURNING old.*` del propio `ON CONFLICT DO UPDATE` (§2.3). Orden completo: evento → conversación (UPSERT) → operación → ⓪①②③ |
+| 7 | La ficha que carga V2-08 puede quedar obsoleta en el contexto de persistencia | El procesador localiza solo el **id** de la ficha; la ruta de ficha la refresca tras bloquearla ①. Prueba de carrera: desactivación de la ficha frente a una creación por WhatsApp |
+| 8 | Las políticas restrictivas son válidas si se conserva la permisiva; hay más pruebas afectadas | Conservada (§4). La retención bloquea, vuelve a comprobar ficha, antigüedad y pendientes, y después borra hijos y padre. Se ajustan, sin debilitarlos, `WhatsAppSalidaEsquemaPruebas` (V2-09) **y** `WhatsAppEsquemaPruebas` (V2-08: cuerpo actualizable) |
+| 9 | Comprobar la operatividad antes de registrar | §2: la comprobación va antes de cualquier escritura; el evento queda `PROCESADO` sin efectos |
+| 10 | Firmas, límites y documentos | Firmas de Java como referencia (§3.3). Límites explícitos: servicios y profesionales hasta 90 por paginación (10 páginas de 9); franjas de «Cualquiera» una por hora; «Mis citas» muestra las 10 próximas. Precisiones en `04-arquitectura-datos.md` §3 (estado) y `06-flujos.md` §6–§7. La purga de cuerpos de eventos es de **plataforma** (sin RLS ni contexto; incluye los descartados con `negocio_id` nulo) |

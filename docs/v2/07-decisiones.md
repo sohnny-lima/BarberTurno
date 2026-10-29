@@ -350,9 +350,9 @@
 - **Alternativa descartada:** guardar servicio, profesional y fecha en `estado`. Es más frágil frente a mensajes desordenados y reintentos, y contradice el vaciado del §7.1.
 
 ### V2-DA-64 · Reservas de una ficha sin cuenta web (29/10/2026)
-- **Problema:** `ReservaService` exige un `UsuarioAutenticado`. Además, `reserva.creado_por` y `auditoria_reserva.actor_id` son `NOT NULL` hacia `usuario`. Una ficha creada por WhatsApp no tiene cuenta.
+- **Problema:** `ReservaService` exige un `UsuarioAutenticado`. Además, `reserva.creada_por` y `auditoria_reserva.actor_id` son `NOT NULL` hacia `usuario`. Una ficha creada por WhatsApp no tiene cuenta.
 - **Decisión (V115):**
-  - en `reserva`: `canal` (`WEB`/`WHATSAPP`, por defecto `WEB`) y `creado_por` anulable solo si `canal = 'WHATSAPP'`;
+  - en `reserva`: `canal` (`WEB`/`WHATSAPP`, por defecto `WEB`) y `creada_por` anulable solo si `canal = 'WHATSAPP'`;
   - en `auditoria_reserva`: `actor_cliente_id` (FK compuesta a `cliente`) y exactamente un actor (`num_nonnulls = 1`);
   - en `ReservaService`: métodos de ficha (crear, reprogramar y cancelar como la propia ficha) con las reglas, el protocolo ①②③ y la revalidación tras los bloqueos de la web, y la propiedad comprobada tras ③;
   - sin aviso interno al cliente si no tiene cuenta: la respuesta de WhatsApp lo sustituye. El profesional sí recibe su aviso;
@@ -394,3 +394,8 @@
   - sin valor, la aplicación no arranca (`@Validated`), así que nunca se usa en producción un texto no aprobado;
   - el resto de textos de la conversación (menús, resultados) son textos de interfaz del servidor (V2-RN-11), no textos legales.
 - **Por qué:** P2-06 sigue pendiente. El texto legal lo aprueba el responsable (con el docente o el asesor).
+
+### V2-DA-69 · La ficha en `ReservaDto` sin cambiar el significado de `cliente.id` (29/10/2026)
+- **Problema (consulta 117 de Codex, punto 2):** `ReservaDto.cliente.id` es el id de la **cuenta** (V2-DA-29), y una reserva de una ficha de WhatsApp no tiene cuenta. Usar ahí el id de la ficha mezclaría dos espacios de identificadores que pueden coincidir y nombrar a personas distintas.
+- **Decisión:** `cliente.id` pasa a anulable y sigue siendo la cuenta. Se añade `cliente.fichaId`, siempre presente. El nombre y el teléfono salen de la ficha. El *frontend* de la rama de V2-10 no cambia: el tipo `reservas.ts` se ajusta al integrar con V2-07, que ya planea pasar a ids de ficha (V2-10/11).
+- **Por qué:** es un cambio compatible para los clientes con cuenta y evita adelantar la migración completa a ids de ficha.
