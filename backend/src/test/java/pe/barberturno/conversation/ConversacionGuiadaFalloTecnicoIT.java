@@ -3,24 +3,32 @@ package pe.barberturno.conversation;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import pe.barberturno.scheduling.JornadaRepository;
+import pe.barberturno.whatsapp.OrigenMensaje;
+import pe.barberturno.whatsapp.PlantillaUtility;
 import pe.barberturno.whatsapp.ProcesadorEventosWhatsApp;
 import pe.barberturno.whatsapp.SalidaWhatsApp;
+import pe.barberturno.whatsapp.SalidaWhatsAppService;
 import pe.barberturno.whatsapp.WhatsAppSalidaPruebaBase;
+import tools.jackson.databind.JsonNode;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
 
 /**
  * Escenario 10: Fallo técnico tras crear la ficha (rollback completo y reintento, CJ-8).
- * Se aísla en esta clase con {@link DirtiesContext} para no alterar el contexto de Spring de las demás pruebas.
+ * Se aísla en esta clase con {@link DirtiesContext} y {@link ConfiguracionFalloSalida} para no alterar el
+ * contexto de Spring de las demás pruebas.
  * Verifica que si {@link SalidaWhatsApp#encolarInteractivo} falla con una excepción técnica durante la respuesta
  * a [Aceptar], la transacción de entrega completa se revierte atómicamente:
  * 0 fichas, conversación sin {@code cliente_id}, 0 operaciones, 0 mensajes nuevos en outbox,
@@ -30,7 +38,60 @@ import static org.mockito.Mockito.doAnswer;
  * @version 1.0
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@Import(ConversacionGuiadaFalloTecnicoIT.ConfiguracionFalloSalida.class)
 class ConversacionGuiadaFalloTecnicoIT extends WhatsAppSalidaPruebaBase {
+
+    private static final AtomicBoolean FALLAR_SALIDA = new AtomicBoolean(false);
+
+    /**
+     * Configuración de prueba que sustituye {@link SalidaWhatsApp} por un decorador con fallo conmutable.
+     */
+    @TestConfiguration
+    static class ConfiguracionFalloSalida {
+
+        /**
+         * Bean primario que decora al servicio real de salida.
+         * @param real servicio real inyectado por su tipo concreto
+         * @return implementación con fallo conmutable
+         */
+        @Bean
+        @Primary
+        SalidaWhatsApp salidaWhatsAppConFalloControlado(SalidaWhatsAppService real) {
+            return new SalidaWhatsApp() {
+                @Override
+                public long encolarTexto(long conversacionId, String texto, OrigenMensaje origen, OptionalLong reservaId) {
+                    if (FALLAR_SALIDA.get()) {
+                        throw new RuntimeException("Fallo técnico simulado en salida");
+                    }
+                    return real.encolarTexto(conversacionId, texto, origen, reservaId);
+                }
+
+                @Override
+                public long encolarInteractivo(long conversacionId, JsonNode interactivo, OrigenMensaje origen, OptionalLong reservaId) {
+                    if (FALLAR_SALIDA.get()) {
+                        throw new RuntimeException("Fallo técnico simulado en salida tras aceptar consentimiento");
+                    }
+                    return real.encolarInteractivo(conversacionId, interactivo, origen, reservaId);
+                }
+
+                @Override
+                public long encolarPlantilla(long conversacionId, PlantillaUtility plantilla, Map<String, String> parametros, OptionalLong reservaId) {
+                    if (FALLAR_SALIDA.get()) {
+                        throw new RuntimeException("Fallo técnico simulado en salida");
+                    }
+                    return real.encolarPlantilla(conversacionId, plantilla, parametros, reservaId);
+                }
+
+                @Override
+                public long encolarAviso(long conversacionId, PlantillaUtility plantilla, Map<String, String> parametros, OptionalLong reservaId) {
+                    if (FALLAR_SALIDA.get()) {
+                        throw new RuntimeException("Fallo técnico simulado en salida");
+                    }
+                    return real.encolarAviso(conversacionId, plantilla, parametros, reservaId);
+                }
+            };
+        }
+    }
 
     @Autowired
     private ProcesadorEventosWhatsApp procesador;
@@ -38,13 +99,16 @@ class ConversacionGuiadaFalloTecnicoIT extends WhatsAppSalidaPruebaBase {
     @Autowired
     private JornadaRepository jornadas;
 
-    @MockitoSpyBean
-    private SalidaWhatsApp salida;
-
     @BeforeEach
     void configurarReglasYJornadas() {
+        FALLAR_SALIDA.set(false);
         sql.update("UPDATE negocio SET limite_reservas_activas = 3, confirmacion_manual = false WHERE id IN (?, ?)", a, b);
         ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, a, barberoA);
+    }
+
+    @AfterEach
+    void restaurarEstado() {
+        FALLAR_SALIDA.set(false);
     }
 
     private void enviarTexto(String phoneNumberId, String waId, String nombrePerfil, String texto) {
@@ -89,16 +153,8 @@ class ConversacionGuiadaFalloTecnicoIT extends WhatsAppSalidaPruebaBase {
         assertThat(ConversacionPruebas.contarFichas(ejecutor, sql, a)).isZero();
         int msgsAntes = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, convId);
 
-        // 2. Configurar spy para que lance RuntimeException solo en la respuesta a [Aceptar]
-        AtomicBoolean fallar = new AtomicBoolean(false);
-        doAnswer(invocacion -> {
-            if (fallar.get()) {
-                throw new RuntimeException("Fallo técnico simulado en salida tras aceptar consentimiento");
-            }
-            return invocacion.callRealMethod();
-        }).when(salida).encolarInteractivo(anyLong(), any(), any(), any());
-
-        fallar.set(true);
+        // 2. Activar fallo técnico simulado solo para la respuesta a [Aceptar]
+        FALLAR_SALIDA.set(true);
 
         // 3. Enviar evento de [Aceptar] (p:S) y procesar
         String wamidAceptar = ConversacionPruebas.nuevoWamid();
@@ -126,7 +182,7 @@ class ConversacionGuiadaFalloTecnicoIT extends WhatsAppSalidaPruebaBase {
         assertThat(proximoIntento).isAfter(reloj.instant());
 
         // 5. Recuperación: deja de fallar, adelantar reloj hasta proximo_intento y volver a procesar
-        fallar.set(false);
+        FALLAR_SALIDA.set(false);
         reloj.adelantar(Duration.between(reloj.instant(), proximoIntento).plusSeconds(1));
 
         int procesados = procesador.procesarLote();

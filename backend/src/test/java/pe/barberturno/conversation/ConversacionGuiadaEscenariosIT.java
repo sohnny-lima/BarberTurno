@@ -199,7 +199,9 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         assertThat(auditorias).singleElement().satisfies(aud -> {
             assertThat(aud.get("actor_cliente_id")).isEqualTo(fichaId);
             assertThat(aud.get("actor_id")).isNull();
-            assertThat(aud.get("tipo")).isEqualTo("CREACION");
+            assertThat(aud.get("accion")).isEqualTo("CREAR");
+            assertThat(aud.get("estado_anterior")).isNull();
+            assertThat(aud.get("estado_nuevo")).isEqualTo("CONFIRMADA");
         });
 
         assertThat(ConversacionPruebas.contarOperaciones(ejecutor, sql, a, "EJECUTADA")).isEqualTo(1);
@@ -389,8 +391,11 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
         assertThat(sqlReserva(a, r1Id).get("estado")).isEqualTo("CANCELADA");
         var audCanc = sqlAuditoriasReserva(a, r1Id);
         assertThat(audCanc).anySatisfy(aud -> {
-            assertThat(aud.get("tipo")).isEqualTo("CANCELACION");
+            assertThat(aud.get("accion")).isEqualTo("CANCELAR");
             assertThat(aud.get("actor_cliente_id")).isEqualTo(fichaId);
+            assertThat(aud.get("actor_id")).isNull();
+            assertThat(aud.get("estado_anterior")).isEqualTo("CONFIRMADA");
+            assertThat(aud.get("estado_nuevo")).isEqualTo("CANCELADA");
         });
 
         // Otra reserva R2
@@ -430,8 +435,11 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
 
         var audReprog = sqlAuditoriasReserva(a, r2Id);
         assertThat(audReprog).anySatisfy(aud -> {
-            assertThat(aud.get("tipo")).isEqualTo("REPROGRAMACION");
+            assertThat(aud.get("accion")).isEqualTo("REPROGRAMAR");
             assertThat(aud.get("actor_cliente_id")).isEqualTo(fichaId);
+            assertThat(aud.get("actor_id")).isNull();
+            assertThat(aud.get("estado_anterior")).isEqualTo("CONFIRMADA");
+            assertThat(aud.get("estado_nuevo")).isEqualTo("CONFIRMADA");
         });
     }
 
