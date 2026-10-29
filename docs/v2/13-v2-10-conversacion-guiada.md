@@ -175,7 +175,7 @@ Las pruebas de esquema existentes que cambian con V115 (permisos de `conversacio
 | CJ-2 | Interpretación: todos los formatos de §3.1 se codifican y decodifican de ida y vuelta; cualquier desviación → no reconocido; palabras clave exactas | Gemini |
 | CJ-3 | Sin ficha: consulta posible y sin escrituras en `cliente`; reservar pide consentimiento; aceptar crea la ficha (o enlaza la del mismo `wa_id`) y continúa; rechazar no crea nada; el disparador impide cambiar `cliente_id` o enlazar otra `wa_id` | Claude |
 | CJ-4 | Reserva de principio a fin por botón (V2-CP-07): una reserva `canal = WHATSAPP`, `creada_por` nula, auditoría con `actor_cliente_id`, respuesta de resultado con el código BT, estado `CONFIRMADA` o `PENDIENTE` según el negocio | Codex |
-| CJ-5 | Confirmaciones: dos pulsaciones → una reserva y la misma respuesta; caducada → no reserva; de otra conversación o ficha, con *nonce* incorrecto o de otro negocio → `NO_ENCONTRADA` sin cambios; propuesta sustituida → `SUSTITUIDA`; «sí» con una vigente → ejecuta; «sí» sin vigente → menú | Codex |
+| CJ-5 | Confirmaciones: dos pulsaciones → una reserva y la misma respuesta; caducada → no reserva; de otra conversación o ficha, con *nonce* incorrecto o de otro negocio → `NO_ENCONTRADA` sin cambios; propuesta sustituida → `SUSTITUIDA`; «sí» con una vigente → ejecuta; «sí» sin vigente → menú | Codex | *(Precisión, revisión 120: una pulsación no válida responde solo con texto y no anula la vigente propia; mostrar el menú principal —texto no reconocido, vuelta al menú, resultado ejecutado— sí anula la vigente.)*
 | CJ-6 | Disponibilidad cambiada entre propuesta y confirmación → `RECHAZADA` con texto, sin reserva, auditoría ni aviso, y con la respuesta en el outbox; 10 reservas simultáneas mezclando web y WhatsApp → 1 éxito (V2-CP-05) | Codex |
 | CJ-7 | Reprogramar y cancelar como en la web (RN-07/09; versión; la cita original intacta si falla); cita de otra ficha o negocio → no disponible | Codex |
 | CJ-8 | *Rollback* coherente: un fallo técnico tras ejecutar la reserva revierte operación, reserva, auditoría, avisos, ficha y outbox; el evento se reintenta | Codex (ejecutor) y Claude (orquestador) |
@@ -219,4 +219,17 @@ Las pruebas de esquema existentes que cambian con V115 (permisos de `conversacio
 | 7 | La ficha que carga V2-08 puede quedar obsoleta en el contexto de persistencia | El procesador localiza solo el **id** de la ficha; la ruta de ficha la refresca tras bloquearla ①. Prueba de carrera: desactivación de la ficha frente a una creación por WhatsApp |
 | 8 | Las políticas restrictivas son válidas si se conserva la permisiva; hay más pruebas afectadas | Conservada (§4). La retención bloquea, vuelve a comprobar ficha, antigüedad y pendientes, y después borra hijos y padre. Se ajustan, sin debilitarlos, `WhatsAppSalidaEsquemaPruebas` (V2-09) **y** `WhatsAppEsquemaPruebas` (V2-08: cuerpo actualizable) |
 | 9 | Comprobar la operatividad antes de registrar | §2: la comprobación va antes de cualquier escritura; el evento queda `PROCESADO` sin efectos |
-| 10 | Firmas, límites y documentos | Firmas de Java como referencia (§3.3). Límites explícitos: servicios y profesionales hasta 90 por paginación (10 páginas de 9); franjas de «Cualquiera» una por hora; «Mis citas» muestra las 10 próximas. Precisiones en `04-arquitectura-datos.md` §3 (estado) y `06-flujos.md` §6–§7. La purga de cuerpos de eventos es de **plataforma** (sin RLS ni contexto; incluye los descartados con `negocio_id` nulo) |
+| 10 | Firmas, límites y documentos | Firmas de Java como referencia (§3.3). Límites explícitos: servicios y franjas hasta 90 por paginación (10 páginas de 9, sin «Ver más» en la página 9) y profesionales hasta 89 («Cualquiera» ocupa una posición; revisión 119-6); franjas de «Cualquiera» una por hora; «Mis citas» muestra las 10 próximas. Precisiones en `04-arquitectura-datos.md` §3 (estado) y `06-flujos.md` §6–§7. La purga de cuerpos de eventos es de **plataforma** (sin RLS ni contexto; incluye los descartados con `negocio_id` nulo) |
+
+## 13. Revisiones cruzadas de la implementación (29/10/2026)
+| Revisión | Revisor (solo lectura) | Sobre | Resultado | Corrección |
+|---|---|---|---|---|
+| g071 | Gemini Flash | C (Claude) | APROBADO | — |
+| g073 | Gemini Argon High | X (Codex), *diff-first* | APROBADO | — |
+| 119 | Codex | C y G | 7 hallazgos: 119-1 alta (el menú no anulaba la vigente), 119-2 (aceptar sin aviso), 119-3 (epoch no representable), 119-4 (IT débil), 119-5 (recorte de emojis), 119-6 (página 10), 119-7 (nonce canónico) | C: Claude `c34d9e3`; G: Gemini `6620005` (g074) |
+| 120 | Codex | correcciones de 119 | 119-2…7 resueltos; 120-1 alta (la repetición de una ejecutada no anulaba otra vigente), 120-2 media (una pulsación inválida anulaba la vigente propia) | Claude `dd2299f` |
+
+Reglas resultantes:
+- **Mostrar el menú principal anula la operación vigente y vacía el estado** (texto no reconocido, vuelta al menú, resultado ejecutado, rechazo). Así un «sí» posterior no confirma un resumen que ya no es el último mensaje.
+- **Una pulsación que no es válida** (nonce incorrecto, propuesta sustituida, caducada o usada) responde solo con texto y no cambia nada.
+- [Aceptar] solo crea la ficha si el servidor presentó el aviso en esa conversación.
