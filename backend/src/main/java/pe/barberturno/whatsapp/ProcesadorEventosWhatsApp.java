@@ -121,8 +121,8 @@ public class ProcesadorEventosWhatsApp {
         String waId = waId(evento, dato);
         Instant fecha = fecha(dato.path("timestamp"), evento.recibidoEn());
         if (evento.tipo() == TipoEvento.MENSAJE) {
-            var ficha = clientes.findByNegocioIdAndWaId(negocioId, waId);
-            var clienteId = ficha.isEmpty() ? OptionalLong.empty() : OptionalLong.of(ficha.get().getId());
+            var ficha = clientes.buscarIdPorWaId(negocioId, waId);
+            var clienteId = ficha.isEmpty() ? OptionalLong.empty() : OptionalLong.of(ficha.get());
             mensajes.recibir(new MensajeEntrante(evento.id(), negocioId, waId, clienteId,
                     cuerpo.path("contacto").path("nombre").asString(null), dato.path("id").asString(),
                     dato.path("type").asString(), fecha, dato));

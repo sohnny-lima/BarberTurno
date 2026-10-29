@@ -81,4 +81,12 @@ public interface ClienteRepository extends RepositorioTransaccional<Cliente, Lon
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Cliente c where c.id = :id")
     Optional<Cliente> bloquearPorId(@Param("id") Long id);
+    /**
+     * Localiza solo la identidad de ficha para no conservar una entidad obsoleta antes del bloqueo ①.
+     * @param negocioId negocio receptor
+     * @param waId remitente verificado
+     * @return identidad escalar o vacío
+     */
+    @Query("select c.id from Cliente c where c.negocioId = :negocioId and c.waId = :waId")
+    Optional<Long> buscarIdPorWaId(@Param("negocioId") long negocioId, @Param("waId") String waId);
 }

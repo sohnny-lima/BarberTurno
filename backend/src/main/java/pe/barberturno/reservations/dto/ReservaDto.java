@@ -32,13 +32,14 @@ public record ReservaDto(long id, String codigo, ClienteDto cliente, RecursoDto 
         BigDecimal precioRef, EstadoReserva estado, int version, PermisosDto permisos) {
     /**
      * Datos mínimos del propietario; omite el teléfono cuando el actor es CLIENTE.
-     * @param id identidad de la cuenta propietaria, nunca id de ficha (V2-DA-29)
+     * @param id cuenta propietaria, anulable; nunca id de ficha (V2-DA-69)
+     * @param fichaId identidad local siempre presente
      * @param nombre nombre visible
      * @param telefono contacto para personal o nulo
      * @author Sohnny Walter Lima Infanzón
      * @version 1.0
      */
-    public record ClienteDto(long id, String nombre,
+    public record ClienteDto(Long id, long fichaId, String nombre,
             @JsonInclude(JsonInclude.Include.NON_NULL) String telefono) { }
 
     /**
@@ -72,31 +73,17 @@ public record ReservaDto(long id, String codigo, ClienteDto cliente, RecursoDto 
      */
     public static ReservaDto desde(Reserva reserva, UsuarioAutenticado actor, Instant ahora,
             ParametrosReserva parametros) {
-        boolean admin = actor.rol() == Rol.ADMIN;
-        boolean propietario = actor.rol() == Rol.CLIENTE && actor.id() == reserva.getCliente().getUsuario().getId();
+        boolean propietario = actor.rol() == Rol.CLIENTE && reserva.getCliente().getUsuario() != null && actor.id() == reserva.getCliente().getUsuario().getId();
         boolean asignado = actor.barberoId().filter(reserva.getBarbero().getId()::equals).isPresent();
-        var reglas = new ReglasTemporales();
-        var politica = new PoliticaTransiciones();
-        boolean modificable = (admin || propietario) && reglas.puedeModificar(ahora,
-                reserva.getInicio(), admin, admin ? "Motivo requerido" : null,
-                parametros.anticipacionCambioCliente());
-        boolean cancelar = modificable && politica.evaluar(actor.rol(), asignado,
-                reserva.getEstado(), EstadoReserva.CANCELADA, ahora, reserva.getInicio(),
-                Duration.ofMinutes(parametros.toleranciaInicioMin()), parametros.anticipacionCambioCliente(),
-                admin ? "Motivo requerido" : null).permitida();
-        var destinos = Arrays.stream(EstadoReserva.values())
-                .filter(e -> e != EstadoReserva.CANCELADA)
-                .filter(e -> politica.evaluar(actor.rol(), asignado, reserva.getEstado(), e, ahora,
-                        reserva.getInicio(), Duration.ofMinutes(parametros.toleranciaInicioMin()),
-                        parametros.anticipacionCambioCliente(), null).permitida()).toList();
+        var permisos = PermisosReserva.calcular(reserva, actor.rol(), propietario, asignado, ahora, parametros);
         return new ReservaDto(reserva.getId(), "BT-" + reserva.getId(),
-                new ClienteDto(reserva.getCliente().getUsuario().getId(), reserva.getCliente().getNombre(),
+                new ClienteDto(reserva.getCliente().getUsuario() == null ? null : reserva.getCliente().getUsuario().getId(),
+                        reserva.getCliente().getId(), reserva.getCliente().getNombre(),
                         actor.rol() == Rol.CLIENTE ? null : reserva.getCliente().getTelefono()),
                 new RecursoDto(reserva.getBarbero().getId(), reserva.getBarbero().getNombreVisible()),
                 new RecursoDto(reserva.getServicio().getId(), reserva.getServicio().getNombre()),
                 TiempoNegocio.aLima(reserva.getInicio()), TiempoNegocio.aLima(reserva.getFin()),
                 reserva.getDuracionRefMin(), reserva.getPrecioRef().setScale(2), reserva.getEstado(),
-                reserva.getVersion(), new PermisosDto(modificable && reserva.getEstado() == EstadoReserva.CONFIRMADA,
-                        cancelar, destinos));
+                reserva.getVersion(), permisos);
     }
 }
