@@ -45,6 +45,8 @@ import tools.jackson.databind.node.ObjectNode;
 public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     /** Días que ofrece la lista de días (hoy y los 6 siguientes). */
     static final int DIAS_OFRECIDOS = 7;
+    /** 9999-12-31T23:59:59Z: mayor inicio aceptado en una selección. */
+    static final long INSTANTE_MAXIMO = 253_402_300_799L;
 
     private final RegistroEntradaWhatsApp registro;
     private final ConversacionesWhatsApp conversaciones;
@@ -175,15 +177,16 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                 case Cita(var reservaId) -> cita(reservaId);
                 case AccionCita(var reservaId, var cancelar) -> accionCita(reservaId, cancelar);
                 case DiaCambio(var reservaId, var dia, var pagina) -> franjasCambio(reservaId, dia, pagina);
-                case FranjaCambio(var reservaId, var inicio) -> propuesta(conversacion.clienteId().isEmpty() ? null
-                        : operaciones.proponerReprogramacion(conversacion.id(), ficha(), reservaId, Instant.ofEpochSecond(inicio)));
+                case FranjaCambio(var reservaId, var inicio) -> {
+                    var instante = instante(inicio);
+                    if (conversacion.clienteId().isEmpty() || instante == null) menu(textos.noDisponible());
+                    else propuesta(operaciones.proponerReprogramacion(conversacion.id(), ficha(), reservaId, instante));
+                }
                 case Confirmacion(var operacionId, var nonce, var confirma) -> confirmacion(operacionId, nonce, confirma);
             }
         }
 
         private void inicio() {
-            operaciones.anularVigente(conversacion.id());
-            conversaciones.vaciar(conversacion.id());
             bienvenida();
         }
 
@@ -230,6 +233,11 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void elegirFranja(Franja franja) {
+            var inicio = instante(franja.inicioEpochSeg());
+            if (inicio == null) {
+                menu(textos.noDisponible());
+                return;
+            }
             if (conversacion.clienteId().isEmpty()) {
                 var estado = conversacion.estado().deepCopy();
                 estado.put(ConversacionesWhatsApp.PENDIENTE, franja.codificar());
@@ -241,9 +249,14 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                 return;
             }
             propuesta(operaciones.proponerCreacion(conversacion.id(), ficha(), franja.servicioId(), franja.barberoId(),
-                    Instant.ofEpochSecond(franja.inicioEpochSeg())));
+                    inicio));
         }
 
+        /**
+         * [Aceptar] solo crea la ficha si el servidor presentó el aviso en esta conversación (paso
+         * {@code CONSENTIMIENTO} con una franja pendiente válida, V2-RF-15). Un {@code p:S} sin esa solicitud
+         * no crea nada; con la ficha ya enlazada, la aceptación es idempotente.
+         */
         private void privacidad(boolean acepta) {
             var pendiente = conversacion.estado().path(ConversacionesWhatsApp.PENDIENTE).asString(null);
             if (!acepta) {
@@ -251,16 +264,21 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                 menu(textos.privacidadRechazada());
                 return;
             }
-            long ficha = consentimiento.aceptar(conversacion, nombrePerfil);
-            conversaciones.vaciar(conversacion.id());
             var franja = pendiente == null ? null
                     : CodigoSeleccion.decodificar(pendiente).filter(Franja.class::isInstance).map(Franja.class::cast).orElse(null);
-            if (franja == null) {
+            boolean solicitado = "CONSENTIMIENTO".equals(conversacion.estado().path(ConversacionesWhatsApp.PASO).asString(null));
+            Instant inicio = franja == null ? null : instante(franja.inicioEpochSeg());
+            if (conversacion.clienteId().isEmpty() && (!solicitado || inicio == null)) {
                 bienvenida();
                 return;
             }
-            propuesta(operaciones.proponerCreacion(conversacion.id(), ficha, franja.servicioId(), franja.barberoId(),
-                    Instant.ofEpochSecond(franja.inicioEpochSeg())));
+            long ficha = consentimiento.aceptar(conversacion, nombrePerfil);
+            conversaciones.vaciar(conversacion.id());
+            if (inicio == null) {
+                bienvenida();
+                return;
+            }
+            propuesta(operaciones.proponerCreacion(conversacion.id(), ficha, franja.servicioId(), franja.barberoId(), inicio));
         }
 
         private void misCitas() {
@@ -337,7 +355,13 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             }
         }
 
+        /**
+         * Muestra el menú principal. Mostrarlo equivale a volver al menú (13-v2-10 §8; revisión 119-1): anula
+         * la operación vigente y vacía el estado, así un «sí» posterior no confirma un resumen anterior.
+         */
         private void menu(String cuerpo) {
+            operaciones.anularVigente(conversacion.id());
+            conversaciones.vaciar(conversacion.id());
             enviar(menus.menuPrincipal(cuerpo), null);
         }
 
@@ -353,6 +377,11 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
 
         private long ficha() {
             return conversacion.clienteId().orElseThrow();
+        }
+
+        /** Inicio de una selección, o nulo si no es un instante representable (revisión 119-3). */
+        private Instant instante(long epochSeg) {
+            return epochSeg <= 0 || epochSeg > INSTANTE_MAXIMO ? null : Instant.ofEpochSecond(epochSeg);
         }
 
         private boolean diaOfrecido(LocalDate dia) {

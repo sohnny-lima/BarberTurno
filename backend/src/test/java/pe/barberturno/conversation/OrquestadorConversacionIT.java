@@ -21,6 +21,7 @@ import pe.barberturno.whatsapp.WhatsAppSalidaPruebaBase;
  */
 class OrquestadorConversacionIT extends WhatsAppSalidaPruebaBase {
     @Autowired ReceptorMensajesWhatsApp receptor;
+    @Autowired pe.barberturno.whatsapp.RegistroEntradaWhatsApp registroEntrada;
 
     private MensajeEntrante texto(long negocioId, String waId, String cuerpo) {
         var dato = mapper.createObjectNode().put("from", waId).put("id", "wamid.prueba." + System.nanoTime())
@@ -85,15 +86,75 @@ class OrquestadorConversacionIT extends WhatsAppSalidaPruebaBase {
         assertThat(filasMensajes(a)).isEmpty();
     }
 
-    @Test
-    void conversacionInactiva_vaciaElEstadoAlRecibir() {
+    private MensajeEntrante boton(long negocioId, String waId, String id) {
+        var dato = mapper.createObjectNode().put("from", waId).put("id", "wamid.prueba." + System.nanoTime())
+                .put("type", "interactive");
+        dato.putObject("interactive").put("type", "button_reply").putObject("button_reply").put("id", id).put("title", "x");
+        return new MensajeEntrante(1, negocioId, waId, OptionalLong.empty(), "Ana", dato.path("id").asString(),
+                "interactive", reloj.instant(), dato);
+    }
+
+    /** Conversación con ficha, estado con franja pendiente y una operación vigente. */
+    private long[] conversacionConPropuesta() {
         long conversacion = crearConversacionConVentana(a, WA_CLIENTE, reloj.instant());
-        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(tx -> sql.update(
-                "UPDATE conversacion SET estado = '{\"paso\":\"FRANJA\"}'::jsonb WHERE id = ?", conversacion)));
-        reloj.adelantar(Duration.ofHours(24));
-        recibir(texto(a, WA_CLIENTE, "hola"));
-        String estado = ejecutor.ejecutar(a, () -> sql.queryForObject(
+        var ahora = java.sql.Timestamp.from(reloj.instant());
+        long ficha = ejecutor.ejecutar(a, () -> sql.queryForObject("""
+                INSERT INTO cliente (nombre, wa_id, privacidad_aceptada_en, creado_en, actualizado_en)
+                VALUES ('Ana', ?, ?, ?, ?) RETURNING id""", Long.class, WA_CLIENTE, ahora, ahora, ahora));
+        long operacion = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(tx -> {
+            sql.update("""
+                    UPDATE conversacion SET cliente_id = ?, estado = '{"paso":"CONFIRMACION","pendiente":"f:1:1:1"}'::jsonb
+                    WHERE id = ?""", ficha, conversacion);
+            return sql.queryForObject("""
+                    INSERT INTO operacion_pendiente (conversacion_id, cliente_id, tipo, datos, nonce, expira_en,
+                        creado_en, actualizado_en)
+                    VALUES (?, ?, 'CANCELAR', '{}'::jsonb, decode(repeat('ab', 16), 'hex'), ?, ?, ?) RETURNING id""",
+                    Long.class, conversacion, ficha, java.sql.Timestamp.from(reloj.instant().plus(Duration.ofDays(3))),
+                    ahora, ahora);
+        }));
+        return new long[] {conversacion, operacion};
+    }
+
+    private String estado(long conversacion) {
+        return ejecutor.ejecutar(a, () -> sql.queryForObject(
                 "SELECT CAST(estado AS text) FROM conversacion WHERE id = ?", String.class, conversacion));
-        assertThat(estado).doesNotContain("FRANJA");
+    }
+
+    private String estadoOperacion(long operacion) {
+        return ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT estado FROM operacion_pendiente WHERE id = ?", String.class, operacion));
+    }
+
+    @Test
+    void entradaTras24Horas_vaciaElEstadoYAnulaLaOperacionAunqueElPasoNoVuelvaAlMenu() {
+        var ids = conversacionConPropuesta();
+        reloj.adelantar(Duration.ofHours(24));
+        recibir(boton(a, WA_CLIENTE, "m:RESERVAR"));
+        assertThat(estado(ids[0])).doesNotContain("pendiente").doesNotContain("CONFIRMACION");
+        assertThat(estadoOperacion(ids[1])).isEqualTo("ANULADA");
+    }
+
+    @Test
+    void entradaAntesDe24Horas_conservaLaOperacionVigenteEnUnPasoQueNoEsElMenu() {
+        var ids = conversacionConPropuesta();
+        reloj.adelantar(Duration.ofHours(24).minusSeconds(1));
+        recibir(boton(a, WA_CLIENTE, "m:RESERVAR"));
+        assertThat(estado(ids[0])).contains("pendiente");
+        assertThat(estadoOperacion(ids[1])).isEqualTo("VIGENTE");
+    }
+
+    @Test
+    void registrar_devuelveLaEntradaAnteriorSoloAlActualizar() {
+        var primera = texto(a, WA_CLIENTE, "hola");
+        var registro = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(tx ->
+                registroEntrada.registrar(primera)));
+        assertThat(registro.entradaAnterior()).isEmpty();
+        var anterior = reloj.instant();
+        reloj.adelantar(Duration.ofMinutes(5));
+        var segunda = texto(a, WA_CLIENTE, "hola");
+        var actualizado = ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(tx ->
+                registroEntrada.registrar(segunda)));
+        assertThat(actualizado.conversacionId()).isEqualTo(registro.conversacionId());
+        assertThat(actualizado.entradaAnterior()).contains(anterior);
     }
 }
