@@ -1,0 +1,255 @@
+package pe.barberturno.conversation;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.OptionalLong;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import pe.barberturno.common.error.ErrorCodigo;
+import pe.barberturno.conversation.ConversacionesWhatsApp.EstadoConversacion;
+import pe.barberturno.reservations.EstadoReserva;
+import pe.barberturno.whatsapp.EntradaRegistrada;
+import pe.barberturno.whatsapp.MensajeEntrante;
+import pe.barberturno.whatsapp.OrigenMensaje;
+import pe.barberturno.whatsapp.RegistroEntradaWhatsApp;
+import pe.barberturno.whatsapp.SalidaWhatsApp;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+
+/**
+ * Enrutado de la conversación guiada (13-v2-10 §2, §7 y §8; CJ-3, CJ-9) con dobles de todas sus
+ * dependencias: qué se consulta, propone, ejecuta, guarda y encola en cada caso, y qué no se toca.
+ * @author Sohnny Walter Lima Infanzón
+ * @version 1.0
+ */
+class OrquestadorConversacionTest {
+    private static final long NEGOCIO = 7, CONVERSACION = 30, FICHA = 40;
+    private static final Instant AHORA = Instant.parse("2026-10-29T15:00:00Z"); // 10:00 en Lima
+    private static final LocalDate HOY = LocalDate.of(2026, 10, 29);
+    private final JsonMapper mapper = JsonMapper.builder().build();
+
+    private RegistroEntradaWhatsApp registro;
+    private ConversacionesWhatsApp conversaciones;
+    private ConsentimientoConversacion consentimiento;
+    private InterpreteEntradas interprete;
+    private MenusConversacion menus;
+    private TextosConversacion textos;
+    private ConsultasConversacion consultas;
+    private OperacionesConversacion operaciones;
+    private SalidaWhatsApp salida;
+    private OrquestadorConversacion orquestador;
+    private final ObjectNode interactivo = JsonMapper.builder().build().createObjectNode().put("type", "button");
+
+    @BeforeEach
+    void preparar() {
+        registro = mock(RegistroEntradaWhatsApp.class);
+        conversaciones = mock(ConversacionesWhatsApp.class);
+        consentimiento = mock(ConsentimientoConversacion.class);
+        interprete = mock(InterpreteEntradas.class);
+        menus = mock(MenusConversacion.class);
+        textos = mock(TextosConversacion.class);
+        consultas = mock(ConsultasConversacion.class);
+        operaciones = mock(OperacionesConversacion.class);
+        salida = mock(SalidaWhatsApp.class);
+        var propiedades = new ConversacionPropiedades(
+                new ConversacionPropiedades.Privacidad("Privacidad {negocio} {enlace}", "https://x.ejemplo.test"),
+                Duration.ofHours(24), Duration.ofMinutes(10),
+                new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null));
+        orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
+                consultas, operaciones, salida, propiedades, Clock.fixed(AHORA, ZoneOffset.UTC));
+        when(registro.operativo(NEGOCIO)).thenReturn(true);
+        when(consultas.nombreNegocio()).thenReturn("Barbería Norte");
+        when(textos.bienvenida(anyString())).thenReturn("bienvenida");
+        when(textos.noDisponible()).thenReturn("no disponible");
+        when(menus.menuPrincipal(anyString())).thenReturn(interactivo);
+    }
+
+    private void entrada(Optional<Instant> anterior, OptionalLong ficha, ObjectNode estado, Entrada interpretada) {
+        when(registro.registrar(any())).thenReturn(new EntradaRegistrada(CONVERSACION, anterior));
+        when(conversaciones.bloquear(CONVERSACION)).thenReturn(new EstadoConversacion(CONVERSACION, "51999000111", ficha, estado));
+        when(interprete.interpretar(any(), any())).thenReturn(interpretada);
+    }
+
+    private void recibir() {
+        orquestador.recibir(new MensajeEntrante(1, NEGOCIO, "51999000111", OptionalLong.empty(), "Ana Pérez",
+                "wamid.x", "interactive", AHORA, mapper.createObjectNode()));
+    }
+
+    private static Entrada seleccion(CodigoSeleccion codigo) {
+        return new Entrada.Seleccion(codigo);
+    }
+
+    @Test
+    void negocioNoOperativo_noRegistraNiRespondeNiEscribe() {
+        when(registro.operativo(NEGOCIO)).thenReturn(false);
+        recibir();
+        verify(registro, never()).registrar(any());
+        verifyNoInteractions(conversaciones, consentimiento, interprete, consultas, operaciones, salida);
+    }
+
+    @Test
+    void entradaTrasMasDe24Horas_vaciaElEstadoYAnulaLaVigenteAntesDeAtender() {
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PASO, "CONFIRMACION");
+        entrada(Optional.of(AHORA.minus(Duration.ofHours(24))), OptionalLong.of(FICHA), estado,
+                new Entrada.Texto(PalabraClave.OTRA));
+        recibir();
+        verify(conversaciones).vaciar(CONVERSACION);
+        verify(operaciones).anularVigente(CONVERSACION);
+        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.ASISTENTE, OptionalLong.empty());
+    }
+
+    @Test
+    void entradaReciente_conservaElEstadoYLaOperacion() {
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PASO, "CONFIRMACION");
+        entrada(Optional.of(AHORA.minus(Duration.ofHours(23))), OptionalLong.of(FICHA), estado,
+                new Entrada.Texto(PalabraClave.OTRA));
+        recibir();
+        verify(conversaciones, never()).vaciar(anyLong());
+        verify(operaciones, never()).anularVigente(anyLong());
+    }
+
+    @Test
+    void franjaSinFicha_guardaLaFranjaPendienteYPideConsentimientoSinProponer() {
+        var franja = new CodigoSeleccion.Franja(3, 4, AHORA.plus(Duration.ofDays(1)).getEpochSecond());
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(), seleccion(franja));
+        when(textos.privacidad("Privacidad {negocio} {enlace}", "Barbería Norte", "https://x.ejemplo.test")).thenReturn("aviso");
+        when(menus.consentimiento("aviso")).thenReturn(interactivo);
+        recibir();
+        var guardado = ArgumentCaptor.forClass(ObjectNode.class);
+        verify(conversaciones).guardar(eq(CONVERSACION), guardado.capture());
+        assertThat(guardado.getValue().path(ConversacionesWhatsApp.PENDIENTE).asString()).isEqualTo(franja.codificar());
+        verify(menus).consentimiento("aviso");
+        verifyNoInteractions(operaciones, consentimiento);
+    }
+
+    @Test
+    void aceptarConFranjaPendiente_creaLaFichaYProponeEsaFranja() {
+        var franja = new CodigoSeleccion.Franja(3, 4, AHORA.plus(Duration.ofDays(1)).getEpochSecond());
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, franja.codificar());
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), estado, seleccion(new CodigoSeleccion.Privacidad(true)));
+        when(consentimiento.aceptar(any(), eq("Ana Pérez"))).thenReturn(FICHA);
+        var resumen = new ResumenOperacion(TipoOperacion.CREAR, "Corte", "Carlos", AHORA, AHORA, 30,
+                new BigDecimal("25.00"), Optional.empty());
+        when(operaciones.proponerCreacion(CONVERSACION, FICHA, 3, 4, Instant.ofEpochSecond(franja.inicioEpochSeg())))
+                .thenReturn(new Propuesta.Creada(99, "AAAAAAAAAAAAAAAAAAAAAA", resumen));
+        when(textos.resumen(resumen)).thenReturn("resumen");
+        when(menus.confirmacion("resumen", 99, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(interactivo);
+        recibir();
+        verify(consentimiento).aceptar(any(), eq("Ana Pérez"));
+        verify(menus).confirmacion("resumen", 99, "AAAAAAAAAAAAAAAAAAAAAA");
+    }
+
+    @Test
+    void rechazarPrivacidad_noCreaFichaNiPropone() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Privacidad(false)));
+        when(textos.privacidadRechazada()).thenReturn("sin ficha");
+        recibir();
+        verifyNoInteractions(consentimiento, operaciones);
+        verify(menus).menuPrincipal("sin ficha");
+    }
+
+    @Test
+    void confirmacionSinFicha_respondeNoVigenteSinTocarOperaciones() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
+        var noVigente = new ResultadoOperacion.NoVigente(MotivoNoVigente.NO_ENCONTRADA);
+        when(textos.resultado(noVigente)).thenReturn("no válida");
+        recibir();
+        verifyNoInteractions(operaciones);
+        verify(menus).menuPrincipal("no válida");
+    }
+
+    @Test
+    void siSinOperacionVigente_muestraElMenu() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.SI));
+        when(operaciones.confirmarVigente(CONVERSACION, FICHA))
+                .thenReturn(new ResultadoOperacion.NoVigente(MotivoNoVigente.NO_ENCONTRADA));
+        recibir();
+        verify(menus).menuPrincipal("bienvenida");
+    }
+
+    @Test
+    void ejecutada_vaciaElEstadoYEncolaElResultadoComoSistemaConLaReserva() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
+        var cita = new CitaOpcion(245, "BT-245", 3, "Corte", 4, "Carlos", AHORA, AHORA.plusSeconds(1800),
+                new BigDecimal("25.00"), EstadoReserva.CONFIRMADA, 0, true, true);
+        var ejecutada = new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, cita, false);
+        when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(ejecutada);
+        when(textos.resultado(ejecutada)).thenReturn("listo");
+        recibir();
+        verify(conversaciones).vaciar(CONVERSACION);
+        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.of(245));
+    }
+
+    @Test
+    void volverAlMenu_anulaLaVigenteYVaciaElEstado() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.INICIO)));
+        recibir();
+        verify(operaciones).anularVigente(CONVERSACION);
+        verify(conversaciones).vaciar(CONVERSACION);
+        verify(menus).menuPrincipal("bienvenida");
+    }
+
+    @Test
+    void diaFueraDeLosSieteOfrecidos_noConsultaFranjas() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Dia(3, 0, HOY.plusDays(7), 0)));
+        when(menus.dias(anyString(), anyLong(), anyLong(), any())).thenReturn(interactivo);
+        recibir();
+        verify(consultas, never()).franjas(anyLong(), any(), any());
+        verify(menus).dias("no disponible", 3, 0, HOY);
+    }
+
+    @Test
+    void citaQueNoEsDeLaFicha_respondeNoDisponibleSinAcciones() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Cita(245)));
+        when(consultas.cita(FICHA, 245)).thenReturn(Optional.empty());
+        recibir();
+        verify(menus, never()).accionesCita(anyString(), any());
+        verify(menus).menuPrincipal("no disponible");
+    }
+
+    @Test
+    void propuestaRechazada_respondeConLaReglaYSinConfirmacion() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.AccionCita(245, true)));
+        when(operaciones.proponerCancelacion(CONVERSACION, FICHA, 245))
+                .thenReturn(new Propuesta.Rechazada(ErrorCodigo.FUERA_DE_POLITICA));
+        when(textos.rechazo(ErrorCodigo.FUERA_DE_POLITICA)).thenReturn("ya no se puede");
+        recibir();
+        verify(menus, never()).confirmacion(anyString(), anyLong(), anyString());
+        verify(menus).menuPrincipal("ya no se puede");
+    }
+
+    @Test
+    void misCitasSinFicha_noConsultaCitas() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.MIS_CITAS)));
+        when(textos.sinCitas()).thenReturn("sin citas");
+        recibir();
+        verify(consultas, never()).citasFuturas(anyLong());
+        verify(menus).menuPrincipal("sin citas");
+    }
+}
