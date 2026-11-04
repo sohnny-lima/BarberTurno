@@ -105,9 +105,13 @@ class RetencionWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void cuerposDeEventos_sinPlazoConfigurado_noSeTocan() {
-        assertThat(propiedades.retencion().cuerpoEventos()).isNull();
+        var sinPlazos = new ConversacionPropiedades(propiedades.privacidad(), propiedades.inactividad(),
+                propiedades.vigenciaOperacion(), new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200,
+                        PLAZO, null, null, null));
+        var desactivada = new RetencionWhatsApp(entityManager, canales, ejecutor, gestor, sinPlazos, reloj);
+        assertThat(sinPlazos.retencion().cuerpoEventos()).isNull();
         long evento = insertarEventoTerminado(reloj.instant().minus(Duration.ofDays(400)));
-        retencion.purgar();
+        desactivada.purgar();
         assertThat(cuerpo(evento)).isNotEqualTo("{}");
     }
 
@@ -115,7 +119,7 @@ class RetencionWhatsAppIT extends WhatsAppSalidaPruebaBase {
     void cuerposDeEventos_conPlazo_vacianSoloLosTerminadosVencidos() {
         var conPlazo = new ConversacionPropiedades(propiedades.privacidad(), propiedades.inactividad(),
                 propiedades.vigenciaOperacion(), new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200,
-                        PLAZO, Duration.ofDays(30)));
+                        PLAZO, Duration.ofDays(30), null, null));
         var retencionConPlazo = new RetencionWhatsApp(entityManager, canales, ejecutor, gestor, conPlazo, reloj);
         long vencido = insertarEventoTerminado(reloj.instant().minus(Duration.ofDays(31)));
         long reciente = insertarEventoTerminado(reloj.instant().minus(Duration.ofDays(29)));

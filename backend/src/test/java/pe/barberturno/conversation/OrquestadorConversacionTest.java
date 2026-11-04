@@ -34,10 +34,11 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Enrutado de la conversación guiada (13-v2-10 §2, §7 y §8; CJ-3, CJ-9) con dobles de todas sus
- * dependencias: qué se consulta, propone, ejecuta, guarda y encola en cada caso, y qué no se toca.
+ * Enrutado de la conversación guiada (13-v2-10 §2, §7 y §8; CJ-3, CJ-9) y, desde V2-11, de la derivación
+ * (16-v2-11 §2; CB-3, CB-4, CB-5) con dobles de todas sus dependencias: qué se consulta, propone, ejecuta,
+ * guarda y encola en cada caso, y qué no se toca.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 class OrquestadorConversacionTest {
     private static final long NEGOCIO = 7, CONVERSACION = 30, FICHA = 40;
@@ -54,6 +55,7 @@ class OrquestadorConversacionTest {
     private ConsultasConversacion consultas;
     private OperacionesConversacion operaciones;
     private SalidaWhatsApp salida;
+    private DerivacionConversacion derivacion;
     private OrquestadorConversacion orquestador;
     private final ObjectNode interactivo = JsonMapper.builder().build().createObjectNode().put("type", "button");
 
@@ -68,12 +70,14 @@ class OrquestadorConversacionTest {
         consultas = mock(ConsultasConversacion.class);
         operaciones = mock(OperacionesConversacion.class);
         salida = mock(SalidaWhatsApp.class);
+        derivacion = mock(DerivacionConversacion.class);
         var propiedades = new ConversacionPropiedades(
                 new ConversacionPropiedades.Privacidad("Privacidad {negocio} {enlace}", "https://x.ejemplo.test"),
                 Duration.ofHours(24), Duration.ofMinutes(10),
-                new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null));
+                new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
         orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
-                consultas, operaciones, salida, propiedades, Clock.fixed(AHORA, ZoneOffset.UTC));
+                consultas, operaciones, salida, propiedades, derivacion, bandeja(BandejaPropiedades.Entrantes.SOLO_HUMANO),
+                Clock.fixed(AHORA, ZoneOffset.UTC));
         when(registro.operativo(NEGOCIO)).thenReturn(true);
         when(consultas.nombreNegocio()).thenReturn("Barbería Norte");
         when(textos.bienvenida(anyString())).thenReturn("bienvenida");
@@ -82,9 +86,19 @@ class OrquestadorConversacionTest {
     }
 
     private void entrada(Optional<Instant> anterior, OptionalLong ficha, ObjectNode estado, Entrada interpretada) {
+        entrada(anterior, ficha, estado, interpretada, ModoConversacion.ASISTENTE);
+    }
+
+    private void entrada(Optional<Instant> anterior, OptionalLong ficha, ObjectNode estado, Entrada interpretada,
+            ModoConversacion modo) {
         when(registro.registrar(any())).thenReturn(new EntradaRegistrada(CONVERSACION, anterior));
-        when(conversaciones.bloquear(CONVERSACION)).thenReturn(new EstadoConversacion(CONVERSACION, "51999000111", ficha, estado));
+        when(conversaciones.bloquear(CONVERSACION))
+                .thenReturn(new EstadoConversacion(CONVERSACION, "51999000111", ficha, estado, modo));
         when(interprete.interpretar(any(), any())).thenReturn(interpretada);
+    }
+
+    private static BandejaPropiedades bandeja(BandejaPropiedades.Entrantes entrantes) {
+        return new BandejaPropiedades(false, entrantes, Duration.ofHours(24), Duration.ofMinutes(5), 200);
     }
 
     private void recibir() {
@@ -347,5 +361,145 @@ class OrquestadorConversacionTest {
         recibir();
         verify(consultas, never()).citasFuturas(anyLong());
         verify(menus).menuPrincipal("sin citas");
+    }
+
+    @Test
+    void modoHumano_guardaElEntranteYNoInterpretaNiRespondeNiConfirma() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Confirmacion(9, "AAAAAAAAAAAAAAAAAAAAAA", true)), ModoConversacion.HUMANO);
+        recibir();
+        verify(registro).guardarEntrante(eq(CONVERSACION), any());
+        verifyNoInteractions(interprete, operaciones, salida, derivacion, consentimiento);
+        verify(conversaciones, never()).guardar(anyLong(), any());
+    }
+
+    @Test
+    void personaConFicha_guardaElEntranteUnaVezYDerivaPorPeticion() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.PERSONA));
+        recibir();
+        verify(registro).guardarEntrante(eq(CONVERSACION), any());
+        verify(derivacion).derivar(CONVERSACION, MotivoDerivacion.PETICION);
+        verify(salida, never()).encolarInteractivo(anyLong(), any(), any(), any());
+    }
+
+    @Test
+    void botonHablarConAlguienConFichaYEntrantesTodos_guardaUnaSolaVezYDeriva() {
+        var propiedades = new ConversacionPropiedades(
+                new ConversacionPropiedades.Privacidad("Privacidad {negocio} {enlace}", "https://x.ejemplo.test"),
+                Duration.ofHours(24), Duration.ofMinutes(10),
+                new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
+        orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
+                consultas, operaciones, salida, propiedades, derivacion, bandeja(BandejaPropiedades.Entrantes.TODOS),
+                Clock.fixed(AHORA, ZoneOffset.UTC));
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.PERSONA)));
+        recibir();
+        verify(registro).guardarEntrante(eq(CONVERSACION), any());
+        verify(derivacion).derivar(CONVERSACION, MotivoDerivacion.PETICION);
+    }
+
+    @Test
+    void personaSinFicha_pideElConsentimientoConLaDerivacionPendienteSinDerivarNiGuardar() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.PERSONA)));
+        when(textos.privacidad("Privacidad {negocio} {enlace}", "Barbería Norte", "https://x.ejemplo.test")).thenReturn("aviso");
+        when(menus.consentimiento("aviso")).thenReturn(interactivo);
+        var guardado = ArgumentCaptor.forClass(ObjectNode.class);
+        recibir();
+        verify(conversaciones).guardar(eq(CONVERSACION), guardado.capture());
+        assertThat(guardado.getValue().path(ConversacionesWhatsApp.PENDIENTE).asString()).isEqualTo("m:PERSONA");
+        assertThat(guardado.getValue().path(OrquestadorConversacion.MOTIVO).asString()).isEqualTo("PETICION");
+        assertThat(guardado.getValue().path(ConversacionesWhatsApp.PASO).asString()).isEqualTo("CONSENTIMIENTO");
+        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.ASISTENTE, OptionalLong.empty());
+        verifyNoInteractions(derivacion);
+        verify(registro, never()).guardarEntrante(anyLong(), any());
+    }
+
+    @Test
+    void aceptarConDerivacionPendiente_creaLaFichaGuardaLaAceptacionYDerivaConElMotivoGuardado() {
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, "m:PERSONA")
+                .put(OrquestadorConversacion.MOTIVO, "SIN_PROGRESO").put(ConversacionesWhatsApp.PASO, "CONSENTIMIENTO");
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), estado,
+                seleccion(new CodigoSeleccion.Privacidad(true)));
+        recibir();
+        verify(consentimiento).aceptar(any(), eq("Ana Pérez"));
+        verify(registro).guardarEntrante(eq(CONVERSACION), any());
+        verify(derivacion).derivar(CONVERSACION, MotivoDerivacion.SIN_PROGRESO);
+        verify(operaciones, never()).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void rechazarConDerivacionPendiente_noCreaFichaNiDerivaYExplicaQueSinAceptarNoSePuede() {
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, "m:PERSONA")
+                .put(ConversacionesWhatsApp.PASO, "CONSENTIMIENTO");
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), estado,
+                seleccion(new CodigoSeleccion.Privacidad(false)));
+        when(textos.consentimientoDerivacionRechazado()).thenReturn("sin aceptar no");
+        recibir();
+        verifyNoInteractions(consentimiento, derivacion);
+        verify(menus).menuPrincipal("sin aceptar no");
+    }
+
+    @Test
+    void aceptarDerivacionSinQueSeHayaPedido_noCreaFichaNiDeriva() {
+        var estado = mapper.createObjectNode().put(ConversacionesWhatsApp.PENDIENTE, "m:PERSONA");
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), estado,
+                seleccion(new CodigoSeleccion.Privacidad(true)));
+        recibir();
+        verifyNoInteractions(consentimiento, derivacion);
+    }
+
+    @Test
+    void primerTextoNoReconocido_respondeConElAvisoYGuardaElContadorTrasVaciarElMenu() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.OTRA));
+        when(textos.noEntendido(1)).thenReturn("no te entendí");
+        var guardado = ArgumentCaptor.forClass(ObjectNode.class);
+        recibir();
+        verify(menus).menuPrincipal("no te entendí");
+        var orden = org.mockito.Mockito.inOrder(conversaciones);
+        orden.verify(conversaciones).vaciar(CONVERSACION);
+        orden.verify(conversaciones).guardar(eq(CONVERSACION), guardado.capture());
+        assertThat(guardado.getValue().path(OrquestadorConversacion.FALLOS).asInt()).isEqualTo(1);
+        verifyNoInteractions(derivacion);
+    }
+
+    @Test
+    void segundoTextoNoReconocidoSeguido_derivaPorSinProgreso() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA),
+                mapper.createObjectNode().put(OrquestadorConversacion.FALLOS, 1), new Entrada.Texto(PalabraClave.OTRA));
+        recibir();
+        verify(derivacion).derivar(CONVERSACION, MotivoDerivacion.SIN_PROGRESO);
+        verify(registro).guardarEntrante(eq(CONVERSACION), any());
+        verify(menus, never()).menuPrincipal(anyString());
+    }
+
+    @Test
+    void entradaReconocidaTrasUnFallo_reiniciaElContador() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA),
+                mapper.createObjectNode().put(OrquestadorConversacion.FALLOS, 1),
+                seleccion(new CodigoSeleccion.Menu(OpcionMenu.MIS_CITAS)));
+        when(consultas.citasFuturas(FICHA)).thenReturn(java.util.List.of());
+        when(textos.sinCitas()).thenReturn("sin citas");
+        var guardado = ArgumentCaptor.forClass(ObjectNode.class);
+        recibir();
+        verify(conversaciones, org.mockito.Mockito.atLeastOnce()).guardar(eq(CONVERSACION), guardado.capture());
+        assertThat(guardado.getAllValues().getFirst().has(OrquestadorConversacion.FALLOS)).isFalse();
+        verifyNoInteractions(derivacion);
+    }
+
+    @Test
+    void segundoTextoNoReconocidoSinFicha_pideConsentimientoParaDerivar() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(),
+                mapper.createObjectNode().put(OrquestadorConversacion.FALLOS, 1), new Entrada.Texto(PalabraClave.OTRA));
+        when(textos.privacidad("Privacidad {negocio} {enlace}", "Barbería Norte", "https://x.ejemplo.test")).thenReturn("aviso");
+        when(menus.consentimiento("aviso")).thenReturn(interactivo);
+        var guardado = ArgumentCaptor.forClass(ObjectNode.class);
+        recibir();
+        verify(conversaciones).guardar(eq(CONVERSACION), guardado.capture());
+        assertThat(guardado.getValue().path(OrquestadorConversacion.MOTIVO).asString()).isEqualTo("SIN_PROGRESO");
+        assertThat(guardado.getValue().has(OrquestadorConversacion.FALLOS)).isFalse();
+        verifyNoInteractions(derivacion);
     }
 }

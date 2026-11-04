@@ -31,6 +31,14 @@ barberturno:
         enlace: https://barberturno.ejemplo.test/privacidad
       retencion:
         habilitada: false
+        # BORRADOR P2-06 (propuesta del documento 15, NO aprobada): plazos solo para pruebas.
+        cuerpo-eventos: 30d
+        contenido-mensajes: 90d
+        operaciones-terminadas: 30d
+    # V2-11: el retorno automático solo se ejecuta cuando una prueba lo llama.
+    bandeja:
+      habilitado: false
+      entrantes: SOLO_HUMANO
 
   admin:
     correo: ${BT_ADMIN_CORREO:}

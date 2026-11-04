@@ -30,6 +30,15 @@ barberturno:
       privacidad:
         texto: "BORRADOR (pendiente de P2-06): para reservar en {negocio} guardaremos tu nombre de WhatsApp y tu número. Aviso de privacidad: {enlace}. ¿Aceptas?"
         enlace: https://barberturno.ejemplo.test/privacidad
+      # BORRADOR P2-06 (propuesta del documento 15, NO aprobada). dev usa bases desechables (barberturno_v2_test en
+      # el entorno de revisión); ningún plazo alcanza datos de menos de 30 días. En prod estas purgas quedan desactivadas.
+      retencion:
+        cuerpo-eventos: 30d
+        contenido-mensajes: 90d
+        operaciones-terminadas: 30d
+    # V2-11: D6 pendiente; se guardan solo los entrantes mínimos.
+    bandeja:
+      entrantes: SOLO_HUMANO
 
   admin:
     correo: ${BT_ADMIN_CORREO:}

@@ -308,4 +308,50 @@ public class TextosConversacion {
     public String noSoportado() {
         return "Por ahora solo entiendo texto y botones.";
     }
+
+    /**
+     * Acuse de la derivación (06-flujos.md §9.2), origen {@code SISTEMA}: el equipo responderá por aquí.
+     * Implementación: Gemini (G11).
+     * @param negocio nombre del negocio
+     * @return texto
+     */
+    public String derivada(String negocio) {
+        String nombre = (negocio != null && !negocio.isBlank()) ? negocio.strip() : "la barbería";
+        return "Te paso con el equipo de " + nombre + ". Te responderán por aquí en cuanto puedan.";
+    }
+
+    /**
+     * Aviso de que la conversación vuelve al asistente (por el personal o por el retorno automático), que
+     * acompaña al menú principal. Implementación: Gemini (G11).
+     * @return texto
+     */
+    public String devuelta() {
+        return "Hola de nuevo. Tu conversación ha vuelto al asistente virtual. ¿En qué te puedo ayudar?";
+    }
+
+    /**
+     * Respuesta a [No, gracias] cuando el consentimiento se pidió para pasar con el equipo: sin aceptarlo no
+     * se puede derivar, pero se puede seguir consultando. Implementación: Gemini (G11).
+     * @return texto
+     */
+    public String consentimientoDerivacionRechazado() {
+        return "Entendido. Sin aceptar no podemos pasarte con el equipo, pero puedes seguir consultando nuestros servicios o tu disponibilidad desde el menú.";
+    }
+
+    /**
+     * Texto no reconocido en modo asistente (V2-11). Con {@code fallos = 1} avisa de que, si vuelve a pasar,
+     * se pasará con el equipo. Implementación: Gemini (G11).
+     * @param fallos textos no reconocidos seguidos, incluido este (1 o más)
+     * @return texto
+     * @throws IllegalArgumentException si {@code fallos} es menor que 1
+     */
+    public String noEntendido(int fallos) {
+        if (fallos < 1) {
+            throw new IllegalArgumentException("El número de fallos debe ser al menos 1: " + fallos);
+        }
+        if (fallos == 1) {
+            return "No entendí ese mensaje. Por favor, usa los botones del menú o escribe lo que necesitas. Si vuelve a pasar, te pasaré con el equipo.";
+        }
+        return "No entendí ese mensaje. Te paso con el equipo para que puedan atenderte.";
+    }
 }

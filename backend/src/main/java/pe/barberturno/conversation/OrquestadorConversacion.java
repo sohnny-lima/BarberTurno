@@ -21,6 +21,7 @@ import pe.barberturno.conversation.CodigoSeleccion.PaginaServicios;
 import pe.barberturno.conversation.CodigoSeleccion.Privacidad;
 import pe.barberturno.conversation.CodigoSeleccion.Profesional;
 import pe.barberturno.conversation.CodigoSeleccion.Servicio;
+import pe.barberturno.conversation.BandejaPropiedades.Entrantes;
 import pe.barberturno.conversation.ConversacionesWhatsApp.EstadoConversacion;
 import pe.barberturno.whatsapp.MensajeEntrante;
 import pe.barberturno.whatsapp.OrigenMensaje;
@@ -36,9 +37,13 @@ import tools.jackson.databind.node.ObjectNode;
  * entrada (que bloquea la conversación) → vaciado por inactividad → interpretación determinista →
  * paso del menú, consentimiento u operación → respuesta. Ninguna decisión de negocio se toma aquí: las
  * consultas, propuestas y ejecuciones revalidan en {@link ConsultasConversacion} y
- * {@link OperacionesConversacion}. No registra ni guarda el texto del cliente.
+ * {@link OperacionesConversacion}. No registra el texto del cliente en los registros.
+ * <p>Desde V2-11 (16-v2-11 §2): en modo {@code HUMANO} solo guarda el mensaje y no responde (V2-RN-15), antes
+ * que cualquier confirmación; «Hablar con alguien», la palabra clave {@code PERSONA} o dos textos seguidos no
+ * reconocidos derivan a una persona (sin ficha, tras el consentimiento); los entrantes se guardan según
+ * {@link BandejaPropiedades#entrantes()}, una sola vez por mensaje.</p>
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
@@ -47,6 +52,12 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     static final int DIAS_OFRECIDOS = 7;
     /** 9999-12-31T23:59:59Z: mayor inicio aceptado en una selección. */
     static final long INSTANTE_MAXIMO = 253_402_300_799L;
+    /** Clave del estado con los textos no reconocidos seguidos (V2-11). */
+    static final String FALLOS = "fallos";
+    /** Clave del estado con el motivo de una derivación pendiente de consentimiento (V2-11). */
+    static final String MOTIVO = "motivo";
+    /** Textos no reconocidos seguidos que derivan a una persona. */
+    static final int FALLOS_PARA_DERIVAR = 2;
 
     private final RegistroEntradaWhatsApp registro;
     private final ConversacionesWhatsApp conversaciones;
@@ -58,6 +69,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     private final OperacionesConversacion operaciones;
     private final SalidaWhatsApp salida;
     private final ConversacionPropiedades propiedades;
+    private final DerivacionConversacion derivacion;
+    private final BandejaPropiedades bandeja;
     private final Clock reloj;
 
     /**
@@ -72,12 +85,15 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
      * @param operaciones operaciones pendientes y su ejecución
      * @param salida outbox de WhatsApp
      * @param propiedades textos de privacidad e inactividad
+     * @param derivacion paso a modo humano (V2-11)
+     * @param bandeja qué entrantes se guardan (V2-11)
      * @param reloj reloj de la aplicación
      */
     public OrquestadorConversacion(RegistroEntradaWhatsApp registro, ConversacionesWhatsApp conversaciones,
             ConsentimientoConversacion consentimiento, InterpreteEntradas interprete, MenusConversacion menus,
             TextosConversacion textos, ConsultasConversacion consultas, OperacionesConversacion operaciones,
-            SalidaWhatsApp salida, ConversacionPropiedades propiedades, Clock reloj) {
+            SalidaWhatsApp salida, ConversacionPropiedades propiedades, DerivacionConversacion derivacion,
+            BandejaPropiedades bandeja, Clock reloj) {
         this.registro = registro;
         this.conversaciones = conversaciones;
         this.consentimiento = consentimiento;
@@ -88,6 +104,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         this.operaciones = operaciones;
         this.salida = salida;
         this.propiedades = propiedades;
+        this.derivacion = derivacion;
+        this.bandeja = bandeja;
         this.reloj = reloj;
     }
 
@@ -104,6 +122,10 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         if (!registro.operativo(mensaje.negocioId())) return;
         var entrada = registro.registrar(mensaje);
         var conversacion = conversaciones.bloquear(entrada.conversacionId());
+        if (conversacion.modo() == ModoConversacion.HUMANO) {
+            registro.guardarEntrante(conversacion.id(), mensaje);
+            return;
+        }
         Instant ahora = reloj.instant();
         boolean inactiva = entrada.entradaAnterior()
                 .map(anterior -> !anterior.plus(propiedades.inactividad()).isAfter(ahora)).orElse(true);
@@ -112,8 +134,21 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             operaciones.anularVigente(conversacion.id());
             conversacion = conversaciones.bloquear(conversacion.id());
         }
-        var turno = new Turno(conversacion, mensaje.nombrePerfil(), TiempoNegocio.fechaLima(ahora));
-        switch (interprete.interpretar(mensaje.tipo(), mensaje.dato())) {
+        boolean guardado = false;
+        if (bandeja.entrantes() == Entrantes.TODOS) {
+            registro.guardarEntrante(conversacion.id(), mensaje);
+            guardado = true;
+        }
+        var interpretada = interprete.interpretar(mensaje.tipo(), mensaje.dato());
+        boolean noReconocido = interpretada instanceof Entrada.Texto(var clave) && clave == PalabraClave.OTRA;
+        if (!noReconocido && conversacion.estado().has(FALLOS)) {
+            var estado = conversacion.estado().deepCopy();
+            estado.remove(FALLOS);
+            conversaciones.guardar(conversacion.id(), estado);
+            conversacion = conversaciones.bloquear(conversacion.id());
+        }
+        var turno = new Turno(conversacion, mensaje, guardado, TiempoNegocio.fechaLima(ahora));
+        switch (interpretada) {
             case Entrada.NoSoportada ignorada -> turno.menu(textos.noSoportado());
             case Entrada.Texto texto -> turno.texto(texto.clave());
             case Entrada.Seleccion seleccion -> turno.seleccion(seleccion.codigo());
@@ -123,12 +158,16 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     /** Un mensaje atendido: la conversación bloqueada y lo necesario para responder. */
     private final class Turno {
         private final EstadoConversacion conversacion;
+        private final MensajeEntrante mensaje;
         private final String nombrePerfil;
         private final LocalDate hoy;
+        private boolean guardado;
 
-        Turno(EstadoConversacion conversacion, String nombrePerfil, LocalDate hoy) {
+        Turno(EstadoConversacion conversacion, MensajeEntrante mensaje, boolean guardado, LocalDate hoy) {
             this.conversacion = conversacion;
-            this.nombrePerfil = nombrePerfil;
+            this.mensaje = mensaje;
+            this.nombrePerfil = mensaje.nombrePerfil();
+            this.guardado = guardado;
             this.hoy = hoy;
         }
 
@@ -154,7 +193,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                         bienvenida();
                     }
                 }
-                case OTRA -> bienvenida();
+                case PERSONA -> pedirPersona(MotivoDerivacion.PETICION);
+                case OTRA -> noReconocido();
             }
         }
 
@@ -165,6 +205,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                         case RESERVAR -> servicios(0);
                         case MIS_CITAS -> misCitas();
                         case INICIO -> inicio();
+                        case PERSONA -> pedirPersona(MotivoDerivacion.PETICION);
                     }
                 }
                 case Privacidad(var acepta) -> privacidad(acepta);
@@ -188,6 +229,56 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
 
         private void inicio() {
             bienvenida();
+        }
+
+        /**
+         * Texto no reconocido (V2-11): el primero responde con el aviso y el menú, y el contador sobrevive al
+         * vaciado del menú; el segundo seguido deriva a una persona ({@code SIN_PROGRESO}).
+         */
+        private void noReconocido() {
+            int fallos = conversacion.estado().path(FALLOS).asInt(0) + 1;
+            if (fallos >= FALLOS_PARA_DERIVAR) {
+                pedirPersona(MotivoDerivacion.SIN_PROGRESO);
+                return;
+            }
+            menu(textos.noEntendido(fallos));
+            var estado = conversaciones.bloquear(conversacion.id()).estado();
+            estado.put(FALLOS, fallos);
+            conversaciones.guardar(conversacion.id(), estado);
+        }
+
+        /**
+         * Petición de una persona (16-v2-11 §2.3). Con ficha deriva y guarda el mensaje que la provoca; sin ficha
+         * pide antes el consentimiento con la derivación como pendiente (V2-DA-71).
+         */
+        private void pedirPersona(MotivoDerivacion motivo) {
+            if (conversacion.clienteId().isPresent()) {
+                derivar(motivo);
+                return;
+            }
+            operaciones.anularVigente(conversacion.id());
+            var estado = conversaciones.bloquear(conversacion.id()).estado();
+            estado.removeAll();
+            estado.put(ConversacionesWhatsApp.PENDIENTE, new Menu(OpcionMenu.PERSONA).codificar());
+            estado.put(MOTIVO, motivo.name());
+            estado.put(ConversacionesWhatsApp.PASO, "CONSENTIMIENTO");
+            conversaciones.guardar(conversacion.id(), estado);
+            var privacidad = propiedades.privacidad();
+            enviar(menus.consentimiento(textos.privacidad(privacidad.texto(), consultas.nombreNegocio(),
+                    privacidad.enlace())), null);
+        }
+
+        /** Guarda el mensaje (una sola vez) y deriva; la derivación anula la vigente, vacía el estado y avisa. */
+        private void derivar(MotivoDerivacion motivo) {
+            guardarEntrante();
+            derivacion.derivar(conversacion.id(), motivo);
+        }
+
+        private void guardarEntrante() {
+            if (!guardado) {
+                registro.guardarEntrante(conversacion.id(), mensaje);
+                guardado = true;
+            }
         }
 
         private void bienvenida() {
@@ -259,9 +350,18 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
          */
         private void privacidad(boolean acepta) {
             var pendiente = conversacion.estado().path(ConversacionesWhatsApp.PENDIENTE).asString(null);
+            boolean paraDerivar = new Menu(OpcionMenu.PERSONA).codificar().equals(pendiente);
             if (!acepta) {
                 if (conversacion.clienteId().isEmpty()) conversaciones.vaciar(conversacion.id());
-                menu(textos.privacidadRechazada());
+                menu(paraDerivar ? textos.consentimientoDerivacionRechazado() : textos.privacidadRechazada());
+                return;
+            }
+            boolean pedido = "CONSENTIMIENTO".equals(conversacion.estado().path(ConversacionesWhatsApp.PASO).asString(null));
+            if (paraDerivar && pedido) {
+                var motivo = motivoPendiente();
+                consentimiento.aceptar(conversacion, nombrePerfil);
+                conversaciones.vaciar(conversacion.id());
+                derivar(motivo);
                 return;
             }
             var franja = pendiente == null ? null
@@ -279,6 +379,15 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                 return;
             }
             propuesta(operaciones.proponerCreacion(conversacion.id(), ficha, franja.servicioId(), franja.barberoId(), inicio));
+        }
+
+        /** Motivo guardado con la derivación pendiente; uno desconocido cuenta como petición del cliente. */
+        private MotivoDerivacion motivoPendiente() {
+            try {
+                return MotivoDerivacion.valueOf(conversacion.estado().path(MOTIVO).asString(MotivoDerivacion.PETICION.name()));
+            } catch (IllegalArgumentException desconocido) {
+                return MotivoDerivacion.PETICION;
+            }
         }
 
         private void misCitas() {

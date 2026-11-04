@@ -80,3 +80,17 @@ li > p:first-child {
   text-align: left;
   line-height: 20px;
 }
+.enlace-conversacion {
+  margin-top: 6px;
+  a {
+    color: var(--color-verde);
+    font-weight: 600;
+    text-decoration: underline;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    &:hover {
+      color: var(--color-verde-oscuro, #0f4d37);
+    }
+  }
+}

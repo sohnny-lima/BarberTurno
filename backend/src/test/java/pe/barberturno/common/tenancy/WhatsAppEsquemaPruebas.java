@@ -42,7 +42,7 @@ final class WhatsAppEsquemaPruebas {
         assertThat(jdbc.queryForList("select indexname from pg_indexes where tablename in ('canal_whatsapp','evento_whatsapp_entrante','cliente')", String.class))
                 .contains("canal_whatsapp_numero_uk", "evento_whatsapp_clave_uk", "evento_whatsapp_cola_ix", "cliente_wa_uk");
         assertThat(jdbc.queryForObject("select pg_get_constraintdef(oid) from pg_constraint where conname='cliente_identificable'", String.class))
-                .contains("wa_id IS NOT NULL");
+                .contains("usuario_id IS NOT NULL", "wa_id IS NOT NULL", "telefono IS NOT NULL", "anonimizada_en IS NOT NULL");
         for (String restriccion : List.of("auditoria_plataforma_accion_valida", "auditoria_plataforma_destino_coherente")) {
             assertThat(jdbc.queryForObject("select pg_get_constraintdef(oid) from pg_constraint where conname=?", String.class, restriccion))
                     .contains("REGISTRAR_CANAL_WHATSAPP", "DESCONECTAR_CANAL_WHATSAPP");

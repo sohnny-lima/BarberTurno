@@ -488,3 +488,28 @@
   - la espera de conciliación (2 min) se respeta también cuando el desconocido se detecta por un cierre perdido.
 - **Sin migración nueva:** se reutilizan `intentos` e `inciertos` (V114), con un significado precisado en el Javadoc. `max-inciertos` deja de ser configurable: el presupuesto adicional lo fija esta política.
 - **Sustituye** a las reglas de reenvío de V2-DA-58 (la precisión del 29/10 queda como historial) y cierra **H-116-01/02**.
+
+### V2-DA-71 · Derivación a una persona solo con ficha (04/11/2026, V2-11)
+- **Decisión:** pedir una persona (botón «Hablar con alguien», palabra clave `PERSONA` o dos textos no reconocidos seguidos) deriva solo si la conversación tiene ficha; sin ficha, se pide antes el consentimiento con la derivación como pendiente. Un `CHECK` exige ficha en modo `HUMANO`.
+- **Por qué:** el personal ve el nombre y el historial del cliente; sin consentimiento no hay base para mostrárselo ni para guardar sus mensajes (P2-06).
+- **Alternativas:** derivar sin ficha mostrando solo el número enmascarado (el personal respondería a alguien que no aceptó el tratamiento).
+
+### V2-DA-72 · Mensajes entrantes guardados: opción mínima configurable (04/11/2026, V2-11; D6 pendiente)
+- **Decisión:** `barberturno.whatsapp.bandeja.entrantes = SOLO_HUMANO` (predeterminado en todos los perfiles): se guarda el mensaje que provoca la derivación y los del modo humano, con un contenido mínimo (texto, título de la selección o tipo), nunca el cuerpo crudo. `TODOS` existe y se prueba, pero solo se activa si el responsable lo decide en D6.
+- **Por qué:** la bandeja necesita leer al cliente en modo humano; guardar todo el modo asistente no es necesario para el MVP y amplía los datos tratados.
+
+### V2-DA-73 · Bandeja web con permisos del servidor y ventana efectiva compartida (04/11/2026, V2-11)
+- **Decisión:** API bajo `/api/n/{slug}/whatsapp/conversaciones` para PROPIETARIO y ENCARGADO (regla gruesa `ROLE_ADMIN` + membresía comprobada en el servicio, repetida tras el bloqueo). La ventana es la del enviador de V2-09 (24 h menos el margen); la API publica el vencimiento nominal y `puedeResponder`/`motivoNoResponder` calculados por el servidor. Respuesta con origen `PERSONA` y `enviado_por`; los fallos se muestran en la bandeja, sin avisos. El enviador descarta (`MODO_HUMANO`) los mensajes del asistente pendientes de una conversación ya derivada. Avisos de derivación con `notificacion.conversacion_id` y `AccionAuditoria.DERIVACION`.
+- **Excepción a V2-DA-65:** la bandeja y la anonimización toman la conversación desde la web, siempre como primer bloqueo; nunca se bloquea una conversación después de un mensaje.
+
+### V2-DA-74 · Retención de contenidos y operaciones (04/11/2026, V2-11; plazos D4 pendientes)
+- **Decisión:** dos fases nuevas en `RetencionWhatsApp` (una transacción por negocio y fase): retirar el contenido (`{"retirado": true}`) de los mensajes no pendientes de conversaciones con ficha y borrar las operaciones no vigentes. Un disparador y una política restrictiva impiden en SQL lo que nunca se puede retirar o borrar. **Plazos:** vacíos (desactivado) en la configuración base y en `prod`; 30/90/30 días solo en `dev` y `test`, marcados «BORRADOR P2-06».
+
+### V2-DA-75 · Anonimización de una ficha de WhatsApp a petición (04/11/2026, V2-11; opción propuesta de D5, no aprobada)
+- **Decisión:** `POST /api/n/{slug}/clientes/{id}/anonimizar` (solo PROPIETARIO): fichas sin cuenta web y sin reservas activas ni mensajes pendientes; marca la ficha («Cliente eliminado», sin `wa_id` ni teléfono, inactiva, `anonimizada_en`) y borra después sus avisos de derivación, operaciones, mensajes y conversación; conserva reservas y auditoría. **Excepción a V2-DA-67:** se pueden borrar mensajes con `reserva_id` de una ficha anonimizada.
+- **Límite declarado:** no vacía los cuerpos crudos de los eventos (orden de bloqueos de la entrega); queda para P2-06.
+- **Alternativas:** borrado en cascada (pierde el historial de reservas y auditoría); la decisión final es del responsable (D5).
+
+### V2-DA-76 · Retorno automático al asistente (04/11/2026, V2-11)
+- **Decisión:** trabajo programado cada 5 min, sin transacción exterior, por negocio y en lotes: conversaciones en `HUMANO` sin respuesta del personal durante 24 h (`barberturno.whatsapp.bandeja.retorno-automatico`) vuelven al asistente, comprobado bajo bloqueo; el aviso al cliente y el menú solo si la ventana efectiva está abierta.
+

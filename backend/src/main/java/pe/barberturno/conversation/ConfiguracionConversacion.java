@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * @version 1.0
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(ConversacionPropiedades.class)
+@EnableConfigurationProperties({ConversacionPropiedades.class, BandejaPropiedades.class})
 public class ConfiguracionConversacion {
 
     /** Constructor usado por Spring. */

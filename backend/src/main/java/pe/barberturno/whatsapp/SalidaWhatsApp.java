@@ -71,4 +71,21 @@ public interface SalidaWhatsApp {
      */
     long encolarAviso(long conversacionId, PlantillaUtility plantilla, Map<String, String> parametros,
             OptionalLong reservaId);
+
+    /**
+     * Encola la respuesta de texto libre de un miembro del equipo desde la bandeja (V2-11, 16-v2-11 §3.2):
+     * origen {@code PERSONA} y {@code enviado_por}, insertados a la vez. Mismas reglas de ventana y envío que
+     * {@link #encolarTexto}, que rechaza el origen {@code PERSONA} sin actor. Implementación: Codex (X11); por
+     * defecto no está disponible, para que los dobles de prueba de V2-09/V2-10 sigan compilando.
+     * @param conversacionId conversación del negocio actual, en modo {@code HUMANO}
+     * @param texto de 1 a 4096 caracteres, no en blanco
+     * @param usuarioId miembro autorizado que responde
+     * @return id del mensaje encolado
+     * @throws pe.barberturno.common.error.NegocioException NO_ENCONTRADO si la conversación no es del negocio;
+     * VALIDACION si el texto no es válido
+     * @throws UnsupportedOperationException si la implementación no admite respuestas del personal
+     */
+    default long encolarRespuestaPersonal(long conversacionId, String texto, long usuarioId) {
+        throw new UnsupportedOperationException("Respuesta del personal no disponible en esta salida.");
+    }
 }

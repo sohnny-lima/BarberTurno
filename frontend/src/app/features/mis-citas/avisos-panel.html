@@ -31,12 +31,22 @@
             {{ aviso.creadoEn | fechaLima }}
           </p>
           <p>{{ aviso.mensaje }}</p>
+          @if (aviso.tipo === 'DERIVACION' && aviso.conversacionId !== null) {
+            <p class="enlace-conversacion">
+              <a
+                [routerLink]="rutaConversacion(aviso.conversacionId)"
+                (click)="alAbrirConversacion()"
+              >
+                Abrir conversación
+              </a>
+            </p>
+          }
           @if (!aviso.leida) {
             <button
               mat-button
               (click)="marcar(aviso.id)"
               [disabled]="guardando()"
-              [attr.aria-label]="'Marcar como leído el aviso de BT-' + aviso.reservaId"
+              [attr.aria-label]="etiquetaLectura(aviso)"
             >
               Marcar como leído
             </button>

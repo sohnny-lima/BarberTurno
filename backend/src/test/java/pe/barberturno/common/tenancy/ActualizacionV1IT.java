@@ -11,6 +11,43 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.*;
 
 class ActualizacionV1IT extends MigracionPruebaBase {
+    @Test void v115_aV116_conDatos_conservaTodasLasColumnasAnteriores_yAnadeDestinosYDerivacion() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("115").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long conversacion;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "pre-v116");
+            jdbc.update("update cliente set wa_id='51900000116' where id=?", datos.ficha());
+            conversacion = jdbc.queryForObject("""
+                    insert into conversacion(wa_id,cliente_id,ultima_entrada_en,creado_en,actualizado_en)
+                    values ('51900000116',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id
+                    """, Long.class, datos.ficha());
+            jdbc.update("""
+                    insert into mensaje_whatsapp(conversacion_id,reserva_id,direccion,origen,tipo,contenido,estado,error_codigo,creado_en,actualizado_en)
+                    values (?,?,'SALIENTE','SISTEMA','TEXTO','{"texto":"conservado"}','FALLIDO','VENTANA_CERRADA',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    """, conversacion, datos.reserva());
+            jdbc.update("""
+                    insert into operacion_pendiente(conversacion_id,cliente_id,tipo,datos,nonce,expira_en,creado_en,actualizado_en)
+                    values (?,?,'CREAR','{}',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    """, conversacion, datos.ficha(), new byte[16]);
+            for (String tabla : List.of("cliente", "conversacion", "mensaje_whatsapp", "operacion_pendiente",
+                    "reserva", "auditoria_reserva", "notificacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            assertThat(jdbc.queryForObject("select modo from conversacion where id=?", String.class, conversacion)).isEqualTo("ASISTENTE");
+            assertThat(jdbc.queryForObject("select count(*) from mensaje_whatsapp where enviado_por is not null", Long.class)).isZero();
+            WhatsAppSalidaEsquemaPruebas.comprobar(jdbc);
+            aplicacion.commit();
+        }
+    }
     @Test void v111_aV112_conservaDatos_yRestringeUpdateAColumnasPermitidas() throws Exception {
         var completa = flyway(null);
         completa.clean(); flyway("111").migrate();
@@ -336,7 +373,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
     private static Map<String, String> huellas(JdbcTemplate jdbc) {
         var resultado = new LinkedHashMap<String, String>();
         for (String tabla : TABLAS) {
-            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto' - 'canal' - 'actor_cliente_id')::text, ',' order by id)) from " + tabla + " t", String.class));
+            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto' - 'canal' - 'actor_cliente_id' - 'conversacion_id')::text, ',' order by id)) from " + tabla + " t", String.class));
         }
         return resultado;
     }
@@ -356,11 +393,14 @@ class ActualizacionV1IT extends MigracionPruebaBase {
 
     /** Columnas añadidas por migraciones posteriores a las versiones de partida; nacen nulas o con valor por defecto ('WEB' en reserva). */
     static final java.util.Map<String, java.util.Set<String>> COLUMNAS_NUEVAS = java.util.Map.of(
-            "cliente", java.util.Set.of("wa_id"),
+            "cliente", java.util.Set.of("wa_id", "anonimizada_en"),
+            "notificacion", java.util.Set.of("conversacion_id"),
+            "conversacion", java.util.Set.of("derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en"),
+            "mensaje_whatsapp", java.util.Set.of("enviado_por"),
             "reserva", java.util.Set.of("canal"),
             "auditoria_reserva", java.util.Set.of("actor_cliente_id"));
 
-    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas de V113/V115. */
+    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas de V113…V116. */
     @SuppressWarnings("unchecked")
     static void comprobarConservados(org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.Map<String, Object> antes) {
         for (var tabla : antes.entrySet()) {
@@ -376,7 +416,9 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                 assertThat(actual.keySet()).as("columnas nuevas de %s", tabla.getKey())
                         .isSubsetOf(COLUMNAS_NUEVAS.getOrDefault(tabla.getKey(), java.util.Set.of()));
                 if ("reserva".equals(tabla.getKey())) {
-                    assertThat(actual.get("canal")).as("canal en reserva migrada fila %d", i).isEqualTo("WEB");
+                    if (actual.containsKey("canal")) {
+                        assertThat(actual.get("canal")).as("canal en reserva migrada fila %d", i).isEqualTo("WEB");
+                    }
                     assertThat(previas.get(i).get("creada_por")).as("creada_por previo en reserva fila %d", i).isNotNull();
                     assertThat(actuales.get(i).get("creada_por")).as("creada_por conservado en reserva fila %d", i).isEqualTo(previas.get(i).get("creada_por"));
                 } else {

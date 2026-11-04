@@ -150,6 +150,7 @@ export class Shell {
             ? [
                 { ruta: '/equipo', texto: 'Equipo' },
                 { ruta: '/invitaciones', texto: 'Invitaciones' },
+                { ruta: '/whatsapp', texto: 'WhatsApp' },
               ]
             : []),
           ...(this.negocio.usuario()?.rolNegocio === 'PROPIETARIO'
@@ -245,6 +246,8 @@ export class Shell {
     if (ruta.endsWith('/equipo'))
       return 'M15 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0M5 21v-2a7 7 0 0 1 14 0v2M18 4a3 3 0 0 1 0 6M21 20v-2a6 6 0 0 0-3-5';
     if (ruta.endsWith('/invitaciones')) return 'M3 5h18v14H3zM3 6l9 7 9-7';
+    if (ruta.endsWith('/whatsapp'))
+      return 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z';
     if (ruta.endsWith('/configuracion'))
       return 'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0';
     if (ruta.startsWith('/plataforma') || ruta === '/negocios')

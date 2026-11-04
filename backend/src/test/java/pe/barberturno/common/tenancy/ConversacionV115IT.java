@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
-/** Permisos reales, RLS, restricciones y defensa de retención de V115, sin modificar ayudantes ajenos. */
+/** Permisos reales, RLS y defensas de V115 con las ampliaciones de retención de V116. */
 class ConversacionV115IT extends TenancyPruebaBase {
     @Test void permisosExactos_rlsForzada_yColumnasInmutables() {
         var actualizables = Map.of(
                 "operacion_pendiente", Set.of("estado", "resultado", "actualizado_en"),
-                "conversacion", Set.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en"),
+                "conversacion", Set.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en", "modo", "derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en"),
                 "evento_whatsapp_entrante", Set.of("cuerpo", "negocio_id", "estado", "motivo", "intentos", "proximo_intento", "procesado_en"));
         for (var entrada : actualizables.entrySet()) {
             String tabla = entrada.getKey();
@@ -26,7 +26,7 @@ class ConversacionV115IT extends TenancyPruebaBase {
                 assertThat(jdbc.queryForObject("select has_table_privilege(current_user,?,?)", Boolean.class, tabla, privilegio)).isFalse();
             }
             assertThat(jdbc.queryForObject("select has_table_privilege(current_user,?,'DELETE')", Boolean.class, tabla))
-                    .isEqualTo(tabla.equals("conversacion"));
+                    .isEqualTo(!tabla.equals("evento_whatsapp_entrante"));
         }
         assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'mensaje_whatsapp','DELETE')", Boolean.class)).isTrue();
         for (String tabla : List.of("operacion_pendiente", "conversacion", "mensaje_whatsapp")) {
@@ -71,7 +71,8 @@ class ConversacionV115IT extends TenancyPruebaBase {
         falla("23505", () -> enNegocio(1L, () -> insertar(conv, ficha, "CANCELAR", "VIGENTE", 16, null)));
         assertThat(enNegocio(1L, () -> jdbc.update("update operacion_pendiente set estado='ANULADA',actualizado_en=CURRENT_TIMESTAMP where estado='VIGENTE'"))).isEqualTo(1);
         enNegocio(1L, () -> insertar(conv, ficha, "REPROGRAMAR", "VIGENTE", 16, null));
-        falla("42501", () -> enNegocio(1L, () -> jdbc.update("delete from operacion_pendiente")));
+        assertThat(enNegocio(1L, () -> jdbc.update("delete from operacion_pendiente"))).isEqualTo(3); // EJECUTADA, RECHAZADA y ANULADA.
+        assertThat(enNegocio(1L, () -> jdbc.queryForList("select estado from operacion_pendiente", String.class))).containsExactly("VIGENTE");
     }
 
     @Test void dosNegocios_fkCompuestasAConversacionYFicha_sinContextoNoSeVeNada() throws Exception {

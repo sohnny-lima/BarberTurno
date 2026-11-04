@@ -12,6 +12,7 @@ import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.reservations.EstadoReserva;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Pruebas unitarias de composición de textos de la conversación guiada en {@link TextosConversacion}.
@@ -236,5 +237,78 @@ class TextosConversacionTest {
         assertThat(textos.noDisponible()).isEqualTo("Esa opción o cita ya no está disponible.");
         assertThat(textos.noReconocido()).contains("menú");
         assertThat(textos.noSoportado()).isEqualTo("Por ahora solo entiendo texto y botones.");
+    }
+
+    @Test
+    @DisplayName("derivada: texto cordial con nombre del negocio, sin plazos y menor a 1024 caracteres")
+    void derivada_nombreNegocio_textoCordialSinPlazosYMenorA1024() {
+        String texto = textos.derivada("Barbería Central");
+        assertThat(texto)
+                .contains("Barbería Central")
+                .contains("equipo")
+                .contains("responderán")
+                .doesNotContain("24")
+                .doesNotContain("horas")
+                .doesNotContain("minutos");
+        assertThat(texto.length()).isLessThanOrEqualTo(1024);
+
+        String textoNulo = textos.derivada(null);
+        assertThat(textoNulo).contains("equipo").contains("barbería");
+
+        String textoVacio = textos.derivada("   ");
+        assertThat(textoVacio).contains("equipo").contains("barbería");
+    }
+
+    @Test
+    @DisplayName("devuelta: aviso cordial de retorno al asistente menor a 1024 caracteres")
+    void devuelta_avisoCordial_menorA1024() {
+        String texto = textos.devuelta();
+        assertThat(texto)
+                .isNotBlank()
+                .contains("asistente")
+                .contains("ayudar");
+        assertThat(texto.length()).isLessThanOrEqualTo(1024);
+    }
+
+    @Test
+    @DisplayName("consentimientoDerivacionRechazado: mensaje explicativo menor a 1024 caracteres")
+    void consentimientoDerivacionRechazado_mensajeExplicativo_menorA1024() {
+        String texto = textos.consentimientoDerivacionRechazado();
+        assertThat(texto)
+                .isNotBlank()
+                .contains("Sin aceptar")
+                .contains("equipo");
+        assertThat(texto.length()).isLessThanOrEqualTo(1024);
+    }
+
+    @Test
+    @DisplayName("noEntendido: fallos válidos (1 y >=2) devuelven textos válidos y diferenciados")
+    void noEntendido_fallosValidos_textosDiferenciados() {
+        String f1 = textos.noEntendido(1);
+        String f2 = textos.noEntendido(2);
+        String f3 = textos.noEntendido(3);
+
+        assertThat(f1)
+                .contains("No entendí")
+                .contains("Si vuelve a pasar")
+                .contains("equipo");
+        assertThat(f1.length()).isLessThanOrEqualTo(1024);
+
+        assertThat(f2)
+                .contains("No entendí")
+                .contains("equipo")
+                .isNotEqualTo(f1);
+        assertThat(f2.length()).isLessThanOrEqualTo(1024);
+
+        assertThat(f3).isEqualTo(f2);
+    }
+
+    @Test
+    @DisplayName("noEntendido: fallos menores a 1 lanzan IllegalArgumentException")
+    void noEntendido_fallosMenoresA1_lanzaIllegalArgumentException() {
+        assertThatThrownBy(() -> textos.noEntendido(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> textos.noEntendido(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
