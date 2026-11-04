@@ -399,3 +399,27 @@
 - **Problema (consulta 117 de Codex, punto 2):** `ReservaDto.cliente.id` es el id de la **cuenta** (V2-DA-29), y una reserva de una ficha de WhatsApp no tiene cuenta. Usar ahí el id de la ficha mezclaría dos espacios de identificadores que pueden coincidir y nombrar a personas distintas.
 - **Decisión:** `cliente.id` pasa a anulable y sigue siendo la cuenta. Se añade `cliente.fichaId`, siempre presente. El nombre y el teléfono salen de la ficha. El *frontend* de la rama de V2-10 no cambia: el tipo `reservas.ts` se ajusta al integrar con V2-07, que ya planea pasar a ids de ficha (V2-10/11).
 - **Por qué:** es un cambio compatible para los clientes con cuenta y evita adelantar la migración completa a ids de ficha.
+
+### V2-DA-70 · Presupuestos de envío confirmados antes del HTTP (04/11/2026; corrige H-116-01/02)
+- **Política autorizada por el responsable (04/11/2026):**
+  - se conserva el máximo global de **5 intentos** por mensaje;
+  - después del **primer intento cuyo resultado sea desconocido**, se permite **como máximo un intento HTTP adicional**;
+  - ese intento consume el permiso aunque reciba un 429 o vuelva a quedar desconocido;
+  - ni los reinicios ni los trabajadores concurrentes restablecen ninguno de los dos presupuestos.
+- **Decisión:** los dos presupuestos se registran y se **confirman en la base antes de cada llamada HTTP**, que sigue fuera de la transacción:
+  1. **intento reservado:** el reclamo incrementa `intentos` (la ficha), como hasta ahora;
+  2. **presunción de resultado desconocido:** la transacción que prepara el envío deja el intento contado como desconocido (`inciertos`) y, si ya había uno, consume el intento adicional. Así, un intento cuyo cierre se pierde (caída, reclamo vencido, cierre descartado por ficha antigua) **queda contado sin depender del cierre**;
+  3. **cierre:** solo **retira** la presunción cuando la respuesta demuestra que Meta no aceptó esa solicitud (rechazo transitorio o permanente, `NoEnviado`), salvo en el intento adicional, que se consume igualmente;
+  4. tras el intento adicional, cualquier resultado distinto de la aceptación termina el mensaje como `FALLIDO`/`RESULTADO_DESCONOCIDO` (o con su motivo permanente).
+- **Estados que se distinguen:**
+  - **intento reservado:** `intentos`, confirmado al reclamar;
+  - **solicitud efectuada:** solo se sabe que se iba a efectuar. Una caída tras confirmar la preparación y antes o durante el HTTP es indistinguible de una solicitud sin respuesta, y se cuenta como desconocida;
+  - **aceptación del proveedor:** respuesta con `wamid` → `ENVIADO`;
+  - **entrega confirmada:** aviso de estado `delivered` o `read` → `ENTREGADO`/`LEIDO`.
+- **Consecuencias, documentadas sin prometer más:**
+  - una caída **antes** de la llamada puede consumir un intento reservado e incluso el presupuesto del resultado desconocido sin que haya salido ninguna solicitud;
+  - la política **no garantiza la entrega ni la ausencia de duplicados**: el primer intento desconocido y el adicional pueden haber sido aceptados ambos por Meta;
+  - el tope de solicitudes potencialmente aceptadas tras el primer desconocido es **una**, y el total sigue acotado por `max-intentos`;
+  - la espera de conciliación (2 min) se respeta también cuando el desconocido se detecta por un cierre perdido.
+- **Sin migración nueva:** se reutilizan `intentos` e `inciertos` (V114), con un significado precisado en el Javadoc. `max-inciertos` deja de ser configurable: el presupuesto adicional lo fija esta política.
+- **Sustituye** a las reglas de reenvío de V2-DA-58 (la precisión del 29/10 queda como historial) y cierra **H-116-01/02**.

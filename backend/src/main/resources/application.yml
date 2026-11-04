@@ -77,7 +77,6 @@ barberturno:
       max-intentos: 5
       espera-base: 30s
       espera-maxima: 5m
-      max-inciertos: 2
       espera-conciliacion: 2m
       reclamo: 60s
       antiguedad-maxima: 6h

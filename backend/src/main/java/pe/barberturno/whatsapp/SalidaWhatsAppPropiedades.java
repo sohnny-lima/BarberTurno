@@ -14,8 +14,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param maxIntentos intentos de envío antes de {@code REINTENTOS_AGOTADOS} (1–100, cabe en {@code smallint})
  * @param esperaBase espera tras el primer error transitorio; se duplica en cada intento
  * @param esperaMaxima tope de la espera entre intentos
- * @param maxInciertos resultados desconocidos admitidos antes de {@code RESULTADO_DESCONOCIDO}; con 2, un
- * mensaje cuyo envío no se pudo confirmar se reenvía una sola vez (V2-DA-58)
  * @param esperaConciliacion espera tras un resultado desconocido, para que un aviso de estado concilie el
  * mensaje antes de reenviarlo
  * @param reclamo plazo tras el que un mensaje reclamado y no cerrado vuelve a estar disponible
@@ -29,7 +27,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record SalidaWhatsAppPropiedades(@DefaultValue("true") boolean habilitado,
         @DefaultValue("2s") Duration intervalo, @DefaultValue("20") int lote, @DefaultValue("5") int maxIntentos,
         @DefaultValue("30s") Duration esperaBase, @DefaultValue("5m") Duration esperaMaxima,
-        @DefaultValue("2") int maxInciertos, @DefaultValue("2m") Duration esperaConciliacion,
+        @DefaultValue("2m") Duration esperaConciliacion,
         @DefaultValue("60s") Duration reclamo, @DefaultValue("6h") Duration antiguedadMaxima,
         @DefaultValue("5m") Duration margenVentana, @DefaultValue Graph graph) {
 
@@ -44,7 +42,6 @@ public record SalidaWhatsAppPropiedades(@DefaultValue("true") boolean habilitado
      * @param maxIntentos intentos, de 1 a 100
      * @param esperaBase espera inicial, positiva
      * @param esperaMaxima tope, no menor que la base
-     * @param maxInciertos resultados desconocidos admitidos, de 1 a {@code maxIntentos}
      * @param esperaConciliacion espera de conciliación, positiva
      * @param reclamo plazo del reclamo, mayor que la suma de los tiempos de Graph
      * @param antiguedadMaxima caducidad, positiva
@@ -56,7 +53,7 @@ public record SalidaWhatsAppPropiedades(@DefaultValue("true") boolean habilitado
         graph = graph == null ? new Graph("https://graph.facebook.com", "v26.0", "", Duration.ofSeconds(5),
                 Duration.ofSeconds(15)) : graph;
         if (intervalo.isNegative() || intervalo.isZero() || lote < 1 || lote > 500 || maxIntentos < 1
-                || maxIntentos > 100 || maxInciertos < 1 || maxInciertos > maxIntentos
+                || maxIntentos > 100
                 || esperaConciliacion.isNegative() || esperaConciliacion.isZero()
                 || esperaBase.isNegative() || esperaBase.isZero() || esperaMaxima.compareTo(esperaBase) < 0
                 || antiguedadMaxima.isNegative() || antiguedadMaxima.isZero() || margenVentana.isNegative()

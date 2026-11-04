@@ -20,7 +20,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Despacha la outbox de uno en uno con ficha: reclamo, preparación y cierre en transacciones separadas
- * del negocio del canal. El POST ocurre sin transacción ni conexión retenida (V2-DA-57 y V2-DA-58).
+ * del negocio del canal. La preparación confirma los presupuestos antes del POST, que ocurre sin
+ * transacción ni conexión retenida, incluso en la recuperación de cierres perdidos (V2-DA-70).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -75,7 +76,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
                 try {
                     var siguiente = enNegocio(negocioId, () -> {
                         Instant ahora = reloj.instant();
-                        return cola.reclamar(ahora, ahora.plus(opciones.reclamo()));
+                        return cola.reclamar(ahora, ahora.plus(opciones.reclamo()), opciones.maxIntentos());
                     });
                     if (siguiente.isEmpty()) break;
                     reclamo = siguiente.get();
@@ -109,7 +110,8 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         Instant ahora = reloj.instant();
         var canal = canales.findByNegocioId(negocioId).orElseThrow();
         MotivoFallo motivo = null;
-        if (reclamo.ficha() > opciones.maxIntentos()) motivo = MotivoFallo.REINTENTOS_AGOTADOS;
+        if (mensaje.inciertos() >= 2) motivo = MotivoFallo.RESULTADO_DESCONOCIDO;
+        else if (reclamo.agotado()) motivo = MotivoFallo.REINTENTOS_AGOTADOS;
         else if (!canal.activo()) motivo = MotivoFallo.CANAL_DESCONECTADO;
         else if (directorio.suspendido(negocioId) || membresias.contarPropietariosActivos(negocioId) == 0) {
             motivo = MotivoFallo.NEGOCIO_NO_OPERATIVO;
@@ -149,7 +151,8 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         } else {
             cuerpo.put("type", "interactive").set("interactive", contenido.path("interactivo"));
         }
-        return cola.preparar(mensaje, como, ahora) ? new Preparado(canal.phoneNumberId(), cuerpo) : null;
+        return cola.preparar(mensaje, como, ahora.plus(opciones.esperaConciliacion()), ahora)
+                ? new Preparado(canal.phoneNumberId(), cuerpo) : null;
     }
 
     private static void texto(ObjectNode cuerpo, String texto) {
@@ -167,15 +170,14 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
             case ResultadoEnvio.Rechazado rechazado -> {
                 Integer codigo = rechazado.codigoMeta().isPresent() ? rechazado.codigoMeta().getAsInt() : null;
                 if (rechazado.transitorio()) reintentar(mensaje, codigo, ahora);
-                else fallar(mensaje, rechazado.motivo(), codigo, mensaje.inciertos(), ahora);
+                else fallar(mensaje, rechazado.motivo(), codigo, presuncionesTrasNoAceptacion(mensaje), ahora);
             }
             case ResultadoEnvio.NoEnviado ignorado -> reintentar(mensaje, null, ahora);
             case ResultadoEnvio.Desconocido ignorado -> {
-                int inciertos = mensaje.inciertos() + 1;
-                if (inciertos >= opciones.maxInciertos()) {
-                    fallar(mensaje, MotivoFallo.RESULTADO_DESCONOCIDO, null, inciertos, ahora);
+                if (mensaje.inciertos() >= 2) {
+                    fallar(mensaje, MotivoFallo.RESULTADO_DESCONOCIDO, null, mensaje.inciertos(), ahora);
                 } else {
-                    cola.cambiar(mensaje, EstadoMensaje.PENDIENTE, null, null, null, inciertos,
+                    cola.cambiar(mensaje, EstadoMensaje.PENDIENTE, null, null, null, mensaje.inciertos(),
                             ahora.plus(opciones.esperaConciliacion()), ahora);
                 }
             }
@@ -183,12 +185,19 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
     }
 
     private void reintentar(MensajeWhatsApp mensaje, Integer codigo, Instant ahora) {
-        if (mensaje.intentos() >= opciones.maxIntentos()) {
-            fallar(mensaje, MotivoFallo.REINTENTOS_AGOTADOS, codigo, mensaje.inciertos(), ahora);
+        int inciertos = presuncionesTrasNoAceptacion(mensaje);
+        if (inciertos >= 2) {
+            fallar(mensaje, MotivoFallo.RESULTADO_DESCONOCIDO, codigo, inciertos, ahora);
+        } else if (mensaje.intentos() >= opciones.maxIntentos()) {
+            fallar(mensaje, MotivoFallo.REINTENTOS_AGOTADOS, codigo, inciertos, ahora);
         } else {
-            cola.cambiar(mensaje, EstadoMensaje.PENDIENTE, null, null, codigo, mensaje.inciertos(),
+            cola.cambiar(mensaje, EstadoMensaje.PENDIENTE, null, null, codigo, inciertos,
                     ahora.plus(PoliticaReintentos.espera(mensaje.intentos(), opciones.esperaBase(), opciones.esperaMaxima())), ahora);
         }
+    }
+
+    private static int presuncionesTrasNoAceptacion(MensajeWhatsApp mensaje) {
+        return mensaje.inciertos() >= 2 ? mensaje.inciertos() : mensaje.inciertos() - 1;
     }
 
     private void fallar(MensajeWhatsApp mensaje, MotivoFallo motivo, Integer codigo, int inciertos, Instant ahora) {
