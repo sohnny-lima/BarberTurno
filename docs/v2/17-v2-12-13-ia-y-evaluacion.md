@@ -87,7 +87,7 @@ Los escribe Claude en el commit de contrato. **Nadie cambia una firma sin pedirl
 
 ### 4.4 Resto
 - `GuardasSalida` (Gemini) → `ResultadoGuardas`: `Aceptado(texto)` | `Sustituido(MotivoGuarda)` (`HORARIO_NO_OFRECIDO`, `AFIRMA_OPERACION`, `DATOS_PROHIBIDOS`, `VACIO`, `DEMASIADO_LARGO`).
-- `ComposicionTurnoIA` (Gemini): lista interactiva de franjas de varios días (agrupada por día, máx. 10 filas, fecha completa) y textos del servidor de §3.3 (aclarar entre dos propuestas, fallo, límite).
+- `ComposicionTurnoIA` (Gemini): lista interactiva de franjas de varios días, agrupada por día (título de sección corto: «vie 23/10»), máx. 10 filas; cada fila: título = hora de inicio («17:30»), descripción = **fecha completa con el año** y profesional («viernes 23 de octubre de 2026 · Carlos», ≤ 72), que cumple V2-RN-12 (la fecha completa no cabe en los 24 caracteres de un título de sección); y los textos del servidor de §3.3 (aclarar entre dos propuestas, fallo).
 - `InstruccionesAsistente` (Claude): texto fijo del sistema (estable y cacheable).
 - `ConstructorContextoModelo` (Codex): §7.
 - `TurnosIA` (Codex): `encolar(conversacionId, revision, texto)` (lo llama el orquestador), `procesarPendientes()` (trabajador).
