@@ -14,11 +14,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
- * Verificación del esquema de salida de WhatsApp de V114 visto por el rol de la aplicación
+ * Verificación del esquema de salida de WhatsApp de V114…V116 visto por el rol de la aplicación
  * {@code barberturno_v2_app} (12-v2-09-whatsapp-salida.md §3 y §6, CI-11).
  * Comprueba RLS habilitada y forzada en {@code conversacion} y {@code mensaje_whatsapp}, políticas
  * únicas {@code ALL} de aislamiento de negocio, permisos estrictos por columna y a nivel de tabla
- * (incluyendo denegación de DELETE, TRUNCATE, REFERENCES y TRIGGER), aislamiento sin contexto,
+ * (incluyendo borrado restringido y denegación de TRUNCATE, REFERENCES y TRIGGER), aislamiento sin contexto,
  * restricciones {@code CHECK} con validación de SQLState y nombre de restricción, claves foráneas
  * compuestas y definiciones completas de índices parciales del outbox.
  * No deja ningún estado de filas persistente en la conexión ni en la base de datos: opera dentro de una
@@ -42,7 +42,7 @@ public final class WhatsAppSalidaEsquemaPruebas {
                     "tipo", "reserva_id", "creado_en", "enviado_por"));
 
     /**
-     * Ejecuta todas las comprobaciones del esquema de V114 contra la base de datos de pruebas sin dejar estado.
+     * Ejecuta las comprobaciones de V114…V116 contra la base de datos de pruebas sin dejar estado.
      * @param jdbc plantilla JDBC autenticada con el rol de la aplicación
      */
     public static void comprobar(JdbcTemplate jdbc) {

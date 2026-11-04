@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
-/** Permisos reales, RLS, restricciones y defensa de retención de V115, sin modificar ayudantes ajenos. */
+/** Permisos reales, RLS y defensas de V115 con las ampliaciones de retención de V116. */
 class ConversacionV115IT extends TenancyPruebaBase {
     @Test void permisosExactos_rlsForzada_yColumnasInmutables() {
         var actualizables = Map.of(

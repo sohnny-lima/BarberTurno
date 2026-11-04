@@ -400,7 +400,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             "reserva", java.util.Set.of("canal"),
             "auditoria_reserva", java.util.Set.of("actor_cliente_id"));
 
-    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas de V113/V115. */
+    /** Cada fila conserva exactamente todas sus columnas originales; las únicas añadidas son las conocidas de V113…V116. */
     @SuppressWarnings("unchecked")
     static void comprobarConservados(org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.Map<String, Object> antes) {
         for (var tabla : antes.entrySet()) {
