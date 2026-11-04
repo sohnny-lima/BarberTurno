@@ -414,7 +414,7 @@ describe('Vista de reserva guiada', () => {
       f.componentInstance.store.reserva.set({
         id: 7,
         codigo: 'BT-7',
-        cliente: { id: 1, nombre: 'Ficticio' },
+        cliente: { id: 1, fichaId: 1, nombre: 'Ficticio' },
         servicio: { id: 1, nombre: 'Corte original' },
         barbero: { id: 2, nombre: 'Ficticio A' },
         inicio: '2026-10-09T09:00:00-05:00',

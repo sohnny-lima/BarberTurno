@@ -29,7 +29,7 @@ export const franjaPrueba = {
 export const reservaPrueba: ReservaDto = {
   id: 7,
   codigo: 'BT-7',
-  cliente: { id: 9, nombre: 'Cliente ficticio' },
+  cliente: { id: 9, fichaId: 9, nombre: 'Cliente ficticio' },
   servicio: { id: 1, nombre: 'Corte original' },
   barbero: { id: 2, nombre: 'Ficticio A' },
   inicio: franjaPrueba.inicio,
