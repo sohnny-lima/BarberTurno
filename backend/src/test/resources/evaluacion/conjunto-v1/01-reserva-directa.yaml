@@ -1,0 +1,102 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "reserva-directa"
+conversaciones:
+  - id: "DIR-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes maestro, quisiera reservar un corte clásico con Carlos para mañana a las 10 de la mañana."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-03 10:00"
+
+  - id: "DIR-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, separe un turno para barba con Miguel el viernes a las 3 de la tarde por favor."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Miguel"
+      inicio: "2026-11-06 15:00"
+
+  - id: "DIR-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenos días, quiero atenderme con Carlos el sábado a las 11 am para un corte clásico."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-07 11:00"
+
+  - id: "DIR-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, deseo reservar perfilado de barba con Carlos el jueves a las 4 de la tarde."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Carlos"
+      inicio: "2026-11-05 16:00"
+
+  - id: "DIR-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Qué tal compadre, agéndame corte clásico con Miguel para el miércoles a las 9 am bien temprano."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-04 09:00"
+
+  - id: "DIR-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, una cita para corte con Carlos este martes a las 12 del mediodía porfa."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-03 12:00"
+
+  - id: "DIR-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola maestro, sepárame barba con Miguel el lunes a las 5 pm."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Miguel"
+      inicio: "2026-11-09 17:00"
+
+  - id: "DIR-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenos días barbería, por favorcito un corte clásico con Miguel el sábado a las 10 am."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-07 10:00"
+
+  - id: "DIR-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola chochera, resérvame un corte clásico con Carlos para mañana miércoles a las 4 pm."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-04 16:00"
+
+  - id: "DIR-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas tardes, quiero un arreglo de barba con Miguel el viernes a las 10:30 de la mañana."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Miguel"
+      inicio: "2026-11-06 10:30"

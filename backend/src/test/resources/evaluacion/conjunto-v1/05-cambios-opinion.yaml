@@ -1,0 +1,103 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "cambios-opinion"
+conversaciones:
+  - id: "CAM-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quiero cita para mañana a las 10 con Carlos."
+      - "Disculpa maestro, pensándolo bien mejor que sea el viernes a las 3 de la tarde."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-06 15:00"
+
+  - id: "CAM-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, sepárame para barba con Miguel el miércoles a las 11."
+      - "No compadre, mejor corte clásico en vez de barba, a la misma hora."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-04 11:00"
+
+  - id: "CAM-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Quiero atenderme con Carlos el jueves a las 4."
+      - "Uy me acordé que Carlos no puede, ponme con Miguel por favor."
+    esperado:
+      tipo: "OPERACION"
+      profesional: "Miguel"
+      inicio: "2026-11-05 16:00"
+
+  - id: "CAM-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, resérvame para hoy a las 5 pm."
+      - "Mejor déjalo para mañana temprano a las 9 am."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-03 09:00"
+
+  - id: "CAM-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola, quiero corte y barba el sábado."
+      - "Solo corte clásico nomás chochera, a las 10 am con Carlos."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-07 10:00"
+
+  - id: "CAM-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, ponme turno el lunes a las 12."
+      - "No llego al mediodía, mejor a las 4 pm."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-09 16:00"
+
+  - id: "CAM-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, sepárame con Miguel para el martes a las 10."
+      - "Cámbialo con Carlos si está libre a esa hora."
+    esperado:
+      tipo: "OPERACION"
+      profesional: "Carlos"
+      inicio: "2026-11-03 10:00"
+
+  - id: "CAM-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, quiero barba el jueves a las 3."
+      - "Sabe qué maestro, mejor no reservo nada por ahora, gracias."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "CAM-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Qué tal, sepárame corte clásico para mañana a las 11."
+      - "Espera hermano, mi hermano también quiere, pero primero ponme a mí el viernes a las 4 pm con Carlos."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-06 16:00"
+
+  - id: "CAM-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola chochera, una cita para barba el sábado a las 12."
+      - "Mejor que sea corte clásico con Miguel a las 11 am."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-07 11:00"

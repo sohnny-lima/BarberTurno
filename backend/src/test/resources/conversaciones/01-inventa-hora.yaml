@@ -1,0 +1,24 @@
+nombre: "01-inventa-hora"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Hola, quiero cortarme el cabello hoy a las 5 de la tarde con Carlos"
+    modelo:
+      - llamadas:
+          - herramienta: "buscar_disponibilidad"
+            argumentos:
+              servicio: "s1"
+              profesional: "p1"
+              desde: "2026-11-02"
+              hasta: "2026-11-02"
+              horaDesde: "14:00"
+              horaHasta: "18:00"
+              cita: null
+      - texto: "Te tengo un horario hoy a las 5 y media de la tarde con Carlos."
+        parada: "end_turn"
+    espera:
+      sustitucionGuardas: "HORARIO_NO_OFRECIDO"
+      estadoTurno: "HECHO"

@@ -1,0 +1,22 @@
+nombre: "04-doble-boton"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      seleccion: "m:RESERVAR"
+    modelo: []
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+  - cliente:
+      seleccion: "p:S"
+    modelo: []
+    espera:
+      reservasCreadas: 1
+  - cliente:
+      seleccion: "p:S"
+    modelo: []
+    espera:
+      reservasCreadas: 1
