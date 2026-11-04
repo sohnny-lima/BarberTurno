@@ -343,3 +343,27 @@
 ### V2-DA-62 · Configuración de la salida y token de la Fase 1 (28/10/2026)
 - **Decisión:** `barberturno.whatsapp.salida` en un registro propio (`SalidaWhatsAppPropiedades`), con el token de la app en `BT_WHATSAPP_ACCESS_TOKEN` mientras `canal_whatsapp.token_cifrado` sea nulo (número de prueba, V2-DA-14). Sin token, el enviador no reclama nada y los mensajes quedan pendientes; cuando por fin se preparan, los de más de 6 h caducan (`MENSAJE_CADUCADO`) en lugar de llegar tarde. El token nunca se registra: el `toString` lo oculta. La versión de la Graph API (v26.0) se fija en la configuración.
 - **Por qué:** no cambia el registro de configuración de V2-08 y falla cerrado, como V2-DA-55.
+
+### V2-DA-70 · Presupuestos de envío confirmados antes del HTTP (04/11/2026; corrige H-116-01/02)
+- **Política autorizada por el responsable (04/11/2026):**
+  - se conserva el máximo global de **5 intentos** por mensaje;
+  - después del **primer intento cuyo resultado sea desconocido**, se permite **como máximo un intento HTTP adicional**;
+  - ese intento consume el permiso aunque reciba un 429 o vuelva a quedar desconocido;
+  - ni los reinicios ni los trabajadores concurrentes restablecen ninguno de los dos presupuestos.
+- **Decisión:** los dos presupuestos se registran y se **confirman en la base antes de cada llamada HTTP**, que sigue fuera de la transacción:
+  1. **intento reservado:** el reclamo incrementa `intentos` (la ficha), como hasta ahora;
+  2. **presunción de resultado desconocido:** la transacción que prepara el envío deja el intento contado como desconocido (`inciertos`) y, si ya había uno, consume el intento adicional. Así, un intento cuyo cierre se pierde (caída, reclamo vencido, cierre descartado por ficha antigua) **queda contado sin depender del cierre**;
+  3. **cierre:** solo **retira** la presunción cuando la respuesta demuestra que Meta no aceptó esa solicitud (rechazo transitorio o permanente, `NoEnviado`), salvo en el intento adicional, que se consume igualmente;
+  4. tras el intento adicional, cualquier resultado distinto de la aceptación termina el mensaje como `FALLIDO`/`RESULTADO_DESCONOCIDO` (o con su motivo permanente).
+- **Estados que se distinguen:**
+  - **intento reservado:** `intentos`, confirmado al reclamar;
+  - **solicitud efectuada:** solo se sabe que se iba a efectuar. Una caída tras confirmar la preparación y antes o durante el HTTP es indistinguible de una solicitud sin respuesta, y se cuenta como desconocida;
+  - **aceptación del proveedor:** respuesta con `wamid` → `ENVIADO`;
+  - **entrega confirmada:** aviso de estado `delivered` o `read` → `ENTREGADO`/`LEIDO`.
+- **Consecuencias, documentadas sin prometer más:**
+  - una caída **antes** de la llamada puede consumir un intento reservado e incluso el presupuesto del resultado desconocido sin que haya salido ninguna solicitud;
+  - la política **no garantiza la entrega ni la ausencia de duplicados**: el primer intento desconocido y el adicional pueden haber sido aceptados ambos por Meta;
+  - el tope de solicitudes potencialmente aceptadas tras el primer desconocido es **una**, y el total sigue acotado por `max-intentos`;
+  - la espera de conciliación (2 min) se respeta también cuando el desconocido se detecta por un cierre perdido.
+- **Sin migración nueva:** se reutilizan `intentos` e `inciertos` (V114), con un significado precisado en el Javadoc. `max-inciertos` deja de ser configurable: el presupuesto adicional lo fija esta política.
+- **Sustituye** a las reglas de reenvío de V2-DA-58 (la precisión del 29/10 queda como historial) y cierra **H-116-01/02**.
