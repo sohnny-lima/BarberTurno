@@ -6,11 +6,16 @@
 #   pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Mantener    # solo pruebas: mantiene el backend hasta matar la consola
 #
 # Garantías y límites del Job Object de Windows (JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE):
-# - Cubre: si la consola muere de forma abrupta (cierre de ventana o Stop-Process -Force), el núcleo de Windows
-#   cierra el identificador del trabajo y termina el backend (java) y el proceso de ventanas (node y navegadores hijos).
-# - Límites: (1) el Job Object no ejecuta el bloque finally ni vacía la base ni borra el cerrojo o la sesión;
-#   (2) existe una ventana de unos milisegundos entre Start-Process y AssignProcessToJobObject. Ambos límites los
-#   cubre la recuperación automática al siguiente arranque o mediante -Recuperar.
+# - Cubre: el propio proceso de la consola (pwsh) se asigna al Job Object antes de crear ningún proceso
+#   hijo. Así todo hijo (backend java, ventanas node, sondas de -Verificar y navegadores de Playwright)
+#   nace ya dentro del trabajo, sin ventana entre creación y asignación. Si la consola termina de forma
+#   abrupta (cierre de ventana o Stop-Process -Force) o normal, el núcleo de Windows cierra el último
+#   identificador del trabajo y termina los procesos hijos asociados (en el cierre normal esto ocurre al
+#   salir el proceso de la consola, cuando los hijos ya fueron detenidos en el bloque finally).
+# - Límites: el Job Object solo termina procesos; no ejecuta el bloque finally, no vacía la base de datos
+#   ni borra el cerrojo o el archivo de sesión. Si la consola muere de forma abrupta o si falla el vaciado
+#   (limpiezaPendiente = true), la recuperación automática al siguiente arranque o mediante -Recuperar
+#   vacía la base y limpia la sesión y el cerrojo verificando el identificador único de la sesión.
 param(
   [switch]$Verificar,
   [switch]$Recuperar,
@@ -23,9 +28,10 @@ $ErrorActionPreference = 'Stop'
 $herramientas = $PSScriptRoot
 $frontend = Split-Path -Parent $herramientas
 $raiz = Split-Path -Parent $frontend
-$jar = Join-Path $raiz 'backend\target\barberturno-0.0.1-SNAPSHOT.jar'
-$dirLocal = Join-Path $raiz '.local'
+$jar = [IO.Path]::GetFullPath((Join-Path $raiz 'backend\target\barberturno-0.0.1-SNAPSHOT.jar'))
+$dirLocal = [IO.Path]::GetFullPath((Join-Path $raiz '.local'))
 $archivoSesion = Join-Path $dirLocal 'revision-conjunta.sesion.json'
+$cerrojoRecuperacion = Join-Path $dirLocal 'revision-conjunta.recuperacion.lock'
 $registro = Join-Path $dirLocal 'revision-conjunta-backend.log'
 $fnm = 'C:\Users\limas\AppData\Local\Microsoft\WinGet\Packages\Schniz.fnm_Microsoft.Winget.Source_8wekyb3d8bbwe\fnm.exe'
 $baseDatos = 'barberturno_v2_test'
@@ -33,11 +39,17 @@ $puerto = 8081
 $utf8SinBom = [Text.UTF8Encoding]::new($false)
 
 $trabajo = $null
+$consolaEnTrabajo = $false
 $backend = $null
 $ventanas = $null
+$sondaActiva = $null
+$infoBackend = $null
+$infoVentanas = $null
+$infoSonda = $null
 $cerrojoPropio = $false
 $sesionPropia = $false
 $basePreparada = $false
+$idSesion = [Guid]::NewGuid().ToString('D')
 $horaInicio = (Get-Date).ToString('o')
 
 if (-not ('BarberTurno.Revision.TrabajoRevision' -as [type])) {
@@ -100,6 +112,9 @@ namespace BarberTurno.Revision {
     private static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
 
     [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool IsProcessInJob(IntPtr ProcessHandle, IntPtr JobHandle, out bool Result);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr hObject);
 
     public static TrabajoRevision Crear() {
@@ -125,6 +140,14 @@ namespace BarberTurno.Revision {
       }
     }
 
+    public bool Pertenece(IntPtr hProcess) {
+      if (_handle == IntPtr.Zero || hProcess == IntPtr.Zero) return false;
+      if (!IsProcessInJob(hProcess, _handle, out bool pertenece)) {
+        throw new Win32Exception(Marshal.GetLastWin32Error());
+      }
+      return pertenece;
+    }
+
     public void Dispose() {
       if (_handle != IntPtr.Zero) {
         CloseHandle(_handle);
@@ -142,12 +165,18 @@ function Proceso-Vivo([int]$idProceso) {
   return $null -ne (Get-Process -Id $idProceso -ErrorAction SilentlyContinue)
 }
 
-function Obtener-PidCerrojo {
-  if (!(Test-Path -LiteralPath $Cerrojo)) { return $null }
-  $texto = [IO.File]::ReadAllText($Cerrojo)
-  if ($texto -match '(?i)\bpid\s*=\s*(\d+)\b') { return [int]$matches[1] }
-  if ($texto -match '^\s*(\d+)\s*$') { return [int]$matches[1] }
+function Obtener-PidArchivo([string]$rutaArchivo) {
+  if (!(Test-Path -LiteralPath $rutaArchivo)) { return $null }
+  try {
+    $texto = [IO.File]::ReadAllText($rutaArchivo, $utf8SinBom)
+    if ($texto -match '(?i)\bpid\s*=\s*(\d+)\b') { return [int]$matches[1] }
+    if ($texto -match '^\s*(\d+)\s*$') { return [int]$matches[1] }
+  } catch { }
   return $null
+}
+
+function Obtener-PidCerrojo {
+  return Obtener-PidArchivo $Cerrojo
 }
 
 function Verificar-CerrojoLibre {
@@ -191,10 +220,10 @@ function Vaciar-Base {
   Push-Location $frontend
   try {
     $ultimoError = $null
-    for ($intento = 1; $intento -le 15; $intento++) {
+    for ($intento = 1; $intento -le 10; $intento++) {
       & node --input-type=module -e "const m = await import('./e2e/base-datos.ts'); m.vaciar();"
       if ($LASTEXITCODE -eq 0) { return }
-      $ultimoError = "No se pudo vaciar $baseDatos."
+      $ultimoError = "No se pudo vaciar $baseDatos (existen sesiones activas u otra condición rechazada por vaciar())."
       Start-Sleep -Milliseconds 200
     }
     throw $ultimoError
@@ -231,79 +260,277 @@ if (r.status !== 0) process.exit(1);
   } finally { Pop-Location }
 }
 
-function Escribir-Sesion($pidBackendActual, $pidVentanasActual) {
+function Construir-LineaOrdenes([string]$ejecutable, [string[]]$argumentos) {
+  $exeCitado = if ($ejecutable.StartsWith('"') -and $ejecutable.EndsWith('"')) { $ejecutable } else { '"' + $ejecutable + '"' }
+  if ($null -eq $argumentos -or $argumentos.Count -eq 0) { return $exeCitado }
+  return ($exeCitado + ' ' + ($argumentos -join ' '))
+}
+
+function Normalizar-LineaOrdenes([string]$linea) {
+  if ([string]::IsNullOrWhiteSpace($linea)) { return '' }
+  $limpia = $linea.Trim()
+  if ($limpia -match '^"([^"]+)"(\s+.*)?$') {
+    return ($matches[1].Trim() + $matches[2])
+  }
+  return $limpia
+}
+
+function Construir-InfoProceso([System.Diagnostics.Process]$proceso, [string]$ejecutable, [string[]]$argumentos) {
+  $ejecutableAbs = [IO.Path]::GetFullPath($ejecutable)
+  return [ordered]@{
+    pid          = [int]$proceso.Id
+    creacion     = $proceso.StartTime.ToUniversalTime().ToString('o')
+    ejecutable   = $ejecutableAbs
+    lineaOrdenes = (Construir-LineaOrdenes $ejecutableAbs $argumentos)
+  }
+}
+
+function Actualizar-InfoProcesoCim([int]$idProceso, $infoProceso) {
+  if ($null -eq $infoProceso) { return }
+  $procCim = Get-CimInstance Win32_Process -Filter "ProcessId = $idProceso" -ErrorAction SilentlyContinue
+  if ($null -ne $procCim) {
+    if (-not [string]::IsNullOrWhiteSpace($procCim.ExecutablePath)) {
+      $infoProceso.ejecutable = [IO.Path]::GetFullPath($procCim.ExecutablePath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($procCim.CommandLine)) {
+      $infoProceso.lineaOrdenes = $procCim.CommandLine.Trim()
+    }
+  }
+}
+
+function Escribir-Sesion([bool]$limpiezaPendiente = $false) {
   New-Item -ItemType Directory -Force $dirLocal | Out-Null
   $datos = [ordered]@{
-    pidConsola  = $PID
-    pidBackend  = $pidBackendActual
-    pidVentanas = $pidVentanasActual
-    jar         = $jar
-    base        = $baseDatos
-    puerto      = $puerto
-    hora        = $horaInicio
-    inicio      = $horaInicio
-    worktree    = $raiz
+    idSesion          = $idSesion
+    pidConsola        = $PID
+    pidBackend        = if ($null -ne $infoBackend) { $infoBackend.pid } else { $null }
+    pidVentanas       = if ($null -ne $infoVentanas) { $infoVentanas.pid } else { $null }
+    pidSonda          = if ($null -ne $infoSonda) { $infoSonda.pid } else { $null }
+    backend           = $infoBackend
+    ventanas          = $infoVentanas
+    sonda             = $infoSonda
+    jar               = $jar
+    base              = $baseDatos
+    puerto            = $puerto
+    hora              = $horaInicio
+    inicio            = $horaInicio
+    worktree          = $raiz
+    limpiezaPendiente = $limpiezaPendiente
   }
-  $json = $datos | ConvertTo-Json -Depth 4
+  $json = $datos | ConvertTo-Json -Depth 6
   [IO.File]::WriteAllText($archivoSesion, $json, $utf8SinBom)
 }
 
-function Detener-ProcesoRegistrado($idProceso, [string]$patronLinea, [string]$etiqueta) {
-  if ($null -eq $idProceso) { return "$etiqueta sin PID registrado" }
-  $id = [int]$idProceso
-  if (!(Proceso-Vivo $id)) { return "$etiqueta (PID $id) ya no existía" }
-  $procCim = Get-CimInstance Win32_Process -Filter "ProcessId = $id" -ErrorAction SilentlyContinue
-  if ($null -eq $procCim -or [string]::IsNullOrWhiteSpace($procCim.CommandLine)) {
+function Leer-ArchivoSesion {
+  if (!(Test-Path -LiteralPath $archivoSesion)) { return $null }
+  try {
+    return ([IO.File]::ReadAllText($archivoSesion, $utf8SinBom) | ConvertFrom-Json)
+  } catch {
+    return $null
+  }
+}
+
+function Sesion-TieneId([string]$idEsperado) {
+  if ([string]::IsNullOrWhiteSpace($idEsperado)) { return $false }
+  $actual = Leer-ArchivoSesion
+  if ($null -eq $actual -or [string]::IsNullOrWhiteSpace([string]$actual.idSesion)) { return $false }
+  return [string]::Equals([string]$actual.idSesion, $idEsperado, [StringComparison]::Ordinal)
+}
+
+function Marcar-LimpiezaPendienteEnArchivo([string]$idEsperado) {
+  $actual = Leer-ArchivoSesion
+  if ($null -eq $actual -or [string]$actual.idSesion -ne $idEsperado) { return }
+  $actual | Add-Member -NotePropertyName 'limpiezaPendiente' -NotePropertyValue $true -Force
+  $json = $actual | ConvertTo-Json -Depth 6
+  [IO.File]::WriteAllText($archivoSesion, $json, $utf8SinBom)
+}
+
+function Detener-ProcesoRegistrado($registroProceso, [string]$etiqueta) {
+  if ($null -eq $registroProceso -or $null -eq $registroProceso.pid) {
+    return "$etiqueta sin PID registrado"
+  }
+  $id = [int]$registroProceso.pid
+  $creacionEsperada = [string]$registroProceso.creacion
+  $ejecutableEsperado = [string]$registroProceso.ejecutable
+  $lineaEsperada = [string]$registroProceso.lineaOrdenes
+  if ([string]::IsNullOrWhiteSpace($creacionEsperada) -or
+      [string]::IsNullOrWhiteSpace($ejecutableEsperado) -or
+      [string]::IsNullOrWhiteSpace($lineaEsperada)) {
+    return "$etiqueta (PID $id) omitido: identidad registrada incompleta"
+  }
+
+  $procVivo = Get-Process -Id $id -ErrorAction SilentlyContinue
+  if ($null -eq $procVivo) {
+    return "$etiqueta (PID $id) ya no existía"
+  }
+
+  $creacionActual = $null
+  try {
+    $creacionActual = $procVivo.StartTime.ToUniversalTime().ToString('o')
+  } catch {
     if (!(Proceso-Vivo $id)) { return "$etiqueta (PID $id) ya no existía" }
+    return "$etiqueta (PID $id) omitido: sin hora de creación verificable"
+  }
+  if ($creacionActual -ne $creacionEsperada) {
+    return "$etiqueta (PID $id) omitido: su hora de creación no coincide"
+  }
+
+  $procCim = Get-CimInstance Win32_Process -Filter "ProcessId = $id" -ErrorAction SilentlyContinue
+  if ($null -eq $procCim) {
+    if (!(Proceso-Vivo $id)) { return "$etiqueta (PID $id) ya no existía" }
+    return "$etiqueta (PID $id) omitido: sin datos CIM verificables"
+  }
+
+  $ejecutableActual = if (-not [string]::IsNullOrWhiteSpace($procCim.ExecutablePath)) {
+    [string]$procCim.ExecutablePath
+  } elseif (-not [string]::IsNullOrWhiteSpace($procVivo.Path)) {
+    [string]$procVivo.Path
+  } else {
+    $null
+  }
+  if ([string]::IsNullOrWhiteSpace($ejecutableActual)) {
+    return "$etiqueta (PID $id) omitido: sin ruta de ejecutable verificable"
+  }
+  if (-not [string]::Equals([IO.Path]::GetFullPath($ejecutableActual), [IO.Path]::GetFullPath($ejecutableEsperado), [StringComparison]::OrdinalIgnoreCase)) {
+    return "$etiqueta (PID $id) omitido: su ejecutable no coincide"
+  }
+
+  if ([string]::IsNullOrWhiteSpace($procCim.CommandLine)) {
     return "$etiqueta (PID $id) omitido: sin línea de órdenes verificable"
   }
-  if ($procCim.CommandLine -notmatch $patronLinea) {
+  if (-not [string]::Equals((Normalizar-LineaOrdenes $procCim.CommandLine), (Normalizar-LineaOrdenes $lineaEsperada), [StringComparison]::OrdinalIgnoreCase)) {
     return "$etiqueta (PID $id) omitido: su línea de órdenes no coincide"
   }
+
   Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
   Wait-Process -Id $id -Timeout 10 -ErrorAction SilentlyContinue
   return "$etiqueta detenido (PID $id)"
 }
 
 function Recuperar-Sesion {
-  Verificar-CerrojoLibre
-  $sesion = $null
-  if (Test-Path -LiteralPath $archivoSesion) {
-    $sesion = [IO.File]::ReadAllText($archivoSesion, $utf8SinBom) | ConvertFrom-Json
-    if ($null -ne $sesion.pidConsola -and ([int]$sesion.pidConsola -ne $PID) -and (Proceso-Vivo ([int]$sesion.pidConsola))) {
-      throw "La consola registrada en la sesión (PID $($sesion.pidConsola)) sigue viva. Se aborta sin tocar nada."
+  New-Item -ItemType Directory -Force $dirLocal | Out-Null
+  $cerrojoRecAdquirido = $false
+  $esperoOtraRecuperacion = $false
+  $pidOtraRecuperacion = $null
+  $sesionInicial = Leer-ArchivoSesion
+  $idSesionAntesDeEsperar = if ($null -ne $sesionInicial -and -not [string]::IsNullOrWhiteSpace([string]$sesionInicial.idSesion)) {
+    [string]$sesionInicial.idSesion
+  } else {
+    $null
+  }
+
+  try {
+    for ($intento = 1; $intento -le 150; $intento++) {
+      try {
+        $flujoRec = [IO.File]::Open($cerrojoRecuperacion, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+        try {
+          $lineaRec = "pid=$PID inicio=$((Get-Date).ToString('o'))`n"
+          $bytesRec = $utf8SinBom.GetBytes($lineaRec)
+          $flujoRec.Write($bytesRec, 0, $bytesRec.Length)
+        } finally {
+          $flujoRec.Dispose()
+        }
+        $cerrojoRecAdquirido = $true
+        break
+      } catch [System.IO.IOException] {
+        Start-Sleep -Milliseconds 100
+        $pidRec = Obtener-PidArchivo $cerrojoRecuperacion
+        if ($null -ne $pidRec -and $pidRec -ne $PID -and !(Proceso-Vivo $pidRec)) {
+          Remove-Item -LiteralPath $cerrojoRecuperacion -Force -ErrorAction SilentlyContinue
+          continue
+        }
+        $esperoOtraRecuperacion = $true
+        if ($null -ne $pidRec) { $pidOtraRecuperacion = $pidRec }
+        Start-Sleep -Milliseconds 100
+      }
     }
-  } elseif (Test-Path -LiteralPath $Cerrojo) {
-    $pidCerrojo = Obtener-PidCerrojo
-    throw "Existe el cerrojo $Cerrojo (PID '$pidCerrojo') sin archivo de sesión propio. Se aborta sin tocar nada."
-  }
 
-  $resumen = [System.Collections.Generic.List[string]]::new()
-  if ($null -ne $sesion) {
-    $patronJar = if ($sesion.jar) { [Regex]::Escape([string]$sesion.jar) + '|barberturno-0\.0\.1-SNAPSHOT\.jar' } else { 'barberturno-0\.0\.1-SNAPSHOT\.jar' }
-    $resumen.Add((Detener-ProcesoRegistrado $sesion.pidBackend $patronJar 'backend'))
-    $resumen.Add((Detener-ProcesoRegistrado $sesion.pidVentanas 'ventanas\.mjs' 'ventanas'))
-  }
+    if (-not $cerrojoRecAdquirido) {
+      Write-Output "Otra recuperación sigue en curso (PID '$pidOtraRecuperacion'). Se sale sin tocar nada."
+      return
+    }
 
-  Vaciar-Base
-  $resumen.Add("base $baseDatos vaciada")
+    $sesion = Leer-ArchivoSesion
+    if ($esperoOtraRecuperacion) {
+      $idActual = if ($null -ne $sesion) { [string]$sesion.idSesion } else { $null }
+      if ($null -eq $sesion -or $null -eq $idSesionAntesDeEsperar -or $idActual -ne $idSesionAntesDeEsperar) {
+        Write-Output "Otra recuperación concurrente (PID '$pidOtraRecuperacion') ya completó la limpieza. Se sale sin tocar nada."
+        return
+      }
+    }
 
-  if (Test-Path -LiteralPath $Cerrojo) {
-    $pidCerrojo = Obtener-PidCerrojo
-    if ($null -ne $sesion -and $null -ne $sesion.pidConsola -and $null -ne $pidCerrojo -and ([int]$pidCerrojo -eq [int]$sesion.pidConsola) -and !(Proceso-Vivo ([int]$sesion.pidConsola))) {
-      Remove-Item -LiteralPath $Cerrojo -Force
-      $resumen.Add("cerrojo borrado (PID $pidCerrojo)")
+    Verificar-CerrojoLibre
+
+    if ($null -ne $sesion) {
+      $idSesionObjetivo = [string]$sesion.idSesion
+      if ([string]::IsNullOrWhiteSpace($idSesionObjetivo)) {
+        throw 'El archivo de sesión no contiene un identificador único (idSesion). Se aborta sin tocar nada.'
+      }
+      if ($null -ne $sesion.pidConsola -and ([int]$sesion.pidConsola -ne $PID) -and (Proceso-Vivo ([int]$sesion.pidConsola))) {
+        throw "La consola registrada en la sesión (PID $($sesion.pidConsola)) sigue viva. Se aborta sin tocar nada."
+      }
+    } elseif (Test-Path -LiteralPath $Cerrojo) {
+      $pidCerrojo = Obtener-PidCerrojo
+      throw "Existe el cerrojo $Cerrojo (PID '$pidCerrojo') sin archivo de sesión propio. Se aborta sin tocar nada."
     } else {
-      $resumen.Add("cerrojo conservado (PID '$pidCerrojo' no coincide con la consola registrada)")
+      Write-Output 'No hay sesión pendiente de recuperar; se sale sin tocar nada.'
+      return
+    }
+
+    $resumen = [System.Collections.Generic.List[string]]::new()
+    $resumen.Add((Detener-ProcesoRegistrado $sesion.backend 'backend'))
+    $resumen.Add((Detener-ProcesoRegistrado $sesion.ventanas 'ventanas'))
+    if ($null -ne $sesion.sonda) {
+      $resumen.Add((Detener-ProcesoRegistrado $sesion.sonda 'sonda'))
+    }
+
+    if (-not (Sesion-TieneId $idSesionObjetivo)) {
+      throw "El archivo de sesión cambió o fue eliminado antes de vaciar la base (idSesion esperado: $idSesionObjetivo). Se aborta sin tocar nada."
+    }
+
+    try {
+      Vaciar-Base
+      $resumen.Add("base $baseDatos vaciada")
+    } catch {
+      $errVaciado = $_
+      if (Sesion-TieneId $idSesionObjetivo) {
+        Marcar-LimpiezaPendienteEnArchivo $idSesionObjetivo
+      }
+      $mensajeFallo = ("Falló el vaciado de $baseDatos durante la recuperación: $($errVaciado.Exception.Message) " +
+        "Se conservan el archivo de sesión (limpiezaPendiente=true) y el cerrojo. " +
+        "Para reintentar la recuperación ejecute: pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Recuperar")
+      Write-Output $mensajeFallo
+      throw $mensajeFallo
+    }
+
+    if (-not (Sesion-TieneId $idSesionObjetivo)) {
+      throw "El archivo de sesión cambió tras vaciar la base (idSesion esperado: $idSesionObjetivo). Se conserva el estado actual sin borrar registros ajenos."
+    }
+
+    if (Test-Path -LiteralPath $Cerrojo) {
+      $pidCerrojo = Obtener-PidCerrojo
+      if ($null -ne $sesion.pidConsola -and $null -ne $pidCerrojo -and ([int]$pidCerrojo -eq [int]$sesion.pidConsola) -and !(Proceso-Vivo ([int]$sesion.pidConsola))) {
+        Remove-Item -LiteralPath $Cerrojo -Force
+        $resumen.Add("cerrojo borrado (PID $pidCerrojo)")
+      } else {
+        $resumen.Add("cerrojo conservado (PID '$pidCerrojo' no coincide con la consola registrada)")
+      }
+    }
+
+    if (Sesion-TieneId $idSesionObjetivo) {
+      Remove-Item -LiteralPath $archivoSesion -Force
+      $resumen.Add('archivo de sesión borrado')
+    }
+
+    Write-Output ('Recuperación completada: ' + ($resumen -join '; ') + '.')
+  } finally {
+    if ($cerrojoRecAdquirido -and (Test-Path -LiteralPath $cerrojoRecuperacion)) {
+      $pidRecActual = Obtener-PidArchivo $cerrojoRecuperacion
+      if ($pidRecActual -eq $PID) {
+        Remove-Item -LiteralPath $cerrojoRecuperacion -Force -ErrorAction SilentlyContinue
+      }
     }
   }
-
-  if (Test-Path -LiteralPath $archivoSesion) {
-    Remove-Item -LiteralPath $archivoSesion -Force
-    $resumen.Add('archivo de sesión borrado')
-  }
-
-  Write-Output ('Recuperación completada: ' + ($resumen -join '; ') + '.')
 }
 
 try {
@@ -316,8 +543,8 @@ try {
     Recuperar-Sesion
     return
   }
-  if (Test-Path -LiteralPath $archivoSesion) {
-    Write-Output 'Se detectó un archivo de sesión previo; ejecutando recuperación antes de arrancar...'
+  if ((Test-Path -LiteralPath $archivoSesion) -or (Test-Path -LiteralPath $cerrojoRecuperacion)) {
+    Write-Output 'Se detectó un archivo de sesión o recuperación previa; ejecutando recuperación antes de arrancar...'
     Recuperar-Sesion
   }
   Verificar-CerrojoLibre
@@ -357,9 +584,20 @@ try {
   $env:BT_ADMIN_NOMBRE = "Administrador de revisión $alias"
   $env:BT_ADMIN_PASSWORD = $env:BT_DEMO_PASSWORD
 
-  # 5. Tomar el cerrojo de la base y escribir el archivo de sesión ANTES de arrancar nada.
+  # 5. Asignar el propio proceso de la consola al Job Object ANTES de crear ningún proceso hijo,
+  #    tomar el cerrojo de la base y escribir el archivo de sesión con identificador único (GUID).
+  $trabajo = [BarberTurno.Revision.TrabajoRevision]::Crear()
+  try {
+    $trabajo.Asignar([System.Diagnostics.Process]::GetCurrentProcess().Handle)
+    $consolaEnTrabajo = $true
+  } catch {
+    $trabajo.Dispose()
+    $trabajo = $null
+    throw "No se pudo asignar el proceso de la consola (PID $PID) al Job Object de Windows: $($_.Exception.Message). Se aborta antes de crear procesos hijos."
+  }
+
   New-Item -ItemType Directory -Force (Split-Path -Parent $Cerrojo) | Out-Null
-  $lineaCerrojo = "pid=$PID worktree=$raiz inicio=$horaInicio"
+  $lineaCerrojo = "pid=$PID idSesion=$idSesion worktree=$raiz inicio=$horaInicio"
   $flujoCerrojo = [IO.File]::Open($Cerrojo, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
   try {
     $bytesCerrojo = $utf8SinBom.GetBytes($lineaCerrojo + "`n")
@@ -369,20 +607,26 @@ try {
   }
   $cerrojoPropio = $true
 
-  Escribir-Sesion $null $null
+  Escribir-Sesion
   $sesionPropia = $true
 
-  # 6. Crear Job Object, vaciar la base y arrancar el backend asignándolo de inmediato al trabajo.
-  $trabajo = [BarberTurno.Revision.TrabajoRevision]::Crear()
+  # 6. Vaciar la base y arrancar el backend (que nace ya dentro del Job Object de la consola),
+  #    registrando de inmediato su identidad completa antes de esperar a que arranque.
   $basePreparada = $true
   Vaciar-Base
 
-  $backend = Start-Process -FilePath (Join-Path $env:JAVA_HOME 'bin\java.exe') `
-    -ArgumentList @('-jar', $jar, '--spring.profiles.active=dev,demo', "--server.port=$puerto") `
+  $ejecutableJava = [IO.Path]::GetFullPath((Join-Path $env:JAVA_HOME 'bin\java.exe'))
+  $argumentosBackend = @('-jar', $jar, '--spring.profiles.active=dev,demo', "--server.port=$puerto")
+  $backend = Start-Process -FilePath $ejecutableJava -ArgumentList $argumentosBackend `
     -WorkingDirectory $raiz -WindowStyle Hidden -PassThru -RedirectStandardOutput $registro `
     -RedirectStandardError ($registro -replace '\.log$', '-error.log')
-  $trabajo.Asignar($backend.Handle)
-  Escribir-Sesion $backend.Id $null
+  if (-not $trabajo.Pertenece($backend.Handle)) {
+    $trabajo.Asignar($backend.Handle)
+  }
+  $infoBackend = Construir-InfoProceso $backend $ejecutableJava $argumentosBackend
+  Escribir-Sesion
+  Actualizar-InfoProcesoCim $backend.Id $infoBackend
+  Escribir-Sesion
   Write-Output ("Backend: PID $($backend.Id) en http://localhost:$puerto ($baseDatos)")
 
   $listo = $false
@@ -405,7 +649,7 @@ try {
       Start-Sleep -Seconds 1
     }
   } elseif ($Verificar) {
-    # 7b. Comprobación automática de cuentas, papeles, avisos y sondas (sin mostrar la clave).
+    # 7b. Comprobación automática de cuentas, papeles, avisos y sondas (dentro del trabajo y registradas en la sesión).
     foreach ($cuenta in 'multirol', 'personal-cliente', 'encargado', 'cliente', 'plataforma') {
       $web = New-Object Microsoft.PowerShell.Commands.WebRequestSession
       Invoke-WebRequest -Uri "http://localhost:$puerto/api/auth/sesion" -WebSession $web -SkipHttpErrorCheck | Out-Null
@@ -428,28 +672,56 @@ try {
       }
       Write-Output ("$cuenta@ejemplo.test: ingreso 200; barberías: " + ((@($negocios) | ForEach-Object { $_.slug + ' (' + ($_.papeles -join '+') + ')' }) -join ', ') + $detalleAvisos)
     }
-    Push-Location $frontend
-    try {
-      $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $frontend 'tmp\navegadores'
-      foreach ($sonda in $Sondas) {
-        $rutaSonda = if (Test-Path -LiteralPath $sonda) { $sonda } else { Join-Path $herramientas (Join-Path 'revision' $sonda) }
-        & node $rutaSonda
-        if ($LASTEXITCODE -ne 0) { throw "La sonda $sonda no terminó correctamente." }
-      }
-    } finally { Pop-Location }
-  } else {
-    # 7c. Ventanas interactivas asignadas al Job Object; la revisión termina al cerrarlas.
+
     $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $frontend 'tmp\navegadores'
-    $scriptVentanas = Join-Path $herramientas 'revision\ventanas.mjs'
-    $ventanas = Start-Process -FilePath 'node' -ArgumentList @($scriptVentanas) `
+    $ejecutableNode = [IO.Path]::GetFullPath((Get-Command node -ErrorAction Stop).Source)
+    foreach ($sonda in $Sondas) {
+      $rutaSonda = if (Test-Path -LiteralPath $sonda) {
+        [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $sonda).Path)
+      } else {
+        [IO.Path]::GetFullPath((Join-Path $herramientas (Join-Path 'revision' $sonda)))
+      }
+      $argumentosSonda = @($rutaSonda)
+      $sondaActiva = Start-Process -FilePath $ejecutableNode -ArgumentList $argumentosSonda `
+        -WorkingDirectory $frontend -NoNewWindow -PassThru
+      if (-not $trabajo.Pertenece($sondaActiva.Handle)) {
+        $trabajo.Asignar($sondaActiva.Handle)
+      }
+      $infoSonda = Construir-InfoProceso $sondaActiva $ejecutableNode $argumentosSonda
+      Escribir-Sesion
+      Actualizar-InfoProcesoCim $sondaActiva.Id $infoSonda
+      Escribir-Sesion
+      $sondaActiva.WaitForExit()
+      $codigoSonda = $sondaActiva.ExitCode
+      $sondaActiva = $null
+      $infoSonda = $null
+      Escribir-Sesion
+      if ($codigoSonda -ne 0) { throw "La sonda $sonda no terminó correctamente (código $codigoSonda)." }
+    }
+  } else {
+    # 7c. Ventanas interactivas dentro del Job Object; la revisión termina al cerrarlas.
+    $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $frontend 'tmp\navegadores'
+    $ejecutableNode = [IO.Path]::GetFullPath((Get-Command node -ErrorAction Stop).Source)
+    $scriptVentanas = [IO.Path]::GetFullPath((Join-Path $herramientas 'revision\ventanas.mjs'))
+    $argumentosVentanas = @($scriptVentanas)
+    $ventanas = Start-Process -FilePath $ejecutableNode -ArgumentList $argumentosVentanas `
       -WorkingDirectory $frontend -NoNewWindow -PassThru
-    $trabajo.Asignar($ventanas.Handle)
-    Escribir-Sesion $backend.Id $ventanas.Id
+    if (-not $trabajo.Pertenece($ventanas.Handle)) {
+      $trabajo.Asignar($ventanas.Handle)
+    }
+    $infoVentanas = Construir-InfoProceso $ventanas $ejecutableNode $argumentosVentanas
+    Escribir-Sesion
+    Actualizar-InfoProcesoCim $ventanas.Id $infoVentanas
+    Escribir-Sesion
     $ventanas.WaitForExit()
     if ($ventanas.ExitCode -ne 0) { throw "El proceso de ventanas terminó con código $($ventanas.ExitCode)." }
   }
 } finally {
   try {
+    if ($sondaActiva -and !$sondaActiva.HasExited) {
+      Stop-Process -Id $sondaActiva.Id -Force -ErrorAction SilentlyContinue
+      $sondaActiva.WaitForExit()
+    }
     if ($ventanas -and !$ventanas.HasExited) {
       Stop-Process -Id $ventanas.Id -Force -ErrorAction SilentlyContinue
       $ventanas.WaitForExit()
@@ -459,21 +731,49 @@ try {
       $backend.WaitForExit()
       Write-Output ('Backend detenido: PID ' + $backend.Id)
     }
-    if ($trabajo) {
+    if ($trabajo -and -not $consolaEnTrabajo) {
       $trabajo.Dispose()
       $trabajo = $null
     }
+
+    $vaciadoConfirmado = $false
     if ($basePreparada) {
-      Vaciar-Base
-      Write-Output "$baseDatos vaciada."
+      if (-not (Sesion-TieneId $idSesion)) {
+        throw "El archivo de sesión ya no coincide con la sesión actual ($idSesion); se aborta sin vaciar ni borrar registros ajenos."
+      }
+      try {
+        Vaciar-Base
+        $vaciadoConfirmado = $true
+        Write-Output "$baseDatos vaciada."
+      } catch {
+        $errCierre = $_
+        if ($sesionPropia -and (Sesion-TieneId $idSesion)) {
+          $infoBackend = $null
+          $infoVentanas = $null
+          $infoSonda = $null
+          Escribir-Sesion $true
+        }
+        $mensajeCierre = ("No se pudo vaciar $baseDatos al cerrar la sesión: $($errCierre.Exception.Message) " +
+          "Se conservan el archivo de sesión (limpiezaPendiente=true) y el cerrojo. " +
+          "Para completar la limpieza ejecute: pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Recuperar")
+        Write-Output $mensajeCierre
+        throw $mensajeCierre
+      }
+    } else {
+      $vaciadoConfirmado = $true
+    }
+
+    if ($vaciadoConfirmado) {
+      if ($sesionPropia -and (Sesion-TieneId $idSesion)) {
+        if ($cerrojoPropio -and (Test-Path -LiteralPath $Cerrojo) -and ((Obtener-PidCerrojo) -eq $PID)) {
+          Remove-Item -LiteralPath $Cerrojo -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item -LiteralPath $archivoSesion -Force -ErrorAction SilentlyContinue
+      } elseif ($cerrojoPropio -and -not $sesionPropia -and (Test-Path -LiteralPath $Cerrojo) -and ((Obtener-PidCerrojo) -eq $PID)) {
+        Remove-Item -LiteralPath $Cerrojo -Force -ErrorAction SilentlyContinue
+      }
     }
   } finally {
-    if ($sesionPropia -and (Test-Path -LiteralPath $archivoSesion)) {
-      Remove-Item -LiteralPath $archivoSesion -Force -ErrorAction SilentlyContinue
-    }
-    if ($cerrojoPropio -and (Test-Path -LiteralPath $Cerrojo)) {
-      Remove-Item -LiteralPath $Cerrojo -Force -ErrorAction SilentlyContinue
-    }
     Limpiar-EntornoProceso
   }
 }
