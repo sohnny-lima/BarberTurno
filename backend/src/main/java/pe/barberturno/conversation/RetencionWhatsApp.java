@@ -18,7 +18,8 @@ import pe.barberturno.whatsapp.CanalWhatsAppRepository;
  * <ol>
  *   <li>borra las conversaciones sin ficha cuya última entrada (o creación) supera
  *   {@code retencion.conversaciones-sin-ficha} y que no tienen mensajes pendientes, con sus mensajes;
- *   las políticas restrictivas de V115 impiden borrar cualquier otra fila aunque se intentara;</li>
+ *   las políticas de V116 protegen las fichas identificables y los mensajes pendientes; la excepción de
+ *   anonimización no se usa en esta fase;</li>
  *   <li>si {@code retencion.cuerpo-eventos} está configurado (no lo está hasta P2-06), vacía el cuerpo de
  *   los eventos entrantes terminados más antiguos que ese plazo, conservando la fila para la idempotencia.</li>
  *   <li>retira el contenido terminado de conversaciones con ficha cuando se configura su plazo;</li>

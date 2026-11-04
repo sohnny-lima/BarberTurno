@@ -536,7 +536,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
                 opciones.antiguedadMaxima(), opciones.margenVentana(), opciones.graph());
         EnviadorSalidaWhatsApp enviadorConTope = new EnviadorMensajesWhatsApp(
                 cola, canales, directorio, membresias, ejecutor, clienteGraph, avisos,
-                opcionesConTope60, new VentanaWhatsApp(opcionesConTope60), reloj, mapper, gestor);
+                opcionesConTope60, reloj, mapper, gestor);
 
         long conv = crearConversacion(a, WA_CLIENTE);
         long msg = encolarTextoDirecto(a, conv, "Texto con tope de espera", OptionalLong.empty());
@@ -892,7 +892,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         ClienteGraphWhatsApp clienteConexionFallida = (numero, cuerpo) -> new ResultadoEnvio.NoEnviado();
         var enviadorNoEnviado = new EnviadorMensajesWhatsApp(cola, canales, directorio, membresias, ejecutor,
-                clienteConexionFallida, avisos, opciones, new VentanaWhatsApp(opciones), reloj, mapper, gestor);
+                clienteConexionFallida, avisos, opciones, reloj, mapper, gestor);
 
         enviadorNoEnviado.enviarLote();
 

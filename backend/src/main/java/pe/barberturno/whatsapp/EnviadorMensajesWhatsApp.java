@@ -42,6 +42,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
     private final TransactionTemplate transaccion;
     private final VentanaWhatsApp ventana;
 
+    @org.springframework.beans.factory.annotation.Autowired
     EnviadorMensajesWhatsApp(ColaSalidaWhatsApp cola, CanalWhatsAppRepository canales, DirectorioNegocios directorio,
             MembresiaRepository membresias, EjecutorEnNegocio ejecutor, ClienteGraphWhatsApp cliente,
             AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, VentanaWhatsApp ventana, Clock reloj, JsonMapper mapper,
@@ -59,6 +60,15 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         this.mapper = mapper;
         this.transaccion = new TransactionTemplate(gestor);
         this.transaccion.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    // Conserva el constructor de los fixtures de V2-09; producción inyecta el componente compartido.
+    EnviadorMensajesWhatsApp(ColaSalidaWhatsApp cola, CanalWhatsAppRepository canales, DirectorioNegocios directorio,
+            MembresiaRepository membresias, EjecutorEnNegocio ejecutor, ClienteGraphWhatsApp cliente,
+            AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, Clock reloj, JsonMapper mapper,
+            PlatformTransactionManager gestor) {
+        this(cola, canales, directorio, membresias, ejecutor, cliente, avisos, opciones,
+                new VentanaWhatsApp(opciones), reloj, mapper, gestor);
     }
 
     /**
