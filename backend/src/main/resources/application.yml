@@ -87,6 +87,18 @@ barberturno:
         token: ${BT_WHATSAPP_ACCESS_TOKEN:}
         conexion: 5s
         respuesta: 15s
+  # V2-12 (17-v2-12 §6): sin clave la IA queda desactivada y se usan los menús. La clave la escribe el responsable (P2-03).
+  ia:
+    habilitada: true
+    clave: ${BT_IA_API_KEY:}
+    modelo: claude-opus-5-5
+    esfuerzo: low
+    # Precios en USD por millón de tokens: tabla de modelos de Anthropic (consultada el 04/11/2026; 09-costes.md §3).
+    # Escritura de caché de 5 min = 1,25 × entrada. Se vuelven a comprobar al resolver P2-03.
+    precios:
+      claude-haiku-5-5: { entrada: 0.10, salida: 0.50, cache-lectura: 0.01, cache-escritura: 0.125 }
+      claude-sonnet-5-5: { entrada: 2.00, salida: 10.00, cache-lectura: 0.20, cache-escritura: 2.50 }
+      claude-opus-5-5: { entrada: 4.00, salida: 20.00, cache-lectura: 0.20, cache-escritura: 5.00 }
 
 # El advice registra errores sanitizados; Hibernate no debe imprimir valores
 # personales de claves duplicadas devueltos por PostgreSQL.

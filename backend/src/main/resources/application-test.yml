@@ -40,6 +40,12 @@ barberturno:
       habilitado: false
       entrantes: SOLO_HUMANO
 
+  # V2-12: solo las pruebas que usan el adaptador falso o el servidor local la activan.
+  ia:
+    habilitada: false
+    trabajador:
+      habilitado: false
+
   admin:
     correo: ${BT_ADMIN_CORREO:}
     password: ${BT_ADMIN_PASSWORD:}

@@ -40,6 +40,10 @@ barberturno:
     bandeja:
       entrantes: SOLO_HUMANO
 
+  # V2-12: sin clave en el entorno de revisión (P2-03); los menús siguen funcionando.
+  ia:
+    habilitada: false
+
   admin:
     correo: ${BT_ADMIN_CORREO:}
     password: ${BT_ADMIN_PASSWORD:}

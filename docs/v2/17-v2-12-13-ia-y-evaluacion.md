@@ -1,133 +1,193 @@
 # BarberTurno v2 · 17 · V2-12 y V2-13 · Conversación con IA y evaluación de conversaciones
 
-> Autorizada por el responsable el 04/11/2026 (cierre técnico del MVP). Rama `tarea/V2-12-conversacion-ia` desde el HEAD de V2-11 (necesita la derivación y el modo humano). Se une en `tarea/V2-MVP-revision`. **Sin integrar en `v2` ni publicar.** Clase **Crítica** (reservas, guardas, datos personales enviados a un proveedor, concurrencia).
+> Autorizada por el responsable el 04/11/2026 (cierre técnico del MVP). Rama `tarea/V2-12-conversacion-ia` desde V2-11 (necesita la derivación, el modo humano y la anonimización); se une con V2-11 terminada antes de implementar XI. Se integra en `tarea/V2-MVP-revision`. **Sin integrar en `v2` ni publicar.** Clase **Crítica** (reservas, guardas, datos enviados a un proveedor, concurrencia, costes).
 >
-> Requisitos: V2-RF-16, V2-RN-11/12/14, V2-RNF-05, V2-CP-08. Arquitectura: `04-arquitectura-datos.md` §7; `06-flujos.md` §7; `08-pruebas-migracion-reversion.md` §4; `09-costes.md` §3; V2-DA-12 y V2-DA-16. Decisiones nuevas V2-DA-77…82.
+> Requisitos: V2-RF-16, V2-RN-11/12/14, V2-RNF-05, V2-CP-08. Arquitectura: `04-arquitectura-datos.md` §7; `06-flujos.md` §7; `08-pruebas-migracion-reversion.md` §4; `09-costes.md` §3; V2-DA-12 y V2-DA-16. Decisiones nuevas **V2-DA-77…82**. Consulta de diseño de Codex: encargo 127 (§12), **22 propuestas aceptadas**.
 >
-> **Bloqueos externos, que no se simulan:** **P2-03** (clave y modelo del proveedor: no hay `BT_IA_*` en el entorno), el **presupuesto** de la evaluación en vivo (V2-13) y la **revisión del conjunto** de 120 conversaciones por el responsable. Todo se construye y se prueba con el adaptador falso y con un servidor HTTP local que imita la API de Anthropic. **Sin clave, la IA queda desactivada y la conversación sigue con los menús guiados de V2-10/V2-11** (V2-RN-14).
+> **Bloqueos externos, que no se simulan:** **P2-03** (clave y modelo: no hay `BT_IA_*` en el entorno), el **presupuesto** de la evaluación en vivo y la **revisión del conjunto** de conversaciones por el responsable. Todo se construye y prueba con el adaptador falso y con un servidor HTTP local que imita la API de Anthropic. **Sin clave, la IA queda desactivada y la conversación sigue con los menús de V2-10/V2-11** (V2-RN-14).
 
 ## 1. Alcance
 **V2-12 entra:**
-1. Puerto `ModeloConversacional` con dos adaptadores: **falso programable** (pruebas y evaluación determinista) y **Anthropic** con el SDK oficial de Java (`com.anthropic:anthropic-java`, versión comprobada en Maven Central el día de la implementación y anotada en la arquitectura §2).
-2. **Turno de IA fuera de la transacción de entrega** (V2-DA-77, §3): la entrega solo encola el turno; un trabajador lo resuelve sin bloqueos abiertos durante el HTTP y aplica el resultado en una transacción final que comprueba que no llegó otro mensaje.
-3. Herramientas de lectura y de **propuesta** (`04-…` §7.2), ejecutadas por el servidor con el negocio y la ficha del contexto, nunca de los argumentos.
-4. **Guardas de salida** (V2-RN-11/12, §5) y respuestas compuestas por el servidor para franjas, propuestas y resultados.
-5. **Límites y costes** (V2-RN-14): `uso_ia`, límites por conversación y presupuesto mensual por negocio; al superarlos, menús o persona.
-6. **Datos mínimos al proveedor** (V2-RNF-05).
+1. Puerto `ModeloConversacional` con un adaptador **falso programable** y uno de **Anthropic** con el SDK oficial de Java (`com.anthropic:anthropic-java`; versión comprobada en Maven Central al implementarlo y anotada con fuente y fecha).
+2. **Turno de IA fuera de la transacción de entrega** (§3, V2-DA-77), con revisión monotónica de la conversación y ficha de reclamo.
+3. Herramientas de lectura y de **propuesta** con **alias opacos** (§4.3), ejecutadas con el negocio y la ficha del contexto.
+4. **Guardas de salida** y franjas compuestas **siempre** por el servidor (§5).
+5. **Límites y costes** con reserva previa del presupuesto (§6, V2-DA-79).
+6. **Contexto mínimo** construido por lista blanca y saneado (§7, V2-RNF-05).
 
-**V2-13 entra (solo lo local):**
-1. Suite determinista `ConversacionGuionesIT` en `verify` con guiones YAML y el adaptador falso (`08-…` §4.1).
-2. **Arnés en vivo** listo para ejecutarse (perfil Maven aparte, fuera de `verify`), con correctores por reglas, tope de gasto y registro de tokens, latencia y transcripciones en `target/`.
-3. **Borrador** del conjunto de ≥ 120 conversaciones (`backend/src/test/resources/evaluacion/conjunto-v1/`), marcado «BORRADOR pendiente de revisión del responsable», con el 20 % de prueba separado.
-4. Plantilla del informe comparativo (`docs/v2/pruebas/v2-13-informe-plantilla.md`), sin resultados.
+**V2-13 entra (solo lo local):** suite determinista `ConversacionGuionesIT` en `verify`; **arnés en vivo** listo (perfil Maven `evaluacion-en-vivo`, fuera de `verify`) con correctores por reglas, observador y tope de gasto; **borrador** del conjunto de 120 conversaciones (96 de ajuste + 24 de prueba) marcado «BORRADOR pendiente de revisión del responsable»; plantilla del informe sin resultados.
 
-**No entra:** ejecutar el arnés contra el modelo real (P2-03 + presupuesto), elegir el modelo (decisión del responsable tras el informe), recordatorios (V2-14), adjuntos, voz, imágenes, *streaming* al cliente, «tono» evaluado por IA.
+**No entra:** ejecutar el arnés contra el modelo real, elegir el modelo, el respaldo `fallbacks` del servidor (exige la API beta del SDK; el respaldo son los menús, V2-DA-80), recordatorios (V2-14), adjuntos, voz, imágenes, *streaming*, edición de los límites desde la web (las columnas de `negocio` se fijan por datos de demostración o SQL en el MVP).
 
 ## 2. Cuándo actúa la IA
 En modo `ASISTENTE`, tras el ciclo de vida y la interpretación de V2-10/V2-11:
-1. Botones, selecciones de lista, palabras clave (`MENU`, `SI`, `NO`, `PERSONA`) → **camino determinista de siempre**, sin IA.
-2. Texto libre (`OTRA`):
-   - IA **disponible** (§6: configurada, negocio habilitado, dentro de los límites) → se encola un **turno de IA** y no se responde en la entrega;
-   - no disponible → camino de V2-11 (no entendido; al segundo, derivación).
-3. Sin ficha, la IA puede consultar (servicios, profesionales, franjas); **proponer** exige ficha: el servidor pide el consentimiento con la franja como pendiente (igual que V2-10 §7).
-4. En modo `HUMANO`, nunca.
+1. Botones, selecciones y palabras clave (`MENU`, `SI`, `NO`, `PERSONA`) → camino determinista, sin IA.
+2. Texto libre (`OTRA`) con la IA **disponible** (§6) → se encola un turno; la entrega no responde. Sin IA → camino de V2-11 (no entendido; al segundo, derivación).
+3. Sin ficha, la IA puede consultar; **proponer** o **derivar** exige ficha: el efecto final pide el consentimiento (§3.3).
+4. En `HUMANO`, nunca.
 
 ## 3. Turno de IA (V2-DA-77)
-### 3.1 Encolar (en la transacción de entrega)
-Inserta `turno_ia` (`PENDIENTE`) con `conversacion_id`, `entrada_en` (= la `ultima_entrada_en` registrada), el texto del cliente (recortado a 2000) y `intentos = 0`. El evento queda `PROCESADO`.
+### 3.1 Revisión de la conversación
+`conversacion.revision bigint NOT NULL DEFAULT 0`, incrementada por un **disparador** `BEFORE UPDATE` (V117) en **cualquier** actualización de la fila: cada entrada registrada (el `ON CONFLICT DO UPDATE` de V2-08), cambios de estado, derivación, devolución, respuesta del personal. Es la marca de invalidación del turno; `ultima_entrada_en` sigue solo para la ventana de WhatsApp.
 
-### 3.2 Resolver (trabajador, sin transacción durante el HTTP)
-1. **Reclamar** con `FOR UPDATE SKIP LOCKED` y una concesión de 2 min (`reclamado_hasta`), por negocio con `EjecutorEnNegocio`, como el procesador de V2-08.
-2. **Contexto** (transacción corta de lectura): catálogo activo del negocio, nombre de pila de la ficha (si hay), fecha y hora de Lima con el día de la semana, borrador de la conversación (§3.4) y los últimos mensajes **guardados** de la conversación (con D6 = `SOLO_HUMANO`, solo los salientes; nunca el cuerpo crudo de los eventos).
-3. **Bucle del modelo**, como máximo `ia.max-llamadas-por-turno` (4) llamadas:
-   - el modelo responde texto o pide herramientas;
-   - las **de lectura** se ejecutan cada una en una transacción corta de solo lectura en el negocio;
-   - las **de propuesta** solo **validan** en seco (misma validación que `proponer*`, sin escribir) y devuelven al modelo «propuesta preparada; el servidor enviará el resumen»; se recuerda la **última** propuesta válida;
-   - `derivar_a_persona` termina el bucle.
-4. **Aplicar** (transacción final): bloquea la conversación y comprueba `conversacion.ultima_entrada_en = turno.entrada_en` y `modo = ASISTENTE`.
-   - Si cambió (llegó otro mensaje, se derivó o el personal intervino) → turno `DESCARTADO`, sin salida. El mensaje nuevo tiene su propio turno o su camino determinista.
-   - Si no: aplica, en este orden, la derivación (`HERRAMIENTA`), o la propuesta (`OperacionesConversacion.proponer*`, que revalida y anula la vigente; resumen y botones **del servidor**), o la lista de franjas del turno (compuesta por el servidor) y el texto del modelo **tras las guardas** (§5). Guarda el borrador, suma `uso_ia` y marca el turno `HECHO` vaciando su texto.
-5. **Fallos** (tiempo agotado, error del proveedor, `refusal`, salida truncada, JSON inválido, límite alcanzado a mitad): transacción final con las mismas comprobaciones y respuesta de **menús guiados** («No pude entenderte bien; elige una opción») → turno `FALLIDO` con un código, sin texto. Nunca falla en silencio.
-6. **Concesión vencida** (trabajador caído): se reclama de nuevo una vez (`intentos ≤ 2`); después, `FALLIDO` con la respuesta de menús.
+### 3.2 Encolar (en la transacción de entrega, Claude)
+Inserta `turno_ia` (`PENDIENTE`) con `conversacion_id`, la `revision` leída bajo el bloqueo **después** de las escrituras de la entrega, el texto del cliente **saneado** (§7) y recortado a 2000, y `intentos = 0`. Si ya hay un turno `PENDIENTE` de esa conversación, se marca `DESCARTADO` (gana el último mensaje).
 
-### 3.3 Por qué fuera de la transacción
-La llamada al modelo dura segundos. Dentro de la entrega retendría la conexión, el bloqueo de la conversación y el del evento, y un error del proveedor revertiría y **repetiría** la llamada (coste) con los 5 reintentos de V2-08. Sigue la regla de V2-09: nada de HTTP con bloqueos abiertos. La propuesta real se crea **solo** en la transacción final, así que un turno descartado nunca deja una operación vigente que el cliente no ha visto (un «sí» posterior no confirmaría nada inesperado: V2-RN-10).
+### 3.3 Resolver (trabajador, Codex)
+1. **Reclamar** con `FOR UPDATE SKIP LOCKED`, por negocio con `EjecutorEnNegocio`, de uno en uno: `intentos = intentos + 1`, `reclamado_hasta = ahora + 2 min`. El valor de `intentos` es la **ficha de reclamo**: toda renovación y todo cierre exigen `estado = PENDIENTE AND intentos = ficha`. Plazo total del turno: 90 s; la concesión se renueva antes de cada llamada.
+2. **Antes de cada llamada** comprueba en una transacción corta que la revisión y el modo no cambiaron (si cambiaron → `DESCARTADO` sin más llamadas) y **reserva** la llamada y su coste máximo (§6).
+3. **Contexto** (§7) en una transacción corta.
+4. **Bucle**, como máximo 4 llamadas y 4 herramientas por respuesta (las demás → `is_error` «demasiadas consultas»):
+   - **lectura** (`listar_servicios`, `listar_profesionales`, `buscar_disponibilidad`, `mis_citas`): una transacción corta cada una;
+   - **propuesta**: validación en seco con `ReservaService.prepararCreacionFicha` / `prepararCambioFicha` en una transacción corta (toman bloqueos: **no** `readOnly`), proyectada a datos inmutables; devuelve al modelo «el servidor enviará el resumen para que lo confirme». Sin ficha: no valida reglas de ficha y deja el efecto `SolicitarConsentimientoReserva`;
+   - **`derivar_a_persona`**: efecto `Derivar` (o `SolicitarConsentimientoDerivacion` sin ficha); termina el bucle;
+   - todos los `tool_result` de una respuesta van juntos en el siguiente mensaje, con sus `tool_use_id`; el contenido del asistente se devuelve **intacto** (pensamiento incluido) mediante la continuación opaca del proveedor (§4.1).
+5. **Aplicar** (transacción final), orden de bloqueos **conversación → turno → operación pendiente → protocolo de dominio**:
+   - comprueba que la conversación existe, `revision` y modo `ASISTENTE` sin cambios, la misma ficha (o la misma ausencia), el negocio operativo y la ficha del reclamo; si algo falla → `DESCARTADO`, sin salida;
+   - aplica **un solo efecto** con esta precedencia: derivación > consentimiento > propuesta > franjas > texto. Una propuesta se crea con `OperacionesConversacion.proponer*` (revalida y anula la vigente) y su resumen y botones son del servidor. **Dos propuestas distintas en un turno** → ninguna; se responde pidiendo que el cliente elija una (texto del servidor);
+   - el texto del modelo pasa por las guardas (§5); guarda el borrador (§3.4), liquida el uso (§6) y marca `HECHO` vaciando el texto.
+6. **Fallos** (tiempo agotado, error del proveedor, `refusal`, `max_tokens`, JSON inválido, límite a mitad, reclamo perdido): transacción final con las mismas comprobaciones → respuesta de **menús** («No pude entenderte bien; elige una opción») → `FALLIDO` con motivo, sin texto. Una petición HTTP ya iniciada no se puede retirar (límite aceptado).
+7. **Pendientes abandonados:** la retención termina `FALLIDO` (sin respuesta) los `PENDIENTE` con más de 15 min, aunque la IA esté desactivada, y vacía su texto.
 
-### 3.4 Borrador de la conversación
-`conversacion.estado.ia` puede guardar, **escritos por el servidor a partir de los argumentos validados de las herramientas**, `servicioId`, `barberoId`, `dia` y `franja` (ids y fechas, nunca texto del cliente). Se vacía con el resto del estado (V2-10 §8: 24 h, menú principal, operación ejecutada) y al derivar. Amplía V2-DA-63 solo para la IA.
+### 3.4 Borrador
+`conversacion.estado.ia` guarda, escritos por el servidor, **ids internos validados** de servicio y profesional y el día (nunca alias, franjas ni texto). El turno siguiente vuelve a consultar la disponibilidad y emite alias nuevos (V2-RN-12). Se vacía con el resto del estado (24 h, menú, operación ejecutada, derivación).
 
 ## 4. Contrato de tipos (paquete `pe.barberturno.conversation.ia`)
 Los escribe Claude en el commit de contrato. **Nadie cambia una firma sin pedirlo al coordinador.**
-- `ModeloConversacional`: `RespuestaModelo responder(PeticionModelo peticion)`; lanza `FalloModelo` (con `MotivoFalloModelo`: `NO_CONFIGURADO`, `TIEMPO_AGOTADO`, `PROVEEDOR`, `LIMITE_PROVEEDOR`, `RECHAZO`, `SALIDA_INVALIDA`).
-- `PeticionModelo(String instrucciones, String contextoNegocio, List<MensajeModelo> historial, List<HerramientaIA> herramientas)`. `MensajeModelo` (*sealed*): `DelCliente(texto)`, `DelAsistente(texto, List<LlamadaHerramienta>)`, `ResultadoHerramienta(llamadaId, String json, boolean error)`.
-- `RespuestaModelo(Optional<String> texto, List<LlamadaHerramienta> llamadas, UsoModelo uso, String parada)`; `LlamadaHerramienta(String id, HerramientaIA herramienta, JsonNode argumentos)`; `UsoModelo(entrada, salida, cacheLeida, cacheEscrita, duracionMs)`.
-- `HerramientaIA`: `LISTAR_SERVICIOS`, `LISTAR_PROFESIONALES`, `BUSCAR_DISPONIBILIDAD`, `MIS_CITAS`, `PROPONER_RESERVA`, `PROPONER_REPROGRAMACION`, `PROPONER_CANCELACION`, `DERIVAR_A_PERSONA`, cada una con su nombre de API y su esquema JSON **estricto** (`additionalProperties: false`, todos los campos en `required`, opcionales como `null` admitido).
-- `HerramientasReserva` (Codex): `ResultadoHerramienta ejecutar(ContextoTurno contexto, LlamadaHerramienta llamada)`. Los ids de franja que ve el modelo son **opacos** (`f1`, `f2`… del turno), no ids ni instantes internos (V2-RNF-05).
-- `GuardasSalida` (Gemini): `ResultadoGuardas revisar(String texto, Set<FranjaOfrecida> franjasDelTurno, ZonedDateTime ahora)` → `Aceptado(texto)` | `Sustituido(MotivoGuarda)`; `MotivoGuarda`: `HORARIO_NO_OFRECIDO`, `AFIRMA_OPERACION`, `DATOS_PROHIBIDOS`, `VACIO`.
-- `InstruccionesAsistente` (Claude): el texto fijo del sistema (estable y cacheable) y el bloque de contexto del negocio.
-- `TurnosIA` (Codex): encolar, reclamar, resolver y aplicar (§3).
-- `LimitesIA` (Codex): `Disponibilidad comprobar(long negocioId, long conversacionId)` → `Disponible` | `NoDisponible(MotivoLimite)`; `registrar(UsoModelo, ...)`.
+### 4.1 Puerto
+- `ModeloConversacional.responder(PeticionModelo)` → `RespuestaModelo`; lanza `FalloModelo(MotivoFalloModelo, Optional<UsoModelo> uso)` (`NO_CONFIGURADO`, `TIEMPO_AGOTADO`, `PROVEEDOR`, `LIMITE_PROVEEDOR`, `RECHAZO`, `SALIDA_INVALIDA`).
+- `PeticionModelo(String instrucciones, String contexto, List<MensajeModelo> mensajes, List<HerramientaIA> herramientas)`.
+- `MensajeModelo` (*sealed*): `DelCliente(texto)`, `DelAsistente(Optional<String> texto, List<LlamadaHerramienta> llamadas, ContinuacionProveedor continuacion)`, `ResultadosHerramientas(List<ResultadoHerramienta>)`.
+- `ContinuacionProveedor`: valor **opaco** del adaptador (bloques del asistente en su orden, pensamiento incluido); solo vive durante el turno; nunca se registra ni se persiste.
+- `RespuestaModelo(Optional<String> texto, List<LlamadaHerramienta> llamadas, ContinuacionProveedor continuacion, UsoModelo uso, String parada)`.
+- `LlamadaHerramienta(String id, HerramientaIA herramienta, String argumentosJson)` (JSON como texto: los nodos Jackson 2 del SDK y los Jackson 3 de la aplicación no se mezclan).
+- `ResultadoHerramienta(String llamadaId, String json, boolean error)`.
+- `UsoModelo(String modelo, long entrada, long salida, long cacheLeida, long cacheEscrita, long duracionMs)`.
 
-## 5. Guardas (V2-RN-11/12)
-- **Horarios:** toda hora («5», «17:30», «5 y media», «a las cinco de la tarde») y fecha («mañana», «el viernes», «23/10», «23 de octubre») del texto del modelo debe corresponder a una franja **devuelta por una herramienta en ese turno**; si no, el texto se descarta y se envía la lista de franjas del servidor (o, sin franjas, «Te muestro las opciones disponibles» + menú). La medición de la evaluación (`08-…` §4.2) cuenta los casos **antes** de la guarda.
-- **Confirmaciones falsas:** se descarta el texto que afirme una operación hecha («reservé», «está confirmada», «quedó agendada», «cancelé», «reprogramé», «listo, te esperamos»…). Los resultados solo salen de `TextosConversacion` a partir de `ResultadoOperacion`.
-- **Datos prohibidos:** teléfonos, correos, `wa_id`, códigos internos o enlaces que no sean el del aviso de privacidad → descartado.
-- **Límites de Meta:** cuerpo ≤ 1024 en interactivos y ≤ 4096 en texto, con el recorte de V2-10.
-- La propuesta y su resumen (fecha completa, servicio, profesional, precio) los compone **siempre** el servidor.
+### 4.2 Herramientas
+`HerramientaIA` (nombre de API, descripción y esquema JSON **estricto**: objetos cerrados, todos los campos en `required`, opcionales que admiten `null`):
+
+| Herramienta | Argumentos |
+|---|---|
+| `listar_servicios` | — |
+| `listar_profesionales` | — |
+| `buscar_disponibilidad` | `servicio` (alias), `profesional` (alias o `null` = cualquiera), `desde`, `hasta` (`yyyy-MM-dd`, ≤ 7 días, no invertido, desde hoy), `horaDesde`, `horaHasta` (`HH:mm` inclusivas o `null`), `cita` (alias de una cita para reprogramar o `null`; si hay cita, se ignoran servicio y profesional: mismo profesional y duración, DA-21) |
+| `mis_citas` | — |
+| `proponer_reserva` | `franja` (alias de una franja de creación) |
+| `proponer_reprogramacion` | `cita` (alias), `franja` (alias de una franja de cambio de esa cita) |
+| `proponer_cancelacion` | `cita` (alias) |
+| `derivar_a_persona` | `motivo` (`QUEJA`, `PETICION`, `FUERA_DE_ALCANCE`, `SIN_AVANCE`) |
+
+### 4.3 Ejecución y alias (Codex)
+- `HerramientasReserva.ejecutar(ContextoTurno, LlamadaHerramienta)` → `EjecucionHerramienta(ResultadoHerramienta paraModelo, Optional<EfectoTurno> efecto)`.
+- `ContextoTurno` (mutable, de un solo turno): negocio, ficha (o vacía), hoy en Lima, y la **tabla de alias** (`s1`, `p1`, `c1`, `f1`…) ligada a ids internos, inicio, fin, finalidad (`CREAR` o `CAMBIO` de una cita) y profesional. Los alias de otro turno no existen.
+- Un alias desconocido, de otra finalidad o de otro turno → `is_error` con código y mensaje genéricos, sin el argumento recibido, sin SQL ni nombres ajenos.
+- Franjas devueltas: como máximo 20 por llamada (`FranjaOfrecida(alias, inicio, fin, profesional)`).
+- `EfectoTurno` (*sealed*): `Proponer(TipoOperacion, datos validados)`, `Derivar(MotivoDerivacion)`, `SolicitarConsentimientoReserva(franja validada)`, `SolicitarConsentimientoDerivacion(MotivoDerivacion)`, `MostrarFranjas(List<FranjaOfrecida>)`.
+
+### 4.4 Resto
+- `GuardasSalida` (Gemini) → `ResultadoGuardas`: `Aceptado(texto)` | `Sustituido(MotivoGuarda)` (`HORARIO_NO_OFRECIDO`, `AFIRMA_OPERACION`, `DATOS_PROHIBIDOS`, `VACIO`, `DEMASIADO_LARGO`).
+- `ComposicionTurnoIA` (Gemini): lista interactiva de franjas de varios días (agrupada por día, máx. 10 filas, fecha completa) y textos del servidor de §3.3 (aclarar entre dos propuestas, fallo, límite).
+- `InstruccionesAsistente` (Claude): texto fijo del sistema (estable y cacheable).
+- `ConstructorContextoModelo` (Codex): §7.
+- `TurnosIA` (Codex): `encolar(conversacionId, revision, texto)` (lo llama el orquestador), `procesarPendientes()` (trabajador).
+- `LimitesIA` (Codex): `disponible(conversacionId)`, `reservar(turnoId, numeroLlamada)`, `liquidar(reserva, uso)`, `liberar(reserva)`.
+- `ObservadorEvaluacion` (Claude, interfaz; implementación vacía en producción y de registro en la evaluación): texto antes de las guardas, franjas, llamadas, uso y tiempos.
+- `IaPropiedades` (Claude, `barberturno.ia`): `habilitada`, `clave`, `modelo`, `esfuerzo`, `urlBase`, `tiempoLlamada`, `plazoTurno`, `maxLlamadas`, `maxHerramientas`, límites por defecto, precios por modelo, intervalo y lote del trabajador.
+
+## 5. Guardas y composición (V2-RN-11/12)
+- **Las franjas que ve el cliente las compone siempre el servidor** (`ComposicionTurnoIA`), con fecha completa. El texto del modelo **no** debe contener horas ni fechas; las guardas son la red de seguridad:
+  - **horarios**: cualquier hora o fecha (incluidas «5», «5 y media», «mañana», «el viernes», «23/10») que no corresponda **como combinación completa** a una franja ofrecida en ese turno → `HORARIO_NO_OFRECIDO`;
+  - **afirmaciones de operación** («reservé», «quedó confirmada», «agendada», «cancelé», «reprogramé», «te esperamos el…») → `AFIRMA_OPERACION`;
+  - **datos prohibidos**: teléfonos, correos, `wa_id`, códigos `BT-…`, alias internos (`s1`, `f3`…) o enlaces distintos del aviso de privacidad → `DATOS_PROHIBIDOS`;
+  - vacío o más de 1024 caracteres → `VACIO` / `DEMASIADO_LARGO`.
+- Si se sustituye: se envía la composición del servidor (franjas del turno o menú) con un texto neutro.
+- La medición de la evaluación cuenta las sustituciones **antes** de enviar (indicador de calidad).
 
 ## 6. Disponibilidad, límites y costes (V2-RN-14, V2-DA-79)
-- **IA disponible** si: hay clave (`BT_IA_API_KEY`) y modelo (`barberturno.ia.modelo`), `barberturno.ia.habilitada = true`, `negocio.ia_habilitada = true` y ningún límite alcanzado.
-- **Límites** (valores por defecto en la configuración; anulables por negocio en columnas de `negocio`):
-  - por conversación: llamadas al modelo por día (`20`) y textos libres por minuto (`6`);
-  - por negocio: presupuesto mensual en USD (`5`), calculado con los tokens de `uso_ia` y los precios configurados por modelo (`barberturno.ia.precios.<modelo>`, USD por millón: entrada, salida, lectura y escritura de caché).
-- **Al superarlos:** el texto libre va al camino de V2-11 (no entendido → derivación) y, si es el límite del negocio, un aviso interno al PROPIETARIO una vez al día.
-- La configuración de `prod` no trae clave. En `dev` y `test`, `habilitada: false` salvo en las pruebas que usan el adaptador falso o el servidor local.
+- **IA disponible**: clave y modelo configurados, `barberturno.ia.habilitada`, `negocio.ia_habilitada` y ningún límite alcanzado.
+- **Mensajes entrantes por minuto** (V2-RN-14), por conversación: lo cuenta `RegistroEntradaWhatsApp.registrar` (Claude) en el mismo `UPSERT`, con minuto civil del reloj del servidor (`conversacion.minuto_entradas`, `entradas_minuto`); por encima del límite, el texto libre no va a la IA (camino de V2-11). Un reintento tras *rollback* no cuenta dos veces (se revierte con todo).
+- **Llamadas por día y conversación** y **presupuesto mensual por negocio**: antes de cada HTTP se **reserva** una fila en `llamada_ia` (clave única turno + número de llamada) con el coste máximo (`max_tokens` y la entrada estimada por los precios configurados), bajo un bloqueo consultivo por negocio; después se **liquida** con el uso real (también si hubo fallo con uso conocido). Coste desconocido (tiempo agotado, caída) → se mantiene la reserva conservadora. Fecha contable en Lima; coste en micro-USD con `BigDecimal` y redondeo hacia arriba; fórmula por modelo: entrada no cacheada, salida, lectura y escritura de caché, sin doble conteo.
+- **Al superar un límite**: camino de V2-11 y, si es el presupuesto del negocio, **un** aviso diario al PROPIETARIO: marcador `negocio.ia_aviso_limite_en date` reservado de forma atómica, aviso `AccionAuditoria.LIMITE_IA` ligado a la conversación que lo alcanzó.
 
-## 7. Adaptador de Anthropic (Codex, V2-DA-80)
-- SDK oficial `com.anthropic:anthropic-java` (cliente `AnthropicOkHttpClient`), `messages().create`, **bucle manual** (no el *tool runner*, porque las herramientas se ejecutan con las reglas de §3).
-- Herramientas con `strict(true)` y `additionalProperties: false`; `tool_choice` automático (los modelos actuales rechazan forzarlo).
-- Modelo por configuración (`barberturno.ia.modelo`, por defecto `claude-opus-5-5`; la evaluación compara `claude-haiku-5-5`, `claude-sonnet-5-5` y `claude-opus-5-5`, `09-costes.md` §3). Esfuerzo configurable (`barberturno.ia.esfuerzo`, por defecto `low`, propio de un chat); sin parámetros de muestreo; sin desactivar el pensamiento.
-- **Caché de instrucciones:** herramientas e instrucciones fijas primero, con `cache_control` al final del bloque estable; el contexto del negocio, la fecha y el historial después.
-- `max_tokens` 2048; tiempo máximo por llamada configurable (15 s); reintentos del SDK 1.
-- `stop_reason` `refusal` o `max_tokens` → `FalloModelo` (`RECHAZO` / `SALIDA_INVALIDA`): el turno responde con menús. Respaldo del servidor (`fallbacks`) **solo si el SDK lo admite sin rodeos**; si no, se documenta y se omite (el respaldo propio son los menús).
-- Registra tokens (incluida la caché leída y escrita) y duración; **nunca** el contenido, la clave ni los argumentos.
-- **Pruebas sin red:** servidor HTTP local (JDK `HttpServer`, sin dependencias nuevas) con `baseUrl` configurable: petición correcta (herramientas estrictas, caché, modelo, sin teléfono, correo ni `wa_id`), respuesta con herramientas, `refusal`, 429, 500 y tiempo agotado.
+## 7. Contexto mínimo (V2-RNF-05)
+`ConstructorContextoModelo` (lista blanca):
+- negocio: nombre; catálogo activo con **alias**, nombre, duración y precio; profesionales activos con alias y `nombre_visible` (el que el negocio publica en su página);
+- fecha y hora actuales en Lima con el día de la semana;
+- cliente: **nombre de pila** (primer término del nombre de la ficha, o nada) y si tiene ficha;
+- borrador (§3.4) traducido a alias del turno;
+- historial: como máximo los 6 últimos mensajes **de asistente y sistema** de la conversación posteriores al último vaciado del estado, saneados; nunca mensajes `PERSONA`, contenido retirado, selecciones, *nonces* ni cuerpos crudos;
+- texto del cliente **saneado**: teléfonos y correos sustituidos por `[dato]`.
+
+Excepción explícita a `16-…` §2.5: el texto de un cliente **sin ficha** se guarda en `turno_ia.texto` mientras el turno está pendiente (como máximo 15 min, §3.3.7) y se vacía al terminar. P2-06 debe cubrirlo (transferencia al proveedor de IA, D2/D7).
 
 ## 8. Modelo de datos: V117 (Codex)
-- `turno_ia` (negocio, RLS `ENABLE` + `FORCE`): `id`, `negocio_id`, `conversacion_id` (FK compuesta), `entrada_en`, `texto varchar(2000)` (anulable: se vacía al terminar), `estado` (`PENDIENTE`, `HECHO`, `DESCARTADO`, `FALLIDO`), `motivo varchar(20)`, `intentos smallint`, `reclamado_hasta`, `creado_en`, `actualizado_en`; `CHECK (estado = 'PENDIENTE' OR texto IS NULL)`; índice parcial de pendientes; `DELETE` con política restrictiva sobre terminados (retención con `retencion.operaciones-terminadas`) y en la anonimización (V2-11).
-- `uso_ia` según `04-…` §3 + `tokens_cache_escritura`, `coste_micro_usd bigint`; RLS forzada; `INSERT … ON CONFLICT DO UPDATE` con sumas.
-- `negocio`: `ia_habilitada boolean NOT NULL DEFAULT false` y límites anulables (`ia_presupuesto_mensual_usd numeric(8,2)`, `ia_llamadas_dia_conversacion`, `ia_textos_minuto_conversacion`) con `CHECK` > 0.
+- `conversacion`: `revision bigint` y su disparador; `minuto_entradas timestamptz`, `entradas_minuto smallint`; `GRANT UPDATE` de las dos últimas.
+- `turno_ia` (negocio, RLS `ENABLE` + `FORCE`, `USING`/`WITH CHECK`): `id`, `negocio_id`, `conversacion_id` (FK compuesta), `revision`, `texto varchar(2000)`, `estado` (`PENDIENTE`, `HECHO`, `DESCARTADO`, `FALLIDO`), `motivo varchar(20)`, `intentos smallint CHECK (0..3)`, `reclamado_hasta`, `creado_en`, `actualizado_en`; `CHECK ((estado = 'PENDIENTE') = (texto IS NOT NULL))`; índice parcial único de un `PENDIENTE` por conversación; índices de cola `(negocio_id, reclamado_hasta) WHERE PENDIENTE`, de conversación y de terminados; `SELECT`, `INSERT`, `UPDATE` de columnas operativas; `DELETE` con política restrictiva (terminados, o de una conversación de ficha anonimizada).
+- `llamada_ia` (negocio, RLS forzada): `turno_id`, `numero`, `conversacion_id`, `dia` (Lima), `modelo`, tokens, `coste_reservado_micro_usd`, `coste_micro_usd`, `estado` (`RESERVADA`, `LIQUIDADA`); `UNIQUE (turno_id, numero)`; se borra con su conversación (purga y anonimización), después de sumar su coste al agregado.
+- `uso_ia` (negocio, RLS forzada): **agregado por `(negocio_id, dia)`** (corrige `04-…` §3: sin `conversacion_id`) con llamadas, tokens y `coste_micro_usd` no negativos; `INSERT … ON CONFLICT DO UPDATE`; sin `DELETE`. Conserva el gasto aunque se purgue o anonimice la conversación.
+- `negocio`: `ia_habilitada boolean NOT NULL DEFAULT false`, `ia_presupuesto_mensual_usd numeric(8,2)`, `ia_llamadas_dia_conversacion integer`, `ia_entradas_minuto integer` (anulables, `CHECK` > 0), `ia_aviso_limite_en date`; permisos por columna como en V112 (sin edición web en el MVP).
+- `notificacion`/`AccionAuditoria`: tipo `LIMITE_IA`.
+- Retención y anonimización (Codex, ficheros de X11): fases para `turno_ia` y `llamada_ia`; la anonimización termina los turnos de la conversación bajo su bloqueo antes de borrarlos.
+- Pruebas que cambian: `EsquemaIT`, `EsquemaV2IT`, `InstalacionNuevaIT`, `ActualizacionV1IT`, `ConversacionV115IT`, `ConfiguracionNegocioEsquemaPruebas` y `LimpiezaBaseDatos` (truncar `uso_ia`).
 
 ## 9. Criterios de aceptación
 | # | Criterio | Responsable de la prueba |
 |---|---|---|
-| CI-1 | Texto libre con IA disponible → turno encolado, sin respuesta en la entrega; botones y palabras clave → camino determinista sin IA | Claude |
-| CI-2 | Turno: reclamo exclusivo, concesión, contexto mínimo, bucle acotado, aplicación con la comprobación de §3.2.4; mensaje nuevo, derivación o modo humano a mitad → `DESCARTADO` sin salida ni operación | Codex |
-| CI-3 | La propuesta real se crea solo en la transacción final; un turno descartado no deja operación vigente; «sí» tras una propuesta de IA confirma como en V2-10 | Codex |
-| CI-4 | Herramientas: solo datos del negocio del contexto; id de otro negocio o de otra ficha → «no encontrado» al modelo sin datos; ids de franja opacos; ninguna herramienta escribe reservas | Codex |
-| CI-5 | Guardas: horario no ofrecido, afirmación de operación, datos prohibidos y vacío → sustituidos por la respuesta del servidor; textos válidos pasan | Gemini |
-| CI-6 | Límites: llamadas por día, textos por minuto y presupuesto mensual por negocio → menús/derivación y aviso al propietario una vez al día; por negocio sin cruzar | Codex |
-| CI-7 | Fallos del modelo (tiempo, 429, 500, `refusal`, truncado, JSON inválido) → menús, turno `FALLIDO`, nunca en silencio | Codex |
-| CI-8 | Adaptador de Anthropic contra el servidor local: herramientas estrictas, caché, modelo, esfuerzo, tokens; la petición no contiene teléfono, correo, `wa_id` ni ids internos (V2-RNF-05) | Codex |
+| CI-1 | Texto libre con IA disponible → turno encolado (y el anterior pendiente descartado), sin respuesta en la entrega; botones y palabras clave → camino determinista; límite por minuto → camino de V2-11 | Claude |
+| CI-2 | Reclamo con ficha; un trabajador con la concesión vencida no aplica nada; revisión cambiada (otro mensaje, botón, derivación, personal, retorno) → `DESCARTADO` sin salida ni operación; conversación borrada → terminado sin recrearla | Codex |
+| CI-3 | Propuesta creada solo en la transacción final; una por turno; dos distintas → ninguna y aclaración; derivación con precedencia; «sí» tras una propuesta de IA confirma como en V2-10 | Codex |
+| CI-4 | Herramientas: alias opacos para todo; alias desconocido, de otro turno, de otra finalidad, de otro negocio o de otra ficha → `is_error` genérico; ninguna escribe reservas; límites de herramientas y franjas | Codex |
+| CI-5 | Guardas: cada motivo sustituye por la composición del servidor; textos válidos pasan; la composición de franjas cumple los límites de Meta y da fecha completa | Gemini |
+| CI-6 | Límites: llamadas por día, presupuesto mensual con reserva previa (dos turnos concurrentes no superan el saldo), liquidación también con fallo, un aviso diario al propietario; por negocio | Codex |
+| CI-7 | Fallos del modelo (tiempo, 429, 500, `refusal`, `max_tokens`, JSON inválido) → menús y `FALLIDO`; pendientes abandonados terminados por la retención | Codex |
+| CI-8 | Adaptador contra el servidor local: herramientas estrictas, `cache_control`, modelo, esfuerzo, sin muestreo ni `tool_choice` forzado, continuación intacta (pensamiento), tokens de caché; la petición no contiene teléfono, correo, `wa_id`, ids internos ni mensajes `PERSONA` | Codex |
 | CI-9 | Sin clave, la aplicación arranca, la IA queda desactivada y todo funciona con menús | Codex |
-| CI-10 | V117: permisos exactos, RLS forzada, `CHECK`; esquema, actualización e instalación en verde | Codex |
-| CI-11 | `ConversacionGuionesIT`: los 8 casos mínimos de `08-…` §4.1 + derivación por herramienta + límite + dos negocios con nombres canario | Gemini (guiones) y Claude (ejecución) |
-| CI-12 | Arnés en vivo: compila, se niega a ejecutar sin clave ni tope de gasto explícito, calcula las métricas de `08-…` §4.2 sobre transcripciones de ejemplo del adaptador falso | Gemini |
-| CI-13 | `verify` completo en verde con JaCoCo y Javadoc sin avisos; registros sin contenido ni clave | Claude |
+| CI-10 | V117: permisos exactos, RLS forzada, `CHECK`, disparador de revisión, `UPSERT` bajo RLS con el rol real (sin contexto y con otro negocio → falla) | Codex |
+| CI-11 | `ConversacionGuionesIT`: los 8 casos mínimos de `08-…` §4.1 + derivación por herramienta + límite + dos negocios con nombres canario + turno descartado por un mensaje nuevo | Gemini (guiones) y Claude (ejecución) |
+| CI-12 | Arnés en vivo: compila, se niega a ejecutar sin clave, sin base desechable o sin tope de gasto; calcula las métricas de `08-…` §4.2 sobre transcripciones del adaptador falso | Gemini |
+| CI-13 | `verify` completo en verde con JaCoCo y Javadoc; registros sin contenido, clave ni continuación | Claude |
 
 ## 10. Reparto, ramas y revisión cruzada
 | Bloque | Responsable | Worktree y rama | Archivos (alcance) | Revisa |
 |---|---|---|---|---|
-| 0 · Contrato | Claude | `D:\Proyectos\BarberTurno-v2-12` · `tarea/V2-12-conversacion-ia` | este documento, decisiones, *backlog*, tipos de §4, `InstruccionesAsistente`, YAML | Codex (consulta de diseño, solo lectura) |
-| XI · Turnos, herramientas, límites, adaptador y V117 | Codex | `D:\Proyectos\BarberTurno-v2-12-backend` · `tarea/V2-12-conversacion-ia-backend` | `V117`; `conversation/ia/{TurnosIA*,ProcesadorTurnosIA,HerramientasReserva*,LimitesIA*,ModeloAnthropic,ConfiguracionIA,…}`; `pom.xml` (dependencia); la purga de turnos en `RetencionWhatsApp` y la anonimización; sus pruebas | Gemini Argon (*diff-first*) + Claude |
-| CI · Enrutado | Claude | rama de la tarea | `OrquestadorConversacion` (encolar el turno), `ConversacionPropiedades`/`IaPropiedades`, YAML; sus pruebas | Codex (solo lectura) |
-| GI · Guardas, adaptador falso, guiones y evaluación | Gemini | `D:\Proyectos\BarberTurno-v2-12-gemini` · `tarea/V2-12-conversacion-ia-gemini` | `conversation/ia/{GuardasSalida,ResultadoGuardas,MotivoGuarda}` y sus pruebas; `src/test/.../ia/{ModeloConversacionalFalso,GuionConversacion*}`; `ConversacionGuionesIT` y `src/test/resources/conversaciones/*.yaml`; el arnés en vivo y los correctores; el borrador del conjunto; la plantilla del informe | Codex (solo lectura) + Claude |
+| 0 · Contrato | Claude | `D:\Proyectos\BarberTurno-v2-12` · `tarea/V2-12-conversacion-ia` | este documento, decisiones, *backlog*, tipos de §4, `InstruccionesAsistente`, `ObservadorEvaluacion`, `IaPropiedades`, YAML | Codex (consulta 127) |
+| XI · Turnos, herramientas, límites, contexto, adaptador, V117 | Codex | `D:\Proyectos\BarberTurno-v2-12-backend` · `…-backend` | `pom.xml` (dependencia y perfil `evaluacion-en-vivo`); `V117`; `conversation/ia/` salvo lo de Claude y Gemini; retención y anonimización (sus archivos de X11); `AccionAuditoria`, avisos; sus pruebas y las de esquema de §8 | Gemini Argon (*diff-first*) + Claude |
+| CI · Enrutado y entradas por minuto | Claude | rama de la tarea | `OrquestadorConversacion` (encolar), `RegistroEntradaWhatsApp` (contador por minuto), sus pruebas | Codex (solo lectura) |
+| GI · Guardas, composición, falso, guiones y evaluación | Gemini | `D:\Proyectos\BarberTurno-v2-12-gemini` · `…-gemini` | `conversation/ia/{GuardasSalida,ResultadoGuardas,MotivoGuarda,ComposicionTurnoIA}` y sus pruebas; `src/test/.../ia/` (adaptador falso, lector SnakeYAML seguro de guiones, `ConversacionGuionesIT`, arnés en vivo y correctores, observador de registro); `src/test/resources/{conversaciones,evaluacion}/`; `docs/v2/pruebas/v2-13-informe-plantilla.md` | Codex (solo lectura) + Claude |
 
 - **Migraciones y `pom.xml`:** solo Codex. **Contrato y configuración compartida:** solo Claude.
-- **Pruebas con base:** con el ejecutor serializado. Gemini no ejecuta órdenes: Claude compila y ejecuta sus pruebas.
+- **Orden:** contrato → GI y CI en paralelo con la integración de V2-11 → unión de V2-11 terminada en esta rama → XI.
 
 ## 11. Pendientes del responsable (no se simulan)
-- **P2-03:** proveedor, clave (`BT_IA_API_KEY` en `D:\Proyectos\BarberTurno-v2\.local\barberturno.env`, la escribe el responsable) y elección del modelo tras el informe.
-- **Presupuesto** de la evaluación en vivo (propuesta de `09-costes.md` §3: ≤ 10 USD, primera ronda con Haiku 5.5 y Sonnet 5.5).
-- **Revisión del conjunto** de conversaciones (borrador de Gemini) y del 20 % de prueba.
-- **P2-06:** la transferencia de datos al proveedor de IA debe figurar en el aviso (D2/D7), como la de Meta.
+- **P2-03:** clave (`BT_IA_API_KEY` en `D:\Proyectos\BarberTurno-v2\.local\barberturno.env`, la escribe el responsable), proveedor y modelo tras el informe.
+- **Presupuesto** de la evaluación en vivo (propuesta de `09-costes.md` §3: ≤ 10 USD; primera ronda con Haiku 5.5 y Sonnet 5.5).
+- **Revisión del conjunto** de conversaciones y del 20 % de prueba.
+- **P2-06:** el aviso debe mencionar la transferencia al proveedor de IA y el texto temporal sin ficha (§7).
+- Edición de `ia_habilitada` y de los límites por el propietario: fuera del MVP (*Could*).
+
+## 12. Consulta de diseño de Codex (encargo 127, 04/11/2026): «Con propuestas», 22, aceptadas
+| # | Propuesta | Decisión |
+|---|---|---|
+| 1 | `ultima_entrada_en` no identifica una entrada | `conversacion.revision` con disparador `BEFORE UPDATE` (§3.1) |
+| 2 | Trabajador con la concesión vencida | Ficha de reclamo = `intentos`; plazo total y renovación (§3.3.1) |
+| 3 | Comprobaciones finales y orden de bloqueos | §3.3.5 |
+| 4 | El historial pierde el pensamiento | `ContinuacionProveedor` opaca (§4.1) |
+| 5 | Validación en seco | `prepararCreacionFicha` / `prepararCambioFicha`, transacciones cortas no `readOnly` (§3.3.4) |
+| 6 | El resultado no transporta la decisión | `EjecucionHerramienta` + `EfectoTurno` (§4.3) |
+| 7 | «Última propuesta válida» ambigua | Una por turno; dos distintas → aclaración; derivación primero (§3.3.5) |
+| 8 | Consentimiento en la aplicación final | Efectos `SolicitarConsentimiento*` con los pendientes de V2-10/V2-11 (§4.3) |
+| 9 | Esquemas y referencias | Alias opacos para todo; propuestas solo con alias (§4.2–4.3) |
+| 10 | Disponibilidad de varios días y reprogramación | `cita` en `buscar_disponibilidad`; límites de rango, horas, herramientas y franjas; composición de varios días (§4.2, §4.4) |
+| 11 | Versión del SDK | Se comprueba en Maven Central al implementar (con red) y se anota fuente y fecha |
+| 12 | Jackson 2 y 3 | Mapper del SDK encapsulado; argumentos como JSON en texto (§4.1) |
+| 13 | `fallbacks` solo en la API beta | Se omite (V2-DA-80); `refusal`/`max_tokens` fallan antes de ejecutar herramientas; cliente condicional y cerrado al parar |
+| 14 | Costes solo al terminar | Reserva previa en `llamada_ia`, liquidación siempre, coste desconocido conservador (§6) |
+| 15 | Fuente del límite por minuto | Mensajes entrantes por minuto contados en `registrar` (§6) |
+| 16 | Aviso diario sin destino | Marcador atómico en `negocio` + aviso `LIMITE_IA` ligado a la conversación (§6) |
+| 17 | V117 imprecisa | §8 |
+| 18 | Purga y anonimización con turnos | §3.3.7 y §8 |
+| 19 | Contexto mínimo | Lista blanca, saneado, sin mensajes `PERSONA` (§7); excepción explícita del texto sin ficha |
+| 20 | Alias y franjas heredados | El borrador guarda ids validados; disponibilidad siempre nueva; franjas compuestas por el servidor (§3.4, §5) |
+| 21 | V2-13 | SnakeYAML seguro, observador, perfil Maven aparte, 96 + 24 (§1, §4.4) |
+| 22 | Solapes y huecos de archivos | §10 |
