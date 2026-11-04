@@ -12,18 +12,23 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.common.tenancy.DirectorioNegocios;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 import pe.barberturno.platform.MembresiaRepository;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 /**
- * Registra la ventana de atención de la conversación del remitente: no almacena contenido ni crea
- * fichas. La fecha nunca retrocede ni se adelanta al reloj del servidor, incluso con entradas duplicadas o
+ * Registra la ventana de atención de la conversación del remitente y, desde V2-11, guarda el contenido
+ * mínimo de los entrantes que la bandeja necesita ({@link #guardarEntrante}); no crea fichas. La fecha nunca retrocede ni se adelanta al reloj del servidor, incluso con entradas duplicadas o
  * desordenadas (V2-DA-60). Desde V2-10 devuelve además la entrada anterior, que decide el vaciado por
  * inactividad, y deja de ser el receptor de mensajes: lo es la conversación guiada, que lo llama.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
 public class RegistroEntradaWhatsApp {
+    /** Longitud máxima del texto entrante guardado (la de un texto de WhatsApp). */
+    static final int MAX_TEXTO = 4096;
+    /** Longitud máxima del identificador y del título de una selección guardados. */
+    static final int MAX_SELECCION = 200;
     private final EntityManager entidades;
     private final ProveedorNegocioActual negocio;
     private final CanalWhatsAppRepository canales;
@@ -89,7 +94,40 @@ public class RegistroEntradaWhatsApp {
      * @return id del mensaje guardado
      */
     public long guardarEntrante(long conversacionId, MensajeEntrante mensaje) {
-        throw new UnsupportedOperationException("Pendiente del bloque C11.");
+        var contenido = JsonNodeFactory.instance.objectNode();
+        String tipo = "TEXTO";
+        var dato = mensaje.dato();
+        switch (mensaje.tipo()) {
+            case "text" -> contenido.put("texto", recortar(dato.path("text").path("body").asString(""), MAX_TEXTO));
+            case "interactive" -> {
+                tipo = "INTERACTIVO";
+                var respuesta = dato.path("interactive").path("button_reply").isObject()
+                        ? dato.path("interactive").path("button_reply") : dato.path("interactive").path("list_reply");
+                contenido.put("seleccion", recortar(respuesta.path("id").asString(""), MAX_SELECCION));
+                contenido.put("titulo", recortar(respuesta.path("title").asString(""), MAX_SELECCION));
+            }
+            case "button" -> {
+                tipo = "INTERACTIVO";
+                contenido.put("seleccion", recortar(dato.path("button").path("payload").asString(""), MAX_SELECCION));
+                contenido.put("titulo", recortar(dato.path("button").path("text").asString(""), MAX_SELECCION));
+            }
+            default -> contenido.put("tipo", recortar(mensaje.tipo(), MAX_SELECCION));
+        }
+        var ahora = reloj.instant();
+        return ((Number) entidades.createNativeQuery("""
+                INSERT INTO mensaje_whatsapp(conversacion_id, direccion, origen, tipo, contenido, wamid, estado,
+                    creado_en, actualizado_en)
+                VALUES (:conversacion, 'ENTRANTE', 'CLIENTE', :tipo, cast(:contenido as jsonb), :wamid, 'RECIBIDO',
+                    :ahora, :ahora) RETURNING id
+                """).setParameter("conversacion", conversacionId).setParameter("tipo", tipo)
+                .setParameter("contenido", contenido.toString()).setParameter("wamid", mensaje.wamid())
+                .setParameter("ahora", ahora).getSingleResult()).longValue();
+    }
+
+    /** Recorta por puntos de código, sin partir un par sustituto (como los textos salientes de V2-10). */
+    private static String recortar(String texto, int maximo) {
+        return texto.codePointCount(0, texto.length()) <= maximo ? texto
+                : texto.substring(0, texto.offsetByCodePoints(0, maximo));
     }
 
     /**
