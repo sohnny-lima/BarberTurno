@@ -69,8 +69,10 @@ export function vaciar() {
         RAISE EXCEPTION 'Destino o sesiones de limpieza E2E no autorizados';
       END IF;
     END $$;
-    TRUNCATE notificacion, auditoria_reserva, reserva, bloqueo, jornada,
-      barbero, servicio, usuario, invitacion RESTART IDENTITY CASCADE;
+    TRUNCATE operacion_pendiente, mensaje_whatsapp, conversacion,
+      evento_whatsapp_entrante, canal_whatsapp, notificacion, auditoria_reserva,
+      reserva, bloqueo, jornada, barbero, servicio, vinculo_cliente, cliente,
+      membresia, invitacion, auditoria_plataforma, usuario RESTART IDENTITY CASCADE;
     DELETE FROM negocio WHERE id <> 1;
     UPDATE negocio SET nombre = 'BarberTurno', estado = 'ACTIVO',
       anticipacion_cambio_cliente_min = 120, horizonte_dias = 30,
