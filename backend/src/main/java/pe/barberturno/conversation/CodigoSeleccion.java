@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * <p>Formatos (como máximo 200 caracteres; ids de 1 a 18 cifras, sin ceros a la izquierda y mayores que
  * cero salvo {@code bid = 0} = cualquiera; fecha {@code aaaammdd} real; página de 0 a 9; segundos epoch
  * de 1 a 253402300799):
- * {@code m:RESERVAR|MIS_CITAS|INICIO} · {@code p:S|N} · {@code sp:<pág>} · {@code s:<sid>} ·
+ * {@code m:RESERVAR|MIS_CITAS|INICIO|PERSONA} · {@code p:S|N} · {@code sp:<pág>} · {@code s:<sid>} ·
  * {@code bp:<sid>:<pág>} · {@code b:<sid>:<bid>} · {@code d:<sid>:<bid>:<aaaammdd>:<pág>} ·
  * {@code f:<sid>:<bid>:<seg>} ({@code bid > 0}) · {@code c:<rid>} · {@code a:<rid>:C|R} ·
  * {@code rd:<rid>:<aaaammdd>:<pág>} · {@code rf:<rid>:<seg>} · {@code o:<oid>:<nonce>:S|N}
@@ -70,7 +70,7 @@ public sealed interface CodigoSeleccion {
         }
         try {
             if (id.startsWith("m:")) {
-                Matcher m = Pattern.compile("^m:(RESERVAR|MIS_CITAS|INICIO)$").matcher(id);
+                Matcher m = Pattern.compile("^m:(RESERVAR|MIS_CITAS|INICIO|PERSONA)$").matcher(id);
                 if (m.matches()) {
                     return Optional.of(new Menu(OpcionMenu.valueOf(m.group(1))));
                 }

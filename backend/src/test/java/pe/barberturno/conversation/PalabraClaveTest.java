@@ -48,10 +48,27 @@ class PalabraClaveTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
+            "hablar con alguien", "Hablar con alguien", "HABLAR CON ALGUIEN", "¡Hablar con alguien!", "¿hablar con alguien?",
+            "hablar con una persona", "Hablar con una persona", "  hablar con una persona. ",
+            "persona", "Persona", "PERSONA", "¿persona?", "¡Persona!",
+            "humano", "Humano", "HUMANO", " humano ", "¡Humano!",
+            "asesor", "Asesor", "ASESOR", " asesor. ",
+            "agente", "Agente", "AGENTE", " ¡agente! ",
+            "ayuda", "Ayuda", "AYUDA", "¡Ayuda!", "¿Ayuda?", "  ayuda. "
+    })
+    @DisplayName("Reconoce conjunto PERSONA para frases exactas con variantes de mayúsculas, tildes y signos")
+    void de_variantesPersona_reconocePersona(String entrada) {
+        assertThat(PalabraClave.de(entrada)).isEqualTo(PalabraClave.PERSONA);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
             "sí, claro", "si por favor", "si confirmo", "confirmar cita",
             "no quiero", "no gracias", "no cancelar",
             "hola amigo", "hola, ¿cómo estás?", "menu principal", "volver al inicio",
-            "00", "01", "1", "2", "cancelar", "reprogramar", "ayuda", "humano",
+            "00", "01", "1", "2", "cancelar", "reprogramar",
+            "necesito ayuda ya", "ayuda por favor", "hablar con alguien ahora", "quiero un asesor ya",
+            "un humano por favor", "persona disponible", "agente de ventas", "necesito hablar con una persona",
             "", "   ", "...", "¡¿?!", "---"
     })
     @DisplayName("Frases completas o textos distintos devuelven OTRA")

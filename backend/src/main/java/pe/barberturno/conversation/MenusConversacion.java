@@ -19,9 +19,9 @@ import tools.jackson.databind.node.ObjectNode;
  * máximo 3 botones, texto del botón de la lista ≤ 20, título de fila ≤ 24, descripción ≤ 72 y como
  * máximo 10 filas. Las listas paginadas muestran 9 opciones y una fila «Ver más» si quedan; una página
  * fuera de rango muestra la primera. Los identificadores salen de {@link CodigoSeleccion#codificar()}.
- * Sin «Hablar con alguien» (V2-11). Implementación: Gemini (bloque G).
+ * Menú principal con tres botones: [Reservar], [Mis citas] y [Hablar con alguien] (V2-11). Implementación: Gemini (bloque G).
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Component
 public class MenusConversacion {
@@ -41,14 +41,16 @@ public class MenusConversacion {
     public MenusConversacion() { }
 
     /**
-     * Menú principal con [Reservar] ({@code m:RESERVAR}) y [Mis citas] ({@code m:MIS_CITAS}).
+     * Menú principal con tres botones: [Reservar] ({@code m:RESERVAR}), [Mis citas] ({@code m:MIS_CITAS})
+     * y [Hablar con alguien] ({@code m:PERSONA}).
      * @param cuerpo texto del mensaje (saludo, aviso o resultado previo)
      * @return objeto interactivo de botones
      */
     public ObjectNode menuPrincipal(String cuerpo) {
         return crearBotones(cuerpo, List.of(
                 new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.RESERVAR).codificar(), "Reservar"),
-                new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.MIS_CITAS).codificar(), "Mis citas")
+                new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.MIS_CITAS).codificar(), "Mis citas"),
+                new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.PERSONA).codificar(), "Hablar con alguien")
         ));
     }
 

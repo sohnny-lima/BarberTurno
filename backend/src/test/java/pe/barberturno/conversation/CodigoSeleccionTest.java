@@ -23,9 +23,12 @@ class CodigoSeleccionTest {
         CodigoSeleccion m1 = new CodigoSeleccion.Menu(OpcionMenu.RESERVAR);
         CodigoSeleccion m2 = new CodigoSeleccion.Menu(OpcionMenu.MIS_CITAS);
         CodigoSeleccion m3 = new CodigoSeleccion.Menu(OpcionMenu.INICIO);
+        CodigoSeleccion m4 = new CodigoSeleccion.Menu(OpcionMenu.PERSONA);
         assertThat(CodigoSeleccion.decodificar(m1.codificar())).contains(m1);
         assertThat(CodigoSeleccion.decodificar(m2.codificar())).contains(m2);
         assertThat(CodigoSeleccion.decodificar(m3.codificar())).contains(m3);
+        assertThat(CodigoSeleccion.decodificar(m4.codificar())).contains(m4);
+        assertThat(m4.codificar()).isEqualTo("m:PERSONA");
 
         // 2. Privacidad
         CodigoSeleccion p1 = new CodigoSeleccion.Privacidad(true);
@@ -120,7 +123,9 @@ class CodigoSeleccionTest {
             // Prefijo desconocido
             "x:101", "menu:RESERVAR", "reserva:101", "accion:C",
             // Mayúsculas cambiadas / minúsculas donde se exigen mayúsculas
-            "m:reservar", "m:mis_citas", "p:s", "p:n", "a:303:c", "a:303:r", "o:404:AAAAAAAAAAAAAAAAAAAAAA:s",
+            "m:reservar", "m:mis_citas", "m:persona", "p:s", "p:n", "a:303:c", "a:303:r", "o:404:AAAAAAAAAAAAAAAAAAAAAA:s",
+            // Variantes inválidas de m:PERSONA
+            "m:PERSONA:1", "m:PERSONAS", "m:PERSONA ", " m:PERSONA",
             // Espacios o basura
             " s:101", "s:101 ", "s: 101", "m: RESERVAR", "d:1:0:20261023:0 ",
             ""
