@@ -33,6 +33,7 @@ class AvisoFalloWhatsApp {
     }
 
     void avisar(MensajeWhatsApp anterior, MotivoFallo motivo) {
+        if (anterior.origen() == OrigenMensaje.PERSONA || motivo == MotivoFallo.MODO_HUMANO) return;
         if (anterior.estado() == EstadoMensaje.FALLIDO && anterior.errorCodigo() == motivo) return;
         LOG.warn("Mensaje WhatsApp {}: {}.", anterior.id(), motivo);
         if (anterior.reservaId() == null) return;

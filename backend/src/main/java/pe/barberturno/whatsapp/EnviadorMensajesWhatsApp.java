@@ -22,6 +22,7 @@ import tools.jackson.databind.node.ObjectNode;
  * Despacha la outbox de uno en uno con ficha: reclamo, preparación y cierre en transacciones separadas
  * del negocio del canal. La preparación confirma los presupuestos antes del POST, que ocurre sin
  * transacción ni conexión retenida, incluso en la recuperación de cierres perdidos (V2-DA-70).
+ * Descarta los mensajes del asistente cuando atiende el personal; comparte la ventana efectiva con la bandeja.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -39,10 +40,12 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
     private final Clock reloj;
     private final JsonMapper mapper;
     private final TransactionTemplate transaccion;
+    private final VentanaWhatsApp ventana;
 
+    @org.springframework.beans.factory.annotation.Autowired
     EnviadorMensajesWhatsApp(ColaSalidaWhatsApp cola, CanalWhatsAppRepository canales, DirectorioNegocios directorio,
             MembresiaRepository membresias, EjecutorEnNegocio ejecutor, ClienteGraphWhatsApp cliente,
-            AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, Clock reloj, JsonMapper mapper,
+            AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, VentanaWhatsApp ventana, Clock reloj, JsonMapper mapper,
             PlatformTransactionManager gestor) {
         this.cola = cola;
         this.canales = canales;
@@ -52,10 +55,20 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         this.cliente = cliente;
         this.avisos = avisos;
         this.opciones = opciones;
+        this.ventana = ventana;
         this.reloj = reloj;
         this.mapper = mapper;
         this.transaccion = new TransactionTemplate(gestor);
         this.transaccion.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    // Conserva el constructor de los fixtures de V2-09; producción inyecta el componente compartido.
+    EnviadorMensajesWhatsApp(ColaSalidaWhatsApp cola, CanalWhatsAppRepository canales, DirectorioNegocios directorio,
+            MembresiaRepository membresias, EjecutorEnNegocio ejecutor, ClienteGraphWhatsApp cliente,
+            AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, Clock reloj, JsonMapper mapper,
+            PlatformTransactionManager gestor) {
+        this(cola, canales, directorio, membresias, ejecutor, cliente, avisos, opciones,
+                new VentanaWhatsApp(opciones), reloj, mapper, gestor);
     }
 
     /**
@@ -108,6 +121,11 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         if (actual.isEmpty()) return null;
         var mensaje = actual.get();
         Instant ahora = reloj.instant();
+        var conversacion = cola.conversacion(mensaje.conversacionId(), negocioId).orElseThrow();
+        if (mensaje.origen() == OrigenMensaje.ASISTENTE && "HUMANO".equals(conversacion.modo())) {
+            fallar(mensaje, MotivoFallo.MODO_HUMANO, null, mensaje.inciertos(), ahora);
+            return null;
+        }
         var canal = canales.findByNegocioId(negocioId).orElseThrow();
         MotivoFallo motivo = null;
         if (mensaje.inciertos() >= 2) motivo = MotivoFallo.RESULTADO_DESCONOCIDO;
@@ -119,9 +137,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
             motivo = MotivoFallo.MENSAJE_CADUCADO;
         }
         if (motivo != null) { fallar(mensaje, motivo, null, mensaje.inciertos(), ahora); return null; }
-        var conversacion = cola.conversacion(mensaje.conversacionId(), negocioId).orElseThrow();
-        boolean ventana = conversacion.ultimaEntradaEn() != null && ahora.isBefore(conversacion.ultimaEntradaEn()
-                .plus(SalidaWhatsAppPropiedades.VENTANA_ATENCION).minus(opciones.margenVentana()));
+        boolean ventana = this.ventana.abierta(conversacion.ultimaEntradaEn(), ahora);
         if (mensaje.tipo() != TipoMensaje.PLANTILLA && !ventana) {
             fallar(mensaje, MotivoFallo.VENTANA_CERRADA, null, mensaje.inciertos(), ahora);
             return null;

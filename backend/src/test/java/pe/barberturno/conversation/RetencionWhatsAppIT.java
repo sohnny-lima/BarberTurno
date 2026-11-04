@@ -105,9 +105,13 @@ class RetencionWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void cuerposDeEventos_sinPlazoConfigurado_noSeTocan() {
-        assertThat(propiedades.retencion().cuerpoEventos()).isNull();
+        var sinPlazos = new ConversacionPropiedades(propiedades.privacidad(), propiedades.inactividad(),
+                propiedades.vigenciaOperacion(), new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200,
+                        PLAZO, null, null, null));
+        var desactivada = new RetencionWhatsApp(entityManager, canales, ejecutor, gestor, sinPlazos, reloj);
+        assertThat(sinPlazos.retencion().cuerpoEventos()).isNull();
         long evento = insertarEventoTerminado(reloj.instant().minus(Duration.ofDays(400)));
-        retencion.purgar();
+        desactivada.purgar();
         assertThat(cuerpo(evento)).isNotEqualTo("{}");
     }
 

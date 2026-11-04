@@ -22,7 +22,7 @@ class InstalacionNuevaIT extends MigracionPruebaBase {
             assertThat(jdbc.queryForObject("select count(*) from membresia", Integer.class)).isZero();
             assertThat(jdbc.queryForObject("select count(*) from negocio where slug='barberturno'", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("select count(*) from pg_class where relnamespace='public'::regnamespace and relrowsecurity and relforcerowsecurity", Integer.class)).isEqualTo(11);
-            assertThat(jdbc.queryForObject("select count(*) from pg_constraint where contype='f' and array_length(conkey,1)=2", Integer.class)).isEqualTo(13);
+            assertThat(jdbc.queryForObject("select count(*) from pg_constraint where contype='f' and array_length(conkey,1)=2", Integer.class)).isEqualTo(14);
             WhatsAppEsquemaPruebas.comprobar(jdbc);
             WhatsAppSalidaEsquemaPruebas.comprobar(jdbc);
             assertThat(jdbc.queryForObject("select has_table_privilege(current_user, 'negocio', 'INSERT')", Boolean.class)).isTrue();

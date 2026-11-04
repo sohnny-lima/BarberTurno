@@ -11,10 +11,13 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialogRef } from '@angular/material/dialog';
 import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { RouterLink } from '@angular/router';
 import { finalize, Subscription } from 'rxjs';
 import { NotificacionesApi } from '../../core/api/notificaciones-api';
 import { NotificacionDto } from '../../core/modelos/notificaciones';
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { AvisosService } from '../../core/notificaciones/avisos-service';
 import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 import { mostrarErrores } from '../../shared/formulario';
@@ -22,7 +25,7 @@ import { paginadorEspanol } from '../../shared/paginador-es';
 
 @Component({
   selector: 'app-avisos-panel',
-  imports: [MatButtonModule, MatPaginatorModule, FechaLimaPipe],
+  imports: [MatButtonModule, MatPaginatorModule, FechaLimaPipe, RouterLink],
   providers: [NotificacionesApi, { provide: MatPaginatorIntl, useFactory: paginadorEspanol }],
   templateUrl: './avisos-panel.html',
   styleUrl: './avisos-panel.scss',
@@ -31,6 +34,8 @@ import { paginadorEspanol } from '../../shared/paginador-es';
 export class AvisosPanel {
   private readonly api = inject(NotificacionesApi);
   readonly avisos = inject(AvisosService);
+  readonly negocio = inject(NegocioActual);
+  private readonly dialogoRef = inject(MatDialogRef, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private peticion?: Subscription;
   readonly revision = input(0);
@@ -71,6 +76,19 @@ export class AvisosPanel {
     this.pagina.set(evento.pageIndex);
     this.tamano.set(evento.pageSize);
     this.cargar();
+  }
+  rutaConversacion(conversacionId: number | null) {
+    if (conversacionId == null) return null;
+    return this.negocio.ruta('whatsapp/' + conversacionId);
+  }
+  alAbrirConversacion() {
+    this.dialogoRef?.close();
+  }
+  etiquetaLectura(aviso: NotificacionDto): string {
+    if (aviso.tipo === 'DERIVACION' || aviso.conversacionId != null) {
+      return 'Marcar como leído el aviso de derivación';
+    }
+    return 'Marcar como leído el aviso de BT-' + aviso.reservaId;
   }
   marcar(id?: number) {
     if (this.guardando()) return;
