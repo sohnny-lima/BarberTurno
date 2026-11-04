@@ -183,3 +183,13 @@ mat-select:focus-visible {
     font-size: 16px;
   }
 }
+
+// Prefijo del resumen para lectores de pantalla (un aria-label en <p> se ignora).
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

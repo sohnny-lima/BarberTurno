@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -59,7 +61,7 @@ class CancelacionIT extends ReservaPruebaBase {
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder peticion(
             long id, Integer version, String motivo) {
-        return post("/api/reservas/{id}/cancelacion", id).contentType("application/json")
+        return post(negocio("/api/reservas/{id}/cancelacion"), id).contentType("application/json")
                 .content(json.writeValueAsString(new CancelarReservaDto(version, motivo)));
     }
 
@@ -124,7 +126,7 @@ class CancelacionIT extends ReservaPruebaBase {
     }
 
     private tools.jackson.databind.JsonNode disponibilidad() throws Exception {
-        return json.readTree(mvc.perform(get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
+        return json.readTree(mvc.perform(get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString())
                 .param("fecha", "2026-10-01").param("barberoId", barbero.getId().toString()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }

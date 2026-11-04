@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.OptionalLong;
-import org.springframework.core.env.Environment;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ServletRequestPathUtils;
 import org.springframework.web.util.UrlPathHelper;
@@ -27,7 +26,7 @@ import pe.barberturno.common.security.RespuestaSeguridad;
  * La cadena única de SecurityConfig ve esa misma ruta en los tres getters. Se recalcula RequestPath,
  * que FilterChainProxy puede haber cacheado antes; se restaura al salir. El reset del firewall no
  * altera los getters del envoltorio exterior. CSRF y DA-22 reciben así la misma ruta que el controlador.
- * La respuesta conserva el prefijo en Location para que el URI canónico de una reserva no salte al alias.
+ * La respuesta conserva el prefijo en Location; ninguna ruta local sin slug alcanza la cadena posterior.
  * No es un bean Filter: solo se registra dentro de Spring Security, nunca en el contenedor.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
@@ -36,28 +35,29 @@ public class ResolutorNegocio extends OncePerRequestFilter {
     private final ContextoNegocio contexto;
     private final DirectorioNegocios directorio;
     private final RespuestaSeguridad errores;
-    private final String alias;
 
     /**
      * Recibe contexto, búsqueda y escritor común de errores RFC 9457.
      * @param contexto holder que se elimina en finally en todas las salidas
      * @param directorio resolución exacta de slugs sin caché
      * @param errores respuesta ProblemDetail sin trazas
-     * @param entorno configuración del alias, validada antes de conectar por ConfiguracionTenancy
      */
     public ResolutorNegocio(ContextoNegocio contexto, DirectorioNegocios directorio,
-            RespuestaSeguridad errores, Environment entorno) {
+            RespuestaSeguridad errores) {
         this.contexto = contexto;
         this.directorio = directorio;
         this.errores = errores;
-        this.alias = entorno.getProperty("barberturno.tenancy.alias-legado.slug");
     }
 
     /**
-     * Rechaza variantes no canónicas antes de delimitar operaciones globales o locales por ruta o alias.
-     * Mantiene plataforma y capacidades de invitación fuera del contexto local.
+     * Rechaza variantes no canónicas y operaciones locales sin el prefijo obligatorio /api/n/{slug}.
+     * Mantiene plataforma y capacidades de invitación (consulta, aceptación y registro) fuera del contexto local.
      * Solo el segmento del token Base64URL distingue mayúsculas; los tramos fijos siguen canónicos.
      * Oculta las rutas públicas suspendidas con 404.
+     * X-BT-Papel solo admite CLIENTE y solo en /api/n/{slug}/…; cualquier otro valor,
+     * repetición o uso fuera de esa ruta devuelve 400 VALIDACION. La cabecera reduce el principal
+     * a cliente con ficha activa (sin ficha queda sin rol), nunca concede membresía ni perfil.
+     * Se elimina junto con el contexto en finally y no sustituye la protección CSRF.
      * @param request petición ya validada por el cortafuegos
      * @param response salida HTTP
      * @param chain resto de seguridad y MVC, con una única ruta normalizada
@@ -79,7 +79,17 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 return;
             }
             if (ruta == null) ruta = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
-            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion)?");
+            var papeles = java.util.Collections.list(request.getHeaders("X-BT-Papel"));
+            if (!papeles.isEmpty()) {
+                if (papeles.size() != 1 || !"CLIENTE".equals(papeles.getFirst())
+                        || !ruta.matches("/api/n/[^/]+/.+")) {
+                    errores.escribir(request, response, ErrorCodigo.VALIDACION,
+                            "X-BT-Papel solo admite CLIENTE en una ruta de negocio.");
+                    return;
+                }
+                contexto.solicitarCliente();
+            }
+            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion|/registro)?");
             if (api && ((!capacidad && !ruta.equals(ruta.toLowerCase(Locale.ROOT))) || ruta.endsWith("/"))) {
                 noEncontrado(request, response);
                 return;
@@ -98,9 +108,10 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 id = esPublica(efectiva) ? directorio.buscarActivo(partes[3]) : directorio.buscar(partes[3]);
                 if (id.isEmpty()) { noEncontrado(request, response); return; }
                 salida = new RespuestaNegocio(response, request.getContextPath() + "/api/n/" + partes[3] + "/");
-            } else if (ruta.startsWith("/api/") && !esGlobal(ruta, request.getMethod())) {
-                id = esPublica(efectiva) ? directorio.buscarActivo(alias) : directorio.buscar(alias);
-                if (id.isEmpty()) { noEncontrado(request, response); return; }
+            } else if (ruta.equals("/api/auth/registro")
+                    || ruta.startsWith("/api/") && !esGlobal(ruta, request.getMethod())) {
+                noEncontrado(request, response);
+                return;
             }
             contexto.fijar(id);
             ServletRequestPathUtils.parseAndCache(efectiva);
@@ -117,21 +128,20 @@ public class ResolutorNegocio extends OncePerRequestFilter {
 
     private boolean esGlobal(String ruta, String metodo) {
         return (ruta.equals("/api/auth") || ruta.startsWith("/api/auth/"))
-                && !ruta.equals("/api/auth/registro")
                 || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
                 || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
                 || ruta.equals("/api/whatsapp/webhook")
                 || (metodo.equals("GET") || metodo.equals("HEAD")) && ruta.matches("/api/invitaciones/[^/]+")
-                || ruta.matches("/api/invitaciones/[^/]+/aceptacion");
+                || ruta.matches("/api/invitaciones/[^/]+/(aceptacion|registro)");
     }
 
     private boolean esPublica(HttpServletRequest peticion) {
         String ruta = peticion.getServletPath();
         return (peticion.getMethod().equals("GET") || peticion.getMethod().equals("HEAD"))
-                && (ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
+                && (ruta.equals("/api/negocio") || ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
                 || peticion.getMethod().equals("POST") && (ruta.equals("/api/registro")
-                || ruta.equals("/api/auth/registro") || ruta.equals("/api/clientes/alta"));
+                || ruta.equals("/api/clientes/alta"));
     }
 
     private void noEncontrado(HttpServletRequest request, HttpServletResponse response) throws IOException {

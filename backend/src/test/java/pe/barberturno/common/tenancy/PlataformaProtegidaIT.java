@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -38,10 +40,10 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         pertenencia(1L, plataforma, RolNegocio.PROPIETARIO);
         var perfil = barberos.saveAndFlush(new Barbero(plataforma, "Corte", reloj.instant()));
         var anterior = huella(plataforma);
-        mvc.perform(get("/api/usuarios").cookie(sesion(actor)).param("q", plataforma.getCorreo()))
+        mvc.perform(get(negocio("/api/usuarios")).cookie(sesion(actor)).param("q", plataforma.getCorreo()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].id").value(plataforma.getId()));
         var solicitud = switch (operacion) {
-            case "password" -> post("/api/usuarios/" + plataforma.getId() + "/restablecer-password");
+            case "password" -> post(negocio("/api/usuarios/") + plataforma.getId() + "/restablecer-password");
             case "estado" -> estado(plataforma.getId(), false);
             default -> editar(perfil.getId(), operacion.equals("nombre") ? "Nombre cambiado" : plataforma.getNombre(),
                     operacion.equals("telefono") ? "999000002" : plataforma.getTelefono());
@@ -93,7 +95,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         mvc.perform(csrf(editar(perfil.getId(), "Cambio ajeno", ajeno.getTelefono()), sesion(actor)))
                 .andExpect(status().isNotFound());
         mvc.perform(csrf(estadoPerfil(perfil.getId(), false), sesion(actor))).andExpect(status().isNotFound());
-        mvc.perform(csrf(post("/api/barberos").contentType("application/json")
+        mvc.perform(csrf(post(negocio("/api/barberos")).contentType("application/json")
                 .content("{\"usuarioId\":" + ajeno.getId() + ",\"especialidad\":\"Corte\"}"), sesion(actor)))
                 .andExpect(status().isNotFound());
     }
@@ -105,7 +107,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         var cliente = persona("cliente-legado", Rol.CLIENTE);
         ficha(1L, cliente);
         var cookie = sesion(actor);
-        mvc.perform(get("/api/usuarios").cookie(cookie).param("q", cliente.getCorreo()).param("rol", "CLIENTE"))
+        mvc.perform(get(negocio("/api/usuarios")).cookie(cookie).param("q", cliente.getCorreo()).param("rol", "CLIENTE"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId()));
         proveedor.fijar(b);
         try { exigirAjena(cliente, cookie, "/api/n/negocio-b"); }
@@ -130,7 +132,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         var plataforma = plataforma("plataforma-cliente", Rol.CLIENTE);
         ficha(1L, plataforma);
         var anterior = huella(plataforma);
-        mvc.perform(csrf(post("/api/usuarios/" + plataforma.getId() + "/restablecer-password"), sesion(actor)))
+        mvc.perform(csrf(post(negocio("/api/usuarios/") + plataforma.getId() + "/restablecer-password"), sesion(actor)))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
                 .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
         mvc.perform(csrf(estado(plataforma.getId(), false), sesion(actor))).andExpect(status().isConflict());
@@ -160,7 +162,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         mvc.perform(csrf(editar(perfil.getId(), "Cambio rechazado", usuario.getTelefono()), sesion(actor)))
                 .andExpect(status().isNotFound());
         mvc.perform(csrf(estadoPerfil(perfil.getId(), false), sesion(actor))).andExpect(status().isNotFound());
-        mvc.perform(csrf(post("/api/barberos").contentType("application/json")
+        mvc.perform(csrf(post(negocio("/api/barberos")).contentType("application/json")
                 .content("{\"usuarioId\":" + usuario.getId() + ",\"especialidad\":\"Corte\"}"), sesion(actor)))
                 .andExpect(status().isNotFound());
         assertThat(huella(usuario)).isEqualTo(anterior);
@@ -174,7 +176,7 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
         return usuarios.saveAndFlush(usuario);
     }
 
-    private void exigirAjena(Usuario usuario, Cookie cookie) throws Exception { exigirAjena(usuario, cookie, "/api"); }
+    private void exigirAjena(Usuario usuario, Cookie cookie) throws Exception { exigirAjena(usuario, cookie, "/api/n/barberturno"); }
 
     private void exigirAjena(Usuario usuario, Cookie cookie, String raiz) throws Exception {
         var anterior = huella(usuario);
@@ -201,12 +203,12 @@ class PlataformaProtegidaIT extends IdentidadPruebaBase {
     }
 
     private MockHttpServletRequestBuilder editar(long id, String nombre, String telefono) {
-        return put("/api/barberos/" + id).contentType("application/json")
+        return put(negocio("/api/barberos/") + id).contentType("application/json")
                 .content("{\"nombre\":\"" + nombre + "\",\"telefono\":\"" + telefono + "\",\"especialidad\":\"Barba\"}");
     }
 
     private MockHttpServletRequestBuilder estadoPerfil(long id, boolean activo) {
-        return patch("/api/barberos/" + id + "/estado").contentType("application/json")
+        return patch(negocio("/api/barberos/") + id + "/estado").contentType("application/json")
                 .content("{\"activo\":" + activo + "}");
     }
 }

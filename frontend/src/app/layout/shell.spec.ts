@@ -1,3 +1,8 @@
+import { MisNegociosApi } from '../core/api/mis-negocios-api';
+import { of } from 'rxjs';
+import { PapelDialogo } from '../features/negocios/papel-dialogo';
+import { NegocioActual } from '../core/negocio/negocio-actual';
+import { prepararNegocio } from '../core/negocio/negocio-prueba';
 import { signal } from '@angular/core';
 import { AvisosService } from '../core/notificaciones/avisos-service';
 import { BreakpointObserver } from '@angular/cdk/layout';
@@ -27,11 +32,26 @@ describe('Shell adaptable', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        {
+          provide: MisNegociosApi,
+          useValue: {
+            listar: () =>
+              of([
+                {
+                  slug: 'prueba',
+                  nombre: 'Barbería ficticia',
+                  rol: 'BARBERO',
+                  papeles: ['BARBERO'],
+                },
+              ]),
+          },
+        },
         { provide: AvisosService, useValue: { noLeidas: signal(3), actualizar: vi.fn() } },
         { provide: BreakpointObserver, useValue: { observe: vi.fn(() => movil) } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function entrar(rol: Rol, temporal = false) {
@@ -43,7 +63,126 @@ describe('Shell adaptable', () => {
       rol,
       debeCambiarPassword: temporal,
     });
+    TestBed.inject(NegocioActual).actualizarSesion(TestBed.inject(SesionService).usuario());
   }
+  it('los menús obedecen la sesión del negocio aunque el rol global sea ADMIN', () => {
+    entrar('ADMIN');
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.actualizarSesion({ ...negocio.usuario()!, rol: 'CLIENTE' });
+    const vista = TestBed.createComponent(Shell);
+    vista.detectChanges();
+    expect(vista.componentInstance.enlaces().map((enlace) => enlace.texto)).toEqual([
+      'Reservar',
+      'Mis citas',
+      'Mi cuenta',
+    ]);
+    expect(vista.componentInstance.nombreRol()).toBe('Cliente');
+    negocio.seleccionar(null);
+    vista.detectChanges();
+    expect(vista.componentInstance.enlaces().map((enlace) => enlace.texto)).toEqual([
+      'Sus barberías',
+      'Mi cuenta',
+    ]);
+    expect(vista.componentInstance.nombreRol()).toBe('');
+    expect(vista.nativeElement.querySelector('.usuario div span')).toBeNull();
+  });
+  it('plataforma sin membresía tiene zona separada y ningún menú del negocio', () => {
+    TestBed.inject(SesionService).cargar().subscribe();
+    http.expectOne('/api/auth/sesion').flush({
+      id: 1,
+      nombre: 'Plataforma ficticia',
+      correo: 'plataforma@ejemplo.test',
+      rol: null,
+      rolPlataforma: 'ADMIN_PLATAFORMA',
+      debeCambiarPassword: false,
+    });
+    TestBed.inject(NegocioActual).seleccionar(null);
+    const f = TestBed.createComponent(Shell);
+    f.detectChanges();
+    expect(f.componentInstance.enlaces().map((e) => e.texto)).toEqual([
+      'Sus barberías',
+      'Mi cuenta',
+    ]);
+    expect(f.componentInstance.nombreRol()).toBe('Administración de la plataforma');
+    expect(f.nativeElement.querySelector('nav[aria-label="Plataforma"]')?.textContent).toContain(
+      'Plataforma',
+    );
+    expect(f.nativeElement.querySelector('app-barberia-actual section')).toBeNull();
+  });
+  it.each([
+    ['PROPIETARIO', 'Propietario'],
+    ['ENCARGADO', 'Encargado'],
+    ['BARBERO', 'Barbero'],
+  ] as const)('gestión usa rolNegocio %s de la sesión local', (rolNegocio, nombre) => {
+    entrar(rolNegocio === 'BARBERO' ? 'BARBERO' : 'ADMIN');
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio });
+    const vista = TestBed.createComponent(Shell);
+    const textos = vista.componentInstance.enlaces().map((e) => e.texto);
+    expect(textos.includes('Equipo')).toBe(rolNegocio !== 'BARBERO');
+    expect(textos.includes('Invitaciones')).toBe(rolNegocio !== 'BARBERO');
+    expect(textos.includes('Configuración')).toBe(rolNegocio === 'PROPIETARIO');
+    expect(vista.componentInstance.nombreRol()).toBe(nombre);
+  });
+  it('los enlaces conservan el papel cliente como query y lo excluyen de Mi cuenta', async () => {
+    const router = TestBed.inject(Router);
+    router.resetConfig([{ path: 'n/prueba/mis-citas', children: [] }]);
+    entrar('CLIENTE');
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.seleccionar('prueba', 'CLIENTE');
+    negocio.cargar().subscribe();
+    http.expectOne('/api/n/prueba/sesion').flush({
+      ...TestBed.inject(SesionService).usuario(),
+      rol: 'CLIENTE',
+    });
+    http.expectOne('/api/n/prueba/negocio').flush({ slug: 'prueba', nombre: 'Ficticia' });
+    movil.next({ matches: true });
+    const vista = TestBed.createComponent(Shell);
+    vista.detectChanges();
+    for (const region of ['mat-sidenav nav', '.barra-inferior']) {
+      const enlaces = vista.nativeElement.querySelectorAll(
+        region + ' a',
+      ) as NodeListOf<HTMLAnchorElement>;
+      expect(enlaces[0].getAttribute('href')).toBe('/n/prueba/reservar?papel=cliente');
+      expect(enlaces[1].getAttribute('href')).toBe('/n/prueba/mis-citas?papel=cliente');
+      expect(enlaces[2].getAttribute('href')).toBe('/perfil');
+    }
+    (
+      vista.nativeElement.querySelector('.barra-inferior a:nth-child(2)') as HTMLAnchorElement
+    ).click();
+    await vista.whenStable();
+    vista.detectChanges();
+    expect(router.url).toBe('/n/prueba/mis-citas?papel=cliente');
+    expect(negocio.papel()).toBe('CLIENTE');
+    expect(vista.componentInstance.tituloPagina()).toBe('Mis citas');
+    expect(
+      vista.nativeElement.querySelector('.barra-inferior [aria-current="page"]').textContent,
+    ).toContain('Mis citas');
+  });
+  it.each(['slug', 'papel'] as const)(
+    'cierra también los diálogos con disableClose al cambiar %s',
+    async (cambio) => {
+      entrar('ADMIN');
+      const vista = TestBed.createComponent(Shell);
+      vista.detectChanges();
+      const dialogos = vista.debugElement.injector.get(MatDialog);
+      dialogos.open(PapelDialogo, {
+        disableClose: true,
+        data: {
+          slug: 'prueba',
+          nombre: 'Ficticia',
+          rol: 'PROPIETARIO',
+          papeles: ['PROPIETARIO', 'CLIENTE'],
+        },
+      });
+      expect(dialogos.openDialogs.length).toBe(1);
+      TestBed.inject(NegocioActual).seleccionar(
+        cambio === 'slug' ? 'sur' : 'prueba',
+        cambio === 'papel' ? 'CLIENTE' : 'PERSONAL',
+      );
+      await vi.waitFor(() => expect(dialogos.openDialogs.length).toBe(0));
+    },
+  );
   it('conserva el foco programático sin contorno solo en main y el foco visible de controles y salto', () => {
     const reglaGlobal = document.createElement('style');
     // jsdom no reevalúa :focus-visible al cambiar entre controles; aislar la cascada del contorno.
@@ -256,6 +395,15 @@ describe('Shell adaptable', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
+  it('muestra el nombre completo accesible de la barbería también al visitante móvil', () => {
+    movil.next({ matches: true });
+    const vista = TestBed.createComponent(Shell);
+    vista.detectChanges();
+    const marca = vista.nativeElement.querySelector('.cabecera .titulo-marca') as HTMLElement;
+    expect(marca.title).toBe('Barbería ficticia');
+    expect(marca.querySelector('.nombre-barberia')?.textContent).toBe('Barbería ficticia');
+    expect(vista.nativeElement.querySelector('[aria-label="Abrir cuenta"]')).toBeNull();
+  });
   it.each([true, false])(
     'con contraseña temporal ofrece cambiarla y Salir siempre visible: móvil=%s',
     (esMovil) => {
@@ -297,19 +445,21 @@ describe('Shell adaptable', () => {
     expect(menu.textContent).toContain('Usuario ficticio');
   });
   it('marca la ruta activa en la barra inferior y no abre cajón para CLIENTE', async () => {
-    TestBed.inject(Router).resetConfig([{ path: 'mis-citas', children: [] }]);
+    TestBed.inject(Router).resetConfig([{ path: 'n/prueba/mis-citas', children: [] }]);
     entrar('CLIENTE');
     movil.next({ matches: true });
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
-    await TestBed.inject(Router).navigateByUrl('/mis-citas');
+    await TestBed.inject(Router).navigateByUrl('/n/prueba/mis-citas');
     fixture.detectChanges();
     await fixture.whenStable();
     expect(
       fixture.nativeElement.querySelector('.barra-inferior [aria-current="page"]').textContent,
     ).toContain('Mis citas');
     expect(fixture.nativeElement.querySelector('[aria-label="Abrir menú"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('.titulo-pagina').textContent).toBe('Mis citas');
+    expect(fixture.nativeElement.querySelector('.titulo-pagina').textContent).toBe(
+      'Mis citas Barbería ficticia',
+    );
   });
   it('el ADMIN puede cerrar explícitamente su cajón de ocho secciones', async () => {
     entrar('ADMIN');
@@ -326,6 +476,39 @@ describe('Shell adaptable', () => {
     expect(menu.opened).toBe(false);
     expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
+  it.each([false, true])(
+    'el salto al contenido no navega y lleva el foco a main (móvil con menú abierto: %s)',
+    async (esMovil) => {
+      entrar('ADMIN');
+      movil.next({ matches: esMovil });
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(MatSidenav))
+        .componentInstance as MatSidenav;
+      if (esMovil) {
+        await menu.open();
+        fixture.detectChanges();
+      }
+      const abierto = menu.opened;
+      const enlace = fixture.nativeElement.querySelector('.saltar') as HTMLAnchorElement;
+      const clic = new MouseEvent('click', { bubbles: true, cancelable: true });
+      // El foco se sitúa al terminar el cierre, cuando Material ya no lo devuelve al disparador.
+      const cerrado = new Promise<void>((listo) => {
+        if (!esMovil) return listo();
+        const aviso = menu.openedChange.subscribe(() => {
+          aviso.unsubscribe();
+          listo();
+        });
+      });
+      enlace.dispatchEvent(clic);
+      await cerrado;
+      await fixture.whenStable();
+      // Con <base href="/">, la acción por defecto llevaría a «/#contenido».
+      expect(clic.defaultPrevented).toBe(true);
+      expect(menu.opened).toBe(esMovil ? false : abierto);
+      expect(document.activeElement).toBe(fixture.nativeElement.querySelector('main'));
+    },
+  );
   it('la barra adopta el título de la vista sin añadir otro encabezado', () => {
     entrar('CLIENTE');
     movil.next({ matches: true });
@@ -333,7 +516,7 @@ describe('Shell adaptable', () => {
     TestBed.inject(TituloPagina).texto.set('Reprogramar cita');
     f.detectChanges();
     const titulo = f.nativeElement.querySelector('.titulo-pagina');
-    expect(titulo.textContent).toBe('Reprogramar cita');
+    expect(titulo.textContent).toBe('Reprogramar cita Barbería ficticia');
     expect(titulo.tagName).toBe('SPAN');
     expect(titulo.hasAttribute('role')).toBe(false);
     expect(f.nativeElement.querySelector('h1')).toBeNull();
@@ -347,14 +530,16 @@ describe('Shell adaptable', () => {
       const router = TestBed.inject(Router);
       vi.spyOn(router, 'events', 'get').mockReturnValue(eventos);
       const fixture = TestBed.createComponent(Shell);
-      vi.spyOn(router, 'url', 'get').mockReturnValue('/mis-citas?estado=CONFIRMADA');
-      eventos.next(new NavigationEnd(1, '/mis-citas', '/mis-citas?estado=CONFIRMADA'));
+      vi.spyOn(router, 'url', 'get').mockReturnValue('/n/prueba/mis-citas?estado=CONFIRMADA');
+      eventos.next(
+        new NavigationEnd(1, '/n/prueba/mis-citas', '/n/prueba/mis-citas?estado=CONFIRMADA'),
+      );
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]')).toHaveLength(
         esMovil ? 1 : 0,
       );
-      vi.spyOn(router, 'url', 'get').mockReturnValue('/reservar');
-      eventos.next(new NavigationEnd(2, '/reservar', '/reservar'));
+      vi.spyOn(router, 'url', 'get').mockReturnValue('/n/prueba/reservar');
+      eventos.next(new NavigationEnd(2, '/n/prueba/reservar', '/n/prueba/reservar'));
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]')).toHaveLength(1);
     },
@@ -381,12 +566,27 @@ describe('Avisos del barbero desde la cabecera', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         {
+          provide: MisNegociosApi,
+          useValue: {
+            listar: () =>
+              of([
+                {
+                  slug: 'prueba',
+                  nombre: 'Barbería ficticia',
+                  rol: 'BARBERO',
+                  papeles: ['BARBERO'],
+                },
+              ]),
+          },
+        },
+        {
           provide: BreakpointObserver,
           useValue: { observe: () => new BehaviorSubject({ matches: false }) },
         },
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => {
     TestBed.inject(MatDialog).closeAll();
@@ -404,11 +604,12 @@ describe('Avisos del barbero desde la cabecera', () => {
       rol: 'BARBERO',
       debeCambiarPassword: false,
     });
+    TestBed.inject(NegocioActual).actualizarSesion(TestBed.inject(SesionService).usuario());
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     TestBed.tick();
     vi.advanceTimersByTime(0);
-    http.expectOne('/api/notificaciones/conteo').flush({ noLeidas: 3 });
+    http.expectOne('/api/n/prueba/notificaciones/conteo').flush({ noLeidas: 3 });
     fixture.detectChanges();
     const boton = fixture.nativeElement.querySelector(
       '[aria-haspopup="dialog"]',
@@ -419,7 +620,7 @@ describe('Avisos del barbero desde la cabecera', () => {
     await apertura.mock.results[0].value;
     TestBed.tick();
     http
-      .expectOne((r) => r.url === '/api/notificaciones')
+      .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
       .flush({
         contenido: [aviso],
         totalElementos: 1,
@@ -458,8 +659,8 @@ describe('Avisos del barbero desde la cabecera', () => {
     expect(document.activeElement).toBe(boton);
   });
   it.each([
-    ['uno', '/api/notificaciones/8/lectura', 2],
-    ['todos', '/api/notificaciones/lectura', 0],
+    ['uno', '/api/n/prueba/notificaciones/8/lectura', 2],
+    ['todos', '/api/n/prueba/notificaciones/lectura', 0],
   ] as const)(
     'al marcar %s refresca la cabecera mediante el servicio actual',
     async (_, ruta, restantes) => {
@@ -470,13 +671,13 @@ describe('Avisos del barbero desde la cabecera', () => {
       expect(lectura.request.method).toBe('POST');
       lectura.flush(null, { status: 204, statusText: 'No Content' });
       http
-        .expectOne((r) => r.url === '/api/notificaciones')
+        .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
         .flush({
           contenido: [{ ...aviso, leida: true }],
           totalElementos: 1,
         });
       // El servicio real solicita el conteo inmediatamente; no se avanza el sondeo de 60 s.
-      http.expectOne('/api/notificaciones/conteo').flush({ noLeidas: restantes });
+      http.expectOne('/api/n/prueba/notificaciones/conteo').flush({ noLeidas: restantes });
       fixture.detectChanges();
       TestBed.tick();
       expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(

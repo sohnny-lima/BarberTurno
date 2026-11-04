@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -20,6 +21,7 @@ describe('Confirmación de una transición', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   it('envía destino y versión, evita doble envío y bloquea el cierre', () => {
@@ -27,7 +29,7 @@ describe('Confirmación de una transición', () => {
     fixture.componentInstance.confirmar();
     fixture.componentInstance.confirmar();
     expect(referencia.disableClose).toBe(true);
-    const peticion = http.expectOne('/api/reservas/101/transiciones');
+    const peticion = http.expectOne('/api/n/prueba/reservas/101/transiciones');
     expect(peticion.request.method).toBe('POST');
     expect(peticion.request.body).toEqual({ estado: 'EN_ATENCION', version: 7 });
     peticion.flush({ ...RESERVA_PRUEBA, estado: 'EN_ATENCION', version: 8 });
@@ -37,7 +39,7 @@ describe('Confirmación de una transición', () => {
     const fixture = TestBed.createComponent(TransicionDialogo);
     fixture.componentInstance.confirmar();
     http
-      .expectOne('/api/reservas/101/transiciones')
+      .expectOne('/api/n/prueba/reservas/101/transiciones')
       .flush({ codigo }, { status: 409, statusText: 'Conflict' });
     expect(referencia.close).toHaveBeenCalledWith('actualizada');
     expect(referencia.disableClose).toBe(false);
@@ -46,7 +48,7 @@ describe('Confirmación de una transición', () => {
     const fixture = TestBed.createComponent(TransicionDialogo);
     fixture.componentInstance.confirmar();
     http
-      .expectOne('/api/reservas/101/transiciones')
+      .expectOne('/api/n/prueba/reservas/101/transiciones')
       .flush({ detail: 'Fuera de ventana' }, { status: 422, statusText: 'Unprocessable Entity' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Fuera de ventana');

@@ -130,7 +130,8 @@ public class AuthService {
     }
 
     /**
-     * Proyecta identidad vigente y perfil de barbero opcional sin datos sensibles para RF-02.
+     * Proyecta identidad, perfil opcional y roles de presentación revalidados (V2-DA-45).
+     * Los roles describen esta sesión; no sustituyen la autorización en cada operación.
      * @param usuario identidad persistida
      * @return DTO sin datos sensibles
      */
@@ -139,7 +140,9 @@ public class AuthService {
         var principal = principal(usuario);
         return new UsuarioSesionDto(usuario.getId(), usuario.getNombre(), usuario.getCorreo(),
                 principal.rol(), principal.barberoId().orElse(null),
-                usuario.isDebeCambiarPassword());
+                usuario.isDebeCambiarPassword(), usuario.getRolPlataforma() == RolPlataforma.ADMIN_PLATAFORMA
+                        ? RolPlataforma.ADMIN_PLATAFORMA : null,
+                principal.rolNegocio().orElse(null));
     }
 
     /**
@@ -155,6 +158,8 @@ public class AuthService {
 
     /**
      * Revalida cuenta, token_version, membresía y ficha activa; usuario.rol y el JWT no conceden roles.
+     * X-BT-Papel: CLIENTE, validada en una ruta /api/n/{slug}/… por el resolutor, omite membresía
+     * y perfil profesional. Solo una ficha activa concede CLIENTE; sin ella el rol queda vacío.
      * @param id identificador del token
      * @param tokenVersion versión firmada
      * @return principal vigente o vacío ante una revocación
@@ -167,7 +172,7 @@ public class AuthService {
 
     private UsuarioAutenticado principal(Usuario usuario) {
         var ambito = negocio.negocioActual();
-        var rolNegocio = ambito.isPresent()
+        var rolNegocio = ambito.isPresent() && !negocio.clienteSolicitado()
                 ? membresias.findByNegocioIdAndUsuarioId(ambito.getAsLong(), usuario.getId())
                         .filter(Membresia::isActiva).map(Membresia::getRol)
                 : java.util.Optional.<RolNegocio>empty();

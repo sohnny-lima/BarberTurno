@@ -62,6 +62,10 @@ public enum ErrorCodigo {
     NUMERO_WHATSAPP_EN_USO(409, "Número de WhatsApp en uso"),
     /** La invitación no reemplaza una membresía activa. */
     YA_ES_MIEMBRO(409, "Ya es miembro"),
+    /** Capacidad conocida caducada, revocada o consumida (V2-DA-46). */
+    INVITACION_NO_VIGENTE(409, "Invitación no vigente"),
+    /** El correo autenticado no coincide con el de la capacidad presentada; nunca revela cuál es. */
+    INVITACION_OTRA_CUENTA(403, "Invitación para otra cuenta"),
     /** La operación dejaría el negocio sin propietario con cuenta activa. */
     ULTIMO_PROPIETARIO(409, "Último propietario"),
     /**

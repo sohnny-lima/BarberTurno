@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
@@ -8,7 +10,7 @@ import pe.barberturno.support.RelojAjustable;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(properties = {"barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
-        "barberturno.seguridad.cookie-secure=false", "pruebas.negocio-id=2", "barberturno.tenancy.alias-legado.slug=manual-b"})
+        "barberturno.seguridad.cookie-secure=false", "pruebas.negocio-id=2", "pruebas.negocio-slug=manual-b"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
@@ -30,7 +32,7 @@ class ReservaConfirmacionManualIT extends ReservaManualPruebaBase {
         assertThat(dto.estado()).isEqualTo(pe.barberturno.reservations.EstadoReserva.PENDIENTE);
         var resultado = mvc.perform(conCsrf(
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
-                        "/api/reservas/{id}/cancelacion", dto.id())
+                        negocio("/api/reservas/{id}/cancelacion", "manual-b"), dto.id())
                         .contentType("application/json").content("{\"version\":0}"), sesion(cliente)))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.estado").value("CANCELADA"))
@@ -45,7 +47,7 @@ class ReservaConfirmacionManualIT extends ReservaManualPruebaBase {
     @Test void confirmarCreadaPorApiManual_200AuditoriaYAvisoCliente() throws Exception {
         var pendiente = crearHttp(cliente, cmd(barbero, "10:00"));
         mvc.perform(conCsrf(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
-                "/api/reservas/{id}/transiciones", pendiente.id()).contentType("application/json")
+                negocio("/api/reservas/{id}/transiciones", "manual-b"), pendiente.id()).contentType("application/json")
                 .content("{\"estado\":\"CONFIRMADA\",\"version\":0}"), sesion(barbero.getUsuario())))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.estado").value("CONFIRMADA"))

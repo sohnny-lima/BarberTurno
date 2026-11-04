@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { UsuarioSesionDto } from '../modelos/identidad';
 import { SesionService } from './sesion-service';
+import { prepararNegocio } from '../negocio/negocio-prueba';
 
 const cliente: UsuarioSesionDto = {
   id: 12,
@@ -59,7 +60,7 @@ describe('SesionService', () => {
     expect(peticion.request.body).toEqual(datos);
     peticion.flush(cliente);
     expect(sesion.usuario()).toEqual(cliente);
-    expect(sesion.inicio()).toBe('/reservar');
+    expect(sesion.inicio()).toBe('/negocios');
   });
   it('login incorrecto propaga el error sin autenticar', () => {
     const error = vi.fn();
@@ -84,6 +85,7 @@ describe('SesionService', () => {
     },
   );
   it('registrar abre la sesión con el DTO devuelto', () => {
+    prepararNegocio();
     const datos = {
       nombre: cliente.nombre,
       correo: cliente.correo,
@@ -92,7 +94,7 @@ describe('SesionService', () => {
       aceptaPrivacidad: true,
     };
     sesion.registrar(datos).subscribe();
-    const peticion = http.expectOne('/api/auth/registro');
+    const peticion = http.expectOne('/api/n/prueba/registro');
     expect(peticion.request.body).toEqual(datos);
     peticion.flush(cliente, { status: 201, statusText: 'Created' });
     expect(sesion.usuario()).toEqual(cliente);
@@ -123,6 +125,6 @@ describe('SesionService', () => {
     peticion.flush(null, { status: 204, statusText: 'No Content' });
     http.expectOne('/api/auth/sesion').flush({ ...cliente, rol: 'BARBERO' });
     expect(sesion.debeCambiarPassword()).toBe(false);
-    expect(sesion.inicio()).toBe('/agenda');
+    expect(sesion.inicio()).toBe('/negocios');
   });
 });

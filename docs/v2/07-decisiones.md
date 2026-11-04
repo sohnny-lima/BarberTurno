@@ -171,6 +171,7 @@
 - **Decisión:** hasta que cambie el frontend (V2-07), `clienteId` (reserva asistida) y `ReservaDto.cliente.id` siguen siendo el id de la **cuenta**; el servidor lo traduce a la ficha activa del negocio actual (sin ficha → 404). Los ids de ficha solo aparecen en `/api/clientes/{id}`.
 - **Por qué:** evita tocar el frontend en esta etapa y mantiene válidos los datos migrados (en v1, ficha y cuenta comparten id; en v2 una cuenta puede tener varias fichas).
 - **Consecuencia:** las fichas sin cuenta (WhatsApp, alta por el personal) no se pueden reservar por la web hasta V2-07, que pasa el contrato a ids de ficha.
+- **Actualización (26/10/2026, V2-07, backlog §10.5):** V2-07 **conserva** el id de la cuenta: no hay en V2-07 ninguna pantalla que cree fichas sin cuenta, y el cambio no añade aislamiento. El paso a ids de ficha se hará con la primera funcionalidad que reserve para fichas sin cuenta (WhatsApp o bandeja web, V2-10/V2-11).
 
 ---
 *Decisiones V2-DA-30 y V2-DA-31: alcance de V2-04 (24/10/2026). Vigentes.*
@@ -244,6 +245,70 @@
   2. **Cambiar el rol de una membresía revocada → 409 `TRANSICION_INVALIDA`**, sin cambios: una membresía revocada solo se restablece por las vías de V2-DA-37.
   3. **Revocar una membresía ya revocada:** si su motivo es `PERFIL_DESACTIVADO`, pasa a `DECISION_GESTOR` (la decisión del gestor prevalece y la reactivación del perfil ya no devuelve el acceso); con cualquier otro motivo, la operación es idempotente (200) y conserva el motivo y el instante originales. Los permisos del actor (encargado solo sobre `BARBERO`) se comprueban igual.
 - **Prueba (`EquipoIT`):** promover y degradar a una persona con perfil activo lo conserva activo y no cambia el cupo; cambio de rol sobre revocada → 409 sin cambios; perfil desactivado (membresía `PERFIL_DESACTIVADO`) → revocación del propietario → reactivación del perfil → sin acceso y motivo `DECISION_GESTOR`; revocar una `SALIDA` → 200 con motivo e instante intactos.
+
+### V2-DA-42 · Papel solicitado por petición (26/10/2026)
+- **Problema:** una cuenta que es personal y cliente de la misma barbería (R2-01) no puede actuar como cliente: `AuthService.principal` da prioridad a la membresía (deuda registrada en V2-05).
+- **Decisión:** cabecera `X-BT-Papel: CLIENTE`, válida solo en `/api/n/{slug}/…`. **Solo reduce privilegios:** con ficha activa en ese negocio, la petición se atiende como `CLIENTE` (sin rol de negocio ni perfil profesional); sin ficha, sin rol en el negocio (403 en lo protegido; lo público sigue público). Otro valor o la cabecera en una ruta global → 400 `VALIDACION`. Sin cabecera, el comportamiento actual. Se fija y se limpia con el contexto de la petición (`ResolutorNegocio`). No sustituye a CSRF ni a las comprobaciones del servicio.
+- **Alternativas descartadas:** rutas duplicadas `/api/n/{slug}/cliente/…` (duplica la superficie y la matriz de permisos) y un papel guardado en el JWT (obligaría a reemitir la sesión al cambiar de papel o de barbería).
+
+### V2-DA-43 · Exposición mínima de identidades en el equipo (26/10/2026)
+- **Decisión:** `EquipoDto` añade `nombre` (todas las membresías del negocio) y `correo` (solo las activas; `null` en las revocadas, para no seguir mostrando el correo de quien salió). Solo propietario y encargado del negocio; ninguna búsqueda ni listado general de cuentas. Motivo: sin nombre ni correo el equipo no es gestionable (observación de V2-06).
+
+### V2-DA-44 · Parámetros públicos del negocio y papeles en mis-negocios (26/10/2026)
+- **Decisión:** `GET /api/n/{slug}/negocio` (público como el catálogo; suspendido → 404) → `{slug, nombre, horizonteDias, anticipacionCambioClienteMin, limiteReservasActivas, confirmacionManual}`, para que los controles reflejen los parámetros reales; sin cupo de barberos, tolerancia, estado ni ids. `GET /api/mis-negocios` añade `papeles` (rol de la membresía activa y `CLIENTE` si hay ficha activa), conservando `rol`.
+- **Límites técnicos frente a reglas de producto:** la interfaz valida y rotula solo los límites que impone el servidor (p. ej. `smallint`); los rangos de producto siguen pendientes de validación con el negocio.
+
+### V2-DA-45 · Roles de presentación en las sesiones (26/10/2026)
+- **Problema (hallazgos H-102-01 y H-102-03 de Codex, válidos):** `/api/auth/sesion` no expone el rol de plataforma y `/api/n/{slug}/sesion` da `ADMIN` tanto al propietario como al encargado, así que la interfaz no puede mostrar la plataforma ni las acciones que difieren entre ambos (cambiar roles, configuración, roles invitables).
+- **Decisión:** `UsuarioSesionDto` añade `rolPlataforma` (`ADMIN_PLATAFORMA` o `null`, de la propia cuenta) y `rolNegocio` (`PROPIETARIO`, `ENCARGADO`, `BARBERO` o `null`: la membresía activa del negocio de la ruta; `null` en rutas globales y con `X-BT-Papel: CLIENTE`). Solo describen a la cuenta autenticada; **son de presentación**: el servidor sigue decidiendo con la membresía y el rol global en cada operación. `rol` se conserva.
+
+### V2-DA-46 · Estados de una invitación ante quien tiene el enlace (26/10/2026)
+- **Problema (hallazgo H-102-02 de Codex, válido):** la consulta y la aceptación responden 404 genérico a una invitación caducada, revocada, usada o de otra cuenta; la interfaz no puede explicar qué ocurre.
+- **Decisión:** el token (32 bytes aleatorios) ya es la capacidad secreta: quien lo tiene puede conocer el estado de **esa** invitación sin riesgo de enumeración. `GET /api/invitaciones/{token}`: token desconocido → 404; conocido → 200 con `InvitacionPublicaDto` y `estado` (`PENDIENTE`, `CADUCADA`, `REVOCADA`, `USADA`). `POST …/aceptacion`: desconocido → 404; no pendiente → 409 `INVITACION_NO_VIGENTE` (con el estado en el detalle); correo distinto del de la cuenta → 403 `INVITACION_OTRA_CUENTA`; ya miembro → 409 `YA_ES_MIEMBRO` (sin cambios); negocio suspendido → 409 `NEGOCIO_SUSPENDIDO`, también en la **consulta** de una invitación pendiente (como antes de esta decisión; una caducada, revocada o usada muestra su estado). El correo sigue enmascarado; nunca se devuelve el correo completo ni datos de otra invitación. Las aserciones de `InvitacionIT` que exigían el 404 uniforme se sustituyen por este contrato (cambio de contrato decidido aquí, no un debilitamiento) y se mantiene el 404 para tokens desconocidos, mal formados o de otra capacidad.
+
+### V2-DA-47 · Registro de una cuenta desde una invitación (26/10/2026)
+- **Problema (hallazgo H-103-01 de Codex, válido):** la única forma de crear una cuenta es el registro de clientes (`POST /api/n/{slug}/registro`, o `/api/auth/registro` por el alias legado), que crea además una **ficha de cliente** en esa barbería. Una persona invitada como personal acabaría siendo cliente de la barbería del alias y fallaría si esa barbería está suspendida.
+- **Decisión:** `POST /api/invitaciones/{token}/registro` (global, público, con CSRF) con `{nombre, telefono, password, aceptaPrivacidad}`: en **una transacción** crea la cuenta con el **correo de la invitación** (no se elige), sin ficha de cliente ni rol global, y acepta la invitación con las mismas reglas y bloqueos que la aceptación (`(313131, negocio)` antes de ①; pendiente y vigente; barbería no suspendida); después inicia la sesión como el registro actual (cookies y CSRF). Errores: token desconocido → 404; no vigente → 409 `INVITACION_NO_VIGENTE`; barbería suspendida → 409 `NEGOCIO_SUSPENDIDO`; ya existe una cuenta con ese correo → 409 `CORREO_DUPLICADO` (la interfaz ofrece «Ingresar»); validación y RN-25 → 400. Ninguna otra barbería ni ficha cambia.
+- **Consecuencia para V2-07.5:** al retirar el alias, `/api/auth/registro` deja de existir; el registro de clientes queda solo en `/api/n/{slug}/registro` y el de invitados en esta ruta.
+- **Alternativa descartada:** un registro global sin barbería (abre la creación de cuentas sin motivo y obliga a decidir después dónde vive la persona).
+### V2-DA-48 · La cookie de sesión solo se lee en la API (26/10/2026)
+- **Problema (detectado por la batería de capturas de V2-07.6; anterior a V2-07):** `CookieBearerTokenResolver` leía y validaba `BT_SESION` en **cualquier** petición. Con una cookie caducada o revocada (p. ej., tras un restablecimiento de contraseña o la desactivación de la cuenta), la carga directa de una ruta de la aplicación (`/n/{slug}/agenda`, `/negocios`, `/`) respondía el JSON del 401 en lugar de la entrada Angular: la persona veía un texto técnico y no la pantalla de ingreso (CG-4).
+- **Decisión:** el lector devuelve nulo fuera de `/api/`. Ninguna ruta fuera de la API necesita identidad: la entrada Angular y sus archivos son públicos (`SpaForwardFilter.esRecursoPublico`), `/actuator/health` es público y sin detalles, y el resto queda en `denyAll`. Dentro de `/api/` nada cambia: una cookie inválida sigue dando 401 `NO_AUTENTICADO`, también en `GET /api/auth/sesion` y `/api/n/{slug}/sesion`, y la interfaz lleva a «Ingresar» con `returnUrl`. Una ruta de API codificada queda sin identidad (fallo hacia menos acceso; DA-36 ya la rechaza con 400).
+- **Pruebas:** `CookieBearerTokenResolverTest` (fuera de `/api/` no lee la cookie, incluso ambigua; dentro sí), `SpaForwardIT` (cookie inválida: entrada Angular y archivos 200; API 401) y la captura `sesion-caducada-ingresar` del E2E.
+- **Alcance:** solo v2. La entrega académica (`main`) conserva el comportamiento anterior; queda registrado aparte como **INC-V1-01** (`incidencias-v1.md`), sin cambios en v1.
+
+### V2-DA-49 · Con la barbería suspendida, la interfaz del personal queda en solo lectura (27/10/2026)
+- **Problema (observación de la crítica de diseño de V2-07.6, priorizada por el responsable):** con la barbería suspendida, el personal veía formularios y acciones de escritura activos; solo al enviarlos el servidor respondía 409 `NEGOCIO_SUSPENDIDO` (V2-DA-38) y se mostraba el motivo.
+- **Decisión:** `NegocioActual.soloLectura` refleja el estado `suspendido` que ya informó el servidor: la consulta pública da 404 y la sesión del negocio responde, o llega un 409 `NEGOCIO_SUSPENDIDO` con la sesión abierta (V2-07.6, `marcarSuspendido`). Con ella, las pantallas del personal desactivan sus escrituras:
+  - configuración e invitaciones, con el formulario completo;
+  - horarios y bloqueos, con sus formularios y «Eliminar»;
+  - servicios y barberos, en «Nuevo», «Editar» y «Activar/Desactivar»;
+  - usuarios, en «Restablecer contraseña» y «Activar/Desactivar»;
+  - equipo, en «Cambiar rol», «Revocar acceso» y «Salir»;
+  - la agenda, en sus transiciones, «Reprogramar» y «Cancelar».
+- **Lo que no se desactiva:** las lecturas siguen disponibles (filtros, «Mostrar revocadas», «Ver cambios», reportes y su descarga). El aviso fijo indica el motivo: «Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive.».
+- **Por qué no es una regla de negocio en el frontend:** solo presenta un estado que el servidor ya comunicó. No concede ni retira permisos, y el servidor sigue rechazando toda escritura. Una escritura directa con la misma sesión da 409 `NEGOCIO_SUSPENDIDO` en el E2E 21.
+- **Pruebas:**
+  - unitaria en `gestion.spec.ts`: configuración, equipo e invitaciones en solo lectura, con «Mostrar revocadas» activo;
+  - E2E 21: tras el 409 con la sesión abierta, la pantalla pasa a solo lectura sin recargar; tras recargar siguen desactivados, la escritura directa da 409, y en equipo «Cambiar rol» está desactivado y el interruptor de lectura activo;
+  - captura `suspendida-personal`.
+- **Alternativa descartada:** `fieldset disabled` sobre toda la vista, porque desactivaría también los filtros y la navegación de lectura.
+
+### V2-DA-50 · Un error se anuncia una sola vez (27/10/2026)
+- **Problema (observación heredada de v1, priorizada por el responsable):** el interceptor abría un snackbar con el `detail` de cualquier error, y la vista mostraba el mismo mensaje junto a la acción. El mismo error se veía y se anunciaba dos veces.
+- **Decisión:** la vista que presenta el error junto a la acción lo marca con `marcarPresentado`. Lo hacen `mostrarErrores` (todas sus llamadas pintan el mensaje en una región `role="alert"` o `status`), el asistente de reserva, horarios y la aceptación de invitaciones. El interceptor difiere el snackbar a una microtarea, que se ejecuta después del manejador de la vista, y solo lo abre si nadie presentó el error. Los errores sin aviso en la página (p. ej., una acción de una fila que no muestra mensaje propio) siguen llegando al snackbar. Las ramas especiales del interceptor no cambian: 401, 403 revalidado y 409 `NEGOCIO_SUSPENDIDO`.
+- **Accesibilidad:** el anuncio se conserva, porque el mensaje de la página está en una región `role="alert"` o `status`.
+- **Pruebas:**
+  - en `errores-interceptor.spec.ts`, el mismo 409 presentado no abre snackbar y sin presentar sí lo abre; las aserciones del snackbar esperan la microtarea, también las negativas;
+  - los E2E de error de reservar, mis citas y agenda exigen ahora que no haya snackbar (antes lo cerraban).
+
+### V2-DA-51 · El salto al contenido no navega (27/10/2026)
+- **Problema (detectado en el recorrido 13 del E2E, anterior a V2-07 y presente también en v1):** con `<base href="/">`, el enlace «Saltar al contenido» (`href="#contenido"`, sin manejador) se resolvía como `/#contenido`. Activarlo, con el menú abierto o cerrado, llevaba a la raíz de la aplicación en lugar de mover el foco al contenido de la página actual.
+- **Decisión:** `Shell.saltarAlContenido` cancela la navegación y mueve el foco a `main` (`tabindex="-1"`). Si el menú móvil está abierto, lo cierra antes y enfoca al terminar el cierre, para que Material no devuelva el foco al botón que abrió el menú. Es el mismo patrón que ya usa la navegación del shell. El enlace conserva `href` para que siga siendo un enlace accesible.
+- **Pruebas:**
+  - unitaria en `shell.spec.ts`, con el menú cerrado (escritorio) y abierto (móvil): sin `preventDefault`, las dos fallan;
+  - recorrido 13: con el teclado, la URL no cambia y el foco queda en `main`; con el menú abierto, el menú se cierra, la URL no cambia, el foco queda en `main` y el contenido termina visible.
+- **v1:** registrado aparte como **INC-V1-02** (`incidencias-v1.md`), sin cambios en `main` ni en Azure.
 
 ### V2-DA-52 · Entrada de WhatsApp: el *webhook* solo guarda y el procesador reclama con ficha (28/10/2026)
 - **Decisión:**

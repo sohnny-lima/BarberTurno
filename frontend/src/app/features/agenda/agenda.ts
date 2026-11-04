@@ -1,3 +1,4 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -74,6 +75,7 @@ const fechaValida: ValidatorFn = (control) => {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Agenda {
+  readonly negocio = inject(NegocioActual);
   private readonly api = inject(ReservasApi);
   private readonly barberosApi = inject(BarberosApi);
   private readonly dialogos = inject(MatDialog);
@@ -88,7 +90,7 @@ export class Agenda {
     { initialValue: false },
   );
   private peticion?: Subscription;
-  readonly admin = computed(() => this.sesion.rol() === 'ADMIN');
+  readonly admin = computed(() => this.negocio.rol() === 'ADMIN');
   readonly formulario = new FormGroup({
     fecha: new FormControl(fechaHoyLima(), {
       nonNullable: true,

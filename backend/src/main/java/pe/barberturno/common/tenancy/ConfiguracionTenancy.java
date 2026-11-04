@@ -5,8 +5,8 @@ import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.EnumerablePropertySource;
 
 /**
  * Conecta el ámbito de cada petición con todas las transacciones JPA de Spring.
@@ -20,17 +20,21 @@ public class ConfiguracionTenancy {
     }
 
     /**
-     * Impide habilitar compatibilidad local fuera de dev, test o demo, especialmente en prod.
+     * Rechaza cualquier propiedad del alias retirado, en todos los perfiles y antes de abrir conexiones.
+     * Incluye propiedades de entorno con nombres relajados, valores vacíos y claves distintas de slug.
      * @param entorno perfiles y propiedades del arranque
      * @return validación anterior a cualquier conexión
      */
     @Bean
-    static BeanFactoryPostProcessor impedirProduccion(Environment entorno) {
+    static BeanFactoryPostProcessor impedirAliasLegado(ConfigurableEnvironment entorno) {
         return fabrica -> {
-            if (entorno.containsProperty("barberturno.tenancy.alias-legado.slug")
-                    && (entorno.acceptsProfiles(Profiles.of("prod"))
-                    || !entorno.acceptsProfiles(Profiles.of("dev", "test", "demo")))) {
-                throw new IllegalStateException("El alias legado solo admite dev/test/demo sin prod.");
+            for (var fuente : entorno.getPropertySources()) {
+                if (fuente instanceof EnumerablePropertySource<?> enumerable
+                        && java.util.Arrays.stream(enumerable.getPropertyNames()).anyMatch(nombre ->
+                            nombre.replaceAll("[-_.]", "").toLowerCase(java.util.Locale.ROOT)
+                                    .startsWith("barberturnotenancyaliaslegado"))) {
+                    throw new IllegalStateException("El alias legado fue retirado; elimine barberturno.tenancy.alias-legado de la configuración.");
+                }
             }
         };
     }

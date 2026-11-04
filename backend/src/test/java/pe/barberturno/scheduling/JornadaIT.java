@@ -1,5 +1,7 @@
 package pe.barberturno.scheduling;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -386,7 +388,7 @@ class JornadaIT {
     }
     private Map<String, Object> intervalo(int dia, String inicio, String fin) { return Map.of("diaSemana", dia, "horaInicio", inicio, "horaFin", fin); }
     private List<?> filas(long id) { return jdbc.queryForList("select * from jornada where barbero_id = ? order by id", id); }
-    private String ruta(long id) { return "/api/barberos/" + id + "/jornadas"; }
+    private String ruta(long id) { return negocio("/api/barberos/") + id + "/jornadas"; }
     private Cookie csrf() throws Exception { return mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN"); }
     private ResultActions escribir(long id, Cookie sesion, Object semana) throws Exception {
         Cookie token = csrf();

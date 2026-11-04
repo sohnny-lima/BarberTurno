@@ -16,7 +16,7 @@ describe('Ingreso desde la reserva guiada', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: convertToParamMap({ returnUrl: '/reservar?reprogramar=7' }),
+              queryParamMap: convertToParamMap({ returnUrl: '/n/prueba/reservar?reprogramar=7' }),
             },
           },
         },
@@ -33,7 +33,7 @@ describe('Ingreso desde la reserva guiada', () => {
       f.nativeElement.querySelector('[formControlName=password]').getAttribute('autocomplete'),
     ).toBe('current-password');
     expect(f.nativeElement.querySelector('a').getAttribute('href')).toBe(
-      '/registro?returnUrl=%2Freservar%3Freprogramar%3D7',
+      '/registro?returnUrl=%2Fn%2Fprueba%2Freservar%3Freprogramar%3D7',
     );
     f.componentInstance.formulario.setValue({
       correo: 'acceso@ejemplo.test',
@@ -51,39 +51,41 @@ describe('Ingreso desde la reserva guiada', () => {
     );
     expect(f.nativeElement.querySelector('button[type=submit]').disabled).toBe(false);
   });
-  it.each(['/reservar', '/reservar?reprogramar=7', 'https://ejemplo.test', '//ejemplo.test'])(
-    'acepta solo rutas internas al volver desde %s',
-    (returnUrl) => {
-      TestBed.configureTestingModule({
-        imports: [Ingresar],
-        providers: [
-          provideHttpClient(),
-          provideHttpClientTesting(),
-          provideRouter([]),
-          {
-            provide: ActivatedRoute,
-            useValue: { snapshot: { queryParamMap: convertToParamMap({ returnUrl }) } },
-          },
-        ],
-      });
-      const router = TestBed.inject(Router);
-      const navegar = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-      const f = TestBed.createComponent(Ingresar);
-      f.componentInstance.formulario.setValue({
-        correo: 't26@ejemplo.test',
-        password: 'Ficticia26!',
-      });
-      f.componentInstance.enviar();
-      TestBed.inject(HttpTestingController).expectOne('/api/auth/login').flush({
-        id: 1,
-        nombre: 'Ficticio',
-        correo: 't26@ejemplo.test',
-        rol: 'CLIENTE',
-        debeCambiarPassword: false,
-      });
-      expect(navegar).toHaveBeenCalledWith(
-        returnUrl.startsWith('/reservar') ? returnUrl : '/reservar',
-      );
-    },
-  );
+  it.each([
+    '/n/prueba/reservar',
+    '/n/prueba/reservar?reprogramar=7',
+    'https://ejemplo.test',
+    '//ejemplo.test',
+  ])('acepta solo rutas internas al volver desde %s', (returnUrl) => {
+    TestBed.configureTestingModule({
+      imports: [Ingresar],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({ returnUrl }) } },
+        },
+      ],
+    });
+    const router = TestBed.inject(Router);
+    const navegar = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    const f = TestBed.createComponent(Ingresar);
+    f.componentInstance.formulario.setValue({
+      correo: 't26@ejemplo.test',
+      password: 'Ficticia26!',
+    });
+    f.componentInstance.enviar();
+    TestBed.inject(HttpTestingController).expectOne('/api/auth/login').flush({
+      id: 1,
+      nombre: 'Ficticio',
+      correo: 't26@ejemplo.test',
+      rol: 'CLIENTE',
+      debeCambiarPassword: false,
+    });
+    expect(navegar).toHaveBeenCalledWith(
+      returnUrl.startsWith('/n/prueba/reservar') ? returnUrl : '/negocios',
+    );
+  });
 });

@@ -12,18 +12,15 @@ import pe.barberturno.common.security.CookieSesion;
 import pe.barberturno.users.Usuario;
 
 /**
- * API de identidad en /api/auth; permite registro y login públicos y exige CSRF en toda escritura (§7.2).
- * Renueva explícitamente XSRF-TOKEN en la misma respuesta al iniciar, registrar o cerrar sesión (DA-26).
+ * API global de identidad en /api/auth, sin negocio implícito ni registro de clientes (V2-DA-47).
+ * Renueva explícitamente XSRF-TOKEN al iniciar o cerrar sesión y exige CSRF en toda escritura (DA-26).
  * @author Sohnny Walter Lima Infanzón
- * @version 1.3
+ * @version 2.0
  */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService auth;
-    private final pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor;
-    private final String alias;
-    private final pe.barberturno.common.tenancy.ContextoNegocio contexto;
     private final JwtService jwt;
     private final UsuarioActual actual;
     private final CookieSesion cookies;
@@ -31,9 +28,6 @@ public class AuthController {
 
     /**
      * Inyecta identidad, firmante y las políticas comunes de sesión DA-22 y renovación CSRF DA-26.
-     * @param ejecutor ámbito explícito para la proyección compatible de sesión
-     * @param entorno configuración del alias local validada al arrancar
-     * @param contexto distingue el registro de negocio de la proyección global compatible
      * @param auth servicio no nulo de identidad y revalidación
      * @param jwt servicio no nulo que emite sesiones firmadas
      * @param actual identidad revalidada; nula solo en consultas públicas
@@ -41,13 +35,8 @@ public class AuthController {
      * @param csrf repositorio usado por el filtro SPA para emitir XSRF-TOKEN nuevo al cambiar la sesión
      */
     public AuthController(AuthService auth, JwtService jwt, UsuarioActual actual,
-            pe.barberturno.common.tenancy.EjecutorEnNegocio ejecutor, org.springframework.core.env.Environment entorno,
-            pe.barberturno.common.tenancy.ContextoNegocio contexto,
             CookieSesion cookies, CsrfTokenRepository csrf) {
         this.auth = auth;
-        this.ejecutor = ejecutor;
-        this.alias = entorno.getProperty("barberturno.tenancy.alias-legado.slug");
-        this.contexto = contexto;
         this.jwt = jwt;
         this.actual = actual;
         this.cookies = cookies;
@@ -57,24 +46,24 @@ public class AuthController {
     /**
      * GET /api/auth/sesion: CLIENTE, BARBERO y ADMIN reciben su identidad; sin sesión devuelve 401
      * NO_AUTENTICADO. La cadena emite XSRF-TOKEN si falta, también sin sesión, y conserva el token existente (DA-26).
-     * La identidad se revalida sin contexto de negocio. Solo la proyección compatible consulta el alias
-     * con un ejecutor explícito, fuera de esa transacción; sin alias, el rol de negocio es null.
+     * La identidad se revalida sin contexto de negocio: rol, rolNegocio y barberoId son nulos;
+     * rolPlataforma describe exclusivamente la propia cuenta (V2-DA-45).
      * @return representación pública resultante de la operación
      */
     @GetMapping("/sesion")
-    public UsuarioSesionDto sesion() { return alias == null ? auth.sesion(actual.id()) : ejecutor.ejecutar(alias, () -> auth.sesion(actual.id())); }
+    public UsuarioSesionDto sesion() {
+        return auth.sesion(actual.id());
+    }
 
     /**
-     * POST /api/auth/registro público: crea CLIENTE (201) y sustituye BT_SESION aun si fue revocada (DA-22). Exige CSRF; rechaza VALIDACION
-     * (400), CORREO_DUPLICADO (409) o PROHIBIDO (403) ante CSRF inválido.
-     * Tras el éxito emite XSRF-TOKEN nuevo junto con BT_SESION, sin exigir otra lectura (DA-26).
-     * @param datos entrada no nula validada por MVC; el servicio aplica las reglas de negocio
-     * @param peticion solicitud cuyo CSRF ya fue validado por la cadena de seguridad
-     * @param respuesta respuesta servlet que añade ambas cookies con sus políticas compartidas
-     * @return identidad pública y estado 201; las cookies se añaden a la respuesta servlet
+     * Comparte la emisión de cookies con RegistroNegocioController, sin publicar una ruta global.
+     * El resolutor ya exige el negocio explícito del registro canónico y el filtro valida CSRF.
+     * @param datos identidad y consentimiento validados del nuevo cliente
+     * @param peticion solicitud canónica con el negocio delimitado
+     * @param respuesta salida que recibe BT_SESION y el nuevo XSRF-TOKEN
+     * @return identidad local del cliente creado, con estado 201
      */
-    @PostMapping("/registro")
-    public ResponseEntity<UsuarioSesionDto> registrar(@Valid @RequestBody RegistroDto datos,
+    public ResponseEntity<UsuarioSesionDto> registrar(RegistroDto datos,
             HttpServletRequest peticion, HttpServletResponse respuesta) {
         return respuesta(auth.registrar(datos), HttpStatus.CREATED, peticion, respuesta);
     }
@@ -124,12 +113,12 @@ public class AuthController {
 
     private ResponseEntity<UsuarioSesionDto> respuesta(Usuario usuario, HttpStatus estado,
             HttpServletRequest peticion, HttpServletResponse respuesta) {
-        var dto = contexto.negocioActual().isPresent() || alias == null
-                ? auth.sesion(usuario) : ejecutor.ejecutar(alias, () -> auth.sesion(usuario));
+        var dto = auth.sesion(usuario);
         var resultado = ResponseEntity.status(estado).body(dto);
         // Ambas cookies se añaden al servlet; ResponseEntity no debe reemplazar Set-Cookie.
         respuesta.addHeader(HttpHeaders.SET_COOKIE, cookies.emitir(jwt.emitir(usuario)).toString());
         csrf.saveToken(csrf.generateToken(peticion), peticion, respuesta);
         return resultado;
     }
+
 }

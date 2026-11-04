@@ -6,7 +6,7 @@ import pe.barberturno.auth.dto.UsuarioSesionDto;
 import pe.barberturno.common.security.UsuarioActual;
 
 /**
- * Proyecta la sesión revalidada dentro del negocio resuelto por ruta o alias.
+ * Proyecta la sesión revalidada dentro del negocio resuelto exclusivamente por la ruta canónica.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */

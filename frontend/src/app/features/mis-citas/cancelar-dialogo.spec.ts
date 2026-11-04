@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -20,6 +21,7 @@ describe('Cancelación de una cita', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   it.each(['', '  Cambio de planes  '])(
@@ -29,7 +31,7 @@ describe('Cancelación de una cita', () => {
       fixture.componentInstance.formulario.controls.motivo.setValue(motivo);
       fixture.componentInstance.confirmar();
       fixture.componentInstance.confirmar();
-      const solicitud = http.expectOne('/api/reservas/101/cancelacion');
+      const solicitud = http.expectOne('/api/n/prueba/reservas/101/cancelacion');
       expect(solicitud.request.method).toBe('POST');
       expect(solicitud.request.body).toEqual({
         version: 7,
@@ -44,14 +46,14 @@ describe('Cancelación de una cita', () => {
     const fixture = TestBed.createComponent(CancelarDialogo);
     fixture.componentInstance.formulario.controls.motivo.setValue('a'.repeat(301));
     fixture.componentInstance.confirmar();
-    http.expectNone('/api/reservas/101/cancelacion');
+    http.expectNone('/api/n/prueba/reservas/101/cancelacion');
     expect(fixture.componentInstance.formulario.invalid).toBe(true);
   });
   it('señala al listado la necesidad de recargar por 409 de versión', () => {
     const fixture = TestBed.createComponent(CancelarDialogo);
     fixture.componentInstance.confirmar();
     http
-      .expectOne('/api/reservas/101/cancelacion')
+      .expectOne('/api/n/prueba/reservas/101/cancelacion')
       .flush({ codigo: 'VERSION_DESACTUALIZADA' }, { status: 409, statusText: 'Conflict' });
     expect(referencia.close).toHaveBeenCalledWith('actualizada');
   });
@@ -59,7 +61,7 @@ describe('Cancelación de una cita', () => {
     const fixture = TestBed.createComponent(CancelarDialogo);
     fixture.componentInstance.confirmar();
     http
-      .expectOne('/api/reservas/101/cancelacion')
+      .expectOne('/api/n/prueba/reservas/101/cancelacion')
       .flush(
         { codigo: 'FUERA_DE_POLITICA', detail: 'Faltan menos de dos horas para el inicio.' },
         { status: 422, statusText: 'Unprocessable Entity' },
@@ -87,6 +89,7 @@ describe('Cancelación administrativa con motivo obligatorio', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   it.each(['', '   ', 'abcd', 'x'.repeat(301)])(
@@ -95,7 +98,7 @@ describe('Cancelación administrativa con motivo obligatorio', () => {
       const fixture = TestBed.createComponent(CancelarDialogo);
       fixture.componentInstance.formulario.controls.motivo.setValue(motivo);
       fixture.componentInstance.confirmar();
-      http.expectNone('/api/reservas/101/cancelacion');
+      http.expectNone('/api/n/prueba/reservas/101/cancelacion');
       expect(fixture.componentInstance.formulario.invalid).toBe(true);
     },
   );
@@ -105,7 +108,7 @@ describe('Cancelación administrativa con motivo obligatorio', () => {
     expect(fixture.nativeElement.textContent).toContain('Motivo obligatorio');
     fixture.componentInstance.formulario.controls.motivo.setValue('  Cambio ficticio  ');
     fixture.componentInstance.confirmar();
-    const peticion = http.expectOne('/api/reservas/101/cancelacion');
+    const peticion = http.expectOne('/api/n/prueba/reservas/101/cancelacion');
     expect(peticion.request.body).toEqual({ motivo: 'Cambio ficticio', version: 7 });
     peticion.flush(RESERVA_PRUEBA);
     expect(referencia.close).toHaveBeenCalledWith('cancelada');

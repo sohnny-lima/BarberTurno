@@ -1,3 +1,4 @@
+import { NegocioActual } from '../negocio/negocio-actual';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { catchError, of, switchMap, tap, throwError } from 'rxjs';
@@ -13,6 +14,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class SesionService {
   private readonly api = inject(AuthApi);
+  private readonly negocio = inject(NegocioActual);
   private readonly identidad = signal<UsuarioSesionDto | null>(null);
   readonly usuario = this.identidad.asReadonly();
   readonly autenticado = computed(() => this.usuario() !== null);
@@ -45,12 +47,9 @@ export class SesionService {
   }
   limpiar() {
     this.identidad.set(null);
+    this.negocio.limpiar();
   }
   inicio() {
-    return this.debeCambiarPassword()
-      ? '/cambiar-password'
-      : this.rol() === 'CLIENTE'
-        ? '/reservar'
-        : '/agenda';
+    return this.debeCambiarPassword() ? '/cambiar-password' : '/negocios';
   }
 }

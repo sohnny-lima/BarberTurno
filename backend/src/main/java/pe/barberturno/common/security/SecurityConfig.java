@@ -78,9 +78,10 @@ public class SecurityConfig {
      * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
      * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
      * Plataforma exige su rol global independiente; la suspensión conserva lecturas y rechaza escrituras.
-     * Invitaciones: consulta por token pública, aceptación autenticada y gestión local solo ADMIN efectivo.
+     * Invitaciones: consulta y registro por token públicos, aceptación autenticada y gestión local solo ADMIN efectivo.
      * Equipo permite gestión ADMIN y salida propia del personal; el servicio distingue propietario y encargado.
      * Configuración admite ADMIN efectivo y exige propietario vigente también en el servicio.
+     * La proyección pública GET de negocio expone solo los parámetros aprobados en V2-DA-44.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
@@ -152,7 +153,7 @@ public class SecurityConfig {
                         .bearerTokenResolver(new CookieBearerTokenResolver())
                         .authenticationEntryPoint(entryPoint).accessDeniedHandler(denegado)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
-                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas, entorno), SecurityContextHolderFilter.class)
+                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new RolNegocioFilter(contexto, respuestas, directorio), PasswordTemporalFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
@@ -169,11 +170,12 @@ public class SecurityConfig {
                     if (swaggerHabilitado) {
                         permisos.requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }
-                    permisos.requestMatchers(HttpMethod.POST, "/api/registro", "/api/auth/registro", "/api/auth/login",
+                    permisos.requestMatchers(HttpMethod.POST, "/api/registro", "/api/auth/login",
                             "/api/auth/logout").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones/{token}").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/registro").permitAll();
                     permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/aceptacion").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/equipo").hasRole("ADMIN");
@@ -189,6 +191,7 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/servicios").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/negocio").permitAll();
                     permisos.requestMatchers(HttpMethod.POST, "/api/servicios").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PUT, "/api/servicios/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PATCH, "/api/servicios/{id}/estado").hasRole("ADMIN");

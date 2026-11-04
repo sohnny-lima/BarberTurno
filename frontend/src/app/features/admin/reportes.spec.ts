@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { BehaviorSubject } from 'rxjs';
 import { provideHttpClient } from '@angular/common/http';
@@ -43,6 +44,7 @@ describe('Reportes e historial operativo', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
 
@@ -82,7 +84,7 @@ describe('Reportes e historial operativo', () => {
       expect(boton.disabled).toBe(true);
       expect(boton.getAttribute('aria-busy')).toBe('true');
       f.componentInstance.descargarExcel();
-      const r = http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx');
+      const r = http.expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx');
       expect(r.request.params.get('desde')).toBe(aplicados.desde);
       expect(r.request.params.has('servicioId')).toBe(false);
       const archivo = new Blob(['OOXML']);
@@ -103,7 +105,9 @@ describe('Reportes e historial operativo', () => {
       const f = crear();
       const consulta = f.componentInstance.filtrosAplicados()!;
       f.componentInstance.descargarExcel();
-      http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx').flush(new Blob(['libro']));
+      http
+        .expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx')
+        .flush(new Blob(['libro']));
       expect(nombre).toBe(`reporte-barberturno-${consulta.desde}_${consulta.hasta}.xlsx`);
     });
 
@@ -111,7 +115,7 @@ describe('Reportes e historial operativo', () => {
       const f = crear();
       f.componentInstance.descargarExcel();
       http
-        .expectOne((r) => r.url === '/api/reportes/resumen.xlsx')
+        .expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx')
         .flush(
           new Blob([JSON.stringify({ detail: 'Revise el periodo.', codigo: 'VALIDACION' })], {
             type: 'application/problem+json',
@@ -127,19 +131,21 @@ describe('Reportes e historial operativo', () => {
       expect(f.componentInstance.resumen()).toEqual(RESUMEN);
       expect(URL.createObjectURL).not.toHaveBeenCalled();
       alerta.querySelector('button').click();
-      http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx').flush(new Blob(['libro']));
+      http
+        .expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx')
+        .flush(new Blob(['libro']));
       expect(f.componentInstance.mensajeDescarga()).toBe('');
     });
 
     it('impide descargar antes del resumen y cancela la descarga al destruir', () => {
       const f = crear(false);
       f.componentInstance.descargarExcel();
-      http.expectNone((r) => r.url === '/api/reportes/resumen.xlsx');
+      http.expectNone((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx');
       const p = pendientes();
       p.resumen.flush(RESUMEN);
       p.historial.flush(PAGINA);
       f.componentInstance.descargarExcel();
-      const r = http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx');
+      const r = http.expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx');
       f.destroy();
       expect(r.cancelled).toBe(true);
       expect(URL.createObjectURL).not.toHaveBeenCalled();
@@ -149,14 +155,14 @@ describe('Reportes e historial operativo', () => {
   function pendientes() {
     // Las dos peticiones deben existir antes de que responda cualquiera de ellas.
     return {
-      resumen: http.expectOne((r) => r.url === '/api/reportes/resumen'),
-      historial: http.expectOne((r) => r.url === '/api/reservas'),
+      resumen: http.expectOne((r) => r.url === '/api/n/prueba/reportes/resumen'),
+      historial: http.expectOne((r) => r.url === '/api/n/prueba/reservas'),
     };
   }
   function crear(responder = true) {
     const fixture = TestBed.createComponent(Reportes);
-    http.expectOne('/api/servicios?incluirInactivos=true').flush([]);
-    http.expectOne('/api/barberos?incluirInactivos=true').flush([]);
+    http.expectOne('/api/n/prueba/servicios?incluirInactivos=true').flush([]);
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=true').flush([]);
     if (responder) {
       const peticiones = pendientes();
       peticiones.resumen.flush(RESUMEN);
@@ -222,7 +228,9 @@ describe('Reportes e historial operativo', () => {
     fixture.componentInstance.aplicar();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain(mensaje);
-    http.expectNone((r) => r.url === '/api/reportes/resumen' || r.url === '/api/reservas');
+    http.expectNone(
+      (r) => r.url === '/api/n/prueba/reportes/resumen' || r.url === '/api/n/prueba/reservas',
+    );
   });
 
   it('mapea todos los estados y conserva los seis ceros', () => {
@@ -287,11 +295,11 @@ describe('Reportes e historial operativo', () => {
     const filtros = fixture.componentInstance.filtrosAplicados();
     fixture.componentInstance.formulario.patchValue({ desde: '2027-01-01', servicioId: 999 });
     fixture.componentInstance.paginar({ pageIndex: 1, pageSize: 10, length: 12 });
-    const peticion = http.expectOne((r) => r.url === '/api/reservas');
+    const peticion = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(peticion.request.params.get('pagina')).toBe('1');
     expect(peticion.request.params.get('desde')).toBe(filtros!.desde);
     expect(peticion.request.params.has('servicioId')).toBe(false);
-    http.expectNone((r) => r.url === '/api/reportes/resumen');
+    http.expectNone((r) => r.url === '/api/n/prueba/reportes/resumen');
     peticion.flush({ ...PAGINA, pagina: 1 });
     expect(fixture.componentInstance.pagina()).toBe(1);
     expect(fixture.componentInstance.resumen()).toEqual(RESUMEN);
@@ -306,11 +314,11 @@ describe('Reportes e historial operativo', () => {
   it('cambia el tamaño por API y no repite el resumen', () => {
     const fixture = crear();
     fixture.componentInstance.paginar({ pageIndex: 0, pageSize: 20, length: 12 });
-    const peticion = http.expectOne((r) => r.url === '/api/reservas');
+    const peticion = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(peticion.request.params.get('tamano')).toBe('20');
     peticion.flush({ ...PAGINA, tamano: 20, totalPaginas: 1 });
     expect(fixture.componentInstance.tamano()).toBe(20);
-    http.expectNone((r) => r.url === '/api/reportes/resumen');
+    http.expectNone((r) => r.url === '/api/n/prueba/reportes/resumen');
   });
 
   it('cancela consultas anteriores al aplicar otro periodo', () => {
@@ -346,12 +354,12 @@ describe('Reportes e historial operativo', () => {
     const fixture = crear();
     fixture.componentInstance.paginar({ pageIndex: 1, pageSize: 10, length: 12 });
     http
-      .expectOne((r) => r.url === '/api/reservas')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas')
       .flush({}, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Reintentar historial');
     fixture.componentInstance.cargarPagina();
-    const peticion = http.expectOne((r) => r.url === '/api/reservas');
+    const peticion = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(peticion.request.params.get('pagina')).toBe('1');
     peticion.flush({ ...PAGINA, pagina: 1 });
     expect(fixture.componentInstance.mensajeHistorial()).toBe('');
@@ -430,9 +438,9 @@ describe('Reportes e historial operativo', () => {
   it('el error de catálogos conserva su texto y reintenta ambas listas incluyendo inactivos', () => {
     const f = TestBed.createComponent(Reportes);
     http
-      .expectOne('/api/servicios?incluirInactivos=true')
+      .expectOne('/api/n/prueba/servicios?incluirInactivos=true')
       .flush({}, { status: 503, statusText: 'Service Unavailable' });
-    http.expectOne('/api/barberos?incluirInactivos=true');
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=true');
     const peticiones = pendientes();
     peticiones.resumen.flush(RESUMEN);
     peticiones.historial.flush(PAGINA);
@@ -441,8 +449,8 @@ describe('Reportes e historial operativo', () => {
     expect(alerta.textContent).toContain('No pudimos cargar los servicios y profesionales.');
     expect(alerta.querySelector('button').textContent).toContain('Reintentar catálogos');
     alerta.querySelector('button').click();
-    http.expectOne('/api/servicios?incluirInactivos=true').flush([]);
-    http.expectOne('/api/barberos?incluirInactivos=true').flush([]);
+    http.expectOne('/api/n/prueba/servicios?incluirInactivos=true').flush([]);
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=true').flush([]);
     f.detectChanges();
     expect(f.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });

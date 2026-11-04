@@ -48,9 +48,9 @@ class RutasCanonicasIT extends PeticionNegocioPruebaBase {
         servicio("a"); servicio("b"); servicio("barberturno");
         int conexion = conexionLimpia();
 
-        // Acredita que la sesión y el rol permiten la forma canónica por prefijo y por alias.
+        // Acredita el mismo rol en dos rutas canónicas; el alias ya no existe (CG-5).
         mvc.perform(get("/api/n/a/usuarios").cookie(cookie)).andExpect(status().isOk());
-        mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get("/api/n/barberturno/usuarios").cookie(cookie)).andExpect(status().isOk());
         for (HttpMethod metodo : new HttpMethod[]{HttpMethod.GET,
                 ruta.contains("password") ? HttpMethod.PUT : HttpMethod.POST}) {
             // Conserva barras invertidas sin que URI.create las rechace en el cliente de pruebas.

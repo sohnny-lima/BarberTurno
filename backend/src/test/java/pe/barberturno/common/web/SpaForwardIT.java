@@ -1,5 +1,7 @@
 package pe.barberturno.common.web;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.util.List;
 import java.util.Optional;
 import java.net.URI;
@@ -33,6 +35,20 @@ class SpaForwardIT {
     void navegar_conHtml_reenviaAEntradaAngular(String ruta) throws Exception {
         mvc.perform(get(ruta).accept("text/html"))
                 .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
+    }
+
+    /** V2-DA-48: una cookie caducada o revocada no impide cargar la aplicación; la API la sigue rechazando. */
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/n/barberturno/agenda", "/negocios", "/ingresar"})
+    void navegar_conCookieInvalida_sirveLaEntradaAngularYLaApiLaRechaza(String ruta) throws Exception {
+        var cookie = new jakarta.servlet.http.Cookie("BT_SESION", "sesion-invalida-de-la-prueba");
+        mvc.perform(get(ruta).accept("text/html").cookie(cookie))
+                .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
+        mvc.perform(get("/main-prueba.js").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
     }
 
     @Test
@@ -70,8 +86,8 @@ class SpaForwardIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/x", "/api", "/api/perfil", "/api/reservas", "/api/reservas/mias",
-            "/api/notificaciones", "/api/usuarios", "/api/reportes/resumen", "/actuator/env",
+    @ValueSource(strings = {"/api/n/barberturno/x", "/api", "/api/perfil", "/api/n/barberturno/reservas", "/api/n/barberturno/reservas/mias",
+            "/api/n/barberturno/notificaciones", "/api/n/barberturno/usuarios", "/api/n/barberturno/reportes/resumen", "/actuator/env",
             "/v3/api-docs", "/swagger-ui", "/swagger-ui/index.html"})
     void consultarRutaProtegida_sinSesionConHtml_sigueCerrada(String ruta) throws Exception {
         mvc.perform(get(ruta).accept("text/html"))
@@ -97,7 +113,7 @@ class SpaForwardIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/usuarios", "/api/reportes/resumen", "/api/reservas"})
+    @ValueSource(strings = {"/api/n/barberturno/usuarios", "/api/n/barberturno/reportes/resumen", "/api/n/barberturno/reservas"})
     @WithMockUser(roles = "CLIENTE")
     void consultarGestion_conClienteConHtml_conservaLaAutorizacion(String ruta) throws Exception {
         mvc.perform(get(ruta).accept("text/html")).andExpect(status().isForbidden())
@@ -134,7 +150,7 @@ class SpaForwardIT {
         mvc.perform(get("/agenda").accept("text/html").with(authentication(auth)))
                 .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
         mvc.perform(get("/main-prueba.js").with(authentication(auth))).andExpect(status().isOk());
-        mvc.perform(get("/api/reservas").with(authentication(auth)))
+        mvc.perform(get(negocio("/api/reservas")).with(authentication(auth)))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
     }
 }

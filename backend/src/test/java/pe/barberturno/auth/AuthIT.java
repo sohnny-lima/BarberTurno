@@ -1,5 +1,7 @@
 package pe.barberturno.auth;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.util.Map;
@@ -128,9 +130,23 @@ class AuthIT {
                 .andExpect(jsonPath("$.correo").value(CORREO)).andReturn();
         comprobarCookie(cookieSesion(r), 28800);
         assertThat(usuarios.findByCorreo(CORREO).orElseThrow().getIntentosFallidos()).isZero();
-        mvc.perform(get("/api/auth/sesion").cookie(cookieSesion(r)))
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookieSesion(r)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.correo").value(CORREO));
+    }
+
+    @Test void identidadGlobal_noProyectaRolNiPerfilDeUnNegocioImplicito() throws Exception {
+        var persona = crear(Rol.ADMIN, false);
+        barberos.saveAndFlush(new Barbero(persona, "Corte", reloj.instant()));
+        var respuesta = login(CORREO, PASSWORD).andExpect(status().isOk())
+                .andExpect(jsonPath("$.rol").isEmpty()).andExpect(jsonPath("$.rolNegocio").isEmpty())
+                .andExpect(jsonPath("$.barberoId").isEmpty()).andReturn();
+        mvc.perform(get("/api/auth/sesion").cookie(cookieSesion(respuesta))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.rol").isEmpty()).andExpect(jsonPath("$.rolNegocio").isEmpty())
+                .andExpect(jsonPath("$.barberoId").isEmpty());
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookieSesion(respuesta))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.rol").value("ADMIN")).andExpect(jsonPath("$.rolNegocio").value("PROPIETARIO"))
+                .andExpect(jsonPath("$.barberoId").isNumber());
     }
 
     @Test void csrf_trasLogin_getsAutenticadosNoRenuevanCookieNiRegistranReemplazo() throws Exception {
@@ -146,8 +162,8 @@ class AuthIT {
         logger.addAppender(registros);
         logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
         try {
-            for (String ruta : new String[]{"/api/notificaciones/conteo", "/api/auth/sesion",
-                    "/api/servicios", "/api/notificaciones/conteo", "/api/auth/sesion"}) {
+            for (String ruta : new String[]{negocio("/api/notificaciones/conteo"), negocio("/api/sesion"),
+                    negocio("/api/servicios"), negocio("/api/notificaciones/conteo"), negocio("/api/sesion")}) {
                 var resultado = mvc.perform(get(ruta).cookie(sesion, csrf))
                         .andExpect(status().isOk()).andReturn();
                 assertThat(resultado.getResponse().getHeaders("Set-Cookie").stream()
@@ -175,15 +191,15 @@ class AuthIT {
         Cookie vigente = login.getResponse().getCookie("XSRF-TOKEN");
         String tokenInicial = vigente.getValue();
         // Simula el navegador: aplica cada Set-Cookie, pero conserva la cabecera ya leída.
-        for (String ruta : new String[]{"/api/notificaciones/conteo", "/api/auth/sesion",
-                "/api/notificaciones/conteo"}) {
+        for (String ruta : new String[]{negocio("/api/notificaciones/conteo"), negocio("/api/sesion"),
+                negocio("/api/notificaciones/conteo")}) {
             var resultado = mvc.perform(get(ruta).cookie(sesion, vigente))
                     .andExpect(status().isOk()).andReturn();
             for (Cookie cookie : resultado.getResponse().getCookies()) {
                 if (cookie.getName().equals("XSRF-TOKEN")) vigente = cookie;
             }
         }
-        mvc.perform(post("/api/notificaciones/lectura").cookie(sesion, vigente)
+        mvc.perform(post(negocio("/api/notificaciones/lectura")).cookie(sesion, vigente)
                 .header("X-XSRF-TOKEN", tokenInicial)).andExpect(status().isNoContent());
     }
 
@@ -191,7 +207,7 @@ class AuthIT {
     void csrf_cambioDeSesion_emiteAmbasCookiesYTokenNuevoSinGetIntermedio(String ruta) throws Exception {
         if (!ruta.equals("registro")) crear(Rol.CLIENTE, false);
         Cookie anterior = xsrf();
-        var solicitud = post("/api/auth/" + ruta).cookie(anterior)
+        var solicitud = post((ruta.equals("registro") ? negocio("/api/registro") : "/api/auth/" + ruta)).cookie(anterior)
                 .header("X-XSRF-TOKEN", anterior.getValue()).contentType(MediaType.APPLICATION_JSON);
         if (ruta.equals("registro")) solicitud.content(json.writeValueAsString(registro(CORREO)));
         if (ruta.equals("login")) solicitud.content(json.writeValueAsString(
@@ -211,9 +227,9 @@ class AuthIT {
         assertThat(nueva.isHttpOnly()).isFalse();
         assertThat(nueva.getSecure()).isFalse();
         if (!ruta.equals("logout")) {
-            mvc.perform(post("/api/notificaciones/lectura").cookie(cookieSesion(resultado), nueva)
+            mvc.perform(post(negocio("/api/notificaciones/lectura")).cookie(cookieSesion(resultado), nueva)
                     .header("X-XSRF-TOKEN", anterior.getValue())).andExpect(status().isForbidden());
-            mvc.perform(post("/api/notificaciones/lectura").cookie(cookieSesion(resultado), nueva)
+            mvc.perform(post(negocio("/api/notificaciones/lectura")).cookie(cookieSesion(resultado), nueva)
                     .header("X-XSRF-TOKEN", nueva.getValue())).andExpect(status().isNoContent());
         } else {
             var cuerpo = json.writeValueAsString(Map.of("correo", CORREO, "password", PASSWORD));
@@ -228,9 +244,9 @@ class AuthIT {
     void csrf_conSesionValida_sinCabeceraOConTokenIncorrectoRechaza(String ruta) throws Exception {
         crear(Rol.CLIENTE, false);
         Cookie sesion = cookieSesion(login(CORREO, PASSWORD).andReturn());
-        Cookie csrf = mvc.perform(get("/api/auth/sesion").cookie(sesion))
+        Cookie csrf = mvc.perform(get(negocio("/api/sesion")).cookie(sesion))
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie("XSRF-TOKEN");
-        String destino = ruta.equals("notificaciones") ? "/api/notificaciones/lectura" : "/api/auth/" + ruta;
+        String destino = ruta.equals("notificaciones") ? negocio("/api/notificaciones/lectura") : (ruta.equals("registro") ? negocio("/api/registro") : "/api/auth/" + ruta);
         mvc.perform(post(destino).cookie(sesion, csrf)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
         mvc.perform(post(destino).cookie(sesion, csrf).header("X-XSRF-TOKEN", "incorrecto"))
@@ -286,9 +302,9 @@ class AuthIT {
     @Test void sesion_tokenCaducaALasOchoHorasExactas() throws Exception {
         Cookie sesion = cookieSesion(registrar(registro(CORREO)).andReturn());
         reloj.adelantar(Duration.ofHours(8).minusSeconds(1));
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk());
         reloj.adelantar(Duration.ofSeconds(1));
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isUnauthorized())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
     }
 
@@ -298,9 +314,9 @@ class AuthIT {
         int firma = token.lastIndexOf('.') + 1;
         String alterado = token.substring(0, firma) + (token.charAt(firma) == 'a' ? 'b' : 'a')
                 + token.substring(firma + 1);
-        mvc.perform(get("/api/auth/sesion").cookie(new Cookie("BT_SESION", alterado)))
+        mvc.perform(get(negocio("/api/sesion")).cookie(new Cookie("BT_SESION", alterado)))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
-        mvc.perform(get("/api/auth/sesion").cookie(new Cookie("BT_SESION", "malformado")))
+        mvc.perform(get(negocio("/api/sesion")).cookie(new Cookie("BT_SESION", "malformado")))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -314,19 +330,19 @@ class AuthIT {
             case "inexistente" -> LimpiezaBaseDatos.limpiar(jdbc);
             default -> throw new IllegalArgumentException();
         }
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isUnauthorized())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
     }
 
     @Test void sesion_bearerEnCabeceraSinCookie_noAutentica() throws Exception {
         Cookie sesion = cookieSesion(registrar(registro(CORREO)).andReturn());
-        mvc.perform(get("/api/auth/sesion").header("Authorization", "Bearer " + sesion.getValue()))
+        mvc.perform(get(negocio("/api/sesion")).header("Authorization", "Bearer " + sesion.getValue()))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
     }
 
     @ParameterizedTest @ValueSource(strings = {"registro", "login", "logout"})
     void escritura_sinCsrf_devuelve403ProblemDetail(String ruta) throws Exception {
-        mvc.perform(post("/api/auth/" + ruta).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post((ruta.equals("registro") ? negocio("/api/registro") : "/api/auth/" + ruta)).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(registro(CORREO))))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
         assertThat(usuarios.count()).isZero();
@@ -347,7 +363,7 @@ class AuthIT {
                 .header("X-XSRF-TOKEN", csrf.getValue())).andExpect(status().isNoContent()).andReturn();
         comprobarCookie(cookieSesion(r), 0);
         assertThat(cookieSesion(r).getValue()).isEmpty();
-        mvc.perform(get("/api/auth/sesion").cookie(cookieSesion(r))).andExpect(status().isUnauthorized());
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookieSesion(r))).andExpect(status().isUnauthorized());
         r = mvc.perform(conCsrf(post("/api/auth/logout"))).andExpect(status().isNoContent()).andReturn();
         comprobarCookie(cookieSesion(r), 0);
     }
@@ -356,11 +372,11 @@ class AuthIT {
     void rutasNoImplementadas_siguenDenegadasYCatalogoYAuthPermanecenDisponibles(Rol rol) throws Exception {
         Usuario u = crear(rol, false);
         Cookie sesion = new Cookie("BT_SESION", jwt.emitir(u));
-        mvc.perform(get("/api/prueba/no-implementada").cookie(sesion)).andExpect(status().isForbidden())
+        mvc.perform(get(negocio("/api/prueba/no-implementada")).cookie(sesion)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
-        mvc.perform(get("/api/servicios").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/servicios")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.rol").value(rol.name()));
         mvc.perform(conCsrf(put("/api/auth/password")).cookie(sesion))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
@@ -370,7 +386,7 @@ class AuthIT {
     @Test void passwordTemporal_restringeRutaDePruebaYPermiteAuth() throws Exception {
         Usuario u = crear(Rol.BARBERO, true);
         Cookie sesion = new Cookie("BT_SESION", jwt.emitir(u));
-        mvc.perform(get("/api/prueba/protegida").cookie(sesion)).andExpect(status().isForbidden())
+        mvc.perform(get(negocio("/api/prueba/protegida")).cookie(sesion)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(true));
@@ -383,7 +399,7 @@ class AuthIT {
         var barbero = barberos.saveAndFlush(new Barbero(u, "Corte", reloj.instant()));
         Cookie sesion = new Cookie("BT_SESION", jwt.emitir(u));
         jdbc.update("update membresia set rol='BARBERO' where negocio_id=1 and usuario_id=?", u.getId());
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barberoId").value(barbero.getId()))
                 .andExpect(jsonPath("$.rol").value("BARBERO"));
     }
@@ -472,24 +488,24 @@ class AuthIT {
                         .andExpect(status().isNoContent());
             }
             case "restablecimiento" -> {
-                var reset = mvc.perform(conCsrf(post("/api/usuarios/" + clienteId + "/restablecer-password"))
+                var reset = mvc.perform(conCsrf(post(negocio("/api/usuarios/") + clienteId + "/restablecer-password"))
                         .cookie(admin)).andExpect(status().isOk()).andReturn();
                 password = json.readTree(reset.getResponse().getContentAsString()).get("passwordTemporal").asString();
             }
-            case "desactivacion" -> mvc.perform(conCsrf(patch("/api/usuarios/" + clienteId + "/estado"))
+            case "desactivacion" -> mvc.perform(conCsrf(patch(negocio("/api/usuarios/") + clienteId + "/estado"))
                     .cookie(admin).contentType(MediaType.APPLICATION_JSON).content("{\"activo\":false}"))
                     .andExpect(status().isOk());
             default -> throw new IllegalArgumentException("Causa de revocación desconocida.");
         }
 
-        comprobarBorrado(mvc.perform(get("/api/auth/sesion").cookie(anterior)));
+        comprobarBorrado(mvc.perform(get(negocio("/api/sesion")).cookie(anterior)));
         comprobarBorrado(mvc.perform(get("/api/perfil").cookie(anterior)));
-        comprobarBorrado(mvc.perform(get("/api/servicios").cookie(anterior)));
-        mvc.perform(get("/api/servicios")).andExpect(status().isOk());
-        mvc.perform(get("/api/auth/sesion")).andExpect(status().isUnauthorized())
+        comprobarBorrado(mvc.perform(get(negocio("/api/servicios")).cookie(anterior)));
+        mvc.perform(get(negocio("/api/servicios"))).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/sesion"))).andExpect(status().isUnauthorized())
                 .andExpect(result -> assertThat(result.getResponse().getCookie("BT_SESION")).isNull());
 
-        var alta = mvc.perform(conCsrf(post("/api/auth/registro")).cookie(anterior)
+        var alta = mvc.perform(conCsrf(post(negocio("/api/registro"))).cookie(anterior)
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
                         registro("nuevo-recuperacion@ejemplo.test"))))
                 .andExpect(status().isCreated()).andReturn();
@@ -502,7 +518,7 @@ class AuthIT {
                     .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
                             Map.of("correo", CORREO, "password", PASSWORD))))
                     .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.codigo").value("CREDENCIALES_INVALIDAS"));
-            mvc.perform(conCsrf(patch("/api/usuarios/" + clienteId + "/estado")).cookie(admin)
+            mvc.perform(conCsrf(patch(negocio("/api/usuarios/") + clienteId + "/estado")).cookie(admin)
                     .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":true}"))
                     .andExpect(status().isOk());
             comprobarBorrado(mvc.perform(get("/api/perfil").cookie(anterior)));
@@ -528,7 +544,7 @@ class AuthIT {
             usuario.cambiarPassword(usuario.getPasswordHash(), false, reloj.instant());
             usuarios.saveAndFlush(usuario);
         }
-        var peticion = post("/api/auth/" + ruta).cookie(sesion).contentType(MediaType.APPLICATION_JSON)
+        var peticion = post((ruta.equals("registro") ? negocio("/api/registro") : "/api/auth/" + ruta)).cookie(sesion).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(ruta.equals("login")
                         ? Map.of("correo", CORREO, "password", PASSWORD) : registro("otro@ejemplo.test")));
         if (csrf.equals("incorrecto")) peticion.cookie(xsrf()).header("X-XSRF-TOKEN", "incorrecto");
@@ -552,13 +568,13 @@ class AuthIT {
             case "ambiguo" -> cookies = new Cookie[]{original, new Cookie("BT_SESION", original.getValue())};
             default -> throw new IllegalArgumentException("Causa de invalidez desconocida.");
         }
-        comprobarBorrado(mvc.perform(get("/api/auth/sesion").cookie(cookies)));
+        comprobarBorrado(mvc.perform(get(negocio("/api/sesion")).cookie(cookies)));
         comprobarBorrado(mvc.perform(get("/api/perfil").cookie(cookies)));
-        mvc.perform(get("/api/servicios")).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/servicios"))).andExpect(status().isOk());
         mvc.perform(conCsrf(post("/api/auth/login")).cookie(cookies).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("correo", CORREO, "password", PASSWORD))))
                 .andExpect(status().isOk());
-        mvc.perform(conCsrf(post("/api/auth/registro")).cookie(cookies).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(conCsrf(post(negocio("/api/registro"))).cookie(cookies).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(registro("nuevo@ejemplo.test")))).andExpect(status().isCreated());
     }
 
@@ -579,7 +595,7 @@ class AuthIT {
                 "telefono", "999111222", "password", PASSWORD, "aceptaPrivacidad", true);
     }
     private ResultActions registrar(Map<String, Object> datos) throws Exception {
-        return mvc.perform(conCsrf(post("/api/auth/registro")).contentType(MediaType.APPLICATION_JSON)
+        return mvc.perform(conCsrf(post(negocio("/api/registro"))).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(datos)));
     }
     private ResultActions login(String correo, String password) throws Exception {
@@ -591,7 +607,7 @@ class AuthIT {
         return peticion.cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue());
     }
     private Cookie xsrf() throws Exception {
-        return mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
+        return mvc.perform(get(negocio("/api/sesion"))).andReturn().getResponse().getCookie("XSRF-TOKEN");
     }
     private Cookie cookieSesion(MvcResult r) {
         Cookie cookie = r.getResponse().getCookie("BT_SESION");

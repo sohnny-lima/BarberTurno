@@ -1,0 +1,97 @@
+<app-cabecera-pagina titulo="Invitaciones" subtitulo="Invite al personal de su barbería." />
+<app-seccion-formulario titulo="Nueva invitación"
+  ><form
+    class="formulario"
+    [formGroup]="formulario"
+    (ngSubmit)="crear()"
+    [attr.aria-busy]="guardando()"
+  >
+    <div class="campos">
+      <mat-form-field
+        ><mat-label>Correo</mat-label
+        ><input matInput type="email" formControlName="correo" autocomplete="email" /><mat-error>{{
+          errorCampo(formulario.controls.correo)
+        }}</mat-error></mat-form-field
+      ><mat-form-field
+        ><mat-label>Rol</mat-label
+        ><mat-select formControlName="rol">
+          @for (rol of roles(); track rol) {
+            <mat-option [value]="rol">{{ nombres[rol] }}</mat-option>
+          }
+        </mat-select></mat-form-field
+      >
+    </div>
+    <div class="acciones-formulario">
+      <button mat-flat-button type="submit" [disabled]="guardando() || soloLectura()">
+        {{ guardando() ? 'Creando…' : 'Crear invitación' }}
+      </button>
+    </div>
+  </form>
+  @if (emitida(); as dato) {
+    <app-enlace-invitacion
+      [enlace]="dato.enlaceInvitacion"
+      [expiraEn]="dato.invitacion.expiraEn"
+      [titulo]="'Enlace para ' + dato.invitacion.correo"
+    /><button mat-button (click)="emitida.set(null)">Ocultar enlace</button>
+  }
+</app-seccion-formulario>
+@if (mensaje()) {
+  <app-estado-contenido tipo="error" [texto]="mensaje()" />
+}
+<h2>Invitaciones pendientes</h2>
+@if (cargando()) {
+  <app-estado-contenido tipo="carga" texto="Cargando invitaciones…" />
+} @else if (!filas().length) {
+  <app-estado-contenido tipo="vacio" texto="No hay invitaciones pendientes." />
+} @else {
+  <app-lista-adaptable nombre="Invitaciones pendientes" [tabla]="tabla" [tarjetas]="tarjetas" />
+}
+<ng-template #tabla
+  ><table>
+    <thead>
+      <tr>
+        <th>Correo</th>
+        <th>Rol</th>
+        <th>Caduca (hora de Lima)</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (fila of filas(); track fila.id) {
+        <tr>
+          <td>{{ fila.correo }}</td>
+          <td>{{ nombres[fila.rol] }}</td>
+          <td>{{ fila.expiraEn | fechaLima }}</td>
+          <td>
+            <ng-container
+              [ngTemplateOutlet]="acciones"
+              [ngTemplateOutletContext]="{ $implicit: fila }"
+            />
+          </td>
+        </tr>
+      }
+    </tbody></table
+></ng-template>
+<ng-template #tarjetas>
+  @for (fila of filas(); track fila.id) {
+    <div class="ficha" role="listitem">
+      <h2>{{ fila.correo }}</h2>
+      <p>{{ nombres[fila.rol] }}</p>
+      <p class="ayuda">Caduca el {{ fila.expiraEn | fechaLima }} (hora de Lima).</p>
+      <ng-container [ngTemplateOutlet]="acciones" [ngTemplateOutletContext]="{ $implicit: fila }" />
+    </div>
+  }
+</ng-template>
+<ng-template #acciones let-fila>
+  @if (puedeRevocar(fila)) {
+    <button
+      mat-stroked-button
+      class="riesgo"
+      [disabled]="soloLectura()"
+      [attr.aria-label]="'Revocar invitación de ' + fila.correo"
+      (click)="revocar(fila)"
+    >
+      Revocar
+    </button>
+  }
+</ng-template>

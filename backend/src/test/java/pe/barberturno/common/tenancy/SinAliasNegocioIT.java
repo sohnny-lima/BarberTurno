@@ -1,37 +1,15 @@
 package pe.barberturno.common.tenancy;
 
-import java.util.LinkedHashMap;
-import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationContextInitializer;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.core.env.EnumerablePropertySource;
-import org.springframework.core.env.MapPropertySource;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.http.HttpMethod;
+import pe.barberturno.support.RutasNegocioPruebas;
 import pe.barberturno.platform.RolNegocio;
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Arranque sin la propiedad de alias; contexto propio cerrado por la base con DirtiesContext. */
-@ContextConfiguration(initializers = SinAliasNegocioIT.SinAlias.class)
+/** CG-5: configuración normal sin alias; rechazos antes de autenticación, CSRF y MVC. */
 class SinAliasNegocioIT extends PeticionNegocioPruebaBase {
-    static class SinAlias implements ApplicationContextInitializer<ConfigurableApplicationContext> {
-        @Override public void initialize(ConfigurableApplicationContext contexto) {
-            var fuentes = contexto.getEnvironment().getPropertySources();
-            String clave = "barberturno.tenancy.alias-legado.slug";
-            for (var fuente : StreamSupport.stream(fuentes.spliterator(), false).toList()) {
-                if (fuente instanceof EnumerablePropertySource<?> enumerada && fuente.getProperty(clave) != null) {
-                    var valores = new LinkedHashMap<String, Object>();
-                    for (String nombre : enumerada.getPropertyNames()) {
-                        if (!nombre.equals(clave)) valores.put(nombre, enumerada.getProperty(nombre));
-                    }
-                    fuentes.replace(fuente.getName(), new MapPropertySource(fuente.getName(), valores));
-                }
-            }
-            assertThat(contexto.getEnvironment().containsProperty(clave)).isFalse();
-        }
-    }
 
     @Test void sinPropiedad_rutasLegadas404_globalesSinRol_yPrefijoSigueOperando() throws Exception {
         var cuenta = personal("sin-alias", "a", RolNegocio.PROPIETARIO);
@@ -45,5 +23,22 @@ class SinAliasNegocioIT extends PeticionNegocioPruebaBase {
         mvc.perform(get("/api/mis-negocios").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$[0].slug").value("a"));
         mvc.perform(get("/api/n/a/sesion").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").value("ADMIN"));
         mvc.perform(get("/api/n/a/usuarios").cookie(cookie)).andExpect(status().isOk());
+    }
+
+    @Test void todasLasFamiliasLegadas_conYSinSesion_404SinEjecutarControladores() throws Exception {
+        var cookie = sesion(personal("sin-alias-matriz", "a", RolNegocio.PROPIETARIO));
+        for (String ruta : RutasNegocioPruebas.legadas()) {
+            for (HttpMethod metodo : new HttpMethod[]{HttpMethod.GET, HttpMethod.HEAD, HttpMethod.POST,
+                    HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE}) {
+                for (boolean autenticada : new boolean[]{false, true}) {
+                    var solicitud = request(metodo, ruta).contentType("application/json").content("{}");
+                    if (autenticada) solicitud.cookie(cookie);
+                    var resultado = mvc.perform(solicitud).andExpect(status().isNotFound())
+                            .andExpect(content().contentType("application/problem+json")).andReturn();
+                    assertThat(resultado.getHandler()).as("%s %s, sesión=%s", metodo, ruta, autenticada).isNull();
+                    assertThat(contexto.delimitado()).isFalse();
+                }
+            }
+        }
     }
 }

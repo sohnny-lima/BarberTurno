@@ -1,5 +1,4 @@
 import { registerLocaleData } from '@angular/common';
-import localeEsPe from '@angular/common/locales/es-PE';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
 import {
   ApplicationConfig,
@@ -9,31 +8,35 @@ import {
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
-import { provideRouter } from '@angular/router';
+import { provideRouter, RouteReuseStrategy } from '@angular/router';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import { routes } from './app.routes';
 import { erroresInterceptor } from './core/auth/errores-interceptor';
 import { SesionService } from './core/auth/sesion-service';
+import { negocioInterceptor } from './core/negocio/negocio-interceptor';
+import { ReutilizacionNegocio } from './core/negocio/reutilizacion-negocio';
 
-registerLocaleData(localeEsPe);
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
+    { provide: RouteReuseStrategy, useClass: ReutilizacionNegocio },
     provideHttpClient(
-      withInterceptors([erroresInterceptor]),
+      withInterceptors([negocioInterceptor, erroresInterceptor]),
       withXsrfConfiguration({
         cookieName: 'XSRF-TOKEN',
         headerName: 'X-XSRF-TOKEN',
       }),
     ),
-    provideAppInitializer(() =>
-      firstValueFrom(
-        inject(SesionService)
-          .cargar()
-          .pipe(catchError(() => of(null))),
-      ),
-    ),
+    provideAppInitializer(async () => {
+      const sesion = inject(SesionService);
+      await Promise.all([
+        import('@angular/common/locales/es-PE').then(({ default: datos }) =>
+          registerLocaleData(datos),
+        ),
+        firstValueFrom(sesion.cargar().pipe(catchError(() => of(null)))),
+      ]);
+    }),
     { provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { panelClass: 'aviso-transitorio' } },
     { provide: LOCALE_ID, useValue: 'es-PE' },
   ],

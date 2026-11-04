@@ -123,7 +123,9 @@
               }
             </div>
             <mat-form-field appearance="outline">
-              <mat-label>Otra fecha, hasta 30 días</mat-label>
+              <mat-label
+                >Otra fecha, hasta {{ store.negocio.parametros()?.horizonteDias }} días</mat-label
+              >
               <input
                 matInput
                 [matDatepicker]="calendario"
@@ -134,8 +136,14 @@
               />
               <mat-datepicker-toggle matIconSuffix [for]="calendario" />
               <mat-datepicker #calendario />
-              <mat-hint>Desde hoy hasta 30 días después, en Lima.</mat-hint>
-              <mat-error>Elija una fecha válida dentro de los próximos 30 días.</mat-error>
+              <mat-hint
+                >Desde hoy hasta {{ store.negocio.parametros()?.horizonteDias }} días después, en
+                Lima.</mat-hint
+              >
+              <mat-error
+                >Elija una fecha válida dentro de los próximos
+                {{ store.negocio.parametros()?.horizonteDias }} días.</mat-error
+              >
             </mat-form-field>
             <section
               class="horas"
@@ -282,12 +290,13 @@
               </p>
             }
             <p class="ayuda">
-              Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.
+              Pago presencial en la barbería. Puede cambiar o cancelar hasta
+              {{ store.negocio.parametros()?.anticipacionCambioClienteMin }} minutos antes.
             </p>
-            @if (store.sesion.rol() === 'ADMIN') {
+            @if (store.negocio.rol() === 'ADMIN') {
               <p>Puede gestionar esta cita desde Agenda.</p>
             }
-            @if (store.reserva() && store.sesion.rol() === 'ADMIN') {
+            @if (store.reserva() && store.negocio.rol() === 'ADMIN') {
               <mat-form-field appearance="outline"
                 ><mat-label>Motivo de la reprogramación</mat-label
                 ><textarea
@@ -300,7 +309,7 @@
                 ><mat-hint>Obligatorio para el administrador.</mat-hint></mat-form-field
               >
             }
-            @if (store.sesion.rol() === 'BARBERO') {
+            @if (store.negocio.rol() === 'BARBERO') {
               <p>El perfil de barbero puede explorar las franjas, pero no confirmar reservas.</p>
             }
             @if (!store.sesion.autenticado()) {
@@ -310,7 +319,7 @@
               class="acciones confirmacion"
               [class.barra-reserva]="movil() && store.paso() === 2"
             >
-              @if (store.sesion.rol() !== 'BARBERO') {
+              @if (store.negocio.rol() !== 'BARBERO') {
                 <button
                   mat-flat-button
                   type="button"
@@ -367,7 +376,9 @@
       </button>
     }
     @if (store.limiteReservas()) {
-      <a routerLink="/mis-citas">Ver Mis citas</a>
+      <a [routerLink]="store.negocio.ruta('mis-citas')" queryParamsHandling="preserve"
+        >Ver Mis citas</a
+      >
     }
   </div>
 </ng-template>

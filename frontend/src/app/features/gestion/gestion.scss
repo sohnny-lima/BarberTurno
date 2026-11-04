@@ -1,0 +1,43 @@
+@use '../../shared/formulario-pagina' as formulario;
+@include formulario.contenido;
+table {
+  border-collapse: collapse;
+}
+th,
+td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-linea);
+}
+th:last-child,
+td:last-child {
+  white-space: normal;
+}
+.formulario {
+  display: grid;
+  gap: 24px;
+}
+.campos {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.acciones-fila,
+td:last-child {
+  button {
+    margin: 0 4px 8px;
+  }
+}
+.yo {
+  margin-left: 8px;
+  color: var(--color-texto-2);
+  font-size: 13px;
+}
+mat-slide-toggle {
+  margin-top: 24px;
+}
+@media (min-width: 768px) {
+  .campos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

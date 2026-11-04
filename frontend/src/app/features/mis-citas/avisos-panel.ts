@@ -23,7 +23,7 @@ import { paginadorEspanol } from '../../shared/paginador-es';
 @Component({
   selector: 'app-avisos-panel',
   imports: [MatButtonModule, MatPaginatorModule, FechaLimaPipe],
-  providers: [{ provide: MatPaginatorIntl, useFactory: paginadorEspanol }],
+  providers: [NotificacionesApi, { provide: MatPaginatorIntl, useFactory: paginadorEspanol }],
   templateUrl: './avisos-panel.html',
   styleUrl: './avisos-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

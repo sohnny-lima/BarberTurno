@@ -14,6 +14,7 @@ import { Rol } from '../../core/modelos/identidad';
 import { UsuarioAdminDto } from '../../core/modelos/usuarios';
 import { ConfirmarEstadoDialogo } from '../../shared/confirmar-estado-dialogo';
 import { mostrarErrores } from '../../shared/formulario';
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { paginadorEspanol } from '../../shared/paginador-es';
 import { PasswordTemporalDialogo } from './password-temporal-dialogo';
 import { CabeceraPagina } from '../../shared/cabecera-pagina';
@@ -54,6 +55,7 @@ export class Usuarios {
   readonly filas = signal<UsuarioAdminDto[]>([]);
   readonly cargando = signal(false);
   readonly operando = signal(false);
+  readonly soloLectura = inject(NegocioActual).soloLectura;
   readonly mensaje = signal('');
   readonly pagina = signal(0);
   readonly tamano = signal(10);

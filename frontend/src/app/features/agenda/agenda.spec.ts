@@ -1,3 +1,5 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
+import { prepararNegocio, usuarioNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -51,15 +53,17 @@ describe('Agenda operativa', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function crear() {
+    TestBed.inject(NegocioActual).actualizarSesion(usuarioNegocio(rol()));
     const fixture = TestBed.createComponent(Agenda);
     if (rol() === 'ADMIN')
       http
-        .expectOne('/api/barberos?incluirInactivos=true')
+        .expectOne('/api/n/prueba/barberos?incluirInactivos=true')
         .flush([{ id: 3, nombre: 'Profesional ficticio', activo: true }]);
-    const inicial = http.expectOne((r) => r.url === '/api/reservas');
+    const inicial = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(inicial.request.params.get('desde')).toBe(fechaHoyLima());
     expect(inicial.request.params.get('hasta')).toBe(fechaHoyLima());
     expect(inicial.request.params.get('tamano')).toBe('100');
@@ -108,10 +112,10 @@ describe('Agenda operativa', () => {
     const fixture = crear();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-selector-barbero]')).toBeNull();
-    http.expectNone((r) => r.url === '/api/barberos');
+    http.expectNone((r) => r.url === '/api/n/prueba/barberos');
     fixture.componentInstance.formulario.controls.barberoId.setValue(999);
     fixture.componentInstance.cargar();
-    const peticion = http.expectOne((r) => r.url === '/api/reservas');
+    const peticion = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(peticion.request.params.has('barberoId')).toBe(false);
     peticion.flush({ contenido: [], pagina: 0, totalPaginas: 1 });
   });
@@ -124,7 +128,7 @@ describe('Agenda operativa', () => {
     expect(fixture.nativeElement.textContent).toContain('Todos');
     fixture.componentInstance.formulario.controls.barberoId.setValue(3);
     fixture.componentInstance.cargar();
-    const peticion = http.expectOne((r) => r.url === '/api/reservas');
+    const peticion = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(peticion.request.params.get('barberoId')).toBe('3');
     peticion.flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     expect(fixture.componentInstance.todos()).toBe(false);
@@ -133,13 +137,13 @@ describe('Agenda operativa', () => {
     const fixture = crear();
     fixture.componentInstance.formulario.patchValue({ fecha: '2027-01-01', vista: 'semana' });
     fixture.componentInstance.cargar();
-    const pagina0 = http.expectOne((r) => r.url === '/api/reservas');
+    const pagina0 = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(pagina0.request.params.get('desde')).toBe('2026-12-28');
     expect(pagina0.request.params.get('hasta')).toBe('2027-01-03');
     const temprana = { ...RESERVA_PRUEBA, id: 1, inicio: '2026-12-31T10:00:00-05:00' };
     const tardia = { ...RESERVA_PRUEBA, id: 2, inicio: '2027-01-01T02:00:00Z' };
     pagina0.flush({ contenido: [tardia], pagina: 0, totalPaginas: 2, totalElementos: 101 });
-    const pagina1 = http.expectOne((r) => r.url === '/api/reservas');
+    const pagina1 = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(pagina1.request.params.get('pagina')).toBe('1');
     expect(pagina1.request.params.get('tamano')).toBe('100');
     pagina1.flush({ contenido: [temprana], pagina: 1, totalPaginas: 2 });
@@ -231,7 +235,7 @@ describe('Agenda operativa', () => {
     );
     resultado.next('actualizada');
     http
-      .expectOne((r) => r.url === '/api/reservas')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas')
       .flush({
         contenido: [],
         pagina: 0,
@@ -248,17 +252,17 @@ describe('Agenda operativa', () => {
     expect(open).not.toHaveBeenCalled();
     fixture.componentInstance.cancelar(RESERVA_PRUEBA);
     resultado.next(undefined);
-    http.expectNone((r) => r.url === '/api/reservas');
+    http.expectNone((r) => r.url === '/api/n/prueba/reservas');
   });
   it('cancela las páginas anteriores al cambiar filtros', () => {
     const fixture = crear();
     fixture.componentInstance.cargar();
-    const anterior = http.expectOne((r) => r.url === '/api/reservas');
+    const anterior = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     fixture.componentInstance.formulario.controls.fecha.setValue('2026-10-05');
     fixture.componentInstance.cargar();
     expect(anterior.cancelled).toBe(true);
     http
-      .expectOne((r) => r.url === '/api/reservas')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas')
       .flush({
         contenido: [],
         pagina: 0,
@@ -270,13 +274,13 @@ describe('Agenda operativa', () => {
     fixture.componentInstance.formulario.controls.fecha.setValue('2026-02-31');
     fixture.componentInstance.cargar();
     expect(fixture.componentInstance.formulario.invalid).toBe(true);
-    http.expectNone((r) => r.url === '/api/reservas');
+    http.expectNone((r) => r.url === '/api/n/prueba/reservas');
   });
   it('un fallo muestra detail y permite reintentar el filtro', () => {
     const fixture = crear();
     fixture.componentInstance.cargar();
     http
-      .expectOne((r) => r.url === '/api/reservas')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas')
       .flush({ detail: 'Rango inválido' }, { status: 400, statusText: 'Bad Request' });
     expect(fixture.componentInstance.mensaje()).toBe('Rango inválido');
     expect(fixture.componentInstance.cargando()).toBe(false);
@@ -289,10 +293,16 @@ describe('Agenda operativa', () => {
     ) as HTMLButtonElement;
     reintentar.click();
     http
-      .expectOne((r) => r.url === '/api/reservas' && r.params.get('desde') === fechaHoyLima())
+      .expectOne(
+        (r) => r.url === '/api/n/prueba/reservas' && r.params.get('desde') === fechaHoyLima(),
+      )
       .flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    // Un aria-label en <p> se ignora: el contexto va como texto visualmente oculto.
+    const resumen = fixture.nativeElement.querySelector('.resumen-conteos');
+    expect(resumen.hasAttribute('aria-label')).toBe(false);
+    expect(resumen.textContent.trim()).toBe('Resumen de citas: 0 citas.');
   });
   it('resume estados en minúsculas con plurales y conjunción', () => {
     const agenda = crear().componentInstance;
@@ -439,11 +449,11 @@ describe('Agenda operativa', () => {
     const titulo = TestBed.inject(TituloPagina);
     expect(titulo.texto()).toBe('Agenda');
     http
-      .expectOne((r) => r.url === '/api/reservas')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas')
       .flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     titulo.actualizarAgenda()?.ejecutar();
     http
-      .expectOne((r) => r.url === '/api/reservas')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas')
       .flush({ contenido: [], pagina: 0, totalPaginas: 1 });
     fixture.destroy();
     expect(titulo.texto()).toBeNull();

@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +56,7 @@ abstract class IdentidadPruebaBase extends TenancyPruebaBase {
     }
 
     MockHttpServletRequestBuilder estado(long id, boolean activo) {
-        return patch("/api/usuarios/" + id + "/estado").contentType("application/json")
+        return patch(negocio("/api/usuarios/") + id + "/estado").contentType("application/json")
                 .content("{\"activo\":" + activo + "}");
     }
 

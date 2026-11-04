@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -89,11 +91,11 @@ class ReservaConsultaIT extends ReservaPruebaBase {
     }
 
     private MockHttpServletRequestBuilder agenda(Usuario actor) {
-        return get("/api/reservas").cookie(sesion(actor)).param("desde", "2026-09-21").param("hasta", "2026-10-04");
+        return get(negocio("/api/reservas")).cookie(sesion(actor)).param("desde", "2026-09-21").param("hasta", "2026-10-04");
     }
 
     private MockHttpServletRequestBuilder detalle(Usuario actor, long id) {
-        return get("/api/reservas/{id}", id).cookie(sesion(actor));
+        return get(negocio("/api/reservas/{id}"), id).cookie(sesion(actor));
     }
 
     @Test void cp02_clienteSoloPropiasY404Uniforme() throws Exception {
@@ -103,7 +105,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
                 .andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO")).andReturn().getResponse();
         assertThat(json.readTree(ajena.getContentAsString()).get("detail"))
                 .isEqualTo(json.readTree(inexistente.getContentAsString()).get("detail"));
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(2))
                 .andExpect(jsonPath("$.contenido[0].id").value(historial.getId()))
                 .andExpect(jsonPath("$.contenido[1].id").value(r101.getId()))
@@ -163,13 +165,13 @@ class ReservaConsultaIT extends ReservaPruebaBase {
         var lunes = insertar(cliente, barbero, servicio, "2026-09-28", "00:00", EstadoReserva.CANCELADA);
         var domingo = insertar(cliente, barbero, servicio, "2026-10-04", "23:30", EstadoReserva.CONFIRMADA);
         insertar(cliente, barbero, servicio, "2026-10-05", "00:00", EstadoReserva.CONFIRMADA);
-        mvc.perform(get("/api/reservas").cookie(sesion(admin)).param("desde", "2026-09-28").param("hasta", "2026-10-04"))
+        mvc.perform(get(negocio("/api/reservas")).cookie(sesion(admin)).param("desde", "2026-09-28").param("hasta", "2026-10-04"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(5))
                 .andExpect(jsonPath("$.contenido[0].id").value(lunes.getId()))
                 .andExpect(jsonPath("$.contenido[4].id").value(domingo.getId()));
         var tarde = insertar(cliente, barbero, servicio, "2026-10-01", "23:30", EstadoReserva.CONFIRMADA);
         insertar(cliente, barbero, servicio, "2026-10-02", "00:00", EstadoReserva.CONFIRMADA);
-        for (String ruta : List.of("/api/reservas", "/api/reservas/mias")) {
+        for (String ruta : List.of(negocio("/api/reservas"), negocio("/api/reservas/mias"))) {
             mvc.perform(get(ruta).cookie(sesion(ruta.endsWith("mias") ? cliente : admin))
                     .param("desde", "2026-10-01").param("hasta", "2026-10-01"))
                     .andExpect(status().isOk()).andExpect(jsonPath(ruta.endsWith("mias") ? "$.contenido[1].id" : "$.contenido[3].id").value(tarde.getId()))
@@ -184,7 +186,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
                 .andExpect(jsonPath("$.permisos.cancelar").value(permitido))
                 .andExpect(jsonPath("$.permisos.reprogramar").value(permitido))
                 .andExpect(jsonPath("$.permisos.transiciones").isEmpty());
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("estado", "CONFIRMADA"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("estado", "CONFIRMADA"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].permisos.cancelar").value(permitido));
     }
 
@@ -213,11 +215,11 @@ class ReservaConsultaIT extends ReservaPruebaBase {
     }
 
     @Test void miasFiltrosOpcionalesEstadoDesdeHasta() throws Exception {
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("estado", "COMPLETADA"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("estado", "COMPLETADA"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].id").value(historial.getId()));
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("desde", "2026-10-01"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("desde", "2026-10-01"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1));
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("hasta", "2026-09-27"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("hasta", "2026-09-27"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1));
     }
 
@@ -229,7 +231,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
                     .andExpect(jsonPath("$.totalPaginas").value(2))
                     .andExpect(jsonPath("$.contenido.length()").value(pagina < 2 ? 2 : 0));
         }
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("tamano", "1").param("pagina", "1"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("tamano", "1").param("pagina", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(2))
                 .andExpect(jsonPath("$.totalPaginas").value(2)).andExpect(jsonPath("$.contenido[0].id").value(r101.getId()));
         mvc.perform(agenda(admin).param("clienteId", "999999")).andExpect(status().isOk())
@@ -238,30 +240,30 @@ class ReservaConsultaIT extends ReservaPruebaBase {
 
     @ParameterizedTest @CsvSource({"2026-01-01,2027-01-02", "2026-10-02,2026-10-01"})
     void rangoInvalido_400(String desde, String hasta) throws Exception {
-        mvc.perform(get("/api/reservas").cookie(sesion(admin)).param("desde", desde).param("hasta", hasta))
+        mvc.perform(get(negocio("/api/reservas")).cookie(sesion(admin)).param("desde", desde).param("hasta", hasta))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("RANGO_FECHAS_INVALIDO"));
     }
 
     @ParameterizedTest @ValueSource(strings = {"desde", "hasta", "ambas"})
     void faltanFechasObligatorias_400(String omitir) throws Exception {
-        var peticion = get("/api/reservas").cookie(sesion(admin));
+        var peticion = get(negocio("/api/reservas")).cookie(sesion(admin));
         if (omitir.equals("desde")) peticion.param("hasta", "2026-10-01");
         if (omitir.equals("hasta")) peticion.param("desde", "2026-10-01");
         mvc.perform(peticion).andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("RANGO_FECHAS_INVALIDO"));
     }
 
     @Test void limite366InclusivoSoloOperativoYRangoPropioInvertido() throws Exception {
-        mvc.perform(get("/api/reservas").cookie(sesion(admin)).param("desde", "2026-01-01").param("hasta", "2027-01-01"))
+        mvc.perform(get(negocio("/api/reservas")).cookie(sesion(admin)).param("desde", "2026-01-01").param("hasta", "2027-01-01"))
                 .andExpect(status().isOk());
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("desde", "2026-01-01").param("hasta", "2027-01-02"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("desde", "2026-01-01").param("hasta", "2027-01-02"))
                 .andExpect(status().isOk());
-        mvc.perform(get("/api/reservas/mias").cookie(sesion(cliente)).param("desde", "2026-10-02").param("hasta", "2026-10-01"))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(cliente)).param("desde", "2026-10-02").param("hasta", "2026-10-01"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("RANGO_FECHAS_INVALIDO"));
     }
 
     @ParameterizedTest @CsvSource({"pagina,-1", "tamano,0", "tamano,101", "pagina,texto", "estado,OTRO", "desde,01-10-2026", "hasta,2026-02-30"})
     void parametrosInvalidos_400(String parametro, String valor) throws Exception {
-        for (String ruta : List.of("/api/reservas", "/api/reservas/mias")) {
+        for (String ruta : List.of(negocio("/api/reservas"), negocio("/api/reservas/mias"))) {
             var peticion = get(ruta).cookie(sesion(ruta.endsWith("mias") ? cliente : admin));
             if (!parametro.equals("desde")) peticion.param("desde", "2026-10-01");
             if (!parametro.equals("hasta")) peticion.param("hasta", "2026-10-01");
@@ -272,14 +274,14 @@ class ReservaConsultaIT extends ReservaPruebaBase {
 
     @ParameterizedTest @ValueSource(strings = {"pagina", "tamano", "estado", "desde", "hasta", "barberoId", "servicioId", "clienteId"})
     void parametrosPresentesVacios_400(String parametro) throws Exception {
-        var peticion = get("/api/reservas").cookie(sesion(admin));
+        var peticion = get(negocio("/api/reservas")).cookie(sesion(admin));
         if (!parametro.equals("desde")) peticion.param("desde", "2026-10-01");
         if (!parametro.equals("hasta")) peticion.param("hasta", "2026-10-01");
         mvc.perform(peticion.param(parametro, " ")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
 
-    @ParameterizedTest @ValueSource(strings = {"/api/reservas", "/api/reservas/mias", "/api/reservas/101"})
+    @ParameterizedTest @ValueSource(strings = {"/api/n/barberturno/reservas", "/api/n/barberturno/reservas/mias", "/api/n/barberturno/reservas/101"})
     void sinSesion_401(String ruta) throws Exception {
         mvc.perform(get(ruta)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
     }
@@ -287,7 +289,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
     @Test void matrizRolesYPasswordTemporal() throws Exception {
         mvc.perform(agenda(cliente)).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
         for (var personal : List.of(admin, barbero.getUsuario())) {
-            mvc.perform(get("/api/reservas/mias").cookie(sesion(personal))).andExpect(status().isForbidden());
+            mvc.perform(get(negocio("/api/reservas/mias")).cookie(sesion(personal))).andExpect(status().isForbidden());
         }
         cliente.cambiarPassword("hash-ficticio-no-utilizable", true, reloj.instant());
         usuarios.saveAndFlush(cliente);
@@ -305,7 +307,7 @@ class ReservaConsultaIT extends ReservaPruebaBase {
             insertar(propietario, perfil, contratado, "2026-10-01", "12:00", EstadoReserva.CONFIRMADA);
         }
         for (var peticion : List.of(agenda(admin), agenda(barbero.getUsuario()),
-                get("/api/reservas/mias").cookie(sesion(cliente)))) {
+                get(negocio("/api/reservas/mias")).cookie(sesion(cliente)))) {
             SqlPruebas.limpiar();
             mvc.perform(peticion).andExpect(status().isOk());
             assertThat(SqlPruebas.sentencias().stream().filter(s -> s.startsWith("select id from negocio where slug="))).hasSize(1);

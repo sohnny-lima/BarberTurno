@@ -20,6 +20,7 @@ Una plataforma para varias barberías independientes, con datos separados por ne
 | 09 | [Costes](09-costes.md) | WhatsApp, IA, alojamiento y requisitos de Meta, con fuentes y supuestos |
 | 10 | [Backlog](10-backlog.md) | V2-01…V2-17 con dependencias y criterios, **recomendación de MVP** y **primera tarea (V2-01)** |
 | 11 | [V2-08 · Entrada de WhatsApp](11-v2-08-whatsapp-entrada.md) | Alcance, estado de P2-05, contrato de datos e interfaces, reparto Claude/Codex por archivos y criterios CH-1…CH-9 |
+| — | [Incidencias de v1](incidencias-v1.md) | Defectos de `main`/Azure detectados al trabajar en v2, registrados aparte y sin corregir desde v2 (INC-V1-01) |
 
 ## 3. Reglas de trabajo en v2
 - **Precedencia** (como v1): requisitos (`02`) > arquitectura (`04`, `05`, `07`) > backlog (`10`) > código. Lo que v2 no redefine se hereda de `docs/requisitos.md` y `docs/arquitectura.md`.

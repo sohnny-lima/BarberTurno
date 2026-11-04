@@ -1,5 +1,6 @@
+import { NegocioActual } from '../core/negocio/negocio-actual';
 import { CurrencyPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { ReservaDto } from '../core/modelos/reservas';
@@ -15,6 +16,7 @@ import { EstadoReservaChip } from './estado-reserva-chip';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReservaTarjeta {
+  readonly negocio = inject(NegocioActual);
   readonly reserva = input.required<ReservaDto>();
   readonly tique = input(false);
   readonly fecha = (instante: string, formato: 'larga' | 'dia' | 'numero' | 'mes' = 'larga') =>

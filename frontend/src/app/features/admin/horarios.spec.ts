@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -43,11 +44,12 @@ describe('Administración de horarios', () => {
     });
     TestBed.overrideProvider(MatDialog, { useValue: dialogos });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function preparar() {
     const fixture = TestBed.createComponent(Horarios);
-    http.expectOne('/api/barberos?incluirInactivos=true').flush([
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=true').flush([
       { id: 17, nombre: 'Ficticio A', activo: true },
       { id: 18, nombre: 'Ficticio B', activo: true },
       { id: 19, nombre: 'Ficticio C', activo: false },
@@ -55,8 +57,8 @@ describe('Administración de horarios', () => {
     const pagina = fixture.componentInstance;
     pagina.seleccion.setValue(17);
     pagina.cargarBarbero();
-    http.expectOne('/api/barberos/17/jornadas').flush(semana);
-    http.expectOne((r) => r.url === '/api/barberos/17/bloqueos').flush([bloqueo]);
+    http.expectOne('/api/n/prueba/barberos/17/jornadas').flush(semana);
+    http.expectOne((r) => r.url === '/api/n/prueba/barberos/17/bloqueos').flush([bloqueo]);
     fixture.detectChanges();
     return fixture;
   }
@@ -75,7 +77,7 @@ describe('Administración de horarios', () => {
     expect(f.nativeElement.querySelector('[role=status]').textContent).toBe('Procesando…');
     expect(f.nativeElement.querySelector('mat-select').getAttribute('aria-disabled')).toBe('true');
     http
-      .expectOne('/api/barberos?incluirInactivos=true')
+      .expectOne('/api/n/prueba/barberos?incluirInactivos=true')
       .flush([{ id: 17, nombre: 'Ficticio A', activo: true }]);
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
@@ -90,7 +92,7 @@ describe('Administración de horarios', () => {
   });
   it('conserva el vacío cuando no existen barberos', () => {
     const f = TestBed.createComponent(Horarios);
-    http.expectOne('/api/barberos?incluirInactivos=true').flush([]);
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=true').flush([]);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('No hay barberos para configurar.');
     expect(f.nativeElement.textContent).not.toContain('Elija un barbero');
@@ -143,7 +145,7 @@ describe('Administración de horarios', () => {
     cerrado.next(false);
     cerrado.complete();
     f.componentInstance.cargarBloqueos();
-    http.expectOne((r) => r.url === '/api/barberos/17/bloqueos').flush([]);
+    http.expectOne((r) => r.url === '/api/n/prueba/barberos/17/bloqueos').flush([]);
     f.detectChanges();
     expect(raiz.querySelector('.lista-bloqueos')?.textContent).toContain(
       'No hay bloqueos en el rango consultado.',
@@ -178,7 +180,7 @@ describe('Administración de horarios', () => {
     const p = f.componentInstance;
     p.guardarSemana();
     p.guardarSemana();
-    const r = http.expectOne('/api/barberos/17/jornadas');
+    const r = http.expectOne('/api/n/prueba/barberos/17/jornadas');
     expect(r.request.body).toEqual(semana);
     r.flush(semana.slice(0, 1));
     expect(p.editor.dto()).toEqual(semana.slice(0, 1));
@@ -188,12 +190,12 @@ describe('Administración de horarios', () => {
     const p = f.componentInstance;
     p.editor.delDia(1)[1].controls.horaInicio.setValue('12:00');
     p.guardarSemana();
-    http.expectNone('/api/barberos/17/jornadas');
+    http.expectNone('/api/n/prueba/barberos/17/jornadas');
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('solapados');
     p.editor.delDia(1)[1].controls.horaInicio.setValue('14:00');
     p.guardarSemana();
-    http.expectOne('/api/barberos/17/jornadas').flush(semana);
+    http.expectOne('/api/n/prueba/barberos/17/jornadas').flush(semana);
   });
   it.each(['[1].horaFin', '[1]'])(
     'asocia el 400 JORNADA_INVALIDA %s al intervalo correcto',
@@ -201,7 +203,7 @@ describe('Administración de horarios', () => {
       const f = preparar();
       const p = f.componentInstance;
       p.guardarSemana();
-      http.expectOne('/api/barberos/17/jornadas').flush(
+      http.expectOne('/api/n/prueba/barberos/17/jornadas').flush(
         {
           codigo: 'JORNADA_INVALIDA',
           detail: 'Revise los intervalos.',
@@ -220,7 +222,7 @@ describe('Administración de horarios', () => {
     const f = preparar();
     const p = f.componentInstance;
     p.guardarSemana();
-    http.expectOne('/api/barberos/17/jornadas').flush(
+    http.expectOne('/api/n/prueba/barberos/17/jornadas').flush(
       {
         codigo: 'CONFLICTO_CON_RESERVAS',
         detail: 'La jornada deja fuera reservas futuras.',
@@ -251,7 +253,9 @@ describe('Administración de horarios', () => {
     f.nativeElement
       .querySelector('[aria-labelledby="titulo-alta"] form')
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    const r = http.expectOne(todos ? '/api/bloqueos/lote' : '/api/barberos/17/bloqueos');
+    const r = http.expectOne(
+      todos ? '/api/n/prueba/bloqueos/lote' : '/api/n/prueba/barberos/17/bloqueos',
+    );
     expect(r.request.body).toEqual({
       inicio: '2026-10-05T16:00:00-05:00',
       fin: '2026-10-05T17:00:00-05:00',
@@ -259,7 +263,7 @@ describe('Administración de horarios', () => {
       ...(todos ? { barberoIds: [17, 18] } : {}),
     });
     r.flush(todos ? [bloqueo] : bloqueo);
-    http.expectOne((r) => r.url === '/api/barberos/17/bloqueos').flush([bloqueo]);
+    http.expectOne((r) => r.url === '/api/n/prueba/barberos/17/bloqueos').flush([bloqueo]);
     expect(p.alta.controls.motivo.value).toBe('');
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('mat-form-field.mat-form-field-invalid')).toHaveLength(
@@ -271,7 +275,7 @@ describe('Administración de horarios', () => {
     const p = f.componentInstance;
     alta(p, true);
     p.crearBloqueo();
-    http.expectOne('/api/bloqueos/lote').flush(
+    http.expectOne('/api/n/prueba/bloqueos/lote').flush(
       {
         codigo: 'CONFLICTO_CON_RESERVAS',
         reservas: { '17': [101], '18': [103, 104] },
@@ -291,7 +295,7 @@ describe('Administración de horarios', () => {
     alta(p, false);
     p.crearBloqueo();
     http
-      .expectOne('/api/barberos/17/bloqueos')
+      .expectOne('/api/n/prueba/barberos/17/bloqueos')
       .flush(
         { codigo: 'CONFLICTO_CON_RESERVAS', reservas: [101] },
         { status: 409, statusText: 'Conflict' },
@@ -300,7 +304,7 @@ describe('Administración de horarios', () => {
     expect(f.nativeElement.textContent).toContain('BT-101');
     p.crearBloqueo();
     http
-      .expectOne('/api/barberos/17/bloqueos')
+      .expectOne('/api/n/prueba/barberos/17/bloqueos')
       .flush(
         { codigo: 'VALIDACION', errores: [{ campo: 'fin', mensaje: 'Fin inválido.' }] },
         { status: 400, statusText: 'Bad Request' },
@@ -314,7 +318,9 @@ describe('Administración de horarios', () => {
     const p = f.componentInstance;
     p.rango.setValue({ desde: '2026-10-01', hasta: '2026-10-31' });
     p.cargarBloqueos();
-    const r = http.expectOne('/api/barberos/17/bloqueos?desde=2026-10-01&hasta=2026-10-31');
+    const r = http.expectOne(
+      '/api/n/prueba/barberos/17/bloqueos?desde=2026-10-01&hasta=2026-10-31',
+    );
     r.flush(
       { codigo: 'RANGO_FECHAS_INVALIDO', detail: 'Rango inválido.' },
       { status: 400, statusText: 'Bad Request' },
@@ -346,7 +352,7 @@ describe('Administración de horarios', () => {
       dialogos.open.mock.calls[1] as unknown as [unknown, { data: ConfirmarEstadoDatos }]
     )[1];
     config.data.cambiar().subscribe((n) => expect(n).toBe(0));
-    const r = http.expectOne('/api/bloqueos/4');
+    const r = http.expectOne('/api/n/prueba/bloqueos/4');
     expect(r.request.method).toBe('DELETE');
     r.flush(null, { status: 204, statusText: 'No Content' });
     cerrado.next(true);
@@ -358,9 +364,9 @@ describe('Administración de horarios', () => {
     p.seleccion.setValue(19);
     p.cargarBarbero();
     http
-      .expectOne('/api/barberos/19/jornadas')
+      .expectOne('/api/n/prueba/barberos/19/jornadas')
       .flush({ detail: 'No encontrado.' }, { status: 404, statusText: 'Not Found' });
-    http.expectOne((r) => r.url === '/api/barberos/19/bloqueos');
+    http.expectOne((r) => r.url === '/api/n/prueba/barberos/19/bloqueos');
     p.guardarSemana();
     expect(p.listo()).toBe(false);
     expect(p.editor.dto()).toEqual([]);
@@ -371,9 +377,9 @@ describe('Administración de horarios', () => {
     const p = f.componentInstance;
     alta(p, false);
     p.crearBloqueo();
-    http.expectOne('/api/barberos/17/bloqueos').flush(bloqueo);
+    http.expectOne('/api/n/prueba/barberos/17/bloqueos').flush(bloqueo);
     http
-      .expectOne((r) => r.url === '/api/barberos/17/bloqueos')
+      .expectOne((r) => r.url === '/api/n/prueba/barberos/17/bloqueos')
       .flush(null, { status: 503, statusText: 'Unavailable' });
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Bloqueo creado. No se pudo actualizar la lista');

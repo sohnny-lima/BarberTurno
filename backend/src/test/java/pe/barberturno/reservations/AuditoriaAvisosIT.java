@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -22,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Pruebas RF-16/17 y CP-18 con PostgreSQL, sesión real y reloj determinista. */
 @SpringBootTest(properties = {"barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
-        "barberturno.seguridad.cookie-secure=false", "pruebas.negocio-id=2", "barberturno.tenancy.alias-legado.slug=manual-b",
+        "barberturno.seguridad.cookie-secure=false", "pruebas.negocio-id=2", "pruebas.negocio-slug=manual-b",
         "spring.jpa.properties.hibernate.session_factory.statement_inspector=pe.barberturno.support.SqlPruebas"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
@@ -41,7 +43,7 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
         return jdbc.queryForObject("select id from notificacion where usuario_id=? order by id limit 1", Long.class, usuario.getId());
     }
     private void conteo(Usuario usuario, int cantidad) throws Exception {
-        mvc.perform(get("/api/notificaciones/conteo").cookie(sesion(usuario)))
+        mvc.perform(get(negocio("/api/notificaciones/conteo", "manual-b")).cookie(sesion(usuario)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.noLeidas").value(cantidad));
     }
 
@@ -52,18 +54,18 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
         var pendiente = crearHttp(cliente, cmd(barbero, "10:00"));
         var fechaCreacion = TiempoNegocio.aLima(reloj.instant());
         reloj.adelantar(Duration.ofMinutes(1));
-        mvc.perform(conCsrf(post("/api/reservas/{id}/transiciones", pendiente.id()).contentType("application/json")
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/transiciones", "manual-b"), pendiente.id()).contentType("application/json")
                 .content("{\"estado\":\"CONFIRMADA\",\"version\":0}"), sesion(confirmador))).andExpect(status().isOk());
         var fechaConfirmacion = TiempoNegocio.aLima(reloj.instant());
         reloj.adelantar(Duration.ofMinutes(1));
-        mvc.perform(conCsrf(post("/api/reservas/{id}/cancelacion", pendiente.id()).contentType("application/json")
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/cancelacion", "manual-b"), pendiente.id()).contentType("application/json")
                 .content("{\"version\":1,\"motivo\":\"Cambio de planes\"}"), sesion(cliente))).andExpect(status().isOk());
         var fechas = List.of(fechaCreacion, fechaConfirmacion, TiempoNegocio.aLima(reloj.instant()));
         var acciones = List.of("CREAR", "CONFIRMAR", "CANCELAR");
         var nombres = List.of(cliente.getNombre(), confirmador.getNombre(), cliente.getNombre());
         var estados = List.of("PENDIENTE", "CONFIRMADA", "CANCELADA");
         for (var personal : List.of(administrador, barbero.getUsuario())) {
-            var historia = json.readTree(mvc.perform(get("/api/reservas/{id}/auditoria", pendiente.id()).cookie(sesion(personal)))
+            var historia = json.readTree(mvc.perform(get(negocio("/api/reservas/{id}/auditoria", "manual-b"), pendiente.id()).cookie(sesion(personal)))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
             assertThat(historia.size()).isEqualTo(3);
             for (int i = 0; i < 3; i++) {
@@ -92,7 +94,7 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
         var tiposBarbero = confirmaAdmin ? tiposCliente : List.of("CANCELAR", "CREAR");
         for (var destinatario : List.of(cliente, barbero.getUsuario())) {
             var tipos = destinatario == cliente ? tiposCliente : tiposBarbero;
-            var contenido = json.readTree(mvc.perform(get("/api/notificaciones").cookie(sesion(destinatario)))
+            var contenido = json.readTree(mvc.perform(get(negocio("/api/notificaciones", "manual-b")).cookie(sesion(destinatario)))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(tipos.size()))
                     .andReturn().getResponse().getContentAsString()).get("contenido");
             for (int i = 0; i < tipos.size(); i++) {
@@ -117,7 +119,7 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
             case "propietario" -> cliente; case "clienteAjeno" -> datos.cliente("ajeno");
             case "barberoAjeno" -> perfil("otro").getUsuario(); case "asignado" -> barbero.getUsuario(); default -> admin();
         };
-        var resultado = mvc.perform(get("/api/reservas/{id}/auditoria", dto.id()).cookie(sesion(actor))).andExpect(status().is(http));
+        var resultado = mvc.perform(get(negocio("/api/reservas/{id}/auditoria", "manual-b"), dto.id()).cookie(sesion(actor))).andExpect(status().is(http));
         if (codigo != null) {
             resultado.andExpect(jsonPath("$.codigo").value(codigo));
             assertThatThrownBy(() -> consultas.auditoria(actor(actor), dto.id()))
@@ -126,22 +128,22 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
     }
     @ParameterizedTest @EnumSource(Rol.class)
     void auditoria_inexistente404ParaTodos(Rol rol) throws Exception {
-        mvc.perform(get("/api/reservas/999999/auditoria").cookie(sesion(usuario(rol))))
+        mvc.perform(get(negocio("/api/reservas/999999/auditoria", "manual-b")).cookie(sesion(usuario(rol))))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
     }
     @Test void auditoria_sinHistorialDevuelveListaVacia() throws Exception {
         var dto = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante("10:00"), EstadoReserva.PENDIENTE, cliente, reloj.instant()));
-        mvc.perform(get("/api/reservas/{id}/auditoria", dto.getId()).cookie(sesion(barbero.getUsuario())))
+        mvc.perform(get(negocio("/api/reservas/{id}/auditoria", "manual-b"), dto.getId()).cookie(sesion(barbero.getUsuario())))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
     }
     @Test void auditoria_empateDeFechaOrdenaPorIdentidadYExponeExcepcion() throws Exception {
         var dto = crearHttp(cliente, cmd(barbero, "10:00"));
         reloj.adelantar(Duration.between(reloj.instant(), instante("09:00")));
         var administrador = admin();
-        mvc.perform(conCsrf(post("/api/reservas/{id}/cancelacion", dto.id()).contentType("application/json")
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/cancelacion", "manual-b"), dto.id()).contentType("application/json")
                 .content("{\"version\":0,\"motivo\":\"Excepción administrativa\"}"), sesion(administrador))).andExpect(status().isOk());
         jdbc.update("update auditoria_reserva set creado_en=? where reserva_id=?", java.sql.Timestamp.from(reloj.instant()), dto.id());
-        mvc.perform(get("/api/reservas/{id}/auditoria", dto.id()).cookie(sesion(administrador)))
+        mvc.perform(get(negocio("/api/reservas/{id}/auditoria", "manual-b"), dto.id()).cookie(sesion(administrador)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].accion").value("CREAR"))
                 .andExpect(jsonPath("$[1].accion").value("CANCELAR"))
                 .andExpect(jsonPath("$[1].motivo").value("Excepción administrativa"))
@@ -151,10 +153,10 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
     @Test void cp18_clienteANoPuedeMarcarAvisoDeB_404SinCambios() throws Exception {
         crearHttp(cliente, cmd(barbero, "10:00"));
         var otro = datos.cliente("otro"); crearHttp(otro, cmd(barbero, "11:00"));
-        mvc.perform(conCsrf(post("/api/notificaciones/{id}/lectura", aviso(otro)), sesion(cliente)))
+        mvc.perform(conCsrf(post(negocio("/api/notificaciones/{id}/lectura", "manual-b"), aviso(otro)), sesion(cliente)))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
         conteo(cliente, 1); conteo(otro, 1);
-        mvc.perform(get("/api/notificaciones").param("usuarioId", otro.getId().toString()).cookie(sesion(cliente)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("usuarioId", otro.getId().toString()).cookie(sesion(cliente)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1))
                 .andExpect(jsonPath("$.contenido[0].id").value(aviso(cliente)));
     }
@@ -165,62 +167,62 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
         if (rol == Rol.ADMIN) jdbc.update("update notificacion set usuario_id=? where usuario_id=?", destinatario.getId(), cliente.getId());
         conteo(destinatario, 2);
         var id = aviso(destinatario);
-        for (int i = 0; i < 2; i++) mvc.perform(conCsrf(post("/api/notificaciones/{id}/lectura", id), sesion(destinatario)))
+        for (int i = 0; i < 2; i++) mvc.perform(conCsrf(post(negocio("/api/notificaciones/{id}/lectura", "manual-b"), id), sesion(destinatario)))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
         conteo(destinatario, 1);
-        mvc.perform(get("/api/notificaciones").param("soloNoLeidas", "true").cookie(sesion(destinatario)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("soloNoLeidas", "true").cookie(sesion(destinatario)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1)).andExpect(jsonPath("$.contenido[0].leida").value(false));
-        mvc.perform(get("/api/notificaciones").param("soloNoLeidas", "false").cookie(sesion(destinatario)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("soloNoLeidas", "false").cookie(sesion(destinatario)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(2));
-        for (int i = 0; i < 2; i++) mvc.perform(conCsrf(post("/api/notificaciones/lectura"), sesion(destinatario)))
+        for (int i = 0; i < 2; i++) mvc.perform(conCsrf(post(negocio("/api/notificaciones/lectura", "manual-b")), sesion(destinatario)))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
         conteo(destinatario, 0); conteo(rol == Rol.BARBERO ? cliente : barbero.getUsuario(), 2);
-        mvc.perform(get("/api/notificaciones").param("soloNoLeidas", "true").cookie(sesion(destinatario)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("soloNoLeidas", "true").cookie(sesion(destinatario)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido").isEmpty());
-        mvc.perform(get("/api/notificaciones").cookie(sesion(destinatario))).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).cookie(sesion(destinatario))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.contenido[*].leida").value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is(true))));
     }
     @ParameterizedTest @EnumSource(Rol.class)
     void avisos_sinAvisosContadorCeroYLecturaTodas204(Rol rol) throws Exception {
         var destinatario = usuario(rol); conteo(destinatario, 0);
-        mvc.perform(get("/api/notificaciones").cookie(sesion(destinatario)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).cookie(sesion(destinatario)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido").isEmpty())
                 .andExpect(jsonPath("$.pagina").value(0)).andExpect(jsonPath("$.tamano").value(20))
                 .andExpect(jsonPath("$.totalElementos").value(0)).andExpect(jsonPath("$.totalPaginas").value(0));
-        mvc.perform(conCsrf(post("/api/notificaciones/lectura"), sesion(destinatario))).andExpect(status().isNoContent());
-        mvc.perform(conCsrf(post("/api/notificaciones/999999/lectura"), sesion(destinatario)))
+        mvc.perform(conCsrf(post(negocio("/api/notificaciones/lectura", "manual-b")), sesion(destinatario))).andExpect(status().isNoContent());
+        mvc.perform(conCsrf(post(negocio("/api/notificaciones/999999/lectura", "manual-b")), sesion(destinatario)))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
     }
     @Test void paginacion_ordenDescendenteYDesempateSinDuplicados() throws Exception {
         crearHttp(cliente, cmd(barbero, "10:00")); crearHttp(cliente, cmd(barbero, "11:00"));
         reloj.adelantar(Duration.ofMinutes(1)); crearHttp(cliente, cmd(barbero, "12:00"));
         var ids = jdbc.queryForList("select id from notificacion where usuario_id=? order by creado_en desc,id desc", Long.class, cliente.getId());
-        for (int pagina = 0; pagina < 3; pagina++) mvc.perform(get("/api/notificaciones").param("pagina", Integer.toString(pagina))
+        for (int pagina = 0; pagina < 3; pagina++) mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("pagina", Integer.toString(pagina))
                 .param("tamano", "1").cookie(sesion(cliente))).andExpect(status().isOk()).andExpect(jsonPath("$.pagina").value(pagina))
                 .andExpect(jsonPath("$.tamano").value(1)).andExpect(jsonPath("$.totalElementos").value(3))
                 .andExpect(jsonPath("$.totalPaginas").value(3)).andExpect(jsonPath("$.contenido.length()").value(1))
                 .andExpect(jsonPath("$.contenido[0].id").value(ids.get(pagina)));
-        mvc.perform(get("/api/notificaciones").param("pagina", "3").param("tamano", "1").cookie(sesion(cliente)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("pagina", "3").param("tamano", "1").cookie(sesion(cliente)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido").isEmpty()).andExpect(jsonPath("$.totalElementos").value(3));
-        mvc.perform(get("/api/notificaciones").param("tamano", "100").cookie(sesion(cliente)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param("tamano", "100").cookie(sesion(cliente)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido.length()").value(3));
     }
     @ParameterizedTest @CsvSource({"pagina,-1", "tamano,0", "tamano,101", "pagina,abc", "tamano,abc", "soloNoLeidas,abc",
             "pagina,''", "tamano,''", "soloNoLeidas,''"})
     void paginacion_parametrosInvalidos400(String parametro, String valor) throws Exception {
-        mvc.perform(get("/api/notificaciones").param(parametro, valor).cookie(sesion(cliente)))
+        mvc.perform(get(negocio("/api/notificaciones", "manual-b")).param(parametro, valor).cookie(sesion(cliente)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
     @Test void contador_utilizaCountSinCargarEntidadesYExisteIndice() throws Exception {
         crearHttp(cliente, cmd(barbero, "10:00")); var cookie = sesion(cliente); SqlPruebas.limpiar();
-        mvc.perform(get("/api/notificaciones/conteo").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.noLeidas").value(1));
+        mvc.perform(get(negocio("/api/notificaciones/conteo", "manual-b")).cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.noLeidas").value(1));
         var sqlAvisos = SqlPruebas.sentencias().stream().filter(s -> s.contains("from notificacion")).toList();
         assertThat(sqlAvisos).hasSize(1); assertThat(sqlAvisos.getFirst()).contains("select count(", "usuario_id", "leida");
         assertThat(jdbc.queryForObject("select indexdef from pg_indexes where schemaname='public' and indexname='notificacion_usuario_ix'", String.class))
                 .contains("usuario_id, leida, creado_en DESC");
     }
-    @ParameterizedTest @ValueSource(strings = {"/api/reservas/999999/auditoria", "/api/notificaciones", "/api/notificaciones/conteo",
-            "/api/notificaciones/999999/lectura", "/api/notificaciones/lectura"})
+    @ParameterizedTest @ValueSource(strings = {"/api/n/barberturno/reservas/999999/auditoria", "/api/n/barberturno/notificaciones", "/api/n/barberturno/notificaciones/conteo",
+            "/api/n/barberturno/notificaciones/999999/lectura", "/api/n/barberturno/notificaciones/lectura"})
     void sinSesion401(String ruta) throws Exception {
         var peticion = ruta.endsWith("lectura") ? conCsrf(post(ruta), new Cookie("BT_SESION", "")) : get(ruta);
         mvc.perform(peticion).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
@@ -228,7 +230,7 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
     @ParameterizedTest @CsvSource({"CLIENTE,false", "CLIENTE,true", "BARBERO,false", "BARBERO,true", "ADMIN,false", "ADMIN,true"})
     void escrituras_sesionValidaSinCsrfOIncorrecto403(Rol rol, boolean incorrecto) throws Exception {
         crearHttp(cliente, cmd(barbero, "10:00")); var destinatario = usuario(rol);
-        for (var ruta : List.of("/api/notificaciones/" + aviso(cliente) + "/lectura", "/api/notificaciones/lectura")) {
+        for (var ruta : List.of(negocio("/api/notificaciones/", "manual-b") + aviso(cliente) + "/lectura", negocio("/api/notificaciones/lectura", "manual-b"))) {
             var peticion = post(ruta).cookie(sesion(destinatario));
             if (incorrecto) peticion.cookie(new Cookie("XSRF-TOKEN", "valor-correcto")).header("X-XSRF-TOKEN", "valor-incorrecto");
             mvc.perform(peticion).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
@@ -239,7 +241,7 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
     void contraseñaTemporal_rechazaAmbasEscrituras403(Rol rol) throws Exception {
         crearHttp(cliente, cmd(barbero, "10:00")); var destinatario = usuario(rol);
         destinatario.cambiarPassword("hash-ficticio-temporal", true, reloj.instant()); usuarios.saveAndFlush(destinatario);
-        for (var ruta : List.of("/api/notificaciones/" + aviso(cliente) + "/lectura", "/api/notificaciones/lectura"))
+        for (var ruta : List.of(negocio("/api/notificaciones/", "manual-b") + aviso(cliente) + "/lectura", negocio("/api/notificaciones/lectura", "manual-b")))
             mvc.perform(conCsrf(post(ruta), sesion(destinatario))).andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         assertThat(jdbc.queryForObject("select count(*) from notificacion where leida", Integer.class)).isZero();

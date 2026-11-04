@@ -1,0 +1,241 @@
+# Segunda ejecución E2E completa (27/10/2026) con las correcciones de accesibilidad y el arnés de contención y contraste, ANTES de corregir el salto al contenido (saltarAlContenido). Extracto sin modificar de frontend/tmp/claude-27b-e2e.log.
+# Resultado: 66 passed, 2 failed (recorrido 13 a 360 px: tras activar el salto con el menú abierto la página quedó en /negocios) y los recorridos 14-21 de esos dos proyectos sin ejecutar (dependen en serie del 13).
+
+
+> frontend@0.0.0 e2e
+> powershell -NoProfile -ExecutionPolicy Bypass -File e2e/ejecutar.ps1
+
+
+> frontend@0.0.0 build
+> ng build
+
+> Building...
+√ Building...
+Initial chunk files | Names         |  Raw size | Estimated transfer size
+chunk-DdOxG7pu.js   | -             | 230.49 kB |                66.36 kB
+main-JM7J76E4.js    | main          | 157.45 kB |                37.69 kB
+chunk-3_hIsVhP.js   | -             |  89.78 kB |                17.34 kB
+styles-4F6C34XE.css | styles        |  18.63 kB |                 3.59 kB
+chunk-WYaZXuRY.js   | -             |   3.02 kB |                 1.16 kB
+
+                    | Initial total | 499.36 kB |               126.13 kB
+
+Lazy chunk files    | Names         |  Raw size | Estimated transfer size
+chunk-szHHreFr.js   | reservar      | 198.30 kB |                39.81 kB
+chunk-CdbMJiSW.js   | -             |  62.34 kB |                10.02 kB
+chunk-B4ZJ7mVI.js   | shell         |  51.11 kB |                11.26 kB
+chunk-CHoLSd2E.js   | -             |  44.52 kB |                 9.28 kB
+chunk-D6MFMRFz.js   | agenda        |  42.56 kB |                10.12 kB
+chunk-CNd6mHvK.js   | -             |  42.28 kB |                 9.33 kB
+chunk-C9ufWB_2.js   | -             |  40.50 kB |                 9.45 kB
+chunk-11c4CpMG.js   | -             |  30.12 kB |                 7.11 kB
+chunk-DHRPCBdt.js   | -             |  29.25 kB |                 4.87 kB
+chunk-BVxFaBQF.js   | -             |  26.67 kB |                 5.96 kB
+chunk-9-AxGHGH.js   | -             |  26.39 kB |                 4.44 kB
+chunk-Vg4EYSDQ.js   | -             |  25.74 kB |                 6.91 kB
+chunk-CtaLXBQG.js   | -             |  25.08 kB |                 5.19 kB
+chunk-7oaBuv_t.js   | horarios      |  22.56 kB |                 6.51 kB
+chunk-ZPnwe61I.js   | reportes      |  21.47 kB |                 5.88 kB
+...and 56 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [19.127 seconds] - 2026-10-27T08:14:16.225Z
+
+Output location: D:\Proyectos\BarberTurno-v2\frontend\dist\frontend
+
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< pe.barberturno:barberturno >---------------------
+[INFO] Building BarberTurno 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.5.0:clean (default-clean) @ barberturno ---
+[INFO] Deleting D:\Proyectos\BarberTurno-v2\backend\target
+[INFO] 
+[INFO] --- dependency:3.10.0:properties (rutas-de-dependencias) @ barberturno ---
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (prepare-agent) @ barberturno ---
+[INFO] argLine set to -javaagent:C:\\Users\\limas\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.15\\org.jacoco.agent-0.8.15-runtime.jar=destfile=D:\\Proyectos\\BarberTurno-v2\\backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- exec:3.6.4:exec (frontend-instalar) @ barberturno ---
+[INFO] skipping execute as per configuration
+[INFO] 
+[INFO] --- exec:3.6.4:exec (frontend-compilar) @ barberturno ---
+[INFO] skipping execute as per configuration
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ barberturno ---
+[INFO] Copying 5 resources from src\main\resources to target\classes
+[INFO] Copying 15 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (frontend-empaquetar) @ barberturno ---
+[INFO] Copying 83 resources from ..\frontend\dist\frontend\browser to target\classes\static
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ barberturno ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 171 source files with javac [debug parameters release 21] to target\classes
+[INFO] /D:/Proyectos/BarberTurno-v2/backend/src/main/java/pe/barberturno/reporting/ReporteRepository.java: Some input files use or override a deprecated API.
+[INFO] /D:/Proyectos/BarberTurno-v2/backend/src/main/java/pe/barberturno/reporting/ReporteRepository.java: Recompile with -Xlint:deprecation for details.
+[INFO] /D:/Proyectos/BarberTurno-v2/backend/src/main/java/pe/barberturno/common/tenancy/DirectorioNegocios.java: D:\Proyectos\BarberTurno-v2\backend\src\main\java\pe\barberturno\common\tenancy\DirectorioNegocios.java uses unchecked or unsafe operations.
+[INFO] /D:/Proyectos/BarberTurno-v2/backend/src/main/java/pe/barberturno/common/tenancy/DirectorioNegocios.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ barberturno ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ barberturno ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 120 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /D:/Proyectos/BarberTurno-v2/backend/src/test/java/pe/barberturno/common/tenancy/RutasServidorRealIT.java: Some input files use or override a deprecated API.
+[INFO] /D:/Proyectos/BarberTurno-v2/backend/src/test/java/pe/barberturno/common/tenancy/RutasServidorRealIT.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ barberturno ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.5.1:jar (default-jar) @ barberturno ---
+[INFO] Building jar: D:\Proyectos\BarberTurno-v2\backend\target\barberturno-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] --- spring-boot:4.1.1:repackage (repackage) @ barberturno ---
+[INFO] Replacing main artifact D:\Proyectos\BarberTurno-v2\backend\target\barberturno-0.0.1-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to D:\Proyectos\BarberTurno-v2\backend\target\barberturno-0.0.1-SNAPSHOT.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  27.641 s
+[INFO] Finished at: 2026-10-27T03:14:50-05:00
+[INFO] ------------------------------------------------------------------------
+Base E2E: barberturno_v2_test; limpieza antes y después de cada proyecto.
+
+Running 84 tests using 1 worker
+
+  ok  1 [chromium-1440] › e2e\recorrido.spec.ts:272:5 › 01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela (12.8s)
+  ok  2 [chromium-1440] › e2e\recorrido.spec.ts:454:5 › 02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas (1.6s)
+  ok  3 [chromium-1440] › e2e\recorrido.spec.ts:474:5 › 03 · Carlos inicia y completa la atención y confirma BT-100 en Semana (6.5s)
+  ok  4 [chromium-1440] › e2e\recorrido.spec.ts:533:5 › 04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes (25.5s)
+  ok  5 [chromium-1440] › e2e\recorrido.spec.ts:913:5 › 05 · cliente redirigido de administración y protegido después de logout (1.9s)
+  ok  6 [chromium-1440] › e2e\recorrido.spec.ts:925:5 › 06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad (7.6s)
+  ok  7 [chromium-1440] › e2e\recorrido.spec.ts:972:5 › 07 · registro con privacidad y edición persistente del perfil (CP-01) (3.0s)
+  ok  8 [chromium-1440] › e2e\recorrido.spec.ts:1059:5 › 08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso (9.1s)
+  ok  9 [chromium-1440] › e2e\recorrido.spec.ts:1224:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF (2.6s)
+  ok 10 [chromium-1440] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (7.1s)
+  ok 11 [chromium-1440] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (4.1s)
+  ok 12 [chromium-1440] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (8.8s)
+  ok 13 [chromium-1440] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (5.8s)
+  ok 14 [chromium-1440] › e2e\recorrido.spec.ts:1559:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal (5.6s)
+  ok 15 [chromium-1440] › e2e\recorrido.spec.ts:1617:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior (2.0s)
+  ok 16 [chromium-1440] › e2e\recorrido.spec.ts:1644:5 › 16 · logout y reingreso vacían el negocio y el papel anterior (2.3s)
+  ok 17 [chromium-1440] › e2e\recorrido.spec.ts:1680:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada (18.3s)
+  ok 18 [chromium-1440] › e2e\recorrido.spec.ts:1787:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente (9.2s)
+  ok 19 [chromium-1440] › e2e\recorrido.spec.ts:1813:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente (4.7s)
+  ok 20 [chromium-1440] › e2e\recorrido.spec.ts:1854:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez (10.2s)
+  ok 21 [chromium-1440] › e2e\recorrido.spec.ts:1934:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación (8.8s)
+  ok 22 [chromium-360] › e2e\recorrido.spec.ts:272:5 › 01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela (13.2s)
+  ok 23 [chromium-360] › e2e\recorrido.spec.ts:454:5 › 02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas (2.0s)
+  ok 24 [chromium-360] › e2e\recorrido.spec.ts:474:5 › 03 · Carlos inicia y completa la atención y confirma BT-100 en Semana (6.0s)
+  ok 25 [chromium-360] › e2e\recorrido.spec.ts:533:5 › 04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes (23.7s)
+  ok 26 [chromium-360] › e2e\recorrido.spec.ts:913:5 › 05 · cliente redirigido de administración y protegido después de logout (2.5s)
+  ok 27 [chromium-360] › e2e\recorrido.spec.ts:925:5 › 06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad (10.5s)
+  ok 28 [chromium-360] › e2e\recorrido.spec.ts:972:5 › 07 · registro con privacidad y edición persistente del perfil (CP-01) (3.3s)
+  ok 29 [chromium-360] › e2e\recorrido.spec.ts:1059:5 › 08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso (10.4s)
+  ok 30 [chromium-360] › e2e\recorrido.spec.ts:1224:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF (2.5s)
+  ok 31 [chromium-360] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (8.1s)
+  ok 32 [chromium-360] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (4.1s)
+  ok 33 [chromium-360] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (9.1s)
+  x  34 [chromium-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (2.0m)
+  -  35 [chromium-360] › e2e\recorrido.spec.ts:1559:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal
+  -  36 [chromium-360] › e2e\recorrido.spec.ts:1617:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior
+  -  37 [chromium-360] › e2e\recorrido.spec.ts:1644:5 › 16 · logout y reingreso vacían el negocio y el papel anterior
+  -  38 [chromium-360] › e2e\recorrido.spec.ts:1680:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada
+  -  39 [chromium-360] › e2e\recorrido.spec.ts:1787:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente
+  -  40 [chromium-360] › e2e\recorrido.spec.ts:1813:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente
+  -  41 [chromium-360] › e2e\recorrido.spec.ts:1854:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez
+  -  42 [chromium-360] › e2e\recorrido.spec.ts:1934:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación
+  ok 43 [firefox-1440] › e2e\recorrido.spec.ts:272:5 › 01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela (21.2s)
+  ok 44 [firefox-1440] › e2e\recorrido.spec.ts:454:5 › 02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas (3.3s)
+  ok 45 [firefox-1440] › e2e\recorrido.spec.ts:474:5 › 03 · Carlos inicia y completa la atención y confirma BT-100 en Semana (9.8s)
+  ok 46 [firefox-1440] › e2e\recorrido.spec.ts:533:5 › 04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes (37.5s)
+  ok 47 [firefox-1440] › e2e\recorrido.spec.ts:913:5 › 05 · cliente redirigido de administración y protegido después de logout (2.6s)
+  ok 48 [firefox-1440] › e2e\recorrido.spec.ts:925:5 › 06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad (9.1s)
+  ok 49 [firefox-1440] › e2e\recorrido.spec.ts:972:5 › 07 · registro con privacidad y edición persistente del perfil (CP-01) (6.3s)
+  ok 50 [firefox-1440] › e2e\recorrido.spec.ts:1059:5 › 08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso (15.4s)
+  ok 51 [firefox-1440] › e2e\recorrido.spec.ts:1224:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF (4.4s)
+  ok 52 [firefox-1440] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (10.2s)
+  ok 53 [firefox-1440] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (7.9s)
+  ok 54 [firefox-1440] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (17.6s)
+  ok 55 [firefox-1440] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (8.1s)
+  ok 56 [firefox-1440] › e2e\recorrido.spec.ts:1559:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal (7.5s)
+  ok 57 [firefox-1440] › e2e\recorrido.spec.ts:1617:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior (4.8s)
+  ok 58 [firefox-1440] › e2e\recorrido.spec.ts:1644:5 › 16 · logout y reingreso vacían el negocio y el papel anterior (4.1s)
+  ok 59 [firefox-1440] › e2e\recorrido.spec.ts:1680:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada (32.9s)
+  ok 60 [firefox-1440] › e2e\recorrido.spec.ts:1787:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente (10.6s)
+  ok 61 [firefox-1440] › e2e\recorrido.spec.ts:1813:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente (8.5s)
+  ok 62 [firefox-1440] › e2e\recorrido.spec.ts:1854:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez (17.0s)
+  ok 63 [firefox-1440] › e2e\recorrido.spec.ts:1934:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación (14.4s)
+  ok 64 [firefox-360] › e2e\recorrido.spec.ts:272:5 › 01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela (20.9s)
+  ok 65 [firefox-360] › e2e\recorrido.spec.ts:454:5 › 02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de dos horas (2.2s)
+  ok 66 [firefox-360] › e2e\recorrido.spec.ts:474:5 › 03 · Carlos inicia y completa la atención y confirma BT-100 en Semana (7.6s)
+  ok 67 [firefox-360] › e2e\recorrido.spec.ts:533:5 › 04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes (32.9s)
+  ok 68 [firefox-360] › e2e\recorrido.spec.ts:913:5 › 05 · cliente redirigido de administración y protegido después de logout (2.6s)
+  ok 69 [firefox-360] › e2e\recorrido.spec.ts:925:5 › 06 · dos contextos disputan la misma franja y el perdedor recarga la disponibilidad (10.8s)
+  ok 70 [firefox-360] › e2e\recorrido.spec.ts:972:5 › 07 · registro con privacidad y edición persistente del perfil (CP-01) (7.0s)
+  ok 71 [firefox-360] › e2e\recorrido.spec.ts:1059:5 › 08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso (24.5s)
+  ok 72 [firefox-360] › e2e\recorrido.spec.ts:1224:5 › 09 · salir y volver a entrar sin recargar renueva el token CSRF (4.2s)
+  ok 73 [firefox-360] › e2e\recorrido.spec.ts:1268:5 › 10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos (11.4s)
+  ok 74 [firefox-360] › e2e\recorrido.spec.ts:1319:5 › 11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario (6.3s)
+  ok 75 [firefox-360] › e2e\recorrido.spec.ts:1383:5 › 12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px (16.0s)
+  x  76 [firefox-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior (2.0m)
+  -  77 [firefox-360] › e2e\recorrido.spec.ts:1559:5 › 14 · personal y cliente elige papel, reserva como cliente y vuelve al personal
+  -  78 [firefox-360] › e2e\recorrido.spec.ts:1617:5 › 15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior
+  -  79 [firefox-360] › e2e\recorrido.spec.ts:1644:5 › 16 · logout y reingreso vacían el negocio y el papel anterior
+  -  80 [firefox-360] › e2e\recorrido.spec.ts:1680:5 › 17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada
+  -  81 [firefox-360] › e2e\recorrido.spec.ts:1787:5 › 18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente
+  -  82 [firefox-360] › e2e\recorrido.spec.ts:1813:5 › 19 · configuración real aplica el horizonte en la siguiente petición del cliente
+  -  83 [firefox-360] › e2e\recorrido.spec.ts:1854:5 › 20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez
+  -  84 [firefox-360] › e2e\recorrido.spec.ts:1934:5 › 21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación
+
+
+  1) [chromium-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior 
+
+    Test timeout of 120000ms exceeded.
+
+    Error: locator.click: Test timeout of 120000ms exceeded.
+    Call log:
+      - waiting for getByRole('combobox', { name: 'Barbero', exact: true })
+
+
+      181 |     return;
+      182 |   }
+    > 183 |   await page.getByRole('combobox', { name: etiqueta, exact: true }).click();
+          |                                                                     ^
+      184 |   await page.getByRole('option', { name: opcion, exact: true }).click();
+      185 | }
+      186 |
+        at seleccionar (D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:183:69)
+        at D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:1494:9
+
+    Error Context: test-results\recorrido-13-·-selector-y--e6ba9-cancelan-el-ámbito-anterior-chromium-360\error-context.md
+
+  2) [firefox-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior 
+
+    Test timeout of 120000ms exceeded.
+
+    Error: locator.click: Test timeout of 120000ms exceeded.
+    Call log:
+      - waiting for getByRole('combobox', { name: 'Barbero', exact: true })
+
+
+      181 |     return;
+      182 |   }
+    > 183 |   await page.getByRole('combobox', { name: etiqueta, exact: true }).click();
+          |                                                                     ^
+      184 |   await page.getByRole('option', { name: opcion, exact: true }).click();
+      185 | }
+      186 |
+        at seleccionar (D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:183:69)
+        at D:\Proyectos\BarberTurno-v2\frontend\e2e\recorrido.spec.ts:1494:9
+
+    Error Context: test-results\recorrido-13-·-selector-y--e6ba9-cancelan-el-ámbito-anterior-firefox-360\error-context.md
+
+  2 failed
+    [chromium-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior 
+    [firefox-360] › e2e\recorrido.spec.ts:1464:5 › 13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior 
+  16 did not run
+  66 passed (16.5m)

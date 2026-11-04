@@ -1,5 +1,7 @@
 package pe.barberturno.catalog;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -81,8 +83,8 @@ class ServicioIT {
         escribir("PATCH", id, sesion, Map.of("activo", false)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.activo").value(false));
         assertThat(servicios.findById(id).orElseThrow().getActualizadoEn()).isEqualTo(reloj.instant());
-        mvc.perform(get("/api/servicios")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
-        mvc.perform(get("/api/servicios").cookie(sesion).param("incluirInactivos", "true"))
+        mvc.perform(get(negocio("/api/servicios"))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get(negocio("/api/servicios")).cookie(sesion).param("incluirInactivos", "true"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
 
         escribir("PUT", id, sesion, datos("Corte inactivo", 50, "0"))
@@ -93,7 +95,7 @@ class ServicioIT {
         Servicio reactivado = servicios.findById(id).orElseThrow();
         assertThat(reactivado.getActualizadoEn()).isEqualTo(reloj.instant());
         assertThat(reactivado.getPrecio()).isEqualByComparingTo("0.00");
-        mvc.perform(get("/api/servicios")).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
+        mvc.perform(get(negocio("/api/servicios"))).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
         assertThat(servicios.count()).isEqualTo(1);
     }
 
@@ -105,12 +107,12 @@ class ServicioIT {
         z.desactivar(reloj.instant());
         servicios.saveAndFlush(z);
         Cookie sesion = actor.equals("PUBLICO") ? null : login(Rol.valueOf(actor), false);
-        var normal = get("/api/servicios");
+        var normal = get(negocio("/api/servicios"));
         if (sesion != null) normal.cookie(sesion);
         mvc.perform(normal).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].nombre").value("alfa"))
                 .andExpect(jsonPath("$[1].nombre").value("Beta"));
-        var ampliado = get("/api/servicios").param("incluirInactivos", "true");
+        var ampliado = get(negocio("/api/servicios")).param("incluirInactivos", "true");
         if (sesion != null) ampliado.cookie(sesion);
         mvc.perform(ampliado).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(actor.equals("ADMIN") ? 3 : 2))
@@ -246,7 +248,7 @@ class ServicioIT {
         Servicio servicio = guardar("Corte");
         var anterior = filaServicio(servicio.getId());
         Cookie sesion = login(Rol.ADMIN, false);
-        mvc.perform(conCsrf(patch("/api/servicios/{id}/estado", servicio.getId()), sesion)
+        mvc.perform(conCsrf(patch(negocio("/api/servicios/{id}/estado"), servicio.getId()), sesion)
                 .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"))
                 .andExpect(jsonPath("$.errores[0].campo").value("activo"));
@@ -271,7 +273,7 @@ class ServicioIT {
         Reserva conservada = reservas.findById(reserva.getId()).orElseThrow();
         assertThat(conservada.getPrecioRef()).isEqualByComparingTo("20.00");
         assertThat(conservada.getDuracionRefMin()).isEqualTo((short) 30);
-        mvc.perform(get("/api/servicios")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get(negocio("/api/servicios"))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         assertThat(servicios.count()).isEqualTo(1);
     }
 
@@ -280,7 +282,7 @@ class ServicioIT {
             "PUT /api/servicios/1/estado", "PATCH /api/servicios/1", "GET /api/prueba/no-implementada"})
     void rutasNoAutorizadas_seMantienenCerradas(String caso) throws Exception {
         String[] partes = caso.split(" ");
-        var solicitud = request(HttpMethod.valueOf(partes[0]), partes[1]);
+        var solicitud = request(HttpMethod.valueOf(partes[0]), negocio(partes[1]));
         mvc.perform(conCsrf(solicitud, login(Rol.ADMIN, false))).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
     }
@@ -305,9 +307,9 @@ class ServicioIT {
     }
     private MockHttpServletRequestBuilder solicitud(String metodo, long id) {
         return switch (metodo) {
-            case "POST" -> post("/api/servicios");
-            case "PUT" -> put("/api/servicios/{id}", id);
-            case "PATCH" -> patch("/api/servicios/{id}/estado", id);
+            case "POST" -> post(negocio("/api/servicios"));
+            case "PUT" -> put(negocio("/api/servicios/{id}"), id);
+            case "PATCH" -> patch(negocio("/api/servicios/{id}/estado"), id);
             default -> throw new IllegalArgumentException("Método no previsto.");
         };
     }

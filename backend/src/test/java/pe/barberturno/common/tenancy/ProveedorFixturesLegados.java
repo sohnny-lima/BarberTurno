@@ -23,4 +23,5 @@ class ProveedorFixturesLegados implements ProveedorNegocioActual {
         return proveedor == null ? OptionalLong.of(entorno.getProperty("pruebas.negocio-id", Long.class, 1L))
                 : proveedor.negocioActual();
     }
+    @Override public boolean clienteSolicitado() { return contexto.clienteSolicitado(); }
 }

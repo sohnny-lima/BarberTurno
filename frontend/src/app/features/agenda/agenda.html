@@ -85,7 +85,7 @@
   </p>
 }
 @if (!cargando() && !mensaje()) {
-  <p class="resumen-conteos" aria-label="Resumen de citas">{{ resumen() }}</p>
+  <p class="resumen-conteos"><span class="sr-only">Resumen de citas: </span>{{ resumen() }}</p>
 }
 <div class="linea-tiempo" aria-live="polite" [attr.aria-busy]="cargando()">
   @if (cargando()) {

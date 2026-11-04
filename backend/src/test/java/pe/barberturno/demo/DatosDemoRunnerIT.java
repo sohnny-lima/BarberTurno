@@ -1,5 +1,7 @@
 package pe.barberturno.demo;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -87,6 +89,10 @@ class DatosDemoRunnerIT {
                 servicio.cargar(PASSWORD);
                 assertThat(usuarios.findByCorreo("admin-demo@ejemplo.test")).isEmpty();
                 assertThat(jdbc.queryForObject("select count(*) from usuario where rol='ADMIN'", Integer.class)).isOne();
+                comprobarEscenario(contexto);
+                new DatosDemoMultinegocioRunner(contexto.getBean(DatosDemoMultinegocioService.class),
+                        contexto.getBean(pe.barberturno.common.tenancy.EjecutorEnNegocio.class),
+                        "barberturno", PASSWORD).run(new DefaultApplicationArguments());
                 antes = instantanea(jdbc);
             } catch (RuntimeException | Error e) {
                 LimpiezaBaseDatos.limpiar(jdbc);
@@ -98,7 +104,6 @@ class DatosDemoRunnerIT {
             try (var contexto = arrancar(PASSWORD)) {
                 var jdbc = contexto.getBean(JdbcNegocioPruebas.class);
                 try {
-                    comprobarEscenario(contexto);
                     assertThat(instantanea(jdbc)).isEqualTo(antes);
                 } finally {
                     if (i == 1) LimpiezaBaseDatos.limpiar(jdbc);
@@ -153,7 +158,7 @@ class DatosDemoRunnerIT {
         long corte = jdbc.queryForObject("select id from servicio where nombre='Corte clásico'", Long.class);
         String respuesta = org.springframework.web.client.RestClient.create("http://localhost:"
                 + contexto.getEnvironment().getProperty("local.server.port")).get()
-                .uri("/api/disponibilidad?fecha=2026-10-01&servicioId=" + corte + "&barberoId=" + carlos)
+                .uri(negocio("/api/disponibilidad?fecha=2026-10-01&servicioId=") + corte + "&barberoId=" + carlos)
                 .retrieve().body(String.class);
         var horas = new java.util.ArrayList<String>();
         contexto.getBean(tools.jackson.databind.json.JsonMapper.class).readTree(respuesta).get("franjas")

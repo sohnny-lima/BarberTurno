@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -36,12 +37,13 @@ describe('Panel de avisos', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function crear() {
     const fixture = TestBed.createComponent(AvisosPanel);
     fixture.detectChanges();
-    const solicitud = http.expectOne((r) => r.url === '/api/notificaciones');
+    const solicitud = http.expectOne((r) => r.url === '/api/n/prueba/notificaciones');
     expect(solicitud.request.params.get('soloNoLeidas')).toBe('false');
     solicitud.flush({
       contenido: avisos,
@@ -66,12 +68,14 @@ describe('Panel de avisos', () => {
     fixture.componentInstance.marcar(id);
     fixture.componentInstance.marcar(id);
     const lectura = http.expectOne(
-      id === undefined ? '/api/notificaciones/lectura' : '/api/notificaciones/8/lectura',
+      id === undefined
+        ? '/api/n/prueba/notificaciones/lectura'
+        : '/api/n/prueba/notificaciones/8/lectura',
     );
     expect(lectura.request.method).toBe('POST');
     lectura.flush(null, { status: 204, statusText: 'No Content' });
     http
-      .expectOne((r) => r.url === '/api/notificaciones')
+      .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
       .flush({ contenido: avisos.map((a) => ({ ...a, leida: true })), totalElementos: 2 });
     fixture.detectChanges();
     expect(actualizar).toHaveBeenCalledOnce();
@@ -82,20 +86,20 @@ describe('Panel de avisos', () => {
     const fixture = crear();
     fixture.componentInstance.paginar({ pageIndex: 1, pageSize: 10, length: 20 });
     fixture.detectChanges();
-    const pagina = http.expectOne((r) => r.url === '/api/notificaciones');
+    const pagina = http.expectOne((r) => r.url === '/api/n/prueba/notificaciones');
     expect(pagina.request.params.get('pagina')).toBe('1');
     pagina.flush({ contenido: [], totalElementos: 20 });
     fixture.componentRef.setInput('revision', 1);
     fixture.detectChanges();
     http
-      .expectOne((r) => r.url === '/api/notificaciones')
+      .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
       .flush({ contenido: avisos, totalElementos: 20 });
   });
   it('conserva el aviso y permite reintentar un error de lectura', () => {
     const fixture = crear();
     fixture.componentInstance.marcar(8);
     http
-      .expectOne('/api/notificaciones/8/lectura')
+      .expectOne('/api/n/prueba/notificaciones/8/lectura')
       .flush({ detail: 'El aviso no existe.' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('El aviso no existe.');

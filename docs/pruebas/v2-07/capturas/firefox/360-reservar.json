@@ -1,0 +1,72 @@
+{
+  "navegador": "firefox",
+  "version": "155.0",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 1329
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mdc-button--unelevated mat-mdc-unelevated-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": null,
+  "ruta": "/n/barberturno/reservar",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 46,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 43
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": [
+          "figcaption",
+          ".mat-step-label-active > .mat-step-text-label"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "figcaption",
+        "componente": "figcaption.",
+        "estado": "normal",
+        "color": "#ffffff",
+        "fondo": "#f6f8f7",
+        "ratio": 1.07,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": false,
+        "imagen": true
+      },
+      {
+        "selector": ".mat-step-label-active > .mat-step-text-label",
+        "componente": "div.mat-step-text-label",
+        "estado": "normal",
+        "color": "#145c43",
+        "fondo": "#f6f8f7",
+        "ratio": 7.45,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      }
+    ]
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}
