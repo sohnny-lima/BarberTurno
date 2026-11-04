@@ -143,10 +143,10 @@
             }
             @for (reserva of bloque.filas; track reserva.id; let indice = $index) {
               @if (posicionAhora() === indice) {
-                <div [attr.role]="escritorio() ? 'row' : null">
+                <div [attr.role]="escritorio() && bloque.filas.length ? 'row' : null">
                   <div
-                    [attr.role]="escritorio() ? 'cell' : null"
-                    [attr.aria-colspan]="escritorio() ? 6 : null"
+                    [attr.role]="escritorio() && bloque.filas.length ? 'cell' : null"
+                    [attr.aria-colspan]="escritorio() && bloque.filas.length ? 6 : null"
                   >
                     <div class="ahora" role="status">Ahora</div>
                   </div>
@@ -166,10 +166,10 @@
               />
             }
             @if (posicionAhora() === bloque.filas.length) {
-              <div [attr.role]="escritorio() ? 'row' : null">
+              <div [attr.role]="escritorio() && bloque.filas.length ? 'row' : null">
                 <div
-                  [attr.role]="escritorio() ? 'cell' : null"
-                  [attr.aria-colspan]="escritorio() ? 6 : null"
+                  [attr.role]="escritorio() && bloque.filas.length ? 'cell' : null"
+                  [attr.aria-colspan]="escritorio() && bloque.filas.length ? 6 : null"
                 >
                   <div class="ahora" role="status">Ahora</div>
                 </div>

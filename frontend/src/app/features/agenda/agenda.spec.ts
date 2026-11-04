@@ -435,6 +435,18 @@ describe('Agenda operativa', () => {
     expect(ahora.parentElement.getAttribute('aria-colspan')).toBe('6');
     expect(ahora.parentElement.parentElement.getAttribute('role')).toBe('row');
   });
+  it('sin citas hoy en escritorio, la línea Ahora no deja una fila fuera de una tabla (axe aria-required-parent)', () => {
+    ancho.next(1440);
+    const fixture = crear();
+    fixture.componentInstance.filas.set([]);
+    fixture.detectChanges();
+    const ahora = fixture.nativeElement.querySelector('.ahora');
+    expect(ahora?.textContent).toBe('Ahora');
+    expect(ahora.parentElement.getAttribute('role')).toBeNull();
+    for (const fila of fixture.nativeElement.querySelectorAll('[role="row"]')) {
+      expect(fila.closest('[role="table"]')).not.toBeNull();
+    }
+  });
   it('carga con esqueletos, anuncio oculto y título único; libera la acción de la barra al destruir', () => {
     const fixture = crear();
     fixture.componentInstance.cargar();
