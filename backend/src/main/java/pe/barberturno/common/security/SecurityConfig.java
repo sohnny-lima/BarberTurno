@@ -216,6 +216,8 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.POST, "/api/notificaciones/{id}/lectura", "/api/notificaciones/lectura").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/reportes/resumen", "/api/reportes/resumen.xlsx").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole("ADMIN");
+                    permisos.requestMatchers("/api/whatsapp/conversaciones", "/api/whatsapp/conversaciones/**").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/clientes/{id}/anonimizar").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/clientes/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PATCH, "/api/clientes/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.POST, "/api/usuarios/{id}/restablecer-password").hasRole("ADMIN");

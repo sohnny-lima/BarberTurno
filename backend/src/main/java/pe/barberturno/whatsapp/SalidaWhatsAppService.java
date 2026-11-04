@@ -91,7 +91,8 @@ public class SalidaWhatsAppService implements SalidaWhatsApp {
 
     private long insertar(long conversacionId, OptionalLong reservaId, TipoMensaje tipo, OrigenMensaje origen,
             ObjectNode contenido) {
-        if (origen == null || origen == OrigenMensaje.CLIENTE || reservaId == null) throw validacion();
+        if (origen == null || origen == OrigenMensaje.CLIENTE || origen == OrigenMensaje.PERSONA
+                || reservaId == null) throw validacion();
         long negocioId = negocio.negocioActual().orElseThrow(this::noEncontrado);
         cola.conversacion(conversacionId, negocioId).orElseThrow(this::noEncontrado);
         if (reservaId.isPresent() && entidades.createNativeQuery("""
@@ -100,6 +101,16 @@ public class SalidaWhatsAppService implements SalidaWhatsApp {
                 .getResultList().isEmpty()) throw noEncontrado();
         return cola.insertar(conversacionId, reservaId.isPresent() ? reservaId.getAsLong() : null,
                 tipo, origen, mapper.writeValueAsString(contenido), reloj.instant());
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public long encolarRespuestaPersonal(long conversacionId, String texto, long usuarioId) {
+        if (texto == null || texto.isBlank() || texto.length() > 4096 || usuarioId <= 0) throw validacion();
+        long negocioId = negocio.negocioActual().orElseThrow(this::noEncontrado);
+        cola.conversacion(conversacionId, negocioId).orElseThrow(this::noEncontrado);
+        return cola.insertar(conversacionId, null, TipoMensaje.TEXTO, OrigenMensaje.PERSONA,
+                mapper.writeValueAsString(mapper.createObjectNode().put("texto", texto)), reloj.instant(), usuarioId);
     }
 
     private NegocioException noEncontrado() {

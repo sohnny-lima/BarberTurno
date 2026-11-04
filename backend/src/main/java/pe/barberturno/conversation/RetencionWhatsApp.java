@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pe.barberturno.common.tenancy.EjecutorEnNegocio;
 import pe.barberturno.whatsapp.CanalWhatsAppRepository;
 
@@ -58,9 +59,13 @@ public class RetencionWhatsApp {
     /**
      * Ejecuta una pasada completa: conversaciones sin ficha de cada negocio y, si está configurado, cuerpos
      * de eventos. Un fallo en un negocio no impide los demás.
-     * @return conversaciones borradas más cuerpos de eventos vaciados
+     * @return conversaciones borradas, contenidos retirados, operaciones borradas y cuerpos vaciados
+     * @throws IllegalStateException si se invoca dentro de una transacción exterior
      */
     public int purgar() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("La retención exige invocarse fuera de una transacción.");
+        }
         int total = 0;
         List<Long> negocios = transaccion.execute(tx -> canales.listarNegociosConCanal());
         for (long negocioId : negocios) {
@@ -71,6 +76,12 @@ public class RetencionWhatsApp {
             } catch (RuntimeException fallo) {
                 LOG.warn("Retención WhatsApp del negocio {}: fallo; se reintenta en la siguiente pasada.", negocioId);
             }
+            if (propiedades.retencion().contenidoMensajes() != null) {
+                total += fase(negocioId, this::retirarContenido);
+            }
+            if (propiedades.retencion().operacionesTerminadas() != null) {
+                total += fase(negocioId, this::purgarOperaciones);
+            }
         }
         if (propiedades.retencion().cuerpoEventos() != null) {
             int vaciados = transaccion.execute(tx -> vaciarCuerposEventos());
@@ -78,6 +89,61 @@ public class RetencionWhatsApp {
             total += vaciados;
         }
         return total;
+    }
+
+    private int fase(long negocioId, java.util.function.IntSupplier accion) {
+        try {
+            return ejecutor.ejecutar(negocioId, () -> transaccion.execute(tx -> accion.getAsInt()));
+        } catch (RuntimeException fallo) {
+            LOG.warn("Retención WhatsApp del negocio {}: fallo de fase; se reintentará.", negocioId);
+            return 0;
+        }
+    }
+
+    int retirarContenido() {
+        var limite = reloj.instant().minus(propiedades.retencion().contenidoMensajes());
+        // Solo se bloquea el mensaje: no se escribe ninguna FK ni se toma después la conversación.
+        return entidades.createNativeQuery("""
+                WITH candidatos AS (
+                    SELECT m.id FROM mensaje_whatsapp m JOIN conversacion c
+                        ON c.negocio_id=m.negocio_id AND c.id=m.conversacion_id
+                    WHERE c.cliente_id IS NOT NULL AND m.estado <> 'PENDIENTE'
+                        AND m.contenido <> '{"retirado":true}'::jsonb AND m.creado_en < :limite
+                    ORDER BY m.id LIMIT :lote FOR UPDATE OF m SKIP LOCKED
+                )
+                UPDATE mensaje_whatsapp m SET contenido='{"retirado":true}'::jsonb
+                FROM candidatos c WHERE m.id=c.id AND m.estado <> 'PENDIENTE'
+                    AND m.contenido <> '{"retirado":true}'::jsonb
+                """).setParameter("limite", limite).setParameter("lote", propiedades.retencion().lote()).executeUpdate();
+    }
+
+    int purgarOperaciones() {
+        var ahora = reloj.instant();
+        var limite = ahora.minus(propiedades.retencion().operacionesTerminadas());
+        var conversaciones = entidades.createNativeQuery("""
+                SELECT c.id FROM conversacion c WHERE EXISTS (
+                    SELECT 1 FROM operacion_pendiente o WHERE o.negocio_id=c.negocio_id AND o.conversacion_id=c.id
+                        AND ((o.estado='VIGENTE' AND o.expira_en < :ahora)
+                            OR (o.estado <> 'VIGENTE' AND o.actualizado_en < :limite)))
+                ORDER BY c.id LIMIT :lote FOR UPDATE OF c SKIP LOCKED
+                """, Long.class).setParameter("ahora", ahora).setParameter("limite", limite)
+                .setParameter("lote", propiedades.retencion().lote()).getResultList();
+        if (conversaciones.isEmpty()) return 0;
+        // Orden conversación → operación, compartido con la entrega y la anonimización.
+        var operaciones = entidades.createNativeQuery("""
+                SELECT id FROM operacion_pendiente WHERE conversacion_id IN (:ids)
+                    AND ((estado='VIGENTE' AND expira_en < :ahora) OR (estado <> 'VIGENTE' AND actualizado_en < :limite))
+                ORDER BY id LIMIT :lote FOR UPDATE SKIP LOCKED
+                """, Long.class).setParameter("ids", conversaciones).setParameter("ahora", ahora)
+                .setParameter("limite", limite).setParameter("lote", propiedades.retencion().lote()).getResultList();
+        if (operaciones.isEmpty()) return 0;
+        entidades.createNativeQuery("""
+                UPDATE operacion_pendiente SET estado='CADUCADA', actualizado_en=:ahora
+                WHERE id IN (:ids) AND estado='VIGENTE' AND expira_en < :ahora
+                """).setParameter("ids", operaciones).setParameter("ahora", ahora).executeUpdate();
+        return entidades.createNativeQuery("""
+                DELETE FROM operacion_pendiente WHERE id IN (:ids) AND estado <> 'VIGENTE' AND actualizado_en < :limite
+                """).setParameter("ids", operaciones).setParameter("limite", limite).executeUpdate();
     }
 
     /**

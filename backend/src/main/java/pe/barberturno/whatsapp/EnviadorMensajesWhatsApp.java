@@ -39,6 +39,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
     private final Clock reloj;
     private final JsonMapper mapper;
     private final TransactionTemplate transaccion;
+    private final VentanaWhatsApp ventana;
 
     EnviadorMensajesWhatsApp(ColaSalidaWhatsApp cola, CanalWhatsAppRepository canales, DirectorioNegocios directorio,
             MembresiaRepository membresias, EjecutorEnNegocio ejecutor, ClienteGraphWhatsApp cliente,
@@ -52,6 +53,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         this.cliente = cliente;
         this.avisos = avisos;
         this.opciones = opciones;
+        this.ventana = new VentanaWhatsApp(opciones);
         this.reloj = reloj;
         this.mapper = mapper;
         this.transaccion = new TransactionTemplate(gestor);
@@ -108,6 +110,11 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         if (actual.isEmpty()) return null;
         var mensaje = actual.get();
         Instant ahora = reloj.instant();
+        var conversacion = cola.conversacion(mensaje.conversacionId(), negocioId).orElseThrow();
+        if (mensaje.origen() == OrigenMensaje.ASISTENTE && "HUMANO".equals(conversacion.modo())) {
+            fallar(mensaje, MotivoFallo.MODO_HUMANO, null, mensaje.inciertos(), ahora);
+            return null;
+        }
         var canal = canales.findByNegocioId(negocioId).orElseThrow();
         MotivoFallo motivo = null;
         if (mensaje.inciertos() >= 2) motivo = MotivoFallo.RESULTADO_DESCONOCIDO;
@@ -119,9 +126,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
             motivo = MotivoFallo.MENSAJE_CADUCADO;
         }
         if (motivo != null) { fallar(mensaje, motivo, null, mensaje.inciertos(), ahora); return null; }
-        var conversacion = cola.conversacion(mensaje.conversacionId(), negocioId).orElseThrow();
-        boolean ventana = conversacion.ultimaEntradaEn() != null && ahora.isBefore(conversacion.ultimaEntradaEn()
-                .plus(SalidaWhatsAppPropiedades.VENTANA_ATENCION).minus(opciones.margenVentana()));
+        boolean ventana = this.ventana.abierta(conversacion.ultimaEntradaEn(), ahora);
         if (mensaje.tipo() != TipoMensaje.PLANTILLA && !ventana) {
             fallar(mensaje, MotivoFallo.VENTANA_CERRADA, null, mensaje.inciertos(), ahora);
             return null;

@@ -8,7 +8,8 @@ import pe.barberturno.notifications.Notificacion;
 /**
  * Aviso RF-16 del destinatario autenticado sin exponer su identidad ni datos de sesión.
  * @param id identidad del aviso para marcar su lectura
- * @param reservaId reserva que originó el aviso
+ * @param reservaId reserva que originó el aviso, o nula
+ * @param conversacionId conversación derivada, o nula si el destino es una reserva
  * @param tipo acción RN-15 que produjo el aviso
  * @param mensaje texto público del cambio
  * @param leida indica si el destinatario lo ha leído
@@ -16,7 +17,7 @@ import pe.barberturno.notifications.Notificacion;
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
-public record NotificacionDto(long id, long reservaId, AccionAuditoria tipo, String mensaje,
+public record NotificacionDto(long id, Long reservaId, Long conversacionId, AccionAuditoria tipo, String mensaje,
         boolean leida, OffsetDateTime creadoEn) {
     /**
      * Proyecta un aviso propio mientras su reserva permanece accesible en la transacción.
@@ -24,7 +25,8 @@ public record NotificacionDto(long id, long reservaId, AccionAuditoria tipo, Str
      * @return representación pública con fecha de Lima
      */
     public static NotificacionDto desde(Notificacion aviso) {
-        return new NotificacionDto(aviso.getId(), aviso.getReserva().getId(), aviso.getTipo(),
+        return new NotificacionDto(aviso.getId(), aviso.getReserva() == null ? null : aviso.getReserva().getId(),
+                aviso.getConversacionId(), aviso.getTipo(),
                 aviso.getMensaje(), aviso.isLeida(), TiempoNegocio.aLima(aviso.getCreadoEn()));
     }
 }

@@ -38,9 +38,12 @@ public class Notificacion {
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reserva_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reserva_id")
     private Reserva reserva;
+
+    @Column(name = "conversacion_id")
+    private Long conversacionId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false, length = 12)
@@ -81,6 +84,25 @@ public class Notificacion {
     }
 
     /**
+     * Prepara un aviso cuyo único destino es una conversación derivada.
+     * @param usuario gestor activo destinatario
+     * @param conversacionId conversación del mismo negocio
+     * @param mensaje texto de derivación sin datos personales
+     * @param creadoEn instante aportado por el reloj
+     * @throws NullPointerException si falta un argumento obligatorio
+     */
+    public Notificacion(Usuario usuario, long conversacionId, String mensaje, Instant creadoEn) {
+        this.usuario = Objects.requireNonNull(usuario);
+        this.conversacionId = conversacionId;
+        this.tipo = AccionAuditoria.DERIVACION;
+        this.mensaje = Objects.requireNonNull(mensaje);
+        this.creadoEn = Objects.requireNonNull(creadoEn);
+    }
+
+    /** {@return conversación de derivación, o nula si el aviso pertenece a una reserva} */
+    public Long getConversacionId() { return conversacionId; }
+
+    /**
      * Registra lectura de forma idempotente; el servicio comprueba previamente propiedad del aviso (RF-16).
      */
     public void marcarLeida() {
@@ -100,7 +122,7 @@ public class Notificacion {
         return usuario;
     }
 
-    /** {@return reserva histórica asociada por reserva_id; no nula} */
+    /** {@return reserva histórica asociada, o nula en los avisos de derivación} */
     public Reserva getReserva() {
         return reserva;
     }
