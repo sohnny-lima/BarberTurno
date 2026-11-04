@@ -8,6 +8,8 @@ package pe.barberturno.whatsapp;
  * @version 1.0
  */
 public enum MotivoFallo {
+    /** Salida automática descartada porque el equipo atiende la conversación. */
+    MODO_HUMANO("la conversación está siendo atendida por el equipo"),
     /** Texto o interactivo con la ventana de 24 h cerrada, o código 131047 de Meta. */
     VENTANA_CERRADA("la ventana de 24 horas de WhatsApp está cerrada"),
     /** El canal del negocio no está activo al enviar. */

@@ -72,6 +72,27 @@ class RepositoriosIT {
     }
 
     @Test
+    void avisoDeConversacion_conservaDestinoExclusivoSinReserva_yDtoAnulable() {
+        transaccion.executeWithoutResult(tx -> {
+            var usuario = datos.cliente("aviso-conversacion");
+            long conversacion = jdbc.queryForObject("""
+                    insert into conversacion(wa_id,creado_en,actualizado_en)
+                    values ('51999000116',?,?) returning id
+                    """, Long.class, java.sql.Timestamp.from(AHORA), java.sql.Timestamp.from(AHORA));
+            var aviso = notificaciones.saveAndFlush(new Notificacion(usuario, conversacion, "Atención del equipo", AHORA));
+            long id = aviso.getId();
+            entityManager.clear();
+            var leido = notificaciones.findById(id).orElseThrow();
+            assertThat(leido.getReserva()).isNull();
+            assertThat(leido.getConversacionId()).isEqualTo(conversacion);
+            var dto = pe.barberturno.notifications.dto.NotificacionDto.desde(leido);
+            assertThat(dto.reservaId()).isNull();
+            assertThat(dto.conversacionId()).isEqualTo(conversacion);
+            assertThat(dto.tipo()).isEqualTo(AccionAuditoria.DERIVACION);
+        });
+    }
+
+    @Test
     void guardarYLeer_preservaTodosLosCamposYJsonb() {
         transaccion.executeWithoutResult(tx -> {
             Usuario cliente = datos.cliente("CLIENTE");

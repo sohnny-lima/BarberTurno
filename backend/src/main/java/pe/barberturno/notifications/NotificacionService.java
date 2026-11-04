@@ -90,6 +90,18 @@ public class NotificacionService {
     }
 
     /**
+     * Añade un aviso de derivación con destino exclusivo a la conversación en la transacción del llamante.
+     * @param usuario gestor activo destinatario
+     * @param conversacionId conversación bloqueada del negocio actual
+     * @throws org.springframework.transaction.IllegalTransactionStateException sin transacción exterior
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void notificarDerivacion(Usuario usuario, long conversacionId) {
+        notificaciones.save(new Notificacion(usuario, conversacionId,
+                "Una conversación de WhatsApp necesita atención del equipo.", clock.instant()));
+    }
+
+    /**
      * Escribe un aviso no leído al destinatario elegido por RN-15, propagando fallos.
      * @param usuario destinatario del aviso
      * @param reserva reserva persistida asociada

@@ -24,7 +24,9 @@ class ColaSalidaWhatsApp {
     Optional<Reclamo> reclamar(Instant ahora, Instant vencimiento, int maxIntentos) {
         var filas = entidades.createNativeQuery("""
                 WITH candidato AS (
-                    SELECT m.id, (m.intentos >= :maximo OR m.inciertos >= 2) AS agotado
+                    SELECT m.id, (m.intentos >= :maximo OR m.inciertos >= 2) AS agotado,
+                        (m.origen='ASISTENTE' AND EXISTS (SELECT 1 FROM conversacion c
+                            WHERE c.negocio_id=m.negocio_id AND c.id=m.conversacion_id AND c.modo='HUMANO')) AS humano
                     FROM mensaje_whatsapp m
                     WHERE m.estado = 'PENDIENTE' AND m.direccion = 'SALIENTE'
                       AND m.proximo_intento <= :ahora
@@ -34,7 +36,7 @@ class ColaSalidaWhatsApp {
                             AND anterior.estado = 'PENDIENTE' AND anterior.id < m.id)
                     ORDER BY m.proximo_intento, m.id LIMIT 1 FOR UPDATE OF m SKIP LOCKED
                 )
-                UPDATE mensaje_whatsapp m SET intentos = m.intentos + CASE WHEN c.agotado THEN 0 ELSE 1 END,
+                UPDATE mensaje_whatsapp m SET intentos = m.intentos + CASE WHEN c.agotado OR c.humano THEN 0 ELSE 1 END,
                     proximo_intento = :vence, actualizado_en = :ahora
                 FROM candidato c WHERE m.id = c.id RETURNING m.id, m.intentos, c.agotado
                 """, Object[].class).setParameter("ahora", ahora).setParameter("vence", vencimiento)
@@ -74,14 +76,20 @@ class ColaSalidaWhatsApp {
 
     long insertar(long conversacionId, Long reservaId, TipoMensaje tipo, OrigenMensaje origen,
             String contenido, Instant ahora) {
+        return insertar(conversacionId, reservaId, tipo, origen, contenido, ahora, null);
+    }
+
+    long insertar(long conversacionId, Long reservaId, TipoMensaje tipo, OrigenMensaje origen,
+            String contenido, Instant ahora, Long enviadoPor) {
         return ((Number) entidades.createNativeQuery("""
                 INSERT INTO mensaje_whatsapp(conversacion_id, reserva_id, direccion, origen, tipo, contenido,
-                    estado, intentos, inciertos, proximo_intento, creado_en, actualizado_en)
+                    estado, intentos, inciertos, proximo_intento, creado_en, actualizado_en, enviado_por)
                 VALUES (:conversacion, :reserva, 'SALIENTE', :origen, :tipo, cast(:contenido as jsonb),
-                    'PENDIENTE', 0, 0, :ahora, :ahora, :ahora) RETURNING id
+                    'PENDIENTE', 0, 0, :ahora, :ahora, :ahora, :actor) RETURNING id
                 """, Long.class).setParameter("conversacion", conversacionId).setParameter("reserva", reservaId)
                 .setParameter("origen", origen.name()).setParameter("tipo", tipo.name())
-                .setParameter("contenido", contenido).setParameter("ahora", ahora).getSingleResult()).longValue();
+                .setParameter("contenido", contenido).setParameter("ahora", ahora)
+                .setParameter("actor", enviadoPor).getSingleResult()).longValue();
     }
 
     boolean preparar(MensajeWhatsApp mensaje, TipoMensaje como, Instant conciliacion, Instant ahora) {

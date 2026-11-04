@@ -100,10 +100,11 @@ class AuditoriaAvisosIT extends ReservaManualPruebaBase {
             for (int i = 0; i < tipos.size(); i++) {
                 assertThat(contenido.get(i).get("tipo").asString()).isEqualTo(tipos.get(i));
                 assertThat(contenido.get(i).get("reservaId").asLong()).isEqualTo(pendiente.id());
+                assertThat(contenido.get(i).get("conversacionId").isNull()).isTrue();
                 assertThat(contenido.get(i).get("leida").asBoolean()).isFalse();
                 assertThat(contenido.get(i).get("mensaje").asString()).contains(pendiente.codigo());
                 assertThat(contenido.get(i).get("creadoEn").asString()).endsWith("-05:00");
-                assertThat(contenido.get(i).size()).isEqualTo(6);
+                assertThat(contenido.get(i).size()).isEqualTo(7);
             }
             conteo(destinatario, tipos.size());
         }

@@ -38,6 +38,9 @@ public class Cliente {
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn;
 
+    @Column(name = "anonimizada_en")
+    private Instant anonimizadaEn;
+
     /** Hidrata la ficha exclusivamente desde JPA. */
     protected Cliente() { }
 
@@ -63,8 +66,10 @@ public class Cliente {
      * @param telefono teléfono local opcional
      * @param ahora instante del reloj del servicio
      * @throws NullPointerException si falta el nombre o el instante
+     * @throws pe.barberturno.common.error.NegocioException CONFLICTO si la ficha ya fue anonimizada
      */
     public void actualizarDatos(String nombre, String telefono, Instant ahora) {
+        exigirIdentificable();
         this.nombre = Objects.requireNonNull(nombre);
         this.telefono = telefono;
         this.actualizadoEn = Objects.requireNonNull(ahora);
@@ -78,6 +83,11 @@ public class Cliente {
     public void desactivar(Instant ahora) {
         this.actualizadoEn = Objects.requireNonNull(ahora);
         activo = false;
+    }
+
+    private void exigirIdentificable() {
+        if (anonimizadaEn != null) throw new pe.barberturno.common.error.NegocioException(
+                pe.barberturno.common.error.ErrorCodigo.CONFLICTO, "Una ficha anonimizada no admite cambios.");
     }
 
     /** {@return identificador de ficha, independiente del de la cuenta} */
