@@ -341,7 +341,7 @@ class ConversacionOperacionesIT extends ReservaPruebaBase {
     @Test void web_adminConsultaReprogramaYCancelaUnaCitaSinCuenta_sinAvisoAlCliente() throws Exception {
         var cita = ejecutar("10:00").cita();
         var admin = admin("administracion");
-        var consulta = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/disponibilidad")
+        var consulta = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(pe.barberturno.support.RutasNegocioPruebas.negocio("/api/disponibilidad"))
                 .param("servicioId", servicio.getId().toString()).param("fecha", "2026-10-01")
                 .param("barberoId", barbero.getId().toString()).param("excluirReservaId", Long.toString(cita.reservaId()));
         mvc.perform(consulta.cookie(sesion(admin)))

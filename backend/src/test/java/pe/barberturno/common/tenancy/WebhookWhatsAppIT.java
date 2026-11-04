@@ -129,7 +129,8 @@ class WebhookWhatsAppIT extends PlataformaPruebaBase {
         byte[] cuerpo = ejemplo();
         // Con una sesión válida, el resto de escrituras sigue exigiendo CSRF.
         assertThat(http(admin, "POST", "/api/plataforma/negocios", altaJson("sin-csrf"), null).statusCode()).isEqualTo(403);
-        assertThat(publicar(admin, "/api/whatsapp/webhook/otra", cuerpo, firmar(cuerpo)).statusCode()).isEqualTo(403);
+        // Desde V2-07.5, una ruta local sin /api/n/{slug} se rechaza con 404 antes del filtro CSRF: tampoco hay exención.
+        assertThat(publicar(admin, "/api/whatsapp/webhook/otra", cuerpo, firmar(cuerpo)).statusCode()).isIn(403, 404);
         assertThat(publicar(admin, "/api/n/a/whatsapp/webhook", cuerpo, firmar(cuerpo)).statusCode()).isIn(403, 404);
         var put = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + puerto + RUTA)).header("X-Hub-Signature-256", firmar(cuerpo))
                 .PUT(HttpRequest.BodyPublishers.ofByteArray(cuerpo)).build();
