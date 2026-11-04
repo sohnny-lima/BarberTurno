@@ -147,7 +147,7 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void fkCompuestas_sonLasTreceRelacionesDelPlan() {
+    void fkCompuestas_sonLasCatorceRelacionesDelPlan() {
         assertThat(jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2 order by conname
                 """, String.class)).containsExactly(
@@ -158,6 +158,7 @@ class EsquemaV2IT extends TenancyPruebaBase {
                 "jornada_barbero_fk",
                 "mensaje_conversacion_fk",
                 "mensaje_reserva_fk",
+                "notificacion_conversacion_fk",
                 "notificacion_reserva_fk",
                 "operacion_cliente_fk",
                 "operacion_conversacion_fk",

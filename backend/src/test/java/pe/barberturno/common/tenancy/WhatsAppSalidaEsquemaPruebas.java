@@ -32,14 +32,14 @@ public final class WhatsAppSalidaEsquemaPruebas {
     private WhatsAppSalidaEsquemaPruebas() { }
 
     private static final Map<String, List<String>> ACTUALIZABLES = Map.of(
-            "conversacion", List.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en"),
+            "conversacion", List.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en", "modo", "derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en"),
             "mensaje_whatsapp", List.of("wamid", "estado", "intentos", "inciertos",
-                    "proximo_intento", "error_codigo", "codigo_meta", "enviado_como", "actualizado_en"));
+                    "proximo_intento", "error_codigo", "codigo_meta", "enviado_como", "actualizado_en", "contenido"));
 
     private static final Map<String, List<String>> FIJAS = Map.of(
-            "conversacion", List.of("id", "negocio_id", "wa_id", "modo", "creado_en"),
+            "conversacion", List.of("id", "negocio_id", "wa_id", "creado_en"),
             "mensaje_whatsapp", List.of("id", "negocio_id", "conversacion_id", "direccion", "origen",
-                    "tipo", "contenido", "reserva_id", "creado_en"));
+                    "tipo", "reserva_id", "creado_en", "enviado_por"));
 
     /**
      * Ejecuta todas las comprobaciones del esquema de V114 contra la base de datos de pruebas sin dejar estado.
@@ -214,11 +214,13 @@ public final class WhatsAppSalidaEsquemaPruebas {
                 VALUES ('+51900000997', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """), "conversacion_wa_formato");
 
-        // b) conversacion_modo_valido: modo distinto de ASISTENTE o HUMANO
+        // b) Ambos CHECK rechazan un modo ajeno; PostgreSQL comprueba primero la nueva regla de dos ramas.
+        assertThat(jdbc.queryForObject("select pg_get_constraintdef(oid) from pg_constraint where conname='conversacion_modo_valido'", String.class))
+                .contains("ASISTENTE", "HUMANO");
         verificarRestriccion(con, () -> jdbc.update("""
                 INSERT INTO conversacion (wa_id, modo, creado_en, actualizado_en)
                 VALUES ('51900000998', 'INVALIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """), "conversacion_modo_valido");
+                """), "conversacion_derivacion_coherente");
 
         // c) mensaje_direccion_valida: dirección no permitida
         verificarRestriccion(con, () -> jdbc.update("""
