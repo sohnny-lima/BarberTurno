@@ -1,0 +1,16 @@
+nombre: "06-modo-humano"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "PERSONA"
+    modelo: []
+    espera:
+      modoConversacion: "HUMANO"
+  - cliente:
+      texto: "Hola, ¿hay alguien allí?"
+    modelo: []
+    espera:
+      modoConversacion: "HUMANO"

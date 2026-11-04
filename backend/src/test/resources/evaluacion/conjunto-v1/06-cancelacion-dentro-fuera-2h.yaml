@@ -1,0 +1,72 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "cancelacion-dentro-fuera-2h"
+conversaciones:
+  - id: "CAN-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quiero cancelar mi cita de mañana a las 10 am por favor."
+    esperado:
+      tipo: "OPERACION"
+
+  - id: "CAN-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, cancela mi turno del viernes con Carlos que tengo que viajar."
+    esperado:
+      tipo: "OPERACION"
+
+  - id: "CAN-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, mi cita es hoy dentro de media hora a las 11 am, cancélala por favor."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "CAN-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola maestro, tengo cita a las 2 pm hoy y faltan 40 minutos, no podré ir, anúlala."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "CAN-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenos días, deseo anular mi cita de pasado mañana jueves a las 4 pm."
+    esperado:
+      tipo: "OPERACION"
+
+  - id: "CAN-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Qué tal amigo, cancela la reserva que tengo para el sábado por la tarde."
+    esperado:
+      tipo: "OPERACION"
+
+  - id: "CAN-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola chochera, tengo turno a las 5 pm hoy y son las 4:15 pm, cancela mi cita."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "CAN-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, por favor anulen mi cita del lunes de la próxima semana."
+    esperado:
+      tipo: "OPERACION"
+
+  - id: "CAN-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, no podré ir a mi cita de mañana a las 3 pm, cancélala porfa."
+    esperado:
+      tipo: "OPERACION"
+
+  - id: "CAN-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola maestro, mi cita es ahorita a las 10:30 am y son las 9:45 am, no llego por el tráfico, cancélala."
+    esperado:
+      tipo: "SIN_OPERACION"

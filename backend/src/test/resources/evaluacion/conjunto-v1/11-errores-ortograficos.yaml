@@ -1,0 +1,97 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "errores-ortograficos"
+conversaciones:
+  - id: "ORT-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "ola kiero un corte clasiko para mañna a las 10am con karlos xfa"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-03 10:00"
+
+  - id: "ORT-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "buenas tardes kiero cita pa varba con migel el vierns a las 3"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Miguel"
+      inicio: "2026-11-06 15:00"
+
+  - id: "ORT-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "ola chochera separam un turno sabado 11 d la mañna corte clasic"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      inicio: "2026-11-07 11:00"
+
+  - id: "ORT-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "kiero areglo de varba para el juevez a las cuatro d la tard"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      inicio: "2026-11-05 16:00"
+
+  - id: "ORT-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "bunas me gustaria aserme corte d cabello mierkoles temprano 9 am"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      inicio: "2026-11-04 09:00"
+
+  - id: "ORT-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "hola q tal una cita para kortarme con carloz mañna a las doce"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-03 12:00"
+
+  - id: "ORT-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "nesecito turno urgente con migel luness a las 5 d la tard"
+    esperado:
+      tipo: "OPERACION"
+      profesional: "Miguel"
+      inicio: "2026-11-09 17:00"
+
+  - id: "ORT-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "porfas un corte clasico para ste savado a las 10 de la mañanita"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      inicio: "2026-11-07 10:00"
+
+  - id: "ORT-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "hola causa kiero saver si ai espasio mañna mierkoles a las 4pm pa corte con carlos"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-04 16:00"
+
+  - id: "ORT-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "bunas noche kiero aser varba con migel este viernez a las diez imedia"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Miguel"
+      inicio: "2026-11-06 10:30"
