@@ -85,3 +85,79 @@ export function vaciar() {
   );
   if (resultado.status !== 0) throw new Error('No se pudo vaciar la base v2 de prueba autorizada.');
 }
+
+export interface DatosSiembraDerivacion {
+  conversacionId: number;
+  notificacionId: number;
+  clienteId: number;
+}
+
+/**
+ * Siembra por SQL una conversación con ficha en modo HUMANO, un mensaje entrante reciente
+ * y un aviso DERIVACION para el encargado (V2-11 CB-14).
+ */
+export function sembrarConversacionDerivada(
+  slugNegocio = 'barberturno',
+  correoEncargado = 'encargado@ejemplo.test',
+): DatosSiembraDerivacion {
+  validarBase();
+  const sqlSiembra = `
+    DO $$
+    DECLARE
+      v_negocio_id bigint;
+      v_usuario_id bigint;
+      v_cliente_id bigint;
+      v_conversacion_id bigint;
+    BEGIN
+      SELECT id INTO v_negocio_id FROM negocio WHERE slug = '${slugNegocio}';
+      IF v_negocio_id IS NULL THEN
+        RAISE EXCEPTION 'Negocio % no encontrado', '${slugNegocio}';
+      END IF;
+
+      SELECT id INTO v_usuario_id FROM usuario WHERE correo = '${correoEncargado}';
+      IF v_usuario_id IS NULL THEN
+        SELECT id INTO v_usuario_id FROM usuario WHERE correo = 'multirol@ejemplo.test';
+      END IF;
+      IF v_usuario_id IS NULL THEN
+        SELECT id INTO v_usuario_id FROM usuario LIMIT 1;
+      END IF;
+
+      INSERT INTO membresia (negocio_id, usuario_id, rol, estado, creado_en, actualizado_en)
+      VALUES (v_negocio_id, v_usuario_id, 'ENCARGADO', 'ACTIVA', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (negocio_id, usuario_id) DO UPDATE SET rol = 'ENCARGADO', estado = 'ACTIVA';
+
+      PERFORM set_config('app.negocio_id', v_negocio_id::text, false);
+
+      INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
+      VALUES (v_negocio_id, 'Cliente WhatsApp E2E', '51999111222', '999111222', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (negocio_id, wa_id) DO UPDATE SET activo = true, nombre = 'Cliente WhatsApp E2E'
+      RETURNING id INTO v_cliente_id;
+
+      INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)
+      VALUES (v_negocio_id, '51999111222', v_cliente_id, 'HUMANO', CURRENT_TIMESTAMP, 'PETICION', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (negocio_id, wa_id) DO UPDATE SET modo = 'HUMANO', cliente_id = v_cliente_id, derivada_en = CURRENT_TIMESTAMP, motivo_derivacion = 'PETICION', ultima_entrada_en = CURRENT_TIMESTAMP
+      RETURNING id INTO v_conversacion_id;
+
+      INSERT INTO mensaje_whatsapp (negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, creado_en, actualizado_en)
+      VALUES (v_negocio_id, v_conversacion_id, 'ENTRANTE', 'CLIENTE', 'TEXTO', '{"texto": "Hola, necesito hablar con un asesor"}'::jsonb, 'wamid.e2e.' || floor(random() * 1000000)::text, 'RECIBIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+      INSERT INTO notificacion (negocio_id, usuario_id, conversacion_id, tipo, mensaje, leida, creado_en)
+      VALUES (v_negocio_id, v_usuario_id, v_conversacion_id, 'DERIVACION', 'Cliente WhatsApp E2E solicita atención', false, CURRENT_TIMESTAMP);
+    END $$;
+    SELECT set_config('app.negocio_id', (SELECT id::text FROM negocio WHERE slug = '${slugNegocio}'), false);
+    SELECT c.id || '|' || n.id || '|' || c.cliente_id
+    FROM conversacion c
+    JOIN notificacion n ON n.conversacion_id = c.id
+    WHERE c.wa_id = '51999111222'
+    ORDER BY n.id DESC LIMIT 1;
+  `;
+
+  const res = sql(sqlSiembra);
+  if (res.status !== 0) {
+    throw new Error('Fallo al sembrar conversación derivada: ' + (res.stderr || res.stdout));
+  }
+  const lineas = res.stdout.trim().split(/\r?\n/).filter(Boolean);
+  const ultima = lineas[lineas.length - 1];
+  const [conversacionId, notificacionId, clienteId] = ultima.split('|').map(Number);
+  return { conversacionId, notificacionId, clienteId };
+}

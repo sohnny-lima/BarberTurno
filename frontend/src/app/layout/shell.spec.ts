@@ -123,6 +123,7 @@ describe('Shell adaptable', () => {
     const textos = vista.componentInstance.enlaces().map((e) => e.texto);
     expect(textos.includes('Equipo')).toBe(rolNegocio !== 'BARBERO');
     expect(textos.includes('Invitaciones')).toBe(rolNegocio !== 'BARBERO');
+    expect(textos.includes('WhatsApp')).toBe(rolNegocio !== 'BARBERO');
     expect(textos.includes('Configuración')).toBe(rolNegocio === 'PROPIETARIO');
     expect(vista.componentInstance.nombreRol()).toBe(nombre);
   });
@@ -583,6 +584,7 @@ describe('Avisos del barbero desde la cabecera', () => {
   const aviso = {
     id: 8,
     reservaId: 101,
+    conversacionId: null,
     tipo: 'CREAR',
     mensaje: 'Reserva BT-101 creada',
     leida: false,

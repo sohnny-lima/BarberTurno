@@ -316,7 +316,8 @@ public class TextosConversacion {
      * @return texto
      */
     public String derivada(String negocio) {
-        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+        String nombre = (negocio != null && !negocio.isBlank()) ? negocio.strip() : "la barbería";
+        return "Te paso con el equipo de " + nombre + ". Te responderán por aquí en cuanto puedan.";
     }
 
     /**
@@ -325,7 +326,7 @@ public class TextosConversacion {
      * @return texto
      */
     public String devuelta() {
-        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+        return "Hola de nuevo. Tu conversación ha vuelto al asistente virtual. ¿En qué te puedo ayudar?";
     }
 
     /**
@@ -334,7 +335,7 @@ public class TextosConversacion {
      * @return texto
      */
     public String consentimientoDerivacionRechazado() {
-        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+        return "Entendido. Sin aceptar no podemos pasarte con el equipo, pero puedes seguir consultando nuestros servicios o tu disponibilidad desde el menú.";
     }
 
     /**
@@ -345,6 +346,12 @@ public class TextosConversacion {
      * @throws IllegalArgumentException si {@code fallos} es menor que 1
      */
     public String noEntendido(int fallos) {
-        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+        if (fallos < 1) {
+            throw new IllegalArgumentException("El número de fallos debe ser al menos 1: " + fallos);
+        }
+        if (fallos == 1) {
+            return "No entendí ese mensaje. Por favor, usa los botones del menú o escribe lo que necesitas. Si vuelve a pasar, te pasaré con el equipo.";
+        }
+        return "No entendí ese mensaje. Te paso con el equipo para que puedan atenderte.";
     }
 }

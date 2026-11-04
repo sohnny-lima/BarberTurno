@@ -64,6 +64,20 @@ export const rutasNegocio: Routes = [
     loadComponent: () => import('../gestion/invitaciones').then((m) => m.Invitaciones),
   },
   {
+    path: 'whatsapp',
+    canActivate: [gestionGuard(['PROPIETARIO', 'ENCARGADO'])],
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('../bandeja-whatsapp/bandeja').then((m) => m.Bandeja),
+    data: { titulo: 'WhatsApp' },
+  },
+  {
+    path: 'whatsapp/:id',
+    canActivate: [gestionGuard(['PROPIETARIO', 'ENCARGADO'])],
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('../bandeja-whatsapp/bandeja').then((m) => m.Bandeja),
+    data: { titulo: 'WhatsApp' },
+  },
+  {
     path: 'configuracion',
     canActivate: [gestionGuard(['PROPIETARIO'])],
     runGuardsAndResolvers: 'always',

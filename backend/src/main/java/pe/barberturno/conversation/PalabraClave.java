@@ -46,6 +46,7 @@ public enum PalabraClave {
             case "menu", "hola", "inicio", "0" -> MENU;
             case "si", "confirmar", "confirmo" -> SI;
             case "no" -> NO;
+            case "hablar con alguien", "hablar con una persona", "persona", "humano", "asesor", "agente", "ayuda" -> PERSONA;
             default -> OTRA;
         };
     }

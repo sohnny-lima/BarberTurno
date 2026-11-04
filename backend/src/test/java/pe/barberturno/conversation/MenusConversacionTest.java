@@ -29,7 +29,7 @@ class MenusConversacionTest {
     private final TextosConversacion textos = new TextosConversacion();
 
     @Test
-    @DisplayName("menuPrincipal: JSON exacto")
+    @DisplayName("menuPrincipal: JSON exacto con los tres botones (Reservar, Mis citas, Hablar con alguien)")
     void menuPrincipal_casoNormal_jsonExacto() {
         ObjectNode esperado = JsonNodeFactory.instance.objectNode();
         esperado.put("type", "button");
@@ -39,10 +39,26 @@ class MenusConversacionTest {
                 .put("id", "m:RESERVAR").put("title", "Reservar");
         btns.addObject().put("type", "reply").putObject("reply")
                 .put("id", "m:MIS_CITAS").put("title", "Mis citas");
+        btns.addObject().put("type", "reply").putObject("reply")
+                .put("id", "m:PERSONA").put("title", "Hablar con alguien");
 
         ObjectNode actual = menus.menuPrincipal("Elige una opción:");
 
         assertThat(actual).isEqualTo(esperado);
+
+        // Verificación estricta de orden, ids, títulos y límites de Meta
+        ArrayNode actualBtns = (ArrayNode) actual.path("action").path("buttons");
+        assertThat(actualBtns).hasSize(3);
+        assertThat(actualBtns.get(0).path("reply").path("id").asString()).isEqualTo("m:RESERVAR");
+        assertThat(actualBtns.get(0).path("reply").path("title").asString()).isEqualTo("Reservar");
+        assertThat(actualBtns.get(1).path("reply").path("id").asString()).isEqualTo("m:MIS_CITAS");
+        assertThat(actualBtns.get(1).path("reply").path("title").asString()).isEqualTo("Mis citas");
+        assertThat(actualBtns.get(2).path("reply").path("id").asString()).isEqualTo("m:PERSONA");
+        assertThat(actualBtns.get(2).path("reply").path("title").asString()).isEqualTo("Hablar con alguien");
+
+        for (JsonNode btn : actualBtns) {
+            assertThat(btn.path("reply").path("title").asString().length()).isLessThanOrEqualTo(20);
+        }
     }
 
     @Test
@@ -439,10 +455,28 @@ class MenusConversacionTest {
     }
 
     @Test
-    @DisplayName("Ningún menú ni lista incluye «Hablar con alguien»")
-    void menus_sinHablarConAlguien() {
-        List<ObjectNode> todosLosMenus = List.of(
-                menus.menuPrincipal("c"),
+    @DisplayName("El menú principal contiene exactamente un botón «Hablar con alguien» (m:PERSONA); los demás menús y listas no lo incluyen")
+    void menus_soloMenuPrincipalIncluyeHablarConAlguien() {
+        ObjectNode principal = menus.menuPrincipal("c");
+        ArrayNode botones = (ArrayNode) principal.path("action").path("buttons");
+        long conIdPersona = 0;
+        long conTituloPersona = 0;
+        JsonNode botonPersona = null;
+        for (JsonNode b : botones) {
+            if ("m:PERSONA".equals(b.path("reply").path("id").asString())) {
+                botonPersona = b;
+                conIdPersona++;
+            }
+            if ("Hablar con alguien".equalsIgnoreCase(b.path("reply").path("title").asString())) {
+                conTituloPersona++;
+            }
+        }
+        assertThat(conIdPersona).as("El menú principal debe contener exactamente un botón con id m:PERSONA").isEqualTo(1);
+        assertThat(conTituloPersona).as("El menú principal debe contener exactamente un botón con título «Hablar con alguien»").isEqualTo(1);
+        assertThat(botonPersona).isNotNull();
+        assertThat(botonPersona.path("reply").path("title").asString()).isEqualTo("Hablar con alguien");
+
+        List<ObjectNode> demasMenus = List.of(
                 menus.consentimiento("c"),
                 menus.confirmacion("c", 1L, "AAAAAAAAAAAAAAAAAAAAAA"),
                 menus.servicios("c", crearServicios(3), 0),
@@ -450,10 +484,11 @@ class MenusConversacionTest {
                 menus.dias("c", 1L, 0L, LocalDate.of(2026, 10, 23))
         );
 
-        for (ObjectNode nodo : todosLosMenus) {
-            String json = nodo.toString().toLowerCase();
-            assertThat(json).doesNotContain("hablar con alguien");
-            assertThat(json).doesNotContain("humano");
+        for (ObjectNode nodo : demasMenus) {
+            String json = nodo.toString();
+            assertThat(json.toLowerCase()).doesNotContain("hablar con alguien");
+            assertThat(json).doesNotContain("m:PERSONA");
+            assertThat(json.toLowerCase()).doesNotContain("humano");
         }
     }
 
