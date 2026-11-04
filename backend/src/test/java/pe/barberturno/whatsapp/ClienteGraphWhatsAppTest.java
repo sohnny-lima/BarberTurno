@@ -34,7 +34,7 @@ class ClienteGraphWhatsAppTest {
         var graph = new SalidaWhatsAppPropiedades.Graph(servidor.urlBase(), "v26.0", "token-ficticio-123",
                 Duration.ofSeconds(1), Duration.ofSeconds(2));
         propiedades = new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 5,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graph);
         cliente = new ClienteGraphWhatsAppRest(propiedades);
     }
@@ -243,7 +243,7 @@ class ClienteGraphWhatsAppTest {
         var graphSinServidor = new SalidaWhatsAppPropiedades.Graph("http://127.0.0.1:1", "v26.0", "token",
                 Duration.ofMillis(300), Duration.ofMillis(500));
         var props = new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 5,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graphSinServidor);
         var clienteSinRed = new ClienteGraphWhatsAppRest(props);
 

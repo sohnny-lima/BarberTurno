@@ -96,7 +96,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(fila.get("wamid")).isEqualTo("wamid.EXITO_100");
         assertThat(fila.get("enviado_como")).isEqualTo("TEXTO");
         assertThat(fila.get("intentos")).isEqualTo(1);
-        assertThat(fila.get("inciertos")).isEqualTo(0);
+        assertThat(fila.get("inciertos")).isEqualTo(1);
         assertThat(fila.get("error_codigo")).isNull();
 
         var peticion = servidorGraph.ultimaPeticion();
@@ -532,7 +532,7 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         SalidaWhatsAppPropiedades opcionesConTope60 = new SalidaWhatsAppPropiedades(
                 opciones.habilitado(), opciones.intervalo(), opciones.lote(), 5,
                 Duration.ofSeconds(30), Duration.ofSeconds(60),
-                opciones.maxInciertos(), opciones.esperaConciliacion(), opciones.reclamo(),
+                opciones.esperaConciliacion(), opciones.reclamo(),
                 opciones.antiguedadMaxima(), opciones.margenVentana(), opciones.graph());
         EnviadorSalidaWhatsApp enviadorConTope = new EnviadorMensajesWhatsApp(
                 cola, canales, directorio, membresias, ejecutor, clienteGraph, avisos,
@@ -760,8 +760,8 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
             // 2. Esperamos a que el intento 1 haya llegado a la llamada HTTP de Graph (con ficha 1)
             assertThat(intento1LlegoAServidor.await(5, TimeUnit.SECONDS)).isTrue();
 
-            // 3. Adelantamos el reloj 61 segundos para vencer el plazo de reclamo de 60s
-            reloj.adelantar(Duration.ofSeconds(61));
+            // 3. Vencen tanto el reclamo como la espera de conciliación persistida en la preparación
+            reloj.adelantar(Duration.ofMinutes(2));
 
             // 4. Lanzamos el segundo enviador en segundo plano (intento 2 con ficha 2)
             var futureIntento2 = pool.submit(() -> enviador.enviarLote());
@@ -979,11 +979,15 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         AtomicReference<String> observadoEnBase = new AtomicReference<>();
         AtomicReference<String> estadoEnBase = new AtomicReference<>();
+        AtomicReference<Integer> presuncionEnBase = new AtomicReference<>();
+        AtomicReference<Instant> siguienteEnBase = new AtomicReference<>();
 
         servidorGraph.encolarInterceptando(() -> {
             var fila = filaMensaje(a, msg);
             observadoEnBase.set((String) fila.get("enviado_como"));
             estadoEnBase.set((String) fila.get("estado"));
+            presuncionEnBase.set((Integer) fila.get("inciertos"));
+            siguienteEnBase.set(((Timestamp) fila.get("proximo_intento")).toInstant());
         }, "wamid.PREVIO_HTTP");
 
         enviador.enviarLote();
@@ -994,6 +998,8 @@ class EnviadorMensajesWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(estadoEnBase.get())
                 .as("El estado durante la llamada HTTP debe ser PENDIENTE")
                 .isEqualTo("PENDIENTE");
+        assertThat(presuncionEnBase.get()).as("Presunción confirmada antes del HTTP").isEqualTo(1);
+        assertThat(siguienteEnBase.get()).isEqualTo(reloj.instant().plus(opciones.esperaConciliacion()));
 
         assertThat(filaMensaje(a, msg).get("estado")).isEqualTo("ENVIADO");
     }

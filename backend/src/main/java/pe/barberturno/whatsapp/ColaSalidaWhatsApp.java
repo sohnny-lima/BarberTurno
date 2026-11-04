@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 /**
  * SQL de la outbox bajo RLS, sin CRUD heredado. La ficha y el estado observado condicionan cada cierre.
  * Los servicios delimitan las transacciones y bloquean la fila antes de modificarla.
+ * {@code intentos} cuenta reservas confirmadas antes del HTTP y sirve de ficha; no cuenta solicitudes
+ * observadas ni entregas. {@code inciertos} reserva presunciones de posible aceptación: 1 conserva
+ * el primer desconocido y 2 consume además el único intento adicional (V2-DA-70). Solo un cierre
+ * vigente que demuestra no aceptación retira la primera presunción; el adicional nunca se devuelve.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -17,12 +21,11 @@ class ColaSalidaWhatsApp {
 
     ColaSalidaWhatsApp(EntityManager entidades) { this.entidades = entidades; }
 
-    Optional<Reclamo> reclamar(Instant ahora, Instant vencimiento) {
+    Optional<Reclamo> reclamar(Instant ahora, Instant vencimiento, int maxIntentos) {
         var filas = entidades.createNativeQuery("""
-                UPDATE mensaje_whatsapp SET intentos = intentos + 1, proximo_intento = :vence,
-                    actualizado_en = :ahora
-                WHERE id = (
-                    SELECT m.id FROM mensaje_whatsapp m
+                WITH candidato AS (
+                    SELECT m.id, (m.intentos >= :maximo OR m.inciertos >= 2) AS agotado
+                    FROM mensaje_whatsapp m
                     WHERE m.estado = 'PENDIENTE' AND m.direccion = 'SALIENTE'
                       AND m.proximo_intento <= :ahora
                       AND NOT EXISTS (SELECT 1 FROM mensaje_whatsapp anterior
@@ -30,11 +33,15 @@ class ColaSalidaWhatsApp {
                             AND anterior.conversacion_id = m.conversacion_id
                             AND anterior.estado = 'PENDIENTE' AND anterior.id < m.id)
                     ORDER BY m.proximo_intento, m.id LIMIT 1 FOR UPDATE OF m SKIP LOCKED
-                ) RETURNING id, intentos
-                """, Object[].class).setParameter("ahora", ahora).setParameter("vence", vencimiento).getResultList();
+                )
+                UPDATE mensaje_whatsapp m SET intentos = m.intentos + CASE WHEN c.agotado THEN 0 ELSE 1 END,
+                    proximo_intento = :vence, actualizado_en = :ahora
+                FROM candidato c WHERE m.id = c.id RETURNING m.id, m.intentos, c.agotado
+                """, Object[].class).setParameter("ahora", ahora).setParameter("vence", vencimiento)
+                .setParameter("maximo", maxIntentos).getResultList();
         if (filas.isEmpty()) return Optional.empty();
         Object[] fila = (Object[]) filas.getFirst();
-        return Optional.of(new Reclamo(((Number) fila[0]).longValue(), ((Number) fila[1]).intValue()));
+        return Optional.of(new Reclamo(((Number) fila[0]).longValue(), ((Number) fila[1]).intValue(), (Boolean) fila[2]));
     }
 
     Optional<MensajeWhatsApp> bloquear(Reclamo reclamo) {
@@ -77,11 +84,12 @@ class ColaSalidaWhatsApp {
                 .setParameter("contenido", contenido).setParameter("ahora", ahora).getSingleResult()).longValue();
     }
 
-    boolean preparar(MensajeWhatsApp mensaje, TipoMensaje como, Instant ahora) {
+    boolean preparar(MensajeWhatsApp mensaje, TipoMensaje como, Instant conciliacion, Instant ahora) {
         return entidades.createNativeQuery("""
-                UPDATE mensaje_whatsapp SET enviado_como = :como, actualizado_en = :ahora
-                WHERE id = :id AND estado = 'PENDIENTE' AND intentos = :ficha
-                """).setParameter("como", como.name()).setParameter("ahora", ahora)
+                UPDATE mensaje_whatsapp SET enviado_como = :como, inciertos = inciertos + 1,
+                    proximo_intento = GREATEST(proximo_intento, :conciliacion), actualizado_en = :ahora
+                WHERE id = :id AND estado = 'PENDIENTE' AND intentos = :ficha AND inciertos < 2
+                """).setParameter("como", como.name()).setParameter("ahora", ahora).setParameter("conciliacion", conciliacion)
                 .setParameter("id", mensaje.id()).setParameter("ficha", mensaje.intentos()).executeUpdate() == 1;
     }
 
@@ -103,5 +111,7 @@ class ColaSalidaWhatsApp {
         return filas.isEmpty() ? Optional.empty() : Optional.of((MensajeWhatsApp) filas.getFirst());
     }
 
-    record Reclamo(long id, int ficha) { }
+    record Reclamo(long id, int ficha, boolean agotado) {
+        Reclamo(long id, int ficha) { this(id, ficha, false); }
+    }
 }

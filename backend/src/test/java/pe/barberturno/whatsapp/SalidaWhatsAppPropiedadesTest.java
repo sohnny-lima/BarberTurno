@@ -18,7 +18,7 @@ class SalidaWhatsAppPropiedadesTest {
     @Test
     void valoresPorDefecto_cumplenRangosYEnvioNoConfiguradoSinToken() {
         var propiedades = new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 5,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), null);
 
         assertThat(propiedades.habilitado()).isTrue();
@@ -27,7 +27,6 @@ class SalidaWhatsAppPropiedadesTest {
         assertThat(propiedades.maxIntentos()).isEqualTo(5);
         assertThat(propiedades.esperaBase()).isEqualTo(Duration.ofSeconds(30));
         assertThat(propiedades.esperaMaxima()).isEqualTo(Duration.ofMinutes(5));
-        assertThat(propiedades.maxInciertos()).isEqualTo(2);
         assertThat(propiedades.esperaConciliacion()).isEqualTo(Duration.ofMinutes(2));
         assertThat(propiedades.reclamo()).isEqualTo(Duration.ofSeconds(60));
         assertThat(propiedades.antiguedadMaxima()).isEqualTo(Duration.ofHours(6));
@@ -82,47 +81,41 @@ class SalidaWhatsAppPropiedadesTest {
                 Duration.ofSeconds(10), Duration.ofSeconds(20)); // suma = 30s
         // Reclamo de 30s <= 30s de timeout -> debe fallar
         assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 5,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(30), Duration.ofHours(6), Duration.ofMinutes(5), graph))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void rangosIncoherentes_loteMaxIntentosMaxInciertosMargen_rechazados() {
+    void rangosIncoherentes_loteMaxIntentosMargen_rechazados() {
         var graph = new SalidaWhatsAppPropiedades.Graph("https://graph.facebook.com", "v26.0", "token",
                 Duration.ofSeconds(5), Duration.ofSeconds(15));
 
         // Lote 0
         assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 0, 5,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graph))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // MaxIntentos 0 o 101
         assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 0,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graph))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 101,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
-                Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graph))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        // MaxInciertos > maxIntentos
-        assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 3,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 4, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graph))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // Espera máxima < espera base
         assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 5,
-                Duration.ofSeconds(30), Duration.ofSeconds(10), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofSeconds(10), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofMinutes(5), graph))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // Margen ventana >= 24h
         assertThatThrownBy(() -> new SalidaWhatsAppPropiedades(true, Duration.ofSeconds(2), 20, 5,
-                Duration.ofSeconds(30), Duration.ofMinutes(5), 2, Duration.ofMinutes(2),
+                Duration.ofSeconds(30), Duration.ofMinutes(5), Duration.ofMinutes(2),
                 Duration.ofSeconds(60), Duration.ofHours(6), Duration.ofHours(24), graph))
                 .isInstanceOf(IllegalArgumentException.class);
     }
