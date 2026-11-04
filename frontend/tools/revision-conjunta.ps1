@@ -242,9 +242,9 @@ SELECT set_config('app.negocio_id', (SELECT id::text FROM negocio WHERE slug = '
 INSERT INTO notificacion (negocio_id, usuario_id, reserva_id, tipo, mensaje, leida, creado_en)
 SELECT app_negocio_actual(), u.id, res.id, d.tipo, d.mensaje, false, CURRENT_TIMESTAMP
 FROM (VALUES
-  ('multirol@ejemplo.test', 'WHATSAPP', 'No se pudo enviar por WhatsApp el mensaje de la reserva BT-1: destinatario no válido. Contacte al cliente por otro medio.'),
-  ('encargado@ejemplo.test', 'WHATSAPP', 'No se pudo confirmar si se envió por WhatsApp el mensaje de la reserva BT-1. Compruébelo con el cliente.'),
-  ('personal-cliente@ejemplo.test', 'CREAR', 'Reserva BT-1 asignada en BarberTurno para la revisión de avisos.')
+  ('multirol@ejemplo.test', 'WHATSAPP', U&'No se pudo enviar por WhatsApp el mensaje de la reserva BT-1: destinatario no v\\00E1lido. Contacte al cliente por otro medio.'),
+  ('encargado@ejemplo.test', 'WHATSAPP', U&'No se pudo confirmar si se envi\\00F3 por WhatsApp el mensaje de la reserva BT-1. Compru\\00E9belo con el cliente.'),
+  ('personal-cliente@ejemplo.test', 'CREAR', U&'Reserva BT-1 asignada en BarberTurno para la revisi\\00F3n de avisos.')
 ) AS d(correo, tipo, mensaje)
 JOIN usuario u ON u.correo = d.correo
 CROSS JOIN (SELECT min(id) AS id FROM reserva) res
@@ -253,10 +253,27 @@ WHERE res.id IS NOT NULL
     SELECT 1 FROM notificacion n WHERE n.usuario_id = u.id AND n.negocio_id = app_negocio_actual()
   );
 COMMIT;`);
-if (r.status !== 0) process.exit(1);
+if (r.status !== 0) {
+  let err = (r.stderr || (r.error && r.error.message) || r.stdout || '').trim();
+  err = err.replace(/(password|secret|token|clave|contrase\u00f1a|contrasena)\s*[:=]\s*\S+/gi, '$1=***');
+  if (err) process.stderr.write(err);
+  process.exit(r.status ?? 1);
+}
 '@
-    & node --input-type=module -e $codigo
-    if ($LASTEXITCODE -ne 0) { throw 'No se pudieron preparar los avisos de demostración.' }
+    $salidaNode = try {
+      & node --input-type=module -e $codigo 2>&1
+    } catch {
+      $_
+    }
+    if ($LASTEXITCODE -ne 0) {
+      $detalle = ($salidaNode | Out-String).Trim()
+      $mensaje = if ($detalle) {
+        "No se pudieron preparar los avisos de demostración: $detalle"
+      } else {
+        'No se pudieron preparar los avisos de demostración.'
+      }
+      throw $mensaje
+    }
   } finally { Pop-Location }
 }
 
