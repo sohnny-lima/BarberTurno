@@ -21,6 +21,8 @@ import pe.barberturno.whatsapp.CanalWhatsAppRepository;
  *   las políticas restrictivas de V115 impiden borrar cualquier otra fila aunque se intentara;</li>
  *   <li>si {@code retencion.cuerpo-eventos} está configurado (no lo está hasta P2-06), vacía el cuerpo de
  *   los eventos entrantes terminados más antiguos que ese plazo, conservando la fila para la idempotencia.</li>
+ *   <li>retira el contenido terminado de conversaciones con ficha cuando se configura su plazo;</li>
+ *   <li>caduca operaciones vencidas y purga las terminadas con plazo configurado, tomando primero la conversación.</li>
  * </ol>
  * No registra identificadores de WhatsApp ni contenido: solo recuentos por negocio.
  * @author Sohnny Walter Lima Infanzón
@@ -57,8 +59,8 @@ public class RetencionWhatsApp {
     }
 
     /**
-     * Ejecuta una pasada completa: conversaciones sin ficha de cada negocio y, si está configurado, cuerpos
-     * de eventos. Un fallo en un negocio no impide los demás.
+     * Ejecuta las fases configuradas con una transacción por negocio y fase. Un fallo de una fase local
+     * no impide las restantes ni los demás negocios; el cuerpo de eventos se procesa aparte, sin RLS.
      * @return conversaciones borradas, contenidos retirados, operaciones borradas y cuerpos vaciados
      * @throws IllegalStateException si se invoca dentro de una transacción exterior
      */
@@ -123,7 +125,7 @@ public class RetencionWhatsApp {
         var conversaciones = entidades.createNativeQuery("""
                 SELECT c.id FROM conversacion c WHERE EXISTS (
                     SELECT 1 FROM operacion_pendiente o WHERE o.negocio_id=c.negocio_id AND o.conversacion_id=c.id
-                        AND ((o.estado='VIGENTE' AND o.expira_en < :ahora)
+                        AND ((o.estado='VIGENTE' AND o.expira_en <= :ahora)
                             OR (o.estado <> 'VIGENTE' AND o.actualizado_en < :limite)))
                 ORDER BY c.id LIMIT :lote FOR UPDATE OF c SKIP LOCKED
                 """, Long.class).setParameter("ahora", ahora).setParameter("limite", limite)
@@ -132,14 +134,14 @@ public class RetencionWhatsApp {
         // Orden conversación → operación, compartido con la entrega y la anonimización.
         var operaciones = entidades.createNativeQuery("""
                 SELECT id FROM operacion_pendiente WHERE conversacion_id IN (:ids)
-                    AND ((estado='VIGENTE' AND expira_en < :ahora) OR (estado <> 'VIGENTE' AND actualizado_en < :limite))
+                    AND ((estado='VIGENTE' AND expira_en <= :ahora) OR (estado <> 'VIGENTE' AND actualizado_en < :limite))
                 ORDER BY id LIMIT :lote FOR UPDATE SKIP LOCKED
                 """, Long.class).setParameter("ids", conversaciones).setParameter("ahora", ahora)
                 .setParameter("limite", limite).setParameter("lote", propiedades.retencion().lote()).getResultList();
         if (operaciones.isEmpty()) return 0;
         entidades.createNativeQuery("""
                 UPDATE operacion_pendiente SET estado='CADUCADA', actualizado_en=:ahora
-                WHERE id IN (:ids) AND estado='VIGENTE' AND expira_en < :ahora
+                WHERE id IN (:ids) AND estado='VIGENTE' AND expira_en <= :ahora
                 """).setParameter("ids", operaciones).setParameter("ahora", ahora).executeUpdate();
         return entidades.createNativeQuery("""
                 DELETE FROM operacion_pendiente WHERE id IN (:ids) AND estado <> 'VIGENTE' AND actualizado_en < :limite

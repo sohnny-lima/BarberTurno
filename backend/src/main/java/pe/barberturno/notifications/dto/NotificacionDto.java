@@ -10,7 +10,7 @@ import pe.barberturno.notifications.Notificacion;
  * @param id identidad del aviso para marcar su lectura
  * @param reservaId reserva que originó el aviso, o nula
  * @param conversacionId conversación derivada, o nula si el destino es una reserva
- * @param tipo acción RN-15 que produjo el aviso
+ * @param tipo cambio de reserva o derivación que produjo el aviso
  * @param mensaje texto público del cambio
  * @param leida indica si el destinatario lo ha leído
  * @param creadoEn fecha del aviso con desfase de Lima
@@ -20,7 +20,7 @@ import pe.barberturno.notifications.Notificacion;
 public record NotificacionDto(long id, Long reservaId, Long conversacionId, AccionAuditoria tipo, String mensaje,
         boolean leida, OffsetDateTime creadoEn) {
     /**
-     * Proyecta un aviso propio mientras su reserva permanece accesible en la transacción.
+     * Proyecta un aviso propio con destino exclusivo a reserva o conversación en la transacción.
      * @param aviso entidad autorizada para el destinatario actual
      * @return representación pública con fecha de Lima
      */

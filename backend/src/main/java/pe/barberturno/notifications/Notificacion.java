@@ -18,7 +18,7 @@ import pe.barberturno.reservations.Reserva;
 import pe.barberturno.audit.AccionAuditoria;
 
 /**
- * Aviso interno RF-16 de un cambio de reserva; el servicio lo persiste con la auditoría según RN-15.
+ * Aviso interno RF-16 con un único destino: reserva (RN-15) o conversación derivada (V2-DA-73).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */

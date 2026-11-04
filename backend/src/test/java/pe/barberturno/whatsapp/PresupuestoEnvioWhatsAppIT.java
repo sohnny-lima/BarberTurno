@@ -44,7 +44,7 @@ class PresupuestoEnvioWhatsAppIT extends WhatsAppSalidaPruebaBase {
     private EnviadorMensajesWhatsApp enviador(ColaSalidaWhatsApp cola, ClienteGraphWhatsApp cliente,
             SalidaWhatsAppPropiedades propiedades) {
         return new EnviadorMensajesWhatsApp(cola, canales, directorio, membresias, ejecutor, cliente,
-                avisos, propiedades, reloj, mapper, gestor);
+                avisos, propiedades, new VentanaWhatsApp(propiedades), reloj, mapper, gestor);
     }
 
     private ColaSalidaWhatsApp perderPrimerCierre() {

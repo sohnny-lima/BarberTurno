@@ -22,6 +22,7 @@ import tools.jackson.databind.node.ObjectNode;
  * Despacha la outbox de uno en uno con ficha: reclamo, preparación y cierre en transacciones separadas
  * del negocio del canal. La preparación confirma los presupuestos antes del POST, que ocurre sin
  * transacción ni conexión retenida, incluso en la recuperación de cierres perdidos (V2-DA-70).
+ * Descarta los mensajes del asistente cuando atiende el personal; comparte la ventana efectiva con la bandeja.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -43,7 +44,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
 
     EnviadorMensajesWhatsApp(ColaSalidaWhatsApp cola, CanalWhatsAppRepository canales, DirectorioNegocios directorio,
             MembresiaRepository membresias, EjecutorEnNegocio ejecutor, ClienteGraphWhatsApp cliente,
-            AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, Clock reloj, JsonMapper mapper,
+            AvisoFalloWhatsApp avisos, SalidaWhatsAppPropiedades opciones, VentanaWhatsApp ventana, Clock reloj, JsonMapper mapper,
             PlatformTransactionManager gestor) {
         this.cola = cola;
         this.canales = canales;
@@ -53,7 +54,7 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
         this.cliente = cliente;
         this.avisos = avisos;
         this.opciones = opciones;
-        this.ventana = new VentanaWhatsApp(opciones);
+        this.ventana = ventana;
         this.reloj = reloj;
         this.mapper = mapper;
         this.transaccion = new TransactionTemplate(gestor);
