@@ -8,6 +8,11 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * Lectura de la outbox bajo RLS. Cada escritura usa SQL condicionado a estado y ficha, sin sincronización JPA.
+ * {@code intentos} cuenta intentos reservados y confirmados al reclamar, aunque no lleguen al HTTP;
+ * es también la ficha que invalida cierres antiguos. {@code inciertos} cuenta presunciones confirmadas
+ * al preparar: 0 permite reintentos seguros, 1 conserva una posible aceptación y 2 consume además
+ * el único intento adicional. El cierre solo retira la primera presunción ante no aceptación probada;
+ * la aceptación conserva el contador y acredita {@code ENVIADO}, no la entrega (V2-DA-70).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */

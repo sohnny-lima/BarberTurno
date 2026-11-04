@@ -60,7 +60,7 @@ El DDL de §3 con estos ajustes (V2-DA-57):
 - `negocio_id bigint NOT NULL DEFAULT app_negocio_actual()`, RLS habilitada y forzada.
 - `reserva_id bigint` nulo, con `FOREIGN KEY (negocio_id, reserva_id) REFERENCES reserva (negocio_id, id)`.
 - `enviado_como varchar(12)` nulo, `CHECK (enviado_como IN ('TEXTO','INTERACTIVO','PLANTILLA'))`: la forma elegida en la **preparación del último intento**, guardada antes de la petición HTTP (hallazgo 111-2).
-- `inciertos smallint NOT NULL DEFAULT 0`: intentos cuyo resultado fue desconocido (V2-DA-58).
+- `inciertos smallint NOT NULL DEFAULT 0`: presunciones confirmadas antes del HTTP; 1 conserva una posible aceptación y 2 consume además el único intento adicional. Solo se retira la primera ante no aceptación probada; no es un contador de solicitudes observadas ni entregas (V2-DA-70, §4.3).
 - `error_codigo varchar(24)` con `CHECK` en los valores de `MotivoFallo` (§4.1), y `codigo_meta integer` nulo.
 - Coherencia:
   - `CHECK (intentos >= 0 AND inciertos >= 0)`;
@@ -123,28 +123,41 @@ Validación de los parámetros: exactamente los del catálogo; cada valor no en 
 | 368, 131031, 131042, 131045, 131048, 131057, 133010 | `CUENTA_RESTRINGIDA` |
 | Cualquier otro 4xx (100, 131008, 131009, 135000…) y cualquier 3xx (con las redirecciones desactivadas, la petición no se procesó) | `SOLICITUD_RECHAZADA` |
 
-### 4.3 Enviador (Codex, V2-DA-57 y V2-DA-58)
+### 4.3 Enviador (Codex, V2-DA-57 y V2-DA-70; corrección H-116-01/02, 04/11/2026)
 1. **Sin token configurado** (`salida.graph.token` vacío), `enviarLote()` devuelve 0 sin reclamar nada; al arrancar se registra un aviso sin valores.
 2. **Negocios:** recorre los `negocio_id` de `canal_whatsapp` (cualquier estado), en orden. Un mensaje solo puede existir para un negocio con canal, porque la conversación nace de una entrada por un canal.
-3. **Reclamo de uno en uno** (hallazgo 111-3): para cada negocio, hasta `lote` veces, una transacción corta con `EjecutorEnNegocio.ejecutar(negocioId, …)`: `UPDATE … SET intentos = intentos + 1, proximo_intento = :ahora + :reclamo WHERE id = (SELECT id … WHERE estado = 'PENDIENTE' AND direccion = 'SALIENTE' AND proximo_intento <= :ahora AND NOT EXISTS (un PENDIENTE de la misma conversación con id menor) ORDER BY proximo_intento, id LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id, intentos`. El valor de `intentos` es la ficha. Si no devuelve nada, se pasa al negocio siguiente. Así, el plazo de cada reclamo empieza justo antes de trabajar ese mensaje.
+3. **Reclamo de uno en uno** (hallazgo 111-3): para cada negocio, hasta `lote` veces, una transacción corta con `EjecutorEnNegocio.ejecutar(negocioId, …)` selecciona un `SALIENTE`/`PENDIENTE` cuyo `proximo_intento <= ahora`, en orden por `proximo_intento, id`, con `FOR UPDATE SKIP LOCKED` y sin un pendiente anterior en su conversación. Incrementa y confirma `intentos` (la ficha) y fija `proximo_intento = ahora + reclamo`. Si ya se alcanzó `max-intentos` o `inciertos = 2`, devuelve un reclamo marcado agotado **sin incrementar el contador**, para terminar el mensaje en la preparación sin reservar ni enviar otro intento. Si no devuelve nada, se pasa al negocio siguiente.
    - **Orden por conversación:** el `NOT EXISTS` incluye los pendientes reclamados y los que esperan un reintento, de modo que un mensaje aplazado retiene a los posteriores. El orden es el de los id entre mensajes **confirmados y visibles**; no ordena inserciones concurrentes aún sin confirmar ni garantiza el orden de recepción en el teléfono (hallazgo 111-9).
 4. **Preparación,** transacción del negocio: bloquea el mensaje `FOR UPDATE` exigiendo `PENDIENTE` y la ficha (si no, nada). Por este orden, deja `FALLIDO` con:
-   - `REINTENTOS_AGOTADOS` si la ficha supera `max-intentos` (un error interno repetido no lo deja en bucle);
+   - `RESULTADO_DESCONOCIDO` si `inciertos >= 2` (el adicional preparado no tuvo cierre vigente);
+   - `REINTENTOS_AGOTADOS` si el reclamo encontró agotado el máximo global (un error interno repetido no lo deja en bucle);
    - `CANAL_DESCONECTADO` si el canal no está `ACTIVO`;
    - `NEGOCIO_NO_OPERATIVO` si el negocio está suspendido o no tiene propietario activo (la regla de V2-DA-53, `contarPropietariosActivos`);
    - `MENSAJE_CADUCADO` si `creado_en + antiguedad-maxima ≤ ahora`;
    - `VENTANA_CERRADA` si es `TEXTO` o `INTERACTIVO` y la ventana está cerrada.
 
-   **Ventana abierta:** `ultima_entrada_en` no nula y `ahora < ultima_entrada_en + 24 h − margen-ventana`. Una `PLANTILLA` con `textoEnVentana` y la ventana abierta se envía como **texto** (`textoEnVentana(parametros)`); en otro caso, como plantilla. Se guarda `enviado_como` y se compone el cuerpo con `to = conversacion.wa_id` y `biz_opaque_callback_data = "bt:m:<id>:<ficha>"`.
-5. **Envío,** fuera de toda transacción y sin bloqueos: `ClienteGraphWhatsApp.enviar(phone_number_id del canal, cuerpo)`. `conexion + respuesta < reclamo`; aun así, una pausa arbitraria del proceso puede hacer vencer el reclamo durante la petición, así que la ficha protege el cierre pero **no** impide un segundo POST en ese caso (CI-4 se limita a lo demostrable).
+   **Ventana abierta:** `ultima_entrada_en` no nula y `ahora < ultima_entrada_en + 24 h − margen-ventana`. Una `PLANTILLA` con `textoEnVentana` y la ventana abierta se envía como **texto** (`textoEnVentana(parametros)`); en otro caso, como plantilla. Se compone el cuerpo con `to = conversacion.wa_id` y `biz_opaque_callback_data = "bt:m:<id>:<ficha>"`. La misma transacción guarda `enviado_como`, incrementa `inciertos` y fija `proximo_intento = GREATEST(proximo_intento, ahora + espera-conciliacion)`. **Todo se confirma antes del HTTP.** `inciertos = 1` reserva la presunción del primer desconocido; pasar a 2 consume el único intento adicional. No se prepara con 2. La fecha persistida impide recuperar un cierre perdido antes de que venzan tanto el reclamo como la espera de conciliación; no se necesita otra columna.
+5. **Envío,** fuera de toda transacción y sin bloqueos: `ClienteGraphWhatsApp.enviar(phone_number_id del canal, cuerpo)`. `conexion + respuesta < reclamo`; una pausa arbitraria puede superar también la espera de conciliación y permitir el intento adicional concurrente. La ficha descarta el cierre antiguo; la presunción ya confirmada impide restablecer el presupuesto.
 6. **Cierre,** transacción del negocio: bloquea `FOR UPDATE` exigiendo `PENDIENTE` y la ficha (si un aviso de estado ya lo concilió o la ficha cambió, no hace nada) y aplica:
-   - `Aceptado` → `ENVIADO` con su `wamid`;
-   - `Rechazado` transitorio o `NoEnviado` → `PENDIENTE` con `proximo_intento = ahora + espera(ficha)` (base 30 s, ×2, máximo 5 min), o `FALLIDO`/`REINTENTOS_AGOTADOS` si la ficha llega a `max-intentos`;
-   - `Rechazado` permanente → `FALLIDO` con su motivo y `codigo_meta`;
-   - `Desconocido` → `inciertos + 1`; si `inciertos < max-inciertos`, `PENDIENTE` con `proximo_intento = ahora + espera-conciliacion` (para que un aviso de estado lo concilie antes del reenvío); si no, `FALLIDO`/`RESULTADO_DESCONOCIDO`. La ficha sigue contando para `max-intentos`.
-7. **Aislamiento de fallos** (hallazgo 111-16): una excepción en la preparación, el envío o el cierre de un mensaje se registra con su id (sin contenido) y no detiene el lote. Si el cierre falla, el mensaje sigue reclamado y vuelve al vencer el plazo, como tras una caída: puede reenviarse (V2-DA-58).
+   - `Aceptado` → `ENVIADO` con su `wamid`, conservando la presunción (la respuesta acredita aceptación, no entrega);
+   - `Rechazado` transitorio o `NoEnviado`, con `inciertos = 1` → retira la presunción (vuelve a 0) y deja `PENDIENTE` con `proximo_intento = ahora + espera(ficha)` (base 30 s, ×2, máximo 5 min), o `FALLIDO`/`REINTENTOS_AGOTADOS` si la ficha llega a `max-intentos`;
+   - esos mismos resultados en el adicional (`inciertos = 2`) → `FALLIDO`/`RESULTADO_DESCONOCIDO`, sin devolver el permiso;
+   - `Rechazado` permanente → `FALLIDO` con su motivo y `codigo_meta`; retira la primera presunción si era 1, pero conserva 2 en el adicional;
+   - `Desconocido` → conserva `inciertos`; con 1, `PENDIENTE` y `proximo_intento = ahora + espera-conciliacion`; con 2, `FALLIDO`/`RESULTADO_DESCONOCIDO`.
+7. **Aislamiento de fallos** (hallazgo 111-16): una excepción en la preparación, el envío o el cierre se registra con el id (sin contenido) y no detiene el lote. Si el cierre se pierde o se descarta por ficha antigua, **la presunción permanece contada**. Al recuperar, con 1 se permite como máximo el adicional, sujeto a `max-intentos`; con 2 se termina sin HTTP. Un enviador construido de nuevo consulta esos mismos presupuestos persistidos.
 8. Toda transición a `FALLIDO`, o cambio de su motivo, genera en la misma transacción el aviso interno de §4.5. Los registros solo llevan el id del mensaje y el motivo.
 9. **Hilos** (hallazgo 111-10): `spring.task.scheduling.pool.size: 2`, para que el envío no retrase el procesador de entrada.
+
+**Cuatro estados que no deben confundirse (V2-DA-70):**
+
+| Estado observado | Qué acredita y consecuencias |
+|---|---|
+| Intento reservado | `intentos` confirmado al reclamar; máximo 5 con la configuración actual. Puede consumirse sin HTTP. |
+| Solicitud efectuada | La preparación solo acredita que se iba a efectuar: confirma la presunción en `inciertos`. Caer antes o durante el HTTP puede dejar 0 solicitudes observadas y consumir el permiso. |
+| Aceptación del proveedor | Respuesta con `wamid` → `ENVIADO`; puede haber aceptación cuyo cierre se pierda. No acredita entrega. |
+| Entrega confirmada | Aviso `delivered`/`read` → `ENTREGADO`/`LEIDO`; no se deduce de reservar, preparar o recibir aceptación. |
+
+**Límites de solicitudes:** aceptación a la primera: 1; primer desconocido y adicional: como máximo 2 desde ese primer desconocido (solo 1 posterior), incluso con 429, reinicios y cierres perdidos. Los rechazos probados anteriores al primer desconocido pueden sumar solicitudes hasta el máximo global de 5. Si ya era el quinto intento, no hay adicional. Una o ambas preparaciones pueden emitir 0 solicitudes por caída. La conciliación puede evitar el adicional; no retira una solicitud en curso. **No se garantiza entrega ni ausencia de duplicados:** ambos intentos potencialmente aceptados pueden llegar al destinatario.
 
 ### 4.4 Estados y ventana (Codex, V2-DA-59 y V2-DA-60)
 **Cambio en V2-08** (`ProcesadorEventosWhatsApp`, hallazgo 111-7): los eventos `ESTADO` de un canal **registrado** se entregan aunque el canal esté desconectado o el negocio no sea operativo: son la contabilidad de mensajes que ya salieron. Los `MENSAJE` siguen la regla de V2-DA-53. `NUMERO_NO_REGISTRADO` y `REMITENTE_INVALIDO` se mantienen para ambos.
@@ -187,7 +200,7 @@ Validación de los parámetros: exactamente los del catálogo; cada valor no en 
 | `lote` | `20` (mensajes por negocio y pasada) |
 | `max-intentos` | `5` (máximo 100, por `smallint`) |
 | `espera-base` / `espera-maxima` | `30s` / `5m`: con 5 intentos, unos 7 min 30 s de esperas |
-| `max-inciertos` | `2`: el segundo desconocido **contabilizado** termina el mensaje. No limita los reenvíos tras un cierre perdido ni tras un 429/5xx posterior (H-116-01/02); el tope absoluto es `max-intentos` |
+| Presupuesto de desconocidos (sin propiedad configurable) | V2-DA-70: presunción confirmada antes del HTTP y un único intento adicional, consumido incluso con 429, `NoEnviado` o cierre perdido. Se retira `max-inciertos`. |
 | `espera-conciliacion` | `2m` |
 | `reclamo` | `60s` |
 | `antiguedad-maxima` | `6h` |
@@ -229,7 +242,7 @@ Validación de los parámetros: exactamente los del catálogo; cada valor no en 
 ## 7. Pendientes y bloqueos registrados
 - **P2-05:** token, número de prueba, destinatarios y aprobación de las tres plantillas. Sin ellos, la conexión real no está acreditada.
 - **Retención** de `mensaje_whatsapp.contenido`, de las conversaciones sin ficha y de `evento_whatsapp_entrante.cuerpo`: se fija con P2-06 en V2-10.
-- **Garantía de entrega:** reintentos acotados por `max-intentos`, con conciliación. No garantiza que el mensaje llegue ni que no se duplique (hasta `max-intentos` envíos en el peor caso); no es exactamente una vez (V2-DA-58, precisada el 29/10/2026).
+- **Garantía de entrega:** hasta `max-intentos` intentos reservados, con conciliación y un único intento adicional tras el primer desconocido (V2-DA-70). No garantiza llegada ni ausencia de duplicados: ambas solicitudes potencialmente aceptadas pueden llegar al destinatario.
 - **Visibilidad de los avisos** (hallazgo 111-14): la cabecera oculta los avisos al rol efectivo `ADMIN` (propietario y encargado), herencia de RN-15 de v1. Los avisos de V2-09 se guardan y el profesional los ve, pero mostrarlos a propietarios y encargados es un cambio de interfaz que se hará tras integrar V2-07, que reescribe esa cabecera.
 - **Integración con V2-07:** los conflictos ya anotados en V2-08 (`ResolutorNegocio.esGlobal`, `07-decisiones.md`, `10-backlog.md`) y el `vaciar()` de los E2E, que debe incluir `canal_whatsapp`, `evento_whatsapp_entrante`, `conversacion` y `mensaje_whatsapp`. **Cierre robusto del entorno de revisión** de V2-07: el `finally` del script no se ejecuta si se cierra la consola (visto el 28/10); pendiente de una solución verificada.
 
