@@ -71,7 +71,7 @@ class OrquestadorConversacionTest {
         var propiedades = new ConversacionPropiedades(
                 new ConversacionPropiedades.Privacidad("Privacidad {negocio} {enlace}", "https://x.ejemplo.test"),
                 Duration.ofHours(24), Duration.ofMinutes(10),
-                new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null));
+                new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
         orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
                 consultas, operaciones, salida, propiedades, Clock.fixed(AHORA, ZoneOffset.UTC));
         when(registro.operativo(NEGOCIO)).thenReturn(true);

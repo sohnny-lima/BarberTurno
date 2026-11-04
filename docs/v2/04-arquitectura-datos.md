@@ -287,7 +287,7 @@ En la primera tarea, `negocio_id` se añade **en tres pasos** (columna anulable 
 ### 7.1 Principio y flujo
 El modelo **interpreta y redacta**; el servidor **consulta, valida, propone y ejecuta**. Flujo por mensaje entrante:
 1. Si es la pulsación de un botón de confirmación → `EjecutorOperaciones` (sin IA): valida nonce, ficha, vigencia y estado; ejecuta el servicio de dominio; compone la respuesta con una **plantilla del servidor** a partir del resultado (V2-RN-11).
-2. Si la conversación está en modo `HUMANO` → solo se guarda y se avisa al personal (V2-RN-15).
+2. Si la conversación está en modo `HUMANO` → solo se guarda y se avisa al personal (V2-RN-15). *(Precisión del 04/11/2026, V2-11: esta comprobación va **antes** que la del punto 1; en modo humano tampoco se ejecutan confirmaciones. Ver `16-v2-11-…` §2.)*
 3. Si se superan los límites o el modelo no está disponible → **menús guiados** (la Fase 1, que se conserva como respaldo permanente).
 4. **Ciclo de vida de `conversacion.estado`:** se vacía (`{}`) cuando una operación pasa a `EJECUTADA`, cuando el cliente vuelve al menú principal y cuando pasan 24 h sin mensajes del cliente; así el modelo nunca hereda servicio, profesional o fecha de una interacción anterior.
 5. En otro caso → `Orquestador` llama al modelo con: instrucciones fijas del sistema, el catálogo del negocio (solo ese negocio), el estado de la conversación, la fecha y hora actuales en Lima con el día de la semana, y los últimos N mensajes. El modelo puede responder texto o pedir herramientas.

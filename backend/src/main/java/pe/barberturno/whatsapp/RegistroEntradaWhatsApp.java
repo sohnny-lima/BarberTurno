@@ -80,6 +80,19 @@ public class RegistroEntradaWhatsApp {
     }
 
     /**
+     * Guarda un mensaje entrante en el historial (V2-11, 16-v2-11 §4): {@code ENTRANTE}, origen
+     * {@code CLIENTE}, estado {@code RECIBIDO}, {@code wamid} del mensaje y un contenido mínimo
+     * ({@code {"texto"}}, {@code {"seleccion","titulo"}} o {@code {"tipo"}}), nunca el cuerpo crudo de Meta.
+     * Se llama en la transacción de entrega, una sola vez por mensaje.
+     * @param conversacionId conversación bloqueada del negocio actual
+     * @param mensaje mensaje entrante
+     * @return id del mensaje guardado
+     */
+    public long guardarEntrante(long conversacionId, MensajeEntrante mensaje) {
+        throw new UnsupportedOperationException("Pendiente del bloque C11.");
+    }
+
+    /**
      * Comprueba, dentro de la transacción de la entrega, que el negocio puede atender: canal
      * {@code ACTIVO}, negocio no suspendido y con algún propietario activo (V2-DA-53, V2-DA-65). Cierra la
      * ventana entre la resolución del evento y su entrega.

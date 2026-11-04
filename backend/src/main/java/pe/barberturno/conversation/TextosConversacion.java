@@ -308,4 +308,43 @@ public class TextosConversacion {
     public String noSoportado() {
         return "Por ahora solo entiendo texto y botones.";
     }
+
+    /**
+     * Acuse de la derivación (06-flujos.md §9.2), origen {@code SISTEMA}: el equipo responderá por aquí.
+     * Implementación: Gemini (G11).
+     * @param negocio nombre del negocio
+     * @return texto
+     */
+    public String derivada(String negocio) {
+        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+    }
+
+    /**
+     * Aviso de que la conversación vuelve al asistente (por el personal o por el retorno automático), que
+     * acompaña al menú principal. Implementación: Gemini (G11).
+     * @return texto
+     */
+    public String devuelta() {
+        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+    }
+
+    /**
+     * Respuesta a [No, gracias] cuando el consentimiento se pidió para pasar con el equipo: sin aceptarlo no
+     * se puede derivar, pero se puede seguir consultando. Implementación: Gemini (G11).
+     * @return texto
+     */
+    public String consentimientoDerivacionRechazado() {
+        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+    }
+
+    /**
+     * Texto no reconocido en modo asistente (V2-11). Con {@code fallos = 1} avisa de que, si vuelve a pasar,
+     * se pasará con el equipo. Implementación: Gemini (G11).
+     * @param fallos textos no reconocidos seguidos, incluido este (1 o más)
+     * @return texto
+     * @throws IllegalArgumentException si {@code fallos} es menor que 1
+     */
+    public String noEntendido(int fallos) {
+        throw new UnsupportedOperationException("Pendiente del bloque G11.");
+    }
 }

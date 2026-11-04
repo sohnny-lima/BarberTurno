@@ -16,6 +16,11 @@ public enum PalabraClave {
     SI,
     /** «no»: rechaza la única operación vigente. */
     NO,
+    /**
+     * Petición de una persona (V2-11, 16-v2-11 §3.1): frases exactas tras normalizar —«hablar con alguien»,
+     * «hablar con una persona», «persona», «humano», «asesor», «agente», «ayuda»—, sin buscar subcadenas.
+     */
+    PERSONA,
     /** Cualquier otro texto: se responde con el menú. */
     OTRA;
 

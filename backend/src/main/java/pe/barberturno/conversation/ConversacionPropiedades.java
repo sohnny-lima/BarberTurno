@@ -43,10 +43,16 @@ public record ConversacionPropiedades(@NotNull @Valid Privacidad privacidad,
      *        decidido en 04-arquitectura §3 y 06-flujos §6)
      * @param cuerpoEventos antigüedad tras la que se vacía el cuerpo de un evento entrante terminado;
      *        nula = desactivado hasta que P2-06 fije el plazo
+     * @param contenidoMensajes antigüedad tras la que se retira el contenido de los mensajes no pendientes de
+     *        las conversaciones con ficha (V2-11, 16-v2-11 §8); nula = desactivado (P2-06, D4)
+     * @param operacionesTerminadas antigüedad tras la que se borran las operaciones pendientes no vigentes
+     *        (V2-11); nula = desactivado (P2-06, D4)
      */
     public record Retencion(@DefaultValue("true") boolean habilitada,
             @DefaultValue("1h") @NotNull Duration intervalo,
             @DefaultValue("200") @Positive int lote,
             @DefaultValue("30d") @NotNull Duration conversacionesSinFicha,
-            Duration cuerpoEventos) { }
+            Duration cuerpoEventos,
+            Duration contenidoMensajes,
+            Duration operacionesTerminadas) { }
 }

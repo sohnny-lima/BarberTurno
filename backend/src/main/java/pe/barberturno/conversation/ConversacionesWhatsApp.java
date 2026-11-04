@@ -49,12 +49,13 @@ public class ConversacionesWhatsApp {
      */
     public EstadoConversacion bloquear(long conversacionId) {
         var fila = (Object[]) entidades.createNativeQuery("""
-                SELECT id, wa_id, cliente_id, CAST(estado AS text) FROM conversacion WHERE id = :id FOR UPDATE
+                SELECT id, wa_id, cliente_id, CAST(estado AS text), modo FROM conversacion WHERE id = :id FOR UPDATE
                 """).setParameter("id", conversacionId).getSingleResult();
         var estado = mapper.readTree((String) fila[3]);
         return new EstadoConversacion(((Number) fila[0]).longValue(), (String) fila[1],
                 fila[2] == null ? OptionalLong.empty() : OptionalLong.of(((Number) fila[2]).longValue()),
-                estado instanceof ObjectNode objeto ? objeto : mapper.createObjectNode());
+                estado instanceof ObjectNode objeto ? objeto : mapper.createObjectNode(),
+                ModoConversacion.valueOf((String) fila[4]));
     }
 
     /**
@@ -100,6 +101,19 @@ public class ConversacionesWhatsApp {
      * @param waId remitente verificado por WhatsApp
      * @param clienteId ficha enlazada, vacía hasta aceptar la privacidad
      * @param estado estado guardado (copia modificable)
+     * @param modo quién atiende la conversación (V2-11)
      */
-    public record EstadoConversacion(long id, String waId, OptionalLong clienteId, ObjectNode estado) { }
+    public record EstadoConversacion(long id, String waId, OptionalLong clienteId, ObjectNode estado,
+            ModoConversacion modo) {
+        /**
+         * Conversación atendida por el asistente (la forma de V2-10).
+         * @param id identidad de la conversación
+         * @param waId remitente verificado por WhatsApp
+         * @param clienteId ficha enlazada, vacía hasta aceptar la privacidad
+         * @param estado estado guardado (copia modificable)
+         */
+        public EstadoConversacion(long id, String waId, OptionalLong clienteId, ObjectNode estado) {
+            this(id, waId, clienteId, estado, ModoConversacion.ASISTENTE);
+        }
+    }
 }
