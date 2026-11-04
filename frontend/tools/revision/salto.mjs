@@ -83,7 +83,9 @@ for (const [nombre, tipo] of [
           ventana: scrollY,
         };
       });
-      console.log(`${nombre}-${viewport.width}${conMenu ? ' menú abierto' : ' teclado'}: ${JSON.stringify(r)}`);
+      console.log(
+        `${nombre}-${viewport.width}${conMenu ? ' menú abierto' : ' teclado'}: ${JSON.stringify(r)}`,
+      );
       await contexto.close();
     }
   }

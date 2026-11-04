@@ -104,7 +104,9 @@ for (const [nombre, tipo] of [
       menuAbierto: getComputedStyle(document.querySelector('mat-sidenav')).visibility !== 'hidden',
       focoEnMain: document.activeElement === main,
       mainVisibleEnSuPunto: !!encima?.closest('main'),
-      elementoEncima: encima ? encima.tagName + '.' + encima.className.toString().slice(0, 40) : null,
+      elementoEncima: encima
+        ? encima.tagName + '.' + encima.className.toString().slice(0, 40)
+        : null,
     };
   });
   console.log(`${nombre}-360 salto con el menú abierto: ${JSON.stringify(estado)}`);
