@@ -16,7 +16,7 @@ pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Verificar
 # 3. Verificación con sondas adicionales de foco y salto al contenido
 pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Verificar -Sondas axe.mjs,foco.mjs,salto.mjs
 
-# 4. Recuperación explícita tras un cierre abrupto de la consola
+# 4. Recuperación explícita tras un cierre abrupto o un vaciado fallido
 pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Recuperar
 
 # 5. Modo de espera sin ventanas (exclusivo para probar el cierre abrupto y el Job Object)
@@ -69,28 +69,51 @@ Sin embargo, **un `finally` no se ejecuta si la consola muere de forma abrupta**
 - si el proceso `pwsh.exe` recibe `Stop-Process -Force` / `taskkill /F` (`TerminateProcess`);
 - ante un cierre forzoso de sesión o caída del proceso anfitrión.
 
-Cuando eso ocurre, el proceso de PowerShell desaparece en el acto sin ejecutar ni una sola línea del `finally`. Por eso el diseño separa la **terminación inmediata de procesos hijos** (mediante un *Job Object* del sistema operativo) de la **limpieza diferida de estado y base de datos** (mediante archivo de sesión, cerrojo y recuperación).
+Cuando eso ocurre, el proceso de PowerShell desaparece en el acto sin ejecutar ni una sola línea del `finally`. Por eso el diseño separa la **terminación inmediata de procesos hijos** (mediante un *Job Object* del sistema operativo al que se asigna la propia consola antes de crear ningún hijo) de la **limpieza diferida de estado y base de datos** (mediante archivo de sesión con identificador único, cerrojo y recuperación).
 
 ## 4. Garantías y límites del *Job Object* de Windows
 
-`revision-conjunta.ps1` crea un objeto de trabajo de Windows (`CreateJobObjectW`) configurado con la bandera `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` y le asigna:
+`revision-conjunta.ps1` crea un objeto de trabajo de Windows (`CreateJobObjectW`) configurado con la bandera `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` y le asigna **el propio proceso de la consola (`[System.Diagnostics.Process]::GetCurrentProcess().Handle`) antes de crear ningún proceso hijo**. Si la asignación de la consola al trabajo falla (por ejemplo, porque el proceso anfitrión pertenezca a un trabajo que prohíba anidar), el script aborta con un mensaje claro antes de iniciar procesos ni tocar la base.
+
+Al estar la consola dentro del trabajo desde antes de cualquier `Start-Process`, todo proceso hijo nace ya dentro del *Job Object* sin ventana entre creación y asignación:
 - el proceso del *backend* (`java -jar …`);
-- el proceso de las ventanas de revisión (`node …/ventanas.mjs`), cuyos procesos hijos (los navegadores Chromium lanzados por Playwright) heredan automáticamente el trabajo.
+- el proceso de las ventanas de revisión (`node …/ventanas.mjs`) y sus navegadores hijos de Playwright;
+- cada proceso de sonda ejecutado en `-Verificar` (`axe.mjs`, `foco.mjs`, `salto.mjs`) y sus navegadores hijos.
 
 ### Qué garantiza el *Job Object*
-- Si el proceso de la consola (`pwsh.exe`) termina de forma abrupta, el núcleo de Windows cierra el último identificador abierto del *Job Object* y **termina inmediatamente el *backend* y los navegadores**, liberando el puerto `8081` sin dejar procesos huérfanos.
+- Si el proceso de la consola (`pwsh.exe`) termina de forma abrupta, el núcleo de Windows cierra el último identificador abierto del *Job Object* y **termina inmediatamente el *backend*, las sondas y los navegadores**, liberando el puerto `8081` sin dejar procesos huérfanos.
+- Con `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, el cierre normal del proceso de la consola al terminar el script también cierra el identificador del trabajo y termina cualquier proceso hijo que quedara en él, lo que es coherente porque los hijos ya se detienen explícitamente en el bloque `finally` antes de vaciar la base y salir.
 
 ### Qué NO garantiza el *Job Object* (límites explícitos)
 1. **No vacía la base de datos ni borra archivos en disco:** el núcleo de Windows solo termina procesos; no ejecuta `vaciar()` sobre `barberturno_v2_test`, ni borra `.local/revision-conjunta.sesion.json`, ni retira `D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock`. Esa limpieza la realiza la recuperación.
-2. **Ventana de milisegundos al crear cada proceso:** en Windows, `Start-Process` crea el proceso antes de que `AssignProcessToJobObject` reciba su identificador. Existe una ventana de unos milisegundos entre ambas llamadas en la que, si la consola muriera exactamente en ese instante, el proceso hijo podría no haber entrado aún en el trabajo. El archivo de sesión y la recuperación cubren también ese caso residual.
+2. **Procesos no registrados aún si la consola muere antes de escribir el PID:** si la consola muere en el instante posterior a `Start-Process` antes de que llegue a actualizarse `.local/revision-conjunta.sesion.json`, es el *Job Object* (y no la recuperación por PID) quien garantiza la muerte inmediata del proceso hijo. La recuperación posterior vacía la base y limpia el cerrojo y la sesión.
 
 ## 5. Cerrojo, archivo de sesión y recuperación
 
-- **Cerrojo (`D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock`):** se toma antes de arrancar procesos con el formato `pid=<PID> worktree=<ruta> inicio=<ISO-8601>` durante toda la sesión, para que ninguna suite de pruebas use `barberturno_v2_test` simultáneamente.
-- **Archivo de sesión (`.local/revision-conjunta.sesion.json`):** ignorado por Git; se escribe antes de arrancar procesos y registra `pidConsola`, `pidBackend`, `pidVentanas`, `jar`, `base`, `puerto` e `inicio`.
+- **Cerrojo de la base (`D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock`):** se toma con `[IO.FileMode]::CreateNew` antes de arrancar procesos con el formato `pid=<PID> idSesion=<GUID> worktree=<ruta> inicio=<ISO-8601>` durante toda la sesión, para que ninguna suite de pruebas use `barberturno_v2_test` simultáneamente.
+- **Cerrojo de recuperación (`.local/revision-conjunta.recuperacion.lock`):** serializa las ejecuciones concurrentes de `Recuperar-Sesion` (creado con `CreateNew` y liberado en su propio `finally`).
+- **Archivo de sesión (`.local/revision-conjunta.sesion.json`):** ignorado por Git; se escribe antes de arrancar procesos y se actualiza inmediatamente después de crear cada hijo (antes de esperar a que el *backend* arranque o a que terminen las sondas/ventanas). Registra:
+  - `idSesion` (GUID único de la sesión), `pidConsola`, `jar`, `base`, `puerto`, `inicio` (`hora`), `worktree` y `limpiezaPendiente`;
+  - la identidad de cada proceso activo (`backend`, `ventanas`, `sonda`), compuesta por su `pid`, **hora de creación** (`Process.StartTime` en UTC ISO-8601), **ejecutable** con ruta absoluta y **línea de órdenes completa** con rutas absolutas.
+- **Cierre normal y vaciado fallido:**
+  - Antes de vaciar y antes de borrar la sesión o el cerrojo en el `finally`, el script vuelve a leer `.local/revision-conjunta.sesion.json` y comprueba que `idSesion` sigue siendo el suyo.
+  - Si `Vaciar-Base` falla (por ejemplo, porque hay una conexión externa abierta a `barberturno_v2_test` que la guarda de `vaciar()` rechaza), el script **conserva** el archivo de sesión marcando `limpiezaPendiente = true` y **conserva** el cerrojo `bd-v2-test.lock`, e informa en consola de cómo ejecutar `-Recuperar`.
+  - La sesión y el cerrojo solo se borran tras confirmar el vaciado y comprobar que `idSesion` y el `pid` del cerrojo siguen siendo los propios.
 - **Recuperación (automática al arrancar si existe `.local/revision-conjunta.sesion.json`, o manual con `-Recuperar`):**
-  1. Si el cerrojo pertenece a otro proceso vivo, **aborta sin tocar nada** (no detiene procesos, no vacía la base y no borra el cerrojo ni la sesión).
-  2. Si los PIDs registrados en la sesión (`pidBackend`, `pidVentanas`) siguen vivos, los detiene **únicamente** si su línea de órdenes (`Win32_Process.CommandLine`) coincide con el jar de BarberTurno o con `ventanas.mjs`, nunca por nombre de proceso.
-  3. Vacía `barberturno_v2_test` mediante `vaciar()` de `frontend/e2e/base-datos.ts`.
-  4. Borra el cerrojo **solo** si su `pid` coincide con `pidConsola` de la sesión registrada y ese proceso ya no existe.
-  5. Borra `.local/revision-conjunta.sesion.json` e informa en consola de todo lo recuperado.
+  1. Se serializa mediante `.local/revision-conjunta.recuperacion.lock` (`CreateNew`). Si otra recuperación concurrente ya procesó la sesión mientras se esperaba el cerrojo, sale sin tocar nada.
+  2. Si el cerrojo de la base (`bd-v2-test.lock`) pertenece a otro proceso vivo, **aborta sin tocar nada** (no detiene procesos, no vacía la base y no borra el cerrojo ni la sesión).
+  3. Si alguno de los procesos registrados en la sesión (`backend`, `ventanas`, `sonda`) sigue vivo, lo detiene **únicamente** si coinciden **los tres** datos de su identidad: hora de creación (`StartTime`), ruta absoluta del ejecutable y línea de órdenes completa con rutas absolutas (sin comodines por nombre de archivo).
+  4. Vuelve a leer `.local/revision-conjunta.sesion.json` para comprobar que `idSesion` no ha cambiado y vacía `barberturno_v2_test` mediante `vaciar()` de `frontend/e2e/base-datos.ts`. Si el vaciado falla, conserva la sesión con `limpiezaPendiente = true` y el cerrojo, e informa de cómo reintentar `-Recuperar`.
+  5. Tras confirmar el vaciado, vuelve a leer `.local/revision-conjunta.sesion.json` para comprobar que `idSesion` sigue siendo el mismo, borra el cerrojo **solo** si su `pid` coincide con `pidConsola` de esa sesión y dicho proceso ya no existe, y borra `.local/revision-conjunta.sesion.json`.
+
+## 6. Pruebas de verificación del entorno (P1…P7)
+
+Pruebas que ejecuta el coordinador para validar el entorno:
+
+- **P1:** `-Verificar` → código 0; sin archivo de sesión ni cerrojo al terminar; base vacía (1 negocio, 0 filas en tablas limpiadas); ningún proceso escuchando en el puerto `8081`.
+- **P2:** consola con `-Mantener` → se mata la consola con `Stop-Process -Force` → en ≤ 10 s el *backend* ya no existe (terminado por el *Job Object*), y quedan en disco el archivo de sesión y el cerrojo.
+- **P3:** `-Recuperar` → base vacía, cerrojo y archivo de sesión borrados, con el resumen de lo recuperado en salida estándar.
+- **P4:** `-Verificar` de nuevo (reapertura) → código 0.
+- **P5:** con el cerrojo tomado por otro proceso vivo, tanto `-Recuperar` como el arranque normal abortan sin tocar procesos, base, cerrojo ni sesión.
+- **P6:** dos `-Recuperar` lanzados a la vez → se serializan mediante `.local/revision-conjunta.recuperacion.lock`; uno recupera la sesión y el otro espera o sale sin tocar nada.
+- **P7:** un vaciado que falla (por ejemplo, con una sesión de base abierta en `barberturno_v2_test` que la guarda de `vaciar()` rechaza) → la sesión se conserva con `limpiezaPendiente = true` junto con el cerrojo, e invocando `-Recuperar` una vez cerrada la conexión externa se completa la limpieza.

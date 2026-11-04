@@ -1056,7 +1056,7 @@ async function salirConRespuesta(page: Page) {
   await expect(page).toHaveURL(/\/ingresar/);
 }
 
-test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso', async ({
+test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador consulta los suyos', async ({
   page,
 }, testInfo) => {
   // La atención del caso 03 genera COMPLETAR solo para Ana (RN-15).
@@ -1218,7 +1218,56 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await expect(page.getByRole('button', { name: /^Ver avisos:/ })).toBeFocused();
   await salirConRespuesta(page);
   await ingresar(page, 'multirol@ejemplo.test');
-  await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
+  const adminApi = await sesionApi('multirol@ejemplo.test');
+  try {
+    const { noLeidas: noLeidasAdmin }: { noLeidas: number } = await (
+      await adminApi.get('/api/n/barberturno/notificaciones/conteo')
+    ).json();
+    const avisosAdmin: Pagina<NotificacionDto> = await (
+      await adminApi.get('/api/n/barberturno/notificaciones?tamano=100')
+    ).json();
+    const idsAjenos = new Set([...avisosAna.contenido, ...propios.contenido].map((a) => a.id));
+    expect(avisosAdmin.contenido.filter((a) => idsAjenos.has(a.id))).toEqual([]);
+    await expect(contador).toHaveText(`Avisos sin leer: ${noLeidasAdmin}`);
+    const campanaAdmin = page.getByRole('button', {
+      name: `Avisos: ${noLeidasAdmin} sin leer`,
+      exact: true,
+    });
+    await expect(campanaAdmin).toBeVisible();
+    const listadoAdmin = page.waitForResponse(
+      (r) => new URL(r.url()).pathname === '/api/n/barberturno/notificaciones',
+    );
+    await campanaAdmin.click();
+    const respuestaListadoAdmin = await listadoAdmin;
+    expect(respuestaListadoAdmin.status()).toBe(200);
+    const visiblesAdmin: Pagina<NotificacionDto> = await respuestaListadoAdmin.json();
+    expect(visiblesAdmin.contenido.filter((a) => idsAjenos.has(a.id))).toEqual([]);
+    const dialogoAdmin = page.getByRole('dialog', { name: 'Avisos', exact: true });
+    await expect(dialogoAdmin).toBeVisible();
+    await expect(dialogoAdmin.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
+    await expect(dialogoAdmin.locator('.insignia')).toHaveText(`${noLeidasAdmin} sin leer`);
+    await expect(dialogoAdmin.locator('[aria-busy="true"]')).toHaveCount(0);
+    await expect(dialogoAdmin.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+    if (visiblesAdmin.contenido.length === 0) {
+      await expect(dialogoAdmin.locator('app-avisos-panel li')).toHaveText(['No tiene avisos.']);
+    } else {
+      await expect(dialogoAdmin.locator('app-avisos-panel li')).toHaveCount(
+        visiblesAdmin.contenido.length,
+      );
+      for (const aviso of visiblesAdmin.contenido) {
+        expect(avisosAdmin.contenido.some((a) => a.id === aviso.id)).toBe(true);
+        await expect(dialogoAdmin).toContainText(aviso.mensaje);
+      }
+    }
+    for (const ajeno of [...avisosAna.contenido, ...propios.contenido]) {
+      await expect(dialogoAdmin).not.toContainText(ajeno.mensaje);
+    }
+    await dialogoAdmin.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await expect(dialogoAdmin).toHaveCount(0);
+    await expect(campanaAdmin).toBeFocused();
+  } finally {
+    await adminApi.dispose();
+  }
 });
 
 test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async ({ page }) => {
