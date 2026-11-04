@@ -172,9 +172,18 @@ describe('Contador y sondeo de avisos', () => {
   });
   it('cancela conteos de la identidad anterior y soporta cualquier rol', () => {
     const servicio = iniciar();
+    const negocio = TestBed.inject(NegocioActual);
     servicio.actualizar();
     const anterior = http.expectOne('/api/n/prueba/notificaciones/conteo');
-    usuario.set({ ...identidad, id: 2, rol: 'ADMIN' });
+    const propietario: UsuarioSesionDto = {
+      ...identidad,
+      id: 2,
+      rol: 'ADMIN',
+      rolNegocio: 'PROPIETARIO',
+    };
+    usuario.set(propietario);
+    negocio.actualizarSesion(propietario);
+    negocio.marcarSuspendido();
     TestBed.tick();
     vi.advanceTimersByTime(0);
     expect(anterior.cancelled).toBe(true);

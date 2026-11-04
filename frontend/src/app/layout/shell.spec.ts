@@ -85,6 +85,7 @@ describe('Shell adaptable', () => {
     ]);
     expect(vista.componentInstance.nombreRol()).toBe('');
     expect(vista.nativeElement.querySelector('.usuario div span')).toBeNull();
+    expect(vista.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
   it('plataforma sin membresía tiene zona separada y ningún menú del negocio', () => {
     TestBed.inject(SesionService).cargar().subscribe();
@@ -108,6 +109,7 @@ describe('Shell adaptable', () => {
       'Plataforma',
     );
     expect(f.nativeElement.querySelector('app-barberia-actual section')).toBeNull();
+    expect(f.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
   });
   it.each([
     ['PROPIETARIO', 'Propietario'],
@@ -314,7 +316,9 @@ describe('Shell adaptable', () => {
   it.each([
     ['CLIENTE', false],
     ['CLIENTE', true],
+    ['BARBERO', false],
     ['BARBERO', true],
+    ['ADMIN', false],
     ['ADMIN', true],
   ] as [Rol, boolean][])(
     'oculta el distintivo vacío de %s y conserva su estado accesible, móvil=%s',
@@ -324,6 +328,7 @@ describe('Shell adaptable', () => {
       (TestBed.inject(AvisosService).noLeidas as ReturnType<typeof signal<number>>).set(0);
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]')).toHaveLength(1);
       expect(fixture.nativeElement.querySelectorAll('.distintivo')).toHaveLength(0);
       expect(fixture.nativeElement.querySelector('.contador-personal')).toBeNull();
       expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
@@ -332,33 +337,49 @@ describe('Shell adaptable', () => {
     },
   );
   it.each([
-    ['CLIENTE', false],
-    ['ADMIN', false],
-    ['BARBERO', false],
-    ['CLIENTE', true],
-    ['ADMIN', true],
-    ['BARBERO', true],
-  ] as [Rol, boolean][])(
-    'ofrece diálogo de avisos a CLIENTE y BARBERO: %s, móvil=%s',
-    (rol, esMovil) => {
+    ['CLIENTE', null, false, false],
+    ['BARBERO', 'BARBERO', false, false],
+    ['ADMIN', 'PROPIETARIO', false, false],
+    ['ADMIN', 'ENCARGADO', false, false],
+    ['CLIENTE', null, true, false],
+    ['BARBERO', 'BARBERO', true, false],
+    ['ADMIN', 'PROPIETARIO', true, false],
+    ['ADMIN', 'ENCARGADO', true, false],
+    ['ADMIN', 'PROPIETARIO', false, true],
+    ['ADMIN', 'ENCARGADO', true, true],
+    ['BARBERO', 'BARBERO', false, true],
+  ] as const)(
+    'ofrece la campana a todo miembro (%s/%s, móvil=%s, suspendida=%s)',
+    (rol, rolNegocio, esMovil, suspendida) => {
       entrar(rol);
+      const negocio = TestBed.inject(NegocioActual);
+      negocio.actualizarSesion({ ...negocio.usuario()!, rol, rolNegocio });
+      if (suspendida) negocio.marcarSuspendido();
       movil.next({ matches: esMovil });
+      (TestBed.inject(AvisosService).noLeidas as ReturnType<typeof signal<number>>).set(3);
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
-      const botones = fixture.nativeElement.querySelectorAll('[aria-haspopup="dialog"]');
-      expect(botones).toHaveLength(rol !== 'ADMIN' ? 1 : 0);
-      const boton = botones[0];
-      if (rol !== 'ADMIN') {
-        expect(boton.querySelector('svg')).not.toBeNull();
-        expect(boton.getAttribute('aria-label')).toBe(
-          `${rol === 'BARBERO' ? 'Ver avisos' : 'Avisos'}: 3 sin leer`,
-        );
-      } else {
-        expect(boton).toBeUndefined();
-      }
+      const botones = fixture.nativeElement.querySelectorAll('.cabecera [aria-haspopup="dialog"]');
+      expect(botones).toHaveLength(1);
+      const boton = botones[0] as HTMLButtonElement;
+      const prefijo = rol === 'BARBERO' ? 'Ver avisos' : 'Avisos';
+      expect(boton.querySelector('svg')).not.toBeNull();
+      expect(boton.querySelector('.distintivo')?.textContent).toBe('3');
+      expect(boton.getAttribute('aria-label')).toBe(`${prefijo}: 3 sin leer`);
+      (TestBed.inject(AvisosService).noLeidas as ReturnType<typeof signal<number>>).set(5);
+      fixture.detectChanges();
+      expect(boton.querySelector('.distintivo')?.textContent).toBe('5');
+      expect(boton.getAttribute('aria-label')).toBe(`${prefijo}: 5 sin leer`);
+      expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
+        'Avisos sin leer: 5',
+      );
+      const cabecera = fixture.nativeElement.querySelector('header.cabecera') as HTMLElement;
+      expect(cabecera.classList.contains('cabecera-flujo')).toBe(
+        !esMovil && (rol === 'ADMIN' || suspendida),
+      );
     },
   );
-  it.each(['CLIENTE', 'BARBERO'] as Rol[])(
+  it.each(['CLIENTE', 'BARBERO', 'ADMIN'] as Rol[])(
     'evita diálogos duplicados y permite reabrir para %s',
     async (rol) => {
       const cierre = new Subject<void>();
@@ -404,10 +425,17 @@ describe('Shell adaptable', () => {
     expect(marca.querySelector('.nombre-barberia')?.textContent).toBe('Barbería ficticia');
     expect(vista.nativeElement.querySelector('[aria-label="Abrir cuenta"]')).toBeNull();
   });
-  it.each([true, false])(
-    'con contraseña temporal ofrece cambiarla y Salir siempre visible: móvil=%s',
-    (esMovil) => {
-      entrar('BARBERO', true);
+  it.each([
+    ['BARBERO', true],
+    ['BARBERO', false],
+    ['ADMIN', true],
+    ['ADMIN', false],
+    ['CLIENTE', true],
+    ['CLIENTE', false],
+  ] as [Rol, boolean][])(
+    'con contraseña temporal ofrece cambiarla y Salir siempre visible (%s, móvil=%s)',
+    (rol, esMovil) => {
+      entrar(rol, true);
       movil.next({ matches: esMovil });
       const fixture = TestBed.createComponent(Shell);
       fixture.detectChanges();
@@ -474,7 +502,11 @@ describe('Shell adaptable', () => {
     (fixture.nativeElement.querySelector('.cerrar-menu') as HTMLButtonElement).click();
     await fixture.whenStable();
     expect(menu.opened).toBe(false);
-    expect(fixture.nativeElement.querySelector('[aria-haspopup="dialog"]')).toBeNull();
+    expect(
+      fixture.nativeElement
+        .querySelector('.cabecera [aria-haspopup="dialog"]')
+        ?.getAttribute('aria-label'),
+    ).toBe('Avisos: 3 sin leer');
   });
   it.each([false, true])(
     'el salto al contenido no navega y lleva el foco a main (móvil con menú abierto: %s)',
@@ -595,16 +627,23 @@ describe('Avisos del barbero desde la cabecera', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
-  async function abrir() {
+  async function abrir(
+    rol: Rol = 'BARBERO',
+    rolNegocio: 'BARBERO' | 'PROPIETARIO' | 'ENCARGADO' = 'BARBERO',
+    suspendida = false,
+  ) {
     TestBed.inject(SesionService).cargar().subscribe();
     http.expectOne('/api/auth/sesion').flush({
       id: 2,
       nombre: 'Carlos',
       correo: 'carlos@ejemplo.test',
-      rol: 'BARBERO',
+      rol,
+      rolNegocio,
       debeCambiarPassword: false,
     });
-    TestBed.inject(NegocioActual).actualizarSesion(TestBed.inject(SesionService).usuario());
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.actualizarSesion(TestBed.inject(SesionService).usuario());
+    if (suspendida) negocio.marcarSuspendido();
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     TestBed.tick();
@@ -635,36 +674,46 @@ describe('Avisos del barbero desde la cabecera', () => {
     const contenedor = TestBed.inject(OverlayContainer).getContainerElement();
     return { fixture, boton, contenedor };
   }
-  it('abre el panel existente en un diálogo titulado, con cierre y restauración del foco', async () => {
-    const { fixture, boton, contenedor } = await abrir();
-    const referencia = fixture.debugElement.injector.get(MatDialog).openDialogs[0];
-    expect(referencia.componentInstance).toBeInstanceOf(AvisosDialogo);
-    expect(contenedor.querySelector('app-avisos-panel')?.textContent).toContain(aviso.mensaje);
-    const dialogo = contenedor.querySelector('[role="dialog"]')!;
-    const titulo = document.getElementById(dialogo.getAttribute('aria-labelledby')!);
-    expect(titulo?.querySelector('span')?.textContent).toBe('Avisos');
-    expect(titulo?.querySelector('.insignia')?.textContent).toBe('3 sin leer');
-    expect(
-      contenedor.querySelector('app-avisos-panel section')?.classList.contains('incrustado'),
-    ).toBe(true);
-    expect(contenedor.querySelectorAll('h2')).toHaveLength(1);
-    expect(
-      contenedor.querySelector('app-avisos-panel section')?.hasAttribute('aria-labelledby'),
-    ).toBe(false);
-    (contenedor.querySelector('[mat-dialog-close]') as HTMLButtonElement).click();
-    TestBed.tick();
-    await vi.advanceTimersByTimeAsync(500);
-    TestBed.tick();
-    expect(fixture.debugElement.injector.get(MatDialog).openDialogs).toHaveLength(0);
-    expect(document.activeElement).toBe(boton);
-  });
   it.each([
-    ['uno', '/api/n/prueba/notificaciones/8/lectura', 2],
-    ['todos', '/api/n/prueba/notificaciones/lectura', 0],
+    ['BARBERO', 'BARBERO', false],
+    ['ADMIN', 'PROPIETARIO', false],
+    ['ADMIN', 'ENCARGADO', false],
+    ['ADMIN', 'PROPIETARIO', true],
   ] as const)(
-    'al marcar %s refresca la cabecera mediante el servicio actual',
-    async (_, ruta, restantes) => {
-      const { fixture, boton, contenedor } = await abrir();
+    'abre el panel existente en un diálogo titulado (%s/%s, %s), con cierre y foco',
+    async (rol, rolNegocio, suspendida) => {
+      const { fixture, boton, contenedor } = await abrir(rol, rolNegocio, suspendida);
+      const referencia = fixture.debugElement.injector.get(MatDialog).openDialogs[0];
+      expect(referencia.componentInstance).toBeInstanceOf(AvisosDialogo);
+      expect(contenedor.querySelector('app-avisos-panel')?.textContent).toContain(aviso.mensaje);
+      const dialogo = contenedor.querySelector('[role="dialog"]')!;
+      const titulo = document.getElementById(dialogo.getAttribute('aria-labelledby')!);
+      expect(titulo?.querySelector('span')?.textContent).toBe('Avisos');
+      expect(titulo?.querySelector('.insignia')?.textContent).toBe('3 sin leer');
+      expect(
+        contenedor.querySelector('app-avisos-panel section')?.classList.contains('incrustado'),
+      ).toBe(true);
+      expect(contenedor.querySelectorAll('h2')).toHaveLength(1);
+      expect(
+        contenedor.querySelector('app-avisos-panel section')?.hasAttribute('aria-labelledby'),
+      ).toBe(false);
+      (contenedor.querySelector('[mat-dialog-close]') as HTMLButtonElement).click();
+      TestBed.tick();
+      await vi.advanceTimersByTimeAsync(500);
+      TestBed.tick();
+      expect(fixture.debugElement.injector.get(MatDialog).openDialogs).toHaveLength(0);
+      expect(document.activeElement).toBe(boton);
+    },
+  );
+  it.each([
+    ['BARBERO', 'BARBERO', 'uno', '/api/n/prueba/notificaciones/8/lectura', 2],
+    ['BARBERO', 'BARBERO', 'todos', '/api/n/prueba/notificaciones/lectura', 0],
+    ['ADMIN', 'PROPIETARIO', 'uno', '/api/n/prueba/notificaciones/8/lectura', 2],
+    ['ADMIN', 'ENCARGADO', 'todos', '/api/n/prueba/notificaciones/lectura', 0],
+  ] as const)(
+    'al marcar %s (%s/%s) refresca la cabecera mediante el servicio actual',
+    async (rol, rolNegocio, _, ruta, restantes) => {
+      const { fixture, boton, contenedor } = await abrir(rol, rolNegocio);
       const selector = ruta.endsWith('/8/lectura') ? 'li button' : 'app-avisos-panel button';
       (contenedor.querySelector(selector) as HTMLButtonElement).click();
       const lectura = http.expectOne(ruta);
@@ -683,7 +732,9 @@ describe('Avisos del barbero desde la cabecera', () => {
       expect(fixture.nativeElement.querySelector('[data-contador-avisos]').textContent).toContain(
         `Avisos sin leer: ${restantes}`,
       );
-      expect(boton.getAttribute('aria-label')).toBe(`Ver avisos: ${restantes} sin leer`);
+      expect(boton.getAttribute('aria-label')).toBe(
+        `${rol === 'BARBERO' ? 'Ver avisos' : 'Avisos'}: ${restantes} sin leer`,
+      );
       expect(contenedor.querySelector('app-avisos-panel')?.textContent).toContain('Leído');
     },
   );

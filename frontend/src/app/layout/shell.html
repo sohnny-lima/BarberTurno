@@ -79,8 +79,18 @@
     </div>
   </mat-sidenav>
   <mat-sidenav-content>
-    @if (movil() || !navegacionCompleta() || negocio.rol() !== 'ADMIN') {
-      <header class="cabecera" [class.cabecera-pagina]="!movil() && navegacionCompleta()">
+    @if (
+      movil() ||
+      !navegacionCompleta() ||
+      (negocio.rol() && !ruta().split('?')[0].endsWith('/mis-citas'))
+    ) {
+      <header
+        class="cabecera"
+        [class.cabecera-pagina]="!movil() && navegacionCompleta()"
+        [class.cabecera-flujo]="
+          !movil() && navegacionCompleta() && (negocio.rol() === 'ADMIN' || negocio.soloLectura())
+        "
+      >
         @if (movil() && navegacionCompleta() && usaCajon()) {
           <button
             mat-button
@@ -138,7 +148,6 @@
         }
         @if (
           navegacionCompleta() &&
-          negocio.rol() !== 'ADMIN' &&
           negocio.rol() &&
           (movil() || !ruta().split('?')[0].endsWith('/mis-citas'))
         ) {
