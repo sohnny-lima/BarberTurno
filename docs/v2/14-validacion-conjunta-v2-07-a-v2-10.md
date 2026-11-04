@@ -53,7 +53,7 @@ Migraciones: **ninguna nueva**. No se edita ninguna migración aplicada.
 - **Regresiones de los defectos de producción de V2-10:** cada uno con su prueba (§5).
 
 ## 5. Defectos de producción hallados en V2-10 y su regresión
-(Se completa en la evidencia con el resultado sobre el commit combinado.)
+Tabla completa en [`pruebas/v2-conjunta.md`](pruebas/v2-conjunta.md) §5: cada defecto con la regresión que falla sin su corrección.
 
 ## 6. Decisiones pendientes del responsable
 Ver `15-decisiones-pendientes-p2-05-p2-06.md`.
