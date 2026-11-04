@@ -3,8 +3,11 @@
   display: block;
   min-height: 100dvh;
 }
-mat-sidenav-container {
+mat-sidenav-container,
+.riel {
   min-height: 100dvh;
+}
+mat-sidenav-container {
   @include mat.sidenav-overrides(
     (
       content-background-color: var(--color-fondo),
@@ -18,33 +21,44 @@ mat-sidenav {
   width: 248px;
 }
 .riel {
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: 24px 14px 16px;
 }
-.marca {
+.marca,
+.usuario {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.marca {
   font: 800 19px/1.3 var(--font-cuerpo);
   white-space: nowrap;
 }
-.simbolo {
+.simbolo,
+.avatar {
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+}
+.simbolo {
   width: 36px;
   height: 36px;
   border-radius: 10px;
   background: var(--color-verde);
   color: white;
   font-size: 24px;
-  flex-shrink: 0;
 }
 nav {
   display: grid;
   gap: 4px;
   margin-top: 24px;
+}
+.enlace,
+.barra-inferior a {
+  color: var(--color-texto-2);
+  text-decoration: none;
+  border-radius: var(--radius-control);
 }
 .enlace {
   display: flex;
@@ -52,22 +66,19 @@ nav {
   gap: 12px;
   min-height: 48px;
   padding: 12px;
-  border-radius: var(--radius-control);
-  color: var(--color-texto-2);
-  text-decoration: none;
   font-weight: 600;
 }
 .activo {
   background: var(--color-verde-claro);
   color: var(--color-verde);
 }
+.usuario,
+.barra-inferior {
+  border-top: 1px solid var(--color-linea);
+}
 .usuario {
   margin-top: auto;
   padding-top: 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid var(--color-linea);
   font-size: 14px;
 }
 .usuario div {
@@ -81,27 +92,28 @@ nav {
   color: var(--color-texto-2);
   font-size: 13px;
 }
-.usuario button {
+.usuario button,
+.cabecera button {
   min-width: 44px;
   padding-inline: 4px;
 }
 .avatar {
-  display: grid;
-  place-items: center;
   width: 44px;
   height: 44px;
-  flex-shrink: 0;
   border-radius: 50%;
   color: var(--color-verde);
   background: var(--color-verde-claro);
   font-size: 14px;
   font-weight: 700;
 }
+main,
+.cabecera-flujo {
+  max-width: 1400px;
+  margin: auto;
+}
 main {
   padding: 32px 48px;
   min-width: 0;
-  max-width: 1400px;
-  margin: auto;
 }
 main#contenido[tabindex='-1']:focus {
   outline: none;
@@ -122,17 +134,23 @@ footer {
 .saltar:focus-visible {
   top: 12px;
 }
+.cabecera,
+.identidad-menu {
+  border-bottom: 1px solid var(--color-linea);
+}
+.cabecera,
+.barra-inferior {
+  z-index: 5;
+  background: var(--color-superficie);
+}
 .cabecera {
   position: sticky;
   top: 0;
   min-height: 60px;
-  z-index: 5;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 16px;
-  background: var(--color-superficie);
-  border-bottom: 1px solid var(--color-linea);
 }
 .cabecera .marca,
 .titulo-pagina {
@@ -142,16 +160,14 @@ footer {
 .titulo-marca {
   min-width: 0;
 }
-.titulo-pagina {
-  font: 700 20px/28px var(--font-cuerpo);
-  min-width: 0;
+.titulo-pagina,
+.nombre-barberia {
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.cabecera button {
-  min-width: 44px;
-  padding-inline: 4px;
+.titulo-pagina {
+  font: 700 20px/28px var(--font-cuerpo);
 }
 .cuenta {
   @include mat.button-overrides(
@@ -162,7 +178,6 @@ footer {
 }
 .identidad-menu {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--color-linea);
 }
 [mat-menu-item]:focus-visible,
 [mat-menu-item].cdk-keyboard-focused,
@@ -207,8 +222,6 @@ button.cdk-keyboard-focused {
   position: static;
   min-height: 0;
   justify-content: flex-end;
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 16px 48px 0;
   background: transparent;
 }
@@ -218,7 +231,6 @@ button.cdk-keyboard-focused {
 .barra-inferior {
   min-height: calc(72px + env(safe-area-inset-bottom));
   position: fixed;
-  z-index: 5;
   bottom: 0;
   left: 0;
   right: 0;
@@ -227,8 +239,6 @@ button.cdk-keyboard-focused {
   justify-content: space-around;
   gap: 4px;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-  background: var(--color-superficie);
-  border-top: 1px solid var(--color-linea);
 }
 .barra-inferior a {
   display: grid;
@@ -237,13 +247,7 @@ button.cdk-keyboard-focused {
   min-height: 44px;
   min-width: 64px;
   padding: 2px 12px;
-  color: var(--color-texto-2);
-  text-decoration: none;
   font-size: 13px;
-  border-radius: var(--radius-control);
-}
-.barra-inferior .activo {
-  color: var(--color-verde);
 }
 @media (max-width: 767.98px) {
   mat-sidenav {
@@ -268,15 +272,12 @@ button.cdk-keyboard-focused {
   .con-barra-inferior {
     --espacio-navegacion-inferior: calc(72px + env(safe-area-inset-bottom));
     height: 100dvh;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: var(--espacio-navegacion-inferior);
   }
 }
 
 .nombre-barberia {
   display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-size: 14px;
   font-weight: 400;
   color: var(--color-texto-2);
