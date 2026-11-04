@@ -23,6 +23,10 @@ import pe.barberturno.conversation.CodigoSeleccion.Profesional;
 import pe.barberturno.conversation.CodigoSeleccion.Servicio;
 import pe.barberturno.conversation.BandejaPropiedades.Entrantes;
 import pe.barberturno.conversation.ConversacionesWhatsApp.EstadoConversacion;
+import pe.barberturno.conversation.ia.DisponibilidadIA;
+import pe.barberturno.conversation.ia.LimitesIA;
+import pe.barberturno.conversation.ia.SaneadorTexto;
+import pe.barberturno.conversation.ia.TurnosIA;
 import pe.barberturno.whatsapp.MensajeEntrante;
 import pe.barberturno.whatsapp.OrigenMensaje;
 import pe.barberturno.whatsapp.ReceptorMensajesWhatsApp;
@@ -42,8 +46,10 @@ import tools.jackson.databind.node.ObjectNode;
  * que cualquier confirmación; «Hablar con alguien», la palabra clave {@code PERSONA} o dos textos seguidos no
  * reconocidos derivan a una persona (sin ficha, tras el consentimiento); los entrantes se guardan según
  * {@link BandejaPropiedades#entrantes()}, una sola vez por mensaje.</p>
+ * <p>Desde V2-12 (17-v2-12 §2): un texto libre no reconocido va a un turno de IA si {@link LimitesIA} la da por
+ * disponible; la entrega no responde y el turno se resuelve fuera de esta transacción (V2-DA-77).</p>
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
@@ -58,6 +64,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     static final String MOTIVO = "motivo";
     /** Textos no reconocidos seguidos que derivan a una persona. */
     static final int FALLOS_PARA_DERIVAR = 2;
+    /** Longitud máxima del texto guardado en un turno de IA. */
+    static final int MAX_TEXTO_TURNO = 2000;
 
     private final RegistroEntradaWhatsApp registro;
     private final ConversacionesWhatsApp conversaciones;
@@ -71,6 +79,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     private final ConversacionPropiedades propiedades;
     private final DerivacionConversacion derivacion;
     private final BandejaPropiedades bandeja;
+    private final TurnosIA turnos;
+    private final LimitesIA limites;
     private final Clock reloj;
 
     /**
@@ -87,13 +97,15 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
      * @param propiedades textos de privacidad e inactividad
      * @param derivacion paso a modo humano (V2-11)
      * @param bandeja qué entrantes se guardan (V2-11)
+     * @param turnos turnos de IA (V2-12)
+     * @param limites disponibilidad de la IA (V2-12)
      * @param reloj reloj de la aplicación
      */
     public OrquestadorConversacion(RegistroEntradaWhatsApp registro, ConversacionesWhatsApp conversaciones,
             ConsentimientoConversacion consentimiento, InterpreteEntradas interprete, MenusConversacion menus,
             TextosConversacion textos, ConsultasConversacion consultas, OperacionesConversacion operaciones,
             SalidaWhatsApp salida, ConversacionPropiedades propiedades, DerivacionConversacion derivacion,
-            BandejaPropiedades bandeja, Clock reloj) {
+            BandejaPropiedades bandeja, TurnosIA turnos, LimitesIA limites, Clock reloj) {
         this.registro = registro;
         this.conversaciones = conversaciones;
         this.consentimiento = consentimiento;
@@ -106,6 +118,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         this.propiedades = propiedades;
         this.derivacion = derivacion;
         this.bandeja = bandeja;
+        this.turnos = turnos;
+        this.limites = limites;
         this.reloj = reloj;
     }
 
@@ -236,6 +250,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
          * vaciado del menú; el segundo seguido deriva a una persona ({@code SIN_PROGRESO}).
          */
         private void noReconocido() {
+            if (aLaIA()) return;
             int fallos = conversacion.estado().path(FALLOS).asInt(0) + 1;
             if (fallos >= FALLOS_PARA_DERIVAR) {
                 pedirPersona(MotivoDerivacion.SIN_PROGRESO);
@@ -245,6 +260,20 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             var estado = conversaciones.bloquear(conversacion.id()).estado();
             estado.put(FALLOS, fallos);
             conversaciones.guardar(conversacion.id(), estado);
+        }
+
+        /**
+         * Encola un turno de IA para un texto libre si la IA está disponible (17-v2-12 §2 y §3.2): texto saneado,
+         * revisión leída tras las escrituras de la entrega (esta es la última) y sin respuesta ni contador de fallos.
+         * @return verdadero si el texto quedó en manos de la IA
+         */
+        private boolean aLaIA() {
+            if (!"text".equals(mensaje.tipo())) return false;
+            if (limites.disponibilidad(conversacion.id()) != DisponibilidadIA.DISPONIBLE) return false;
+            var texto = SaneadorTexto.sanear(mensaje.dato().path("text").path("body").asString(""), MAX_TEXTO_TURNO);
+            if (texto.isEmpty()) return false;
+            turnos.encolar(conversacion.id(), conversaciones.revision(conversacion.id()), texto);
+            return true;
         }
 
         /**
