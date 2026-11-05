@@ -573,16 +573,10 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 .isTrue();
 
         List<String> clavesReales = new ArrayList<>();
-        Iterator<String> itReal = nodoReal.fieldNames();
-        while (itReal.hasNext()) {
-            clavesReales.add(itReal.next());
-        }
+        nodoReal.properties().forEach(e -> clavesReales.add(e.getKey())); // Jackson 3
 
         List<String> clavesEsperadas = new ArrayList<>();
-        Iterator<String> itEsperado = envoltorioEsperado.fieldNames();
-        while (itEsperado.hasNext()) {
-            clavesEsperadas.add(itEsperado.next());
-        }
+        envoltorioEsperado.properties().forEach(e -> clavesEsperadas.add(e.getKey()));
 
         assertThat(clavesReales)
                 .as("La raíz de mensaje_whatsapp.contenido solo debe contener las propiedades esperadas: " + clavesEsperadas)
