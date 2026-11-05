@@ -208,6 +208,7 @@ export class Shell {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
+        this.historial.navegacionTerminada();
         const menu = this.menu();
         if (!this.movil() || !menu?.opened) {
           this.contenido()?.nativeElement.focus();

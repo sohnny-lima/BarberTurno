@@ -261,6 +261,33 @@ describe('Historial de superposiciones', () => {
     retirar();
     expect(history.back).not.toHaveBeenCalled();
   });
+  it('navegar desde un menú no deja una copia de la ruta al retroceder o avanzar', () => {
+    const servicio = TestBed.inject(HistorialSuperposiciones);
+    const retirar = servicio.abrir(vi.fn());
+    const superposicion = estado;
+    const original = location.href;
+    const router = vi.fn();
+    const mover = vi.spyOn(history, 'go').mockImplementation(() => undefined);
+    window.addEventListener('popstate', router);
+    try {
+      history.replaceState(null, '', original + '?destino-pwa=1');
+      servicio.navegacionTerminada();
+      estado = { navigationId: 9 };
+      retirar();
+      expect(history.back).not.toHaveBeenCalled();
+      history.replaceState(null, '', original);
+      window.dispatchEvent(new PopStateEvent('popstate', { state: superposicion }));
+      expect(mover).toHaveBeenLastCalledWith(-1);
+      expect(router).not.toHaveBeenCalled();
+      servicio.navegacionTerminada();
+      window.dispatchEvent(new PopStateEvent('popstate', { state: superposicion }));
+      expect(mover).toHaveBeenLastCalledWith(1);
+      expect(router).not.toHaveBeenCalled();
+    } finally {
+      history.replaceState(null, '', original);
+      window.removeEventListener('popstate', router);
+    }
+  });
 });
 
 describe('Teclado visual', () => {

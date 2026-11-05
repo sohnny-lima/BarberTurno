@@ -13,6 +13,8 @@ interface Entrada {
 export class HistorialSuperposiciones {
   private readonly ventana = inject(DOCUMENT).defaultView!;
   private readonly entradas: Entrada[] = [];
+  private readonly retiradas = new Set<number>();
+  private ultimaRuta = this.ventana.location.href;
   private secuencia = 0;
   private retirando = false;
   private procesando = false;
@@ -35,6 +37,11 @@ export class HistorialSuperposiciones {
         superior.cerrar();
         this.procesando = false;
         this.depurar();
+      } else if (this.retiradas.has(evento.state?.[MARCA])) {
+        // Una navegación desde el menú dejó su entrada debajo de la nueva ruta.
+        // Se salta esa copia, también al avanzar, antes de que la vea el router.
+        evento.stopImmediatePropagation();
+        this.ventana.history.go(this.ultimaRuta === this.ventana.location.href ? 1 : -1);
       } else if (evento.state?.[MARCA]) {
         // Adelante no resucita una superposición ya cerrada.
         const { [MARCA]: omitida, ...estado } = evento.state;
@@ -46,6 +53,10 @@ export class HistorialSuperposiciones {
     inject(DestroyRef).onDestroy(() =>
       this.ventana.removeEventListener('popstate', escuchar, true),
     );
+  }
+
+  navegacionTerminada() {
+    this.ultimaRuta = this.ventana.location.href;
   }
 
   /** Material no expone un flujo global de menús: se observan los paneles accesibles. */
@@ -106,6 +117,7 @@ export class HistorialSuperposiciones {
         this.ventana.history.back();
         return;
       }
+      this.retiradas.add(superior.id);
       this.depurar();
       return;
     }
