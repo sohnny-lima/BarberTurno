@@ -64,7 +64,8 @@ public record GuionConversacion(
     );
     private static final Set<String> CAMPOS_ESPERA = Set.of(
             "mensajes", "reservasCreadas", "operacionVigente", "modoConversacion", "estadoTurno",
-            "sustitucionGuardas", "llamadasModelo", "salientesNuevos", "peticionNoContiene", "herramientaError"
+            "sustitucionGuardas", "llamadasModelo", "salientesNuevos", "peticionNoContiene", "herramientaError",
+            "textoDescartado"
     );
     private static final Set<String> CAMPOS_MENSAJE = Set.of(
             "tipo", "contiene", "noContiene"
@@ -250,6 +251,7 @@ public record GuionConversacion(
      * @param salientesNuevos número exacto de mensajes salientes nuevos generados en este paso
      * @param peticionNoContiene cadenas prohibidas en cada petición nueva enviada durante el paso
      * @param herramientaError si alguna herramienta ejecutada en este paso devolvió error ({@code is_error})
+     * @param textoDescartado texto libre del proveedor descartado al cerrar el turno (V2-DA-86), o vacío
      */
     public record ExpectativaPaso(
             List<MensajeEsperado> mensajes,
@@ -261,7 +263,8 @@ public record GuionConversacion(
             Optional<Integer> llamadasModelo,
             Optional<Integer> salientesNuevos,
             List<String> peticionNoContiene,
-            Optional<Boolean> herramientaError
+            Optional<Boolean> herramientaError,
+            Optional<String> textoDescartado
     ) {
         /**
          * Constructor de compatibilidad con los 6 campos originales.
@@ -282,7 +285,37 @@ public record GuionConversacion(
                 Optional<String> sustitucionGuardas
         ) {
             this(mensajes, reservasCreadas, operacionVigente, modoConversacion, estadoTurno, sustitucionGuardas,
-                    Optional.empty(), Optional.empty(), List.of(), Optional.empty());
+                    Optional.empty(), Optional.empty(), List.of(), Optional.empty(), Optional.empty());
+        }
+
+        /**
+         * Constructor de compatibilidad con 10 campos.
+         *
+         * @param mensajes mensajes esperados
+         * @param reservasCreadas reservas activas
+         * @param operacionVigente presencia de propuesta
+         * @param modoConversacion modo de conversación
+         * @param estadoTurno estado final del turno
+         * @param sustitucionGuardas motivo de guarda
+         * @param llamadasModelo llamadas esperadas al modelo
+         * @param salientesNuevos salientes generados
+         * @param peticionNoContiene textos prohibidos en la petición
+         * @param herramientaError indicador de error en herramientas
+         */
+        public ExpectativaPaso(
+                List<MensajeEsperado> mensajes,
+                Optional<Integer> reservasCreadas,
+                Optional<Boolean> operacionVigente,
+                Optional<String> modoConversacion,
+                Optional<String> estadoTurno,
+                Optional<String> sustitucionGuardas,
+                Optional<Integer> llamadasModelo,
+                Optional<Integer> salientesNuevos,
+                List<String> peticionNoContiene,
+                Optional<Boolean> herramientaError
+        ) {
+            this(mensajes, reservasCreadas, operacionVigente, modoConversacion, estadoTurno, sustitucionGuardas,
+                    llamadasModelo, salientesNuevos, peticionNoContiene, herramientaError, Optional.empty());
         }
 
         /**
@@ -298,6 +331,7 @@ public record GuionConversacion(
          * @param salientesNuevos salientes generados
          * @param peticionNoContiene textos prohibidos en la petición
          * @param herramientaError indicador de error en herramientas
+         * @param textoDescartado texto libre descartado esperado
          */
         public ExpectativaPaso {
             mensajes = List.copyOf(mensajes != null ? mensajes : List.of());
@@ -310,6 +344,7 @@ public record GuionConversacion(
             Objects.requireNonNull(salientesNuevos, "salientesNuevos");
             peticionNoContiene = List.copyOf(peticionNoContiene != null ? peticionNoContiene : List.of());
             Objects.requireNonNull(herramientaError, "herramientaError");
+            Objects.requireNonNull(textoDescartado, "textoDescartado");
         }
     }
 
@@ -579,9 +614,12 @@ public record GuionConversacion(
             herramientaError = Optional.of(Boolean.parseBoolean(String.valueOf(mapa.get("herramientaError"))));
         }
 
+        Optional<String> textoDescartado = Optional.ofNullable((String) mapa.get("textoDescartado"));
+
         return new ExpectativaPaso(
                 mensajes, reservasCreadas, operacionVigente, modoConversacion, estadoTurno,
-                sustitucionGuardas, llamadasModelo, salientesNuevos, peticionNoContiene, herramientaError
+                sustitucionGuardas, llamadasModelo, salientesNuevos, peticionNoContiene, herramientaError,
+                textoDescartado
         );
     }
 
