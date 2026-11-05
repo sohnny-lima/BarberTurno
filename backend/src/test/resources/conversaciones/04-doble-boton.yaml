@@ -36,7 +36,7 @@ pasos:
     espera:
       reservasCreadas: 1
   - cliente:
-      seleccionDelUltimoMensaje: 0
+      repetirSeleccion: true
     modelo: []
     espera:
       reservasCreadas: 1
