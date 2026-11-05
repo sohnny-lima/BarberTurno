@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.*;
 @Import(TurnosIAIT.Configuracion.class)
 @TestPropertySource(properties = {"barberturno.ia.habilitada=true", "barberturno.ia.clave=clave-ficticia-local",
         "barberturno.ia.trabajador.habilitado=false", "barberturno.ia.trabajador.lote=1"})
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class TurnosIAIT extends WhatsAppSalidaPruebaBase {
     @Autowired TurnosIA turnos;
     @Autowired LimitesIAService limites;
@@ -55,12 +56,14 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, b, barberoB);
     }
 
-    @Test void textoValido_soloSalidaFinal_yCosteLiquidado() {
+    @Test void textoSinTerminal_menuNeutro_yCosteLiquidado() {
         long c = conversacion(a, true), t = encolar(a, c, "Busco un corte");
         modelo.programarTexto("¿Qué servicio prefieres?");
         assertThat(turnos.procesarPendientes()).isEqualTo(1);
         assertThat(estado(a, t)).isEqualTo("HECHO");
         assertThat(mensajes(a, c)).isEqualTo(1);
+        assertThat(contenido(a, c)).contains(new ComposicionTurnoIA().neutro()).doesNotContain("¿Qué servicio prefieres?");
+        assertThat(observador.buscarTurno(t).orElseThrow().textoDescartado()).contains("¿Qué servicio prefieres?");
         ejecutor.ejecutar(a, () -> {
             assertThat(sql.queryForObject("SELECT texto FROM turno_ia WHERE id=?", String.class, t)).isNull();
             assertThat(sql.queryForObject("SELECT estado FROM llamada_ia WHERE turno_id=?", String.class, t)).isEqualTo("LIQUIDADA");
@@ -259,13 +262,18 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
     }
 
     private long citaFutura(long conversacion) {
+        return citaFutura(conversacion, Instant.parse("2026-11-06T15:00:00Z"));
+    }
+
+    private long citaFutura(long conversacion, Instant inicio) {
         long ficha = ficha(a, conversacion).orElseThrow();
         return ejecutor.ejecutar(a, () -> sql.queryForObject("""
                 INSERT INTO reserva(cliente_id,barbero_id,servicio_id,inicio,fin,duracion_ref_min,precio_ref,
                     estado,canal,creado_en,actualizado_en)
-                VALUES (?,?,?, '2026-11-06T15:00:00Z','2026-11-06T15:30:00Z',30,25,
+                VALUES (?,?,?,?,?,30,25,
                     'CONFIRMADA','WHATSAPP',?,?) RETURNING id
-                """, Long.class, ficha, barberoA, servicioA, Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant())));
+                """, Long.class, ficha, barberoA, servicioA, Timestamp.from(inicio), Timestamp.from(inicio.plusSeconds(1800)),
+                Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant())));
     }
 
     @Test void derivacion_tienePrecedenciaSobrePropuesta() {
@@ -339,8 +347,8 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         sql.update("UPDATE negocio SET nombre='CANARIO_B_NO_ENVIAR' WHERE id=?", b);
         var contexto = new ContextoTurno(a, ficha(a, c), TiempoNegocio.fechaLima(reloj.instant()));
         String proyectado = ejecutor.ejecutar(a, () -> constructor.construir(c, contexto));
-        assertThat(proyectado).contains("\"alias\":\"s1\"", "\"nombre\":\"Cliente\"")
-                .doesNotContain("CANARIO_B_NO_ENVIAR", "Apellido", "@", "wa_id", "cliente_id", "BT-", "519990");
+        assertThat(proyectado).contains("\"alias\":\"s1\"", "\"ultimaRespuesta\":\"NEUTRO\"")
+                .doesNotContain("CANARIO_B_NO_ENVIAR", "Cliente", "Apellido", "@", "wa_id", "cliente_id", "BT-", "519990");
         long t = encolar(a, c, "Mi teléfono 999888777 y correo uno@ejemplo.test");
         modelo.programarTexto("¿Qué servicio prefieres?");
         turnos.procesarPendientes();
@@ -368,27 +376,23 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         assertThat(reservas(a)).isZero();
     }
 
-    @Test void historial_maximoSeisSinPersonal_yVaciadoImpideRecuperarMensajesAnteriores() {
+    @Test void contexto_sinHistorialTextual_conUltimaRespuesta_yVaciado() {
         long c = conversacion(a, true);
-        encolar(a, c, "Hola"); modelo.programarTexto("¿Qué servicio prefieres?"); turnos.procesarPendientes();
+        encolar(a, c, "Hola");
+        modelo.programarLlamadas(List.of(terminal("SALUDO", null, null, null)));
+        turnos.procesarPendientes();
         ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(tx -> {
-            for (String palabra : List.of("uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho"))
-                salida.encolarTexto(c, "Mensaje " + palabra, pe.barberturno.whatsapp.OrigenMensaje.ASISTENTE, OptionalLong.empty());
+            salida.encolarTexto(c, "CANARIO_ASISTENTE_NO_ENVIAR BT-123456", pe.barberturno.whatsapp.OrigenMensaje.ASISTENTE, OptionalLong.empty());
             salida.encolarRespuestaPersonal(c, "CANARIO_PERSONAL_NO_ENVIAR", titular.getId());
             return null;
         }));
-        var capacidades = new ContextoTurno(a, ficha(a, c), TiempoNegocio.fechaLima(reloj.instant()));
-        String contexto = ejecutor.ejecutar(a, () -> constructor.construir(c, capacidades));
-        var historial = mapper.readTree(contexto).path("historial");
-        assertThat(historial.size()).isEqualTo(6);
-        assertThat(historial.toString()).contains("Mensaje tres", "Mensaje ocho").doesNotContain("Mensaje uno", "CANARIO_PERSONAL");
+        String contexto = contexto(a, c);
+        assertThat(mapper.readTree(contexto).path("ultimaRespuesta").asString()).isEqualTo("SALUDO");
+        assertThat(contexto).doesNotContain("historial", "CANARIO_", "BT-", "Cliente", "ia_corte_mensaje");
         ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(tx -> {
             conversaciones.bloquear(c); conversaciones.vaciar(c); return null;
         }));
-        String nuevo = ejecutor.ejecutar(a, () -> constructor.construir(c,
-                new ContextoTurno(a, capacidades.ficha, capacidades.hoy)));
-        assertThat(mapper.readTree(nuevo).path("historial").size()).isZero();
-        assertThat(nuevo).doesNotContain("ia_corte_mensaje", "Mensaje ocho", "CANARIO_PERSONAL");
+        assertThat(mapper.readTree(contexto(a, c)).path("ultimaRespuesta").asString()).isEqualTo("NEUTRO");
     }
 
     @Test void disponibilidad_limitaRangoHorasYVeinteFranjas() {
@@ -440,7 +444,7 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
     }
 
     @ParameterizedTest @ValueSource(strings = {"ultima", "vacia", "recorte"})
-    void dosBusquedas_guardasSoloAceptanLasFilasQueSeEnvian(String caso) {
+    void dosBusquedas_cuerpoFijo_enTodasLasVariantes(String caso) {
         long c = conversacion(a, true), t = encolar(a, c, "Busco horarios");
         String primera = argumentosDisponibilidad().replace("2026-11-10", "2026-11-04");
         modelo.programarLlamadas(List.of(
@@ -457,10 +461,10 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         var registro = observador.buscarTurno(t).orElseThrow();
         var mostrar = (EfectoTurno.MostrarFranjas) registro.efecto().orElseThrow();
         assertThat(mostrar.franjas()).hasSizeLessThanOrEqualTo(10).isNotEmpty();
-        if ("vacia".equals(caso)) {
+        if ("vacia".equals(caso))
             assertThat(registro.herramientas().getLast().resultado().json()).isEqualTo("[]");
-            assertThat(registro.guardas().orElseThrow()).isInstanceOf(ResultadoGuardas.Aceptado.class);
-        } else assertThat(registro.motivoSustitucion()).contains(MotivoGuarda.HORARIO_NO_OFRECIDO);
+        assertThat(registro.guardas()).isEmpty();
+        assertThat(registro.textoDescartado()).contains(texto);
         ejecutor.ejecutar(a, () -> {
             var contenido = mapper.readTree(sql.queryForObject(
                     "SELECT CAST(contenido AS text) FROM mensaje_whatsapp WHERE conversacion_id=?", String.class, c))
@@ -471,7 +475,7 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
             assertThat(filas).containsExactlyElementsOf(mostrar.franjas().stream()
                     .map(f -> f.seleccion().codificar()).toList());
             assertThat(contenido.path("body").path("text").asString())
-                    .isEqualTo("vacia".equals(caso) ? texto : "Te muestro las opciones disponibles.");
+                    .isEqualTo(new ComposicionTurnoIA().elegirFranja());
             return null;
         });
     }
@@ -617,6 +621,251 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
             assertThat(sql.enTransaccion(() -> limites.disponibilidad(otro))).isEqualTo(DisponibilidadIA.LIMITE_MINUTO);
             return null;
         });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{}",
+            "{\"intencion\":\"INVENTADA\",\"falta\":null,\"servicio\":null,\"profesional\":null}",
+            "{\"intencion\":\"SALUDO\",\"falta\":\"DIA\",\"servicio\":null,\"profesional\":null}",
+            "{\"intencion\":\"PEDIR_DATO\",\"falta\":null,\"servicio\":null,\"profesional\":null}",
+            "{\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":\"s999\",\"profesional\":null}",
+            "{\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":\"s1\",\"profesional\":\"p999\"}",
+            "{\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":\"p1\",\"profesional\":null}",
+            "{\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":null,\"profesional\":null,\"texto\":\"inyectado\"}",
+            "{\"intencion\":\"SALUDO\",\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":null,\"profesional\":null}",
+            "{\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":null,\"profesional\":null} {}",
+            "{\"intencion\":\"SALUDO\",\"falta\":null,\"servicio\":1,\"profesional\":null}"
+    })
+    void terminalInvalida_cierraSinSegundaLlamadaNiSeleccionParcial(String argumentos) {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        modelo.programarLlamada(HerramientaIA.RESPONDER_AL_CLIENTE, argumentos);
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
+        assertThat(contenido(a, c)).contains(new ComposicionTurnoIA().neutro());
+        var registro = observador.buscarTurno(t).orElseThrow();
+        assertThat(registro.herramientas()).isEmpty();
+        assertThat(registro.decision()).isEmpty();
+        assertThat(borrador(a, c).has("servicio")).isFalse();
+        assertThat(operaciones(a)).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void terminalDuplicada_conservaSoloEfectosValidos(boolean hayFranjas) {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        var llamadas = new ArrayList<LlamadaHerramienta>();
+        llamadas.add(terminal("SALUDO", null, "s1", "p1"));
+        if (hayFranjas) llamadas.add(llamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, argumentosDisponibilidad()));
+        llamadas.add(terminal("FUERA_DE_ALCANCE", null, null, null));
+        modelo.programarLlamadas(llamadas);
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
+        assertThat(observador.buscarTurno(t).orElseThrow().decision()).isEmpty();
+        assertThat(contenido(a, c)).contains(hayFranjas ? new ComposicionTurnoIA().elegirFranja() : new ComposicionTurnoIA().neutro());
+    }
+
+    @Test void terminalAntesDeLecturaYPropuesta_seEjecutaUltima_yNoAnulaLaPropuesta() {
+        long c = conversacion(a, true);
+        citaFutura(c);
+        long t = encolar(a, c, "Cancelar mi cita");
+        modelo.programarLlamadas(List.of(terminal("SALUDO", null, null, null),
+                llamada(HerramientaIA.MIS_CITAS, "{}"),
+                llamada(HerramientaIA.PROPONER_CANCELACION, "{\"cita\":\"c1\"}")));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
+        assertThat(operaciones(a)).isEqualTo(1);
+        assertThat(contenido(a, c)).contains("Confirmar");
+        assertThat(observador.buscarTurno(t).orElseThrow().herramientas()).hasSize(2);
+        assertThat(borrador(a, c).path("ultima").asString()).isEqualTo("PROPUESTA");
+    }
+
+    @ParameterizedTest @ValueSource(ints = {3, 4})
+    void terminalCuentaEnElLimite_ySiempreCierra(int lecturas) {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        var llamadas = new ArrayList<LlamadaHerramienta>();
+        llamadas.add(terminal("SALUDO", null, null, null));
+        for (int i = 0; i < lecturas; i++) llamadas.add(llamada(HerramientaIA.LISTAR_SERVICIOS, "{}"));
+        modelo.programarLlamadas(llamadas);
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
+        assertThat(observador.buscarTurno(t).orElseThrow().decision().isPresent()).isEqualTo(lecturas == 3);
+        assertThat(borrador(a, c).path("ultima").asString()).isEqualTo(lecturas == 3 ? "SALUDO" : "NEUTRO");
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(value = {
+            "MOSTRAR_PROFESIONALES,-,-,-,SERVICIO",
+            "PEDIR_DATO,PROFESIONAL,-,-,SERVICIO",
+            "PEDIR_DATO,DIA,-,-,SERVICIO",
+            "PEDIR_DATO,DIA,s1,-,PROFESIONAL",
+            "PEDIR_DATO,DIA,s1,cualquiera,DIA",
+            "PEDIR_DATO,DIA,s1,p1,DIA"
+    }, nullValues = "-")
+    void datosFaltantes_seDegradan_yCualquieraUsaCero(String intencion, String falta, String servicio, String profesional, DatoFaltante esperado) {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        modelo.programarLlamadas(List.of(terminal(intencion, falta, servicio, profesional)));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(observador.buscarTurno(t).orElseThrow().decision()).contains(
+                new DecisionRespuesta(IntencionRespuesta.PEDIR_DATO, Optional.of(esperado)));
+        assertThat(borrador(a, c).path("ultima").asString()).isEqualTo("PEDIR_DATO:" + esperado);
+        if ("cualquiera".equals(profesional)) {
+            assertThat(borrador(a, c).path("profesional").asLong()).isZero();
+            assertThat(contenido(a, c)).contains("d:" + servicioA + ":0:");
+        }
+    }
+
+    @Test void seleccionesParciales_seRecuperanSinBuscarDisponibilidad() {
+        long c = conversacion(a, true);
+        encolar(a, c, "Un corte");
+        modelo.programarLlamadas(List.of(terminal("PEDIR_DATO", "PROFESIONAL", "s1", null)));
+        turnos.procesarPendientes();
+        assertThat(borrador(a, c).path("servicio").asLong()).isEqualTo(servicioA);
+        assertThat(borrador(a, c).has("dia")).isFalse();
+        assertThat(borrador(a, c).has("profesional")).isFalse();
+        encolar(a, c, "Cualquiera");
+        modelo.programarLlamadas(List.of(terminal("PEDIR_DATO", "DIA", null, "cualquiera")));
+        turnos.procesarPendientes();
+        var contexto = mapper.readTree(modelo.ultimaPeticion().contexto());
+        assertThat(contexto.path("borrador").path("servicio").asString()).isEqualTo("s1");
+        assertThat(contexto.path("ultimaRespuesta").asString()).isEqualTo("PEDIR_DATO:PROFESIONAL");
+        assertThat(borrador(a, c).path("profesional").asLong()).isZero();
+        var siguiente = mapper.readTree(contexto(a, c));
+        assertThat(siguiente.path("borrador").path("profesional").asString()).isEqualTo("cualquiera");
+        assertThat(siguiente.path("ultimaRespuesta").asString()).isEqualTo("PEDIR_DATO:DIA");
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"ninguna", "vacia", "invalidaDespues", "llenaDespues"})
+    void sinDisponibilidad_exigeUltimaBusquedaValidaVacia(String caso) {
+        long c = conversacion(a, true), t = encolar(a, c, "Sin horarios");
+        String vacia = argumentosDisponibilidad().replace("10:00", "23:00");
+        if (!"ninguna".equals(caso)) modelo.programarLlamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, vacia);
+        if ("invalidaDespues".equals(caso)) modelo.programarLlamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, "{}");
+        if ("llenaDespues".equals(caso)) modelo.programarLlamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, argumentosDisponibilidad());
+        modelo.programarLlamadas(List.of(terminal("SIN_DISPONIBILIDAD", null, null, null)));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        var registro = observador.buscarTurno(t).orElseThrow();
+        assertThat(registro.decision().isPresent()).isEqualTo("vacia".equals(caso) || "invalidaDespues".equals(caso));
+        assertThat(contenido(a, c)).contains("llenaDespues".equals(caso) ? new ComposicionTurnoIA().elegirFranja()
+                : "ninguna".equals(caso) ? new ComposicionTurnoIA().neutro() : new TextosConversacion().sinOpciones());
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"catalogo", "profesionales", "servicioDesactivado", "profesionalDesactivado"})
+    void datosVaciosODesactivados_noEmitenListasVacias(String caso) {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        Runnable desactivar = () -> ejecutor.ejecutar(a, () -> sql.update(
+                caso.startsWith("profesional") ? "UPDATE barbero SET activo=false WHERE id=?" : "UPDATE servicio SET activo=false WHERE id=?",
+                caso.startsWith("profesional") ? barberoA : servicioA));
+        if (caso.endsWith("Desactivado")) modelo.antes = desactivar;
+        else desactivar.run();
+        modelo.programarLlamadas(List.of(terminal(caso.equals("catalogo") ? "MOSTRAR_SERVICIOS" : "MOSTRAR_PROFESIONALES",
+                null, caso.equals("catalogo") ? null : "s1", caso.equals("profesionalDesactivado") ? "p1" : null)));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(contenido(a, c)).contains(new TextosConversacion().sinOpciones()).doesNotContain("\"rows\": []");
+    }
+
+    @Test void borradorObsoleto_revalidaIdsDiaYUltima_porListaBlanca() {
+        long c = conversacion(a, true);
+        ejecutor.ejecutar(a, () -> sql.update("UPDATE conversacion SET estado=CAST(? AS jsonb) WHERE id=?",
+                "{\"ia\":{\"servicio\":" + servicioB + ",\"profesional\":" + barberoB + ",\"dia\":\"2026-02-30\",\"ultima\":\"TEXTO_NO_ENVIAR\"}}", c));
+        var contexto = mapper.readTree(contexto(a, c));
+        assertThat(contexto.path("borrador").size()).isZero();
+        assertThat(contexto.path("ultimaRespuesta").asString()).isEqualTo("NEUTRO");
+        assertThat(contexto.toString()).doesNotContain("TEXTO_NO_ENVIAR", "2026-02-30");
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void mostrarCitas_usaSoloFichaRevalidada_ySinFichaNoRevelaExistencia(boolean conFicha) {
+        long propia = conversacion(a, conFicha), ajena = conversacion(a, true);
+        long reservaAjena = citaFutura(ajena);
+        long t = encolar(a, propia, "Mis citas");
+        modelo.programarLlamadas(List.of(terminal("MOSTRAR_CITAS", null, null, null)));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(contenido(a, propia)).contains(new TextosConversacion().sinCitas()).doesNotContain("c:" + reservaAjena);
+        if (conFicha) {
+            long mia = citaFutura(propia, Instant.parse("2026-11-06T16:00:00Z"));
+            encolar(a, propia, "Mis citas");
+            modelo.programarLlamadas(List.of(terminal("PEDIR_DATO", "CITA", null, null)));
+            turnos.procesarPendientes();
+            assertThat(contenido(a, propia)).contains("c:" + mia).doesNotContain("c:" + reservaAjena);
+        }
+    }
+
+    @Test void fichaCambiadaDuranteHttp_descartaAntesDeConsultarCitas() {
+        long c = conversacion(a, false);
+        long t = encolar(a, c, "Mis citas");
+        modelo.antes = () -> ejecutor.ejecutar(a, () -> {
+            long ficha = sql.queryForObject("""
+                    INSERT INTO cliente(nombre,wa_id,creado_en,actualizado_en)
+                    SELECT 'Cliente ficticio',wa_id,?,? FROM conversacion WHERE id=? RETURNING id
+                    """, Long.class, Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()), c);
+            return sql.update("UPDATE conversacion SET cliente_id=? WHERE id=?", ficha, c);
+        });
+        modelo.programarLlamadas(List.of(terminal("MOSTRAR_CITAS", null, null, null)));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("DESCARTADO");
+        assertThat(mensajes(a, c)).isZero();
+    }
+
+    @ParameterizedTest @EnumSource(IntencionRespuesta.class)
+    void intenciones_soloComposicionDelServidor_yTextoDescartadoEnObservador(IntencionRespuesta intencion) {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        String canario = "Carlos ya te tiene un hueco CANARIO_PROVEEDOR_NO_ENVIAR";
+        modelo.programarRespuesta(new RespuestaModelo(Optional.of(canario),
+                List.of(terminal(intencion.name(), intencion == IntencionRespuesta.PEDIR_DATO ? "SERVICIO" : null, null, null)),
+                ContinuacionProveedor.VACIA, new UsoModelo("claude-opus-5-5", 100, 50, 0, 0, 1), "tool_use"));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(contenido(a, c)).doesNotContain(canario, "CANARIO_PROVEEDOR");
+        var registro = observador.buscarTurno(t).orElseThrow();
+        assertThat(registro.textoDescartado()).contains(canario);
+        assertThat(registro.guardas()).isEmpty();
+        assertThat(registro.herramientas()).isEmpty();
+        assertThat(registro.decision().isPresent()).isEqualTo(intencion != IntencionRespuesta.SIN_DISPONIBILIDAD);
+        assertThat(borrador(a, c).path("ultima").asString()).isEqualTo(intencion == IntencionRespuesta.SIN_DISPONIBILIDAD
+                ? "NEUTRO" : intencion == IntencionRespuesta.PEDIR_DATO || intencion == IntencionRespuesta.MOSTRAR_PROFESIONALES
+                        ? "PEDIR_DATO:SERVICIO" : intencion.name());
+    }
+
+    @Test void terminalInvalida_yDerivacion_noImpidenExaminarHerramientasPosteriores() {
+        long c = conversacion(a, true), t = encolar(a, c, "Ayuda");
+        modelo.programarLlamadas(List.of(llamada(HerramientaIA.RESPONDER_AL_CLIENTE, "{}"),
+                llamada(HerramientaIA.DERIVAR_A_PERSONA, "{\"motivo\":\"PETICION\"}"),
+                llamada(HerramientaIA.LISTAR_SERVICIOS, "{}")));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
+        var registro = observador.buscarTurno(t).orElseThrow();
+        assertThat(registro.herramientas()).hasSize(2);
+        assertThat(registro.decision()).isEmpty();
+        assertThat(registro.efecto()).get().isInstanceOf(EfectoTurno.Derivar.class);
+        assertThat(borrador(a, c).path("ultima").asString()).isEqualTo("DERIVAR");
+        assertThat(borrador(a, c).has("servicio")).isFalse();
+    }
+
+    private LlamadaHerramienta terminal(String intencion, String falta, String servicio, String profesional) {
+        var argumentos = mapper.createObjectNode().put("intencion", intencion).put("falta", falta)
+                .put("servicio", servicio).put("profesional", profesional);
+        return llamada(HerramientaIA.RESPONDER_AL_CLIENTE, mapper.writeValueAsString(argumentos));
+    }
+    private String contenido(long negocio, long c) {
+        return ejecutor.ejecutar(negocio, () -> sql.queryForObject(
+                "SELECT CAST(contenido AS text) FROM mensaje_whatsapp WHERE conversacion_id=? ORDER BY id DESC LIMIT 1", String.class, c));
+    }
+    private tools.jackson.databind.JsonNode borrador(long negocio, long c) {
+        return mapper.readTree(ejecutor.ejecutar(negocio, () -> sql.queryForObject(
+                "SELECT CAST(estado AS text) FROM conversacion WHERE id=?", String.class, c))).path("ia");
+    }
+    private String contexto(long negocio, long c) {
+        return ejecutor.ejecutar(negocio, () -> constructor.construir(c,
+                new ContextoTurno(negocio, ficha(negocio, c), TiempoNegocio.fechaLima(reloj.instant()))));
     }
 
     private PeticionModelo peticion() { return new PeticionModelo("Sistema", "Contexto", List.of(new MensajeModelo.DelCliente("Texto")), List.of()); }
