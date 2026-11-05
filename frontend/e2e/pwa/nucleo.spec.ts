@@ -30,6 +30,8 @@ async function salir(page: Page) {
     .filter({ visible: true })
     .click();
   await expect(page).toHaveURL(/\/ingresar/);
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión', exact: true })).toBeVisible();
+  await expect(page.locator('app-agenda, app-mis-citas, app-perfil')).toHaveCount(0);
 }
 
 async function instalar(page: Page) {
