@@ -39,6 +39,17 @@ class SaneadorTextoTest {
         assertThat(SaneadorTexto.sanear(entrada, 2000)).isEqualTo(esperado);
     }
 
+    /** Revisión 133: tres separadores entre grupos, signo menos y caracteres de formato invisibles. */
+    @Test
+    void sanear_tresSeparadoresSignoMenosYFormatoInvisible_seSustituyen() {
+        for (String telefono : new String[] {"987 - 654 - 321", "987\u2212654\u2212321", "987\u200B654\u200B321",
+                "987 \u2013 654 \u2013 321", "(+51) 987 654 321"}) {
+            assertThat(SaneadorTexto.sanear("cel " + telefono, 2000)).as(telefono).isEqualTo("cel [dato]");
+            assertThat(SaneadorTexto.contieneDatoPersonal(telefono)).as(telefono).isTrue();
+        }
+        assertThat(SaneadorTexto.sanear("el 23/10 a las 17:30 por S/ 25", 2000)).isEqualTo("el 23/10 a las 17:30 por S/ 25");
+    }
+
     @Test
     void contieneDatoPersonal_coincideConLoQueSeSanea() {
         assertThat(SaneadorTexto.contieneDatoPersonal("llámame al 987‑654‑321")).isTrue();
