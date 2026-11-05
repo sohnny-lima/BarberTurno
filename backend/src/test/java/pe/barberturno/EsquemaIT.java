@@ -43,7 +43,7 @@ class EsquemaIT {
     private Clock clock;
 
     @Test
-    void migrar_aplicaVersionUnoYCreaLasDiecinueveTablasConBtreeGist() {
+    void migrar_aplicaVersionUnoYCreaLasVeintidosTablasConBtreeGist() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM flyway_schema_history
@@ -55,9 +55,9 @@ class EsquemaIT {
                 ORDER BY tablename
                 """, String.class)).containsExactly(
                 "auditoria_plataforma", "auditoria_reserva", "barbero", "bloqueo", "canal_whatsapp", "cliente",
-                "conversacion", "evento_whatsapp_entrante", "invitacion", "jornada", "membresia",
-                "mensaje_whatsapp", "negocio", "notificacion", "operacion_pendiente", "reserva", "servicio", "usuario",
-                "vinculo_cliente");
+                "conversacion", "evento_whatsapp_entrante", "invitacion", "jornada", "llamada_ia", "membresia",
+                "mensaje_whatsapp", "negocio", "notificacion", "operacion_pendiente", "reserva", "servicio",
+                "turno_ia", "uso_ia", "usuario", "vinculo_cliente");
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist'
                 """, Integer.class)).isEqualTo(1);

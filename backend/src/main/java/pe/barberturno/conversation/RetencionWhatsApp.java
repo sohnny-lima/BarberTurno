@@ -24,6 +24,8 @@ import pe.barberturno.whatsapp.CanalWhatsAppRepository;
  *   los eventos entrantes terminados más antiguos que ese plazo, conservando la fila para la idempotencia.</li>
  *   <li>retira el contenido terminado de conversaciones con ficha cuando se configura su plazo;</li>
  *   <li>caduca operaciones vencidas y purga las terminadas con plazo configurado, tomando primero la conversación.</li>
+ *   <li>termina los turnos de IA abandonados a los 15 minutos incluso con la IA desactivada;
+ *   elimina llamadas y turnos al purgar su conversación. El agregado de costes sobrevive.</li>
  * </ol>
  * No registra identificadores de WhatsApp ni contenido: solo recuentos por negocio.
  * @author Sohnny Walter Lima Infanzón
@@ -62,7 +64,7 @@ public class RetencionWhatsApp {
     /**
      * Ejecuta las fases configuradas con una transacción por negocio y fase. Un fallo de una fase local
      * no impide las restantes ni los demás negocios; el cuerpo de eventos se procesa aparte, sin RLS.
-     * @return conversaciones borradas, contenidos retirados, operaciones borradas y cuerpos vaciados
+     * @return conversaciones borradas, contenidos retirados, operaciones borradas, cuerpos vaciados y turnos abandonados
      * @throws IllegalStateException si se invoca dentro de una transacción exterior
      */
     public int purgar() {
@@ -72,6 +74,7 @@ public class RetencionWhatsApp {
         int total = 0;
         List<Long> negocios = transaccion.execute(tx -> canales.listarNegociosConCanal());
         for (long negocioId : negocios) {
+            total += fase(negocioId, this::terminarTurnosIAAbandonados);
             try {
                 int borradas = ejecutor.ejecutar(negocioId, () -> transaccion.execute(tx -> purgarConversaciones()));
                 if (borradas > 0) LOG.info("Retención WhatsApp del negocio {}: {} conversaciones sin ficha.", negocioId, borradas);
@@ -101,6 +104,36 @@ public class RetencionWhatsApp {
             LOG.warn("Retención WhatsApp del negocio {}: fallo de fase; se reintentará.", negocioId);
             return 0;
         }
+    }
+
+    /**
+     * Termina únicamente turnos abandonados, con una cadencia independiente de la purga general.
+     * Se ejecuta también con IA desactivada y no emite ninguna respuesta al cliente.
+     * @return turnos terminados en los lotes de esta pasada
+     * @throws IllegalStateException si existe una transacción exterior
+     */
+    public int abandonarTurnosIA() {
+        if (TransactionSynchronizationManager.isActualTransactionActive())
+            throw new IllegalStateException("La retención exige invocarse fuera de una transacción.");
+        int total = 0;
+        for (long negocioId : transaccion.execute(tx -> canales.listarNegociosConCanal()))
+            total += fase(negocioId, this::terminarTurnosIAAbandonados);
+        return total;
+    }
+
+    private int terminarTurnosIAAbandonados() {
+        var limite = reloj.instant().minus(java.time.Duration.ofMinutes(15));
+        var ids = entidades.createNativeQuery("""
+                SELECT c.id FROM conversacion c WHERE EXISTS (
+                    SELECT 1 FROM turno_ia t WHERE t.negocio_id=c.negocio_id AND t.conversacion_id=c.id
+                        AND t.estado='PENDIENTE' AND t.creado_en < :limite)
+                ORDER BY c.id LIMIT :lote FOR UPDATE OF c SKIP LOCKED
+                """, Long.class).setParameter("limite", limite).setParameter("lote", propiedades.retencion().lote()).getResultList();
+        if (ids.isEmpty()) return 0;
+        return entidades.createNativeQuery("""
+                UPDATE turno_ia SET estado='FALLIDO', motivo='ABANDONADO', texto=NULL, actualizado_en=:ahora
+                WHERE conversacion_id IN (:ids) AND estado='PENDIENTE' AND creado_en < :limite
+                """).setParameter("ids", ids).setParameter("limite", limite).setParameter("ahora", reloj.instant()).executeUpdate();
     }
 
     int retirarContenido() {
@@ -166,6 +199,16 @@ public class RetencionWhatsApp {
                 """).setParameter("limite", limite).setParameter("lote", propiedades.retencion().lote()).getResultList();
         if (ids.isEmpty()) return 0;
         var lista = ids.stream().map(Number::longValue).toList();
+        entidades.createNativeQuery("""
+                UPDATE turno_ia SET estado='DESCARTADO', texto=NULL, motivo='RETENCION', actualizado_en=:ahora
+                WHERE conversacion_id IN (:ids) AND estado='PENDIENTE'
+                """).setParameter("ids", lista).setParameter("ahora", reloj.instant()).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM llamada_ia WHERE conversacion_id IN (:ids)")
+                .setParameter("ids", lista).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM turno_ia WHERE conversacion_id IN (:ids)")
+                .setParameter("ids", lista).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM notificacion WHERE conversacion_id IN (:ids)")
+                .setParameter("ids", lista).executeUpdate();
         entidades.createNativeQuery("DELETE FROM mensaje_whatsapp WHERE conversacion_id IN (:ids)")
                 .setParameter("ids", lista).executeUpdate();
         return entidades.createNativeQuery("DELETE FROM conversacion WHERE id IN (:ids) AND cliente_id IS NULL")

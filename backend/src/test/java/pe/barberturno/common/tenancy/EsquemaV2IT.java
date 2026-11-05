@@ -6,6 +6,7 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
+    @Test void v117_iaRlsForzada_yPermisosExactos() { ConversacionIAEsquemaPruebas.comprobar(jdbc); }
     @Test void v110_invitacionesSinRls_permisosMinimosYRestriccionesComoAplicacion() {
         enNegocio(1L, () -> {
             var datos = DatosNegocioPrueba.crear(jdbc, "v110");
@@ -147,7 +148,7 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void fkCompuestas_sonLasCatorceRelacionesDelPlan() {
+    void fkCompuestas_sonLasDiecisieteRelacionesDelPlan() {
         assertThat(jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2 order by conname
                 """, String.class)).containsExactly(
@@ -156,6 +157,8 @@ class EsquemaV2IT extends TenancyPruebaBase {
                 "bloqueo_barbero_fk",
                 "conversacion_cliente_fk",
                 "jornada_barbero_fk",
+                "llamada_ia_conversacion_fk",
+                "llamada_ia_turno_fk",
                 "mensaje_conversacion_fk",
                 "mensaje_reserva_fk",
                 "notificacion_conversacion_fk",
@@ -164,7 +167,8 @@ class EsquemaV2IT extends TenancyPruebaBase {
                 "operacion_conversacion_fk",
                 "reserva_barbero_fk",
                 "reserva_cliente_fk",
-                "reserva_servicio_fk");
+                "reserva_servicio_fk",
+                "turno_ia_conversacion_fk");
     }
 
     @Test void vinculo_soloDisparadorEscribeConClienteForceInclusoActualizacionYBorrado() {

@@ -6,6 +6,8 @@ package pe.barberturno.audit;
  * @version 1.0
  */
 public enum AccionAuditoria {
+    /** Aviso de presupuesto de IA agotado; no es una acción de auditoría de reserva. */
+    LIMITE_IA,
     /** Aviso de atención humana; no es una acción de auditoría de reserva. */
     DERIVACION,
     /**
