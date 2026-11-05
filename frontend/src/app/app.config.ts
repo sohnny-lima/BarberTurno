@@ -1,5 +1,6 @@
 import { provideServiceWorker } from '@angular/service-worker';
-import { registerLocaleData } from '@angular/common';
+import { LocationStrategy, registerLocaleData } from '@angular/common';
+import { UbicacionSuperposiciones } from './core/pwa/ubicacion-superposiciones';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
 import {
   ApplicationConfig,
@@ -26,6 +27,7 @@ export const appConfig: ApplicationConfig = {
       registrationStrategy: 'registerWhenStable:30000',
     }),
     provideRouter(routes),
+    { provide: LocationStrategy, useClass: UbicacionSuperposiciones },
     { provide: RouteReuseStrategy, useClass: ReutilizacionNegocio },
     provideHttpClient(
       withInterceptors([negocioInterceptor, erroresInterceptor]),

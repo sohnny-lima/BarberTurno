@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { FiltroSuperposiciones } from './ubicacion-superposiciones';
 
 const MARCA = 'barberturnoSuperposicion';
 interface Entrada {
@@ -22,15 +23,21 @@ export class HistorialSuperposiciones {
   private readonly esperas: (() => void)[] = [];
 
   constructor() {
+    const filtro = inject(FiltroSuperposiciones);
+    const consumidos = new WeakMap<PopStateEvent, boolean>();
     const escuchar = (evento: PopStateEvent) => {
+      const consumido = consumidos.get(evento);
+      if (consumido !== undefined) return consumido;
       const superior = this.entradas.at(-1);
       if (this.retirando) {
+        consumidos.set(evento, true);
         evento.stopImmediatePropagation();
         this.retirando = false;
         this.depurar();
-        return;
+        return true;
       }
       if (superior?.activa) {
+        consumidos.set(evento, true);
         evento.stopImmediatePropagation();
         this.entradas.pop();
         superior.activa = false;
@@ -38,22 +45,29 @@ export class HistorialSuperposiciones {
         superior.cerrar();
         this.procesando = false;
         this.depurar();
+        return true;
       } else if (this.retiradas.has(evento.state?.[MARCA])) {
+        consumidos.set(evento, true);
         // Una navegación desde el menú dejó su entrada debajo de la nueva ruta.
         // Se salta esa copia, también al avanzar, antes de que la vea el router.
         evento.stopImmediatePropagation();
         this.ventana.history.go(this.ultimaRuta === this.ventana.location.href ? 1 : -1);
+        return true;
       } else if (evento.state?.[MARCA]) {
         // Adelante no resucita una superposición ya cerrada.
         const { [MARCA]: omitida, ...estado } = evento.state;
         void omitida;
         this.ventana.history.replaceState(estado, '');
       }
+      consumidos.set(evento, false);
+      return false;
     };
+    filtro.consumir = escuchar;
     this.ventana.addEventListener('popstate', escuchar, true);
-    inject(DestroyRef).onDestroy(() =>
-      this.ventana.removeEventListener('popstate', escuchar, true),
-    );
+    inject(DestroyRef).onDestroy(() => {
+      this.ventana.removeEventListener('popstate', escuchar, true);
+      filtro.consumir = () => false;
+    });
   }
 
   navegacionTerminada() {

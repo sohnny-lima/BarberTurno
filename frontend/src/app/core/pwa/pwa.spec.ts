@@ -6,6 +6,8 @@ import { Actualizaciones, RECARGAR_PWA } from './actualizaciones';
 import { Red } from './red';
 import { Teclado } from './teclado';
 import { HistorialSuperposiciones } from './historial-superposiciones';
+import { PlatformLocation } from '@angular/common';
+import { UbicacionSuperposiciones } from './ubicacion-superposiciones';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
@@ -202,6 +204,37 @@ describe('Historial de superposiciones', () => {
     });
   });
   afterEach(() => vi.restoreAllMocks());
+  it('filtra antes del listener del router y procesa el mismo evento solo una vez', () => {
+    let recibir!: (evento: PopStateEvent) => void;
+    TestBed.configureTestingModule({
+      providers: [
+        UbicacionSuperposiciones,
+        {
+          provide: PlatformLocation,
+          useValue: {
+            getBaseHrefFromDOM: () => '/',
+            onPopState: (escuchar: typeof recibir) => {
+              recibir = escuchar;
+              return () => undefined;
+            },
+            onHashChange: () => () => undefined,
+          },
+        },
+      ],
+    });
+    const router = vi.fn();
+    TestBed.inject(UbicacionSuperposiciones).onPopState(router);
+    const cerrar = vi.fn();
+    TestBed.inject(HistorialSuperposiciones).abrir(cerrar);
+    estado = pila.pop()!;
+    const evento = new PopStateEvent('popstate', { state: estado });
+    recibir(evento);
+    window.dispatchEvent(evento);
+    expect(cerrar).toHaveBeenCalledTimes(1);
+    expect(router).not.toHaveBeenCalled();
+    recibir(new PopStateEvent('popstate', { state: estado }));
+    expect(router).toHaveBeenCalledTimes(1);
+  });
   it('Atrás cierra solo la superior, conserva URL y no llega al router', () => {
     const servicio = TestBed.inject(HistorialSuperposiciones);
     const cerrar = vi.fn();
