@@ -142,6 +142,23 @@ describe('SesionService', () => {
     expect(sesion.usuario()).toBeNull();
     expect(sesion.debeCambiarPassword()).toBe(false);
   });
+  it('logout entrega el resultado después de cerrar el historial de la cuenta', async () => {
+    cargar();
+    let terminar!: () => void;
+    const cierre = new Promise<void>((resolver) => {
+      terminar = resolver;
+    });
+    const retirar = sesion.registrarLimpieza(() => cierre);
+    const siguiente = vi.fn();
+    sesion.logout().subscribe(siguiente);
+    http.expectOne('/api/auth/logout').flush(null);
+    expect(sesion.usuario()).toBeNull();
+    expect(siguiente).not.toHaveBeenCalled();
+    terminar();
+    await sesion.esperarLimpieza();
+    expect(siguiente).toHaveBeenCalledTimes(1);
+    retirar();
+  });
   it('logout fallido permite reintentar con la sesión conservada', () => {
     cargar();
     sesion.logout().subscribe({ error: () => undefined });

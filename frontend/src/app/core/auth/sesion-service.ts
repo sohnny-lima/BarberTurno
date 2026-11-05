@@ -1,7 +1,7 @@
 import { NegocioActual } from '../negocio/negocio-actual';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { catchError, filter, of, switchMap, tap, throwError } from 'rxjs';
+import { catchError, filter, from, of, switchMap, tap, throwError } from 'rxjs';
 import { AuthApi } from '../api/auth-api';
 import {
   CambiarPasswordDto,
@@ -16,6 +16,8 @@ export class SesionService {
   private readonly api = inject(AuthApi);
   private readonly negocio = inject(NegocioActual);
   private generacion = 0;
+  private readonly limpiezas = new Set<() => Promise<void>>();
+  private cierrePendiente = Promise.resolve();
   private readonly identidad = signal<UsuarioSesionDto | null>(null);
   readonly usuario = this.identidad.asReadonly();
   readonly autenticado = computed(() => this.usuario() !== null);
@@ -41,7 +43,10 @@ export class SesionService {
     return this.api.registrar(datos).pipe(tap((usuario) => this.aceptar(usuario)));
   }
   logout() {
-    return this.api.logout().pipe(tap(() => this.limpiar()));
+    return this.api.logout().pipe(
+      tap(() => this.limpiar()),
+      switchMap(() => from(this.esperarLimpieza())),
+    );
   }
   cambiarPassword(datos: CambiarPasswordDto) {
     return this.api.cambiarPassword(datos).pipe(switchMap(() => this.cargar()));
@@ -51,6 +56,15 @@ export class SesionService {
   }
   generacionActual() {
     return this.generacion;
+  }
+  registrarLimpieza(limpiar: () => Promise<void>) {
+    this.limpiezas.add(limpiar);
+    return () => {
+      this.limpiezas.delete(limpiar);
+    };
+  }
+  esperarLimpieza() {
+    return this.cierrePendiente;
   }
   private aceptar(usuario: UsuarioSesionDto) {
     if (this.usuario()?.id !== usuario.id) {
@@ -63,6 +77,9 @@ export class SesionService {
     this.generacion++;
     this.identidad.set(null);
     this.negocio.limpiar();
+    this.cierrePendiente = Promise.all([...this.limpiezas].map((limpiar) => limpiar())).then(
+      () => undefined,
+    );
   }
   inicio() {
     return this.debeCambiarPassword() ? '/cambiar-password' : '/negocios';

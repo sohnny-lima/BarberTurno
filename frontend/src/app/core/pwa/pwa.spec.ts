@@ -288,6 +288,32 @@ describe('Historial de superposiciones', () => {
       window.removeEventListener('popstate', router);
     }
   });
+  it('cerrar todas espera a retirar entradas anidadas antes de permitir navegar', async () => {
+    const servicio = TestBed.inject(HistorialSuperposiciones);
+    const cerrar = vi.fn();
+    servicio.abrir(cerrar);
+    servicio.abrir(cerrar);
+    let terminado = false;
+    const cierre = servicio.cerrarTodas().then(() => {
+      terminado = true;
+    });
+    expect(terminado).toBe(false);
+    expect(cerrar).toHaveBeenCalledTimes(2);
+    await cierre;
+    expect(terminado).toBe(true);
+    expect(estado[marca]).toBeUndefined();
+    expect(history.back).toHaveBeenCalledTimes(2);
+  });
+  it('la salida cancela una apertura pendiente sin crear otra entrada', async () => {
+    const servicio = TestBed.inject(HistorialSuperposiciones);
+    servicio.abrir(vi.fn())();
+    const cerrar = vi.fn();
+    servicio.abrir(cerrar);
+    await servicio.cerrarTodas();
+    expect(cerrar).toHaveBeenCalledTimes(1);
+    expect(history.pushState).toHaveBeenCalledTimes(1);
+    expect(estado[marca]).toBeUndefined();
+  });
 });
 
 describe('Teclado visual', () => {

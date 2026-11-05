@@ -193,6 +193,7 @@ export class Shell {
   constructor() {
     inject(RutasNegocio);
     this.historial.vigilarMenus(this.destroyRef);
+    this.destroyRef.onDestroy(this.sesion.registrarLimpieza(() => this.historial.cerrarTodas()));
     this.destroyRef.onDestroy(() => this.retirarCajon?.());
     this.dialogos.afterOpened.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((dialogo) => {
       const retirar = this.historial.abrir(() => dialogo.close());

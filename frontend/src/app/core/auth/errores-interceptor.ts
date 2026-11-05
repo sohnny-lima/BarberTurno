@@ -33,10 +33,13 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
       if (error.status === 401) {
         sesion.limpiar();
         if (ruta !== '/api/auth/login' && ruta !== '/api/auth/sesion') {
-          void router.navigate(['/ingresar'], {
-            queryParams: { returnUrl: router.url },
-            replaceUrl: true,
-          });
+          const retorno = router.url;
+          void sesion.esperarLimpieza().then(() =>
+            router.navigate(['/ingresar'], {
+              queryParams: { returnUrl: retorno },
+              replaceUrl: true,
+            }),
+          );
         }
         if (ruta !== '/api/auth/login') return throwError(() => error);
       }

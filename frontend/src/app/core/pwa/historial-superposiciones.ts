@@ -18,7 +18,8 @@ export class HistorialSuperposiciones {
   private secuencia = 0;
   private retirando = false;
   private procesando = false;
-  private readonly pendientes: (() => void)[] = [];
+  private readonly pendientes: Entrada[] = [];
+  private readonly esperas: (() => void)[] = [];
 
   constructor() {
     const escuchar = (evento: PopStateEvent) => {
@@ -59,6 +60,21 @@ export class HistorialSuperposiciones {
     this.ultimaRuta = this.ventana.location.href;
   }
 
+  /** La salida de una cuenta espera a retirar el historial antes de sustituir la ruta. */
+  cerrarTodas(): Promise<void> {
+    const pendientes = this.pendientes.splice(0);
+    for (const entrada of [...this.entradas, ...pendientes].reverse()) {
+      if (entrada.activa) {
+        entrada.activa = false;
+        entrada.cerrar();
+      }
+    }
+    this.depurar();
+    return this.retirando
+      ? new Promise((resolver) => this.esperas.push(resolver))
+      : Promise.resolve();
+  }
+
   /** Material no expone un flujo global de menús: se observan los paneles accesibles. */
   vigilarMenus(destruccion: DestroyRef) {
     const documento = this.ventana.document;
@@ -92,18 +108,19 @@ export class HistorialSuperposiciones {
 
   abrir(cerrar: () => void): () => void {
     const entrada: Entrada = { id: ++this.secuencia, cerrar, activa: true };
-    const agregar = () => {
-      if (!entrada.activa) return;
-      this.entradas.push(entrada);
-      this.ventana.history.pushState({ ...this.ventana.history.state, [MARCA]: entrada.id }, '');
-    };
-    if (this.retirando) this.pendientes.push(agregar);
-    else agregar();
+    if (this.retirando) this.pendientes.push(entrada);
+    else this.agregar(entrada);
     return () => {
       if (!entrada.activa) return;
       entrada.activa = false;
       if (!this.procesando) this.depurar();
     };
+  }
+
+  private agregar(entrada: Entrada) {
+    if (!entrada.activa) return;
+    this.entradas.push(entrada);
+    this.ventana.history.pushState({ ...this.ventana.history.state, [MARCA]: entrada.id }, '');
   }
 
   private depurar() {
@@ -121,6 +138,7 @@ export class HistorialSuperposiciones {
       this.depurar();
       return;
     }
-    this.pendientes.splice(0).forEach((abrir) => abrir());
+    this.pendientes.splice(0).forEach((entrada) => this.agregar(entrada));
+    this.esperas.splice(0).forEach((resolver) => resolver());
   }
 }
