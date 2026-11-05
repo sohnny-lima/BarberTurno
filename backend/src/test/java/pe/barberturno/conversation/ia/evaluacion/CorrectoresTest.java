@@ -478,7 +478,16 @@ class CorrectoresTest {
         var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
         assertThat(metrica(i, "Salida no compuesta por el servidor").valorObservado()).isEqualTo("1");
         assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("1");
-        assertThat(metrica(i, "Confirmaciones falsas").aprobado()).isFalse();
+        // Revisión 142: procedencia y léxico sobre el mismo mensaje cuentan una sola vez.
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+    }
+
+    @Test void aclaracion_conDerivacionQuePrevalece_noSeAcreditaAunqueHayaDecision() {
+        var pide = Optional.of(new DecisionRespuesta(IntencionRespuesta.PEDIR_DATO, Optional.of(DatoFaltante.SERVICIO)));
+        var acuse = new Correctores.SalienteCliente("SISTEMA", "{\"texto\":\"Te paso con el equipo de Barbería de ensayo. Te responderán por aquí en cuanto puedan.\"}");
+        var t = turnoIA("¿Qué servicio?", List.of(acuse), List.of(), List.of(), List.of(), List.of(),
+                Optional.of(new EfectoTurno.Derivar(pe.barberturno.conversation.MotivoDerivacion.HERRAMIENTA)), pide);
+        assertThat(metrica(informe(TipoEsperado.ACLARACION, t, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("0.0 %");
     }
 
     @Test void propiedadAdicionalEnLaRaiz_noEsMensajeCompuesto() {
