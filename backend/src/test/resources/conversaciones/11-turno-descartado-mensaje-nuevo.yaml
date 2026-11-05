@@ -1,18 +1,24 @@
 nombre: "11-turno-descartado-mensaje-nuevo"
 negocio: "A"
-reloj: "2026-11-02T10:00:00-05:00"
+reloj: "2026-11-04T10:00:00-05:00"
 ficha: true
 iaNegocio: true
 pasos:
   - cliente:
       texto: "Hola, quisiera saber a qué hora atienden"
-    modelo: []
-    espera:
-      estadoTurno: "DESCARTADO"
-  - cliente:
+    durante:
       texto: "Mejor dicho, quiero reservar para mañana"
     modelo:
-      - texto: "Con gusto te ayudo a reservar para mañana."
+      - texto: "Horario que no debe salir porque el turno se descarta."
+        parada: "end_turn"
+    espera:
+      estadoTurno: "DESCARTADO"
+  - modelo:
+      - texto: "Con gusto te ayudo con tu reserva."
         parada: "end_turn"
     espera:
       estadoTurno: "HECHO"
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["Con gusto te ayudo con tu reserva."]
+          noContiene: ["Horario que no debe salir"]

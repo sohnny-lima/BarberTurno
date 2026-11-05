@@ -14,10 +14,11 @@ import java.util.regex.Pattern;
  * (17-v2-12 §4.1; V2-RNF-05).
  * Permite programar una cola de respuestas exitosas (texto o llamadas a herramientas) o de fallos
  * (con {@link MotivoFalloModelo}), y registra cada {@link PeticionModelo} recibida para verificar
- * que no se filtren datos personales ni identificadores internos.
+ * que no se filtren datos personales ni identificadores internos. Permite además registrar un gancho
+ * de ejecución previo para simular eventos concurrentes durante la llamada HTTP (H-XI-05).
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 public class ModeloConversacionalFalso implements ModeloConversacional {
 
@@ -31,6 +32,7 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
     private final Queue<ElementoProgramado> cola = new ArrayDeque<>();
     private final List<PeticionModelo> peticionesRecibidas = new ArrayList<>();
     private int contadorLlamadasHerramienta = 0;
+    private Runnable ganchoAntes = () -> { };
 
     /**
      * Elemento en la cola programable: o respuesta exitosa o fallo de modelo.
@@ -48,6 +50,10 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
         Objects.requireNonNull(peticion, "peticion");
         peticionesRecibidas.add(peticion);
 
+        Runnable gancho = this.ganchoAntes;
+        this.ganchoAntes = () -> { };
+        gancho.run();
+
         if (cola.isEmpty()) {
             throw new FalloModelo(MotivoFalloModelo.SALIDA_INVALIDA, Optional.empty(), null);
         }
@@ -60,6 +66,16 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
         } else {
             throw new IllegalStateException("Tipo de elemento no soportado.");
         }
+    }
+
+    /**
+     * Establece una acción a ejecutar justo antes de responder a una petición (CI-11; H-XI-05).
+     * El gancho se invoca y se limpia en la siguiente llamada a {@link #responder(PeticionModelo)}.
+     *
+     * @param gancho acción a ejecutar antes de responder, o {@code null} para limpiar
+     */
+    public synchronized void fijarGanchoAntes(Runnable gancho) {
+        this.ganchoAntes = (gancho != null) ? gancho : () -> { };
     }
 
     /**
@@ -244,11 +260,12 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
     }
 
     /**
-     * Reinicia la cola de respuestas programadas y la lista de peticiones recibidas.
+     * Reinicia la cola de respuestas programadas, la lista de peticiones recibidas y el gancho previo.
      */
     public synchronized void reiniciar() {
         cola.clear();
         peticionesRecibidas.clear();
         contadorLlamadasHerramienta = 0;
+        ganchoAntes = () -> { };
     }
 }
