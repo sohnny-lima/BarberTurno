@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -13,6 +14,15 @@ import org.junit.jupiter.api.Test;
  * @version 1.0
  */
 class SaneadorTextoTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {" -  ", "\u00A0\u2013\u00A0\u00A0.\u200B", " \u00A0\u2013\u00A0\u00A0.\u200B()\u2060"})
+    void telefonosConCuatroSeisYDiezSeparadoresMixtos_seSaneanYDetectan(String separadores) {
+        String telefono = "987" + separadores + "654" + separadores + "321";
+        assertThat(separadores.length()).isIn(4, 6, 10);
+        assertThat(SaneadorTexto.sanear("cel " + telefono, 2000)).isEqualTo("cel [dato]");
+        assertThat(SaneadorTexto.contieneDatoPersonal(telefono)).isTrue();
+    }
 
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
