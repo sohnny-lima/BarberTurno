@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Pruebas de integración de canal para verificar lo que recibe el cliente en {@code mensaje_whatsapp.contenido}
@@ -53,8 +55,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *     <li>El texto libre del proveedor (paráfrasis de confirmación, horas inventadas, códigos {@code BT-9999},
  *     enlaces, precios {@code S/ 0}, emojis, teléfonos y correos) se descarta siempre y nunca llega a
  *     {@code mensaje_whatsapp.contenido} ni a {@link BandejaWhatsApp}.</li>
- *     <li>El cliente recibe exclusivamente el mensaje interactivo determinista compuesto por
- *     {@link RespuestasAsistente} o {@link MenusConversacion#confirmacion(String, long, String)}.</li>
+ *     <li>El cliente recibe exclusivamente el envoltorio JSON determinista compuesto por
+ *     {@link RespuestasAsistente} o {@link MenusConversacion#confirmacion(String, long, String)}, comparando
+ *     la raíz completa ({@code {"interactivo": <esperado>}} o {@code {"texto": <esperado>}}) y rechazando
+ *     cualquier propiedad adicional en la raíz (hallazgo 5 de Codex).</li>
  *     <li>Con {@code proponer_reserva} y texto «¡Ya quedó confirmada!», solo se envía el resumen con los botones
  *     {@code [Confirmar]} y {@code [Cambiar]} sin crear fila en {@code reserva}; al pulsar {@code [Confirmar]}
  *     ({@code o:<operación>:<nonce>:S}), se crea la reserva y el cliente recibe {@link TextosConversacion#resultado}
@@ -64,7 +68,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </ul>
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Import(ConfiguracionPruebasIA.class)
 @TestPropertySource(properties = {
@@ -98,7 +102,8 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
             "trampa@ejemplo.test",
             "💈",
             "tiene un hueco",
-            "quedaste con Carlos"
+            "quedaste con Carlos",
+            "Te esperamos"
     );
 
     /**
@@ -221,15 +226,17 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         JsonNode nodoContenido = mapper.readTree(contenidoCrudo);
         JsonNode interactivoReal = nodoContenido.path("interactivo");
 
-        // 4. Comprobar que el JSON completo de mensaje_whatsapp.contenido coincide exactamente con el determinista.
+        // 4. Comprobar el JSON raíz completo de mensaje_whatsapp.contenido con el envoltorio esperado,
+        // rechazando cualquier propiedad adicional en la raíz (hallazgo 5 de Codex).
         ObjectNode interactivoEsperado = construirInteractivoEsperado(combinacion, conversacionId, turnoObs);
-        assertThat(interactivoReal)
-                .as("El objeto interactivo enviado al cliente debe coincidir exactamente con el determinista del servidor")
-                .isEqualTo(interactivoEsperado);
+        ObjectNode envoltorioEsperado = mapper.createObjectNode();
+        envoltorioEsperado.set("interactivo", interactivoEsperado);
+        compararJsonRaizCompleto(nodoContenido, envoltorioEsperado);
 
-        // 5. Comprobar que ninguna subcadena de 4+ palabras del proveedor ni ningún token prohibido aparece en el JSON
-        // (cuerpo, encabezado, pie, botones y filas).
-        verificarAusenciaDeTextoProveedorEnContenido(contenidoCrudo, interactivoReal, textoProveedor);
+        // 5. Comprobar que ninguna subcadena de 4+ palabras del proveedor ni ningún token prohibido
+        // (incluyendo fragmentos cortos de 2 y 3 palabras del proveedor que no estén en el mensaje esperado)
+        // aparece en el JSON ni en sus campos.
+        verificarAusenciaDeTextoProveedorEnContenido(contenidoCrudo, interactivoReal, textoProveedor, interactivoEsperado.toString());
 
         // 6. Comprobar lo que muestra BandejaWhatsApp (detalle de la conversación) sobre ese mismo contenido.
         DetalleConversacionDto detalleBandeja = obtenerDetalleEnBandeja(a, conversacionId);
@@ -238,7 +245,8 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
             verificarAusenciaDeTextoProveedorEnCadena(
                     "BandejaWhatsApp.detalle mensaje id=" + msgBandeja.id(),
                     msgBandeja.texto(),
-                    textoProveedor
+                    textoProveedor,
+                    interactivoEsperado.toString()
             );
         }
         MensajeBandejaDto ultimoEnBandeja = detalleBandeja.mensajes().getLast();
@@ -288,10 +296,14 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         List<Map<String, Object>> salientes = consultarSalientesNuevos(a, conversacionId, ultimoSalienteAntes);
         assertThat(salientes).hasSize(1);
         String contenidoCrudo = String.valueOf(salientes.getFirst().get("contenido"));
-        JsonNode interactivoReal = mapper.readTree(contenidoCrudo).path("interactivo");
+        JsonNode nodoContenido = mapper.readTree(contenidoCrudo);
+        JsonNode interactivoReal = nodoContenido.path("interactivo");
 
-        assertThat(interactivoReal).isEqualTo(esperado);
-        verificarAusenciaDeTextoProveedorEnContenido(contenidoCrudo, interactivoReal, textoMalicioso);
+        ObjectNode envoltorioEsperado = mapper.createObjectNode();
+        envoltorioEsperado.set("interactivo", esperado);
+        compararJsonRaizCompleto(nodoContenido, envoltorioEsperado);
+
+        verificarAusenciaDeTextoProveedorEnContenido(contenidoCrudo, interactivoReal, textoMalicioso, esperado.toString());
     }
 
     @Test
@@ -332,17 +344,22 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         List<Map<String, Object>> salientesPropuesta = consultarSalientesNuevos(a, conversacionId, ultimoSalienteAntes);
         assertThat(salientesPropuesta).hasSize(1);
         String contenidoPropuestaCrudo = String.valueOf(salientesPropuesta.getFirst().get("contenido"));
-        JsonNode interactivoPropuesta = mapper.readTree(contenidoPropuestaCrudo).path("interactivo");
+        JsonNode nodoPropuesta = mapper.readTree(contenidoPropuestaCrudo);
+        JsonNode interactivoPropuesta = nodoPropuesta.path("interactivo");
 
         ObjectNode confirmacionEsperada = construirConfirmacionEsperada(conversacionId);
-        assertThat(interactivoPropuesta)
-                .as("El cliente debe recibir únicamente el resumen con [Confirmar] y [Cambiar]")
-                .isEqualTo(confirmacionEsperada);
+        ObjectNode envoltorioPropuestaEsperado = mapper.createObjectNode();
+        envoltorioPropuestaEsperado.set("interactivo", confirmacionEsperada);
+        compararJsonRaizCompleto(nodoPropuesta, envoltorioPropuestaEsperado);
+
         assertThat(contenidoPropuestaCrudo)
                 .doesNotContain("¡Ya quedó confirmada!")
                 .doesNotContain("confirmada")
                 .doesNotContain("Listo:")
                 .doesNotContain("BT-");
+
+        verificarAusenciaDeTextoProveedorEnContenido(
+                contenidoPropuestaCrudo, interactivoPropuesta, textoEnganoso, confirmacionEsperada.toString());
 
         JsonNode botonesPropuesta = interactivoPropuesta.path("action").path("buttons");
         assertThat(botonesPropuesta).hasSize(2);
@@ -407,12 +424,14 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         assertThat(salientesConfirmacion).hasSize(1);
 
         String contenidoConfirmacionCrudo = String.valueOf(salientesConfirmacion.getFirst().get("contenido"));
-        JsonNode interactivoConfirmacion = mapper.readTree(contenidoConfirmacionCrudo).path("interactivo");
+        JsonNode nodoConfirmacion = mapper.readTree(contenidoConfirmacionCrudo);
+        JsonNode interactivoConfirmacion = nodoConfirmacion.path("interactivo");
         String cuerpoRecibido = interactivoConfirmacion.path("body").path("text").asString();
 
-        assertThat(interactivoConfirmacion)
-                .as("Tras confirmar con el botón, el cliente debe recibir el menú principal con TextosConversacion.resultado")
-                .isEqualTo(menuResultadoEsperado);
+        ObjectNode envoltorioConfirmacionEsperado = mapper.createObjectNode();
+        envoltorioConfirmacionEsperado.set("interactivo", menuResultadoEsperado);
+        compararJsonRaizCompleto(nodoConfirmacion, envoltorioConfirmacionEsperado);
+
         assertThat(cuerpoRecibido)
                 .isEqualTo(textoResultadoEsperado)
                 .contains(codigoReal)
@@ -466,7 +485,8 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         verificarAusenciaDeTextoProveedorEnCadena(
                 "Mensaje del cliente en bandeja",
                 mensajeClienteEnBandeja.texto(),
-                textoProveedorMalicioso
+                textoProveedorMalicioso,
+                mensajeClienteEnBandeja.texto()
         );
 
         MensajeBandejaDto avisoSistemaEnBandeja = detalle.mensajes().get(1);
@@ -477,7 +497,8 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         verificarAusenciaDeTextoProveedorEnCadena(
                 "Aviso de derivación en bandeja",
                 avisoSistemaEnBandeja.texto(),
-                textoProveedorMalicioso
+                textoProveedorMalicioso,
+                textos.derivada("Negocio ficticio a")
         );
 
         // 2. Comprobar también todas las filas crudas en mensaje_whatsapp de la conversación.
@@ -485,9 +506,91 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 "SELECT CAST(contenido AS text) FROM mensaje_whatsapp WHERE conversacion_id = ? ORDER BY id",
                 String.class, conversacionId));
         assertThat(contenidosCrudos).hasSize(2);
+        String textoEsperadoDerivacion = textos.derivada("Negocio ficticio a") + " " + textoClienteConDatos;
         for (String crudo : contenidosCrudos) {
-            verificarAusenciaDeTextoProveedorEnCadena("mensaje_whatsapp.contenido", crudo, textoProveedorMalicioso);
+            verificarAusenciaDeTextoProveedorEnCadena(
+                    "mensaje_whatsapp.contenido", crudo, textoProveedorMalicioso, textoEsperadoDerivacion);
         }
+    }
+
+    @Test
+    @DisplayName("compararJsonRaizCompleto_conPropiedadAdicionalNotaEnRaiz_rechazaYFalla")
+    void compararJsonRaizCompleto_conPropiedadAdicionalNotaEnRaiz_rechazaYFalla() {
+        ObjectNode interactivoEsperado = mapper.createObjectNode();
+        interactivoEsperado.put("type", "button");
+        interactivoEsperado.putObject("body").put("text", "Elige una opción:");
+
+        ObjectNode envoltorioEsperado = mapper.createObjectNode();
+        envoltorioEsperado.set("interactivo", interactivoEsperado);
+
+        // Caso idéntico: el ayudante debe validar con éxito sin lanzar excepción
+        compararJsonRaizCompleto(envoltorioEsperado, envoltorioEsperado);
+
+        // Caso con propiedad adicional en la raíz ("nota": "Te esperamos", hallazgo 5 de Codex)
+        ObjectNode salienteConNota = envoltorioEsperado.deepCopy();
+        salienteConNota.put("nota", "Te esperamos");
+
+        assertThatThrownBy(() -> compararJsonRaizCompleto(salienteConNota, envoltorioEsperado))
+                .as("El ayudante de comparación debe rechazar cualquier propiedad adicional en la raíz como 'nota'")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("nota");
+
+        // También con envoltorio de texto: un JSON con "texto" y "nota" adicional debe fallar
+        ObjectNode envoltorioTexto = mapper.createObjectNode();
+        envoltorioTexto.put("texto", "Mensaje determinista");
+        ObjectNode textoConNota = envoltorioTexto.deepCopy();
+        textoConNota.put("nota", "Te esperamos");
+
+        assertThatThrownBy(() -> compararJsonRaizCompleto(textoConNota, envoltorioTexto))
+                .as("El ayudante debe rechazar la propiedad 'nota' en la raíz también sobre envoltorios de texto")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("nota");
+    }
+
+    /**
+     * Compara el JSON raíz completo de un mensaje saliente con el envoltorio esperado
+     * ({@code {"interactivo": <esperado>}} o {@code {"texto": <esperado>}}), verificando
+     * que coincida exactamente y rechazando cualquier propiedad adicional en la raíz
+     * (17-v2-12 §13; V2-DA-86; CI-14; hallazgo 5 de Codex).
+     *
+     * @param nodoReal JSON real obtenido de la columna {@code mensaje_whatsapp.contenido}
+     * @param envoltorioEsperado envoltorio JSON determinista esperado del servidor
+     * @throws AssertionError si el nodo real no es un objeto, contiene propiedades adicionales en la raíz
+     *                        o su contenido difiere del esperado
+     */
+    static void compararJsonRaizCompleto(JsonNode nodoReal, JsonNode envoltorioEsperado) {
+        assertThat(nodoReal)
+                .as("El JSON raíz no debe ser nulo")
+                .isNotNull();
+        assertThat(nodoReal.isObject())
+                .as("La raíz de mensaje_whatsapp.contenido debe ser un objeto JSON")
+                .isTrue();
+        assertThat(envoltorioEsperado)
+                .as("El envoltorio esperado no debe ser nulo")
+                .isNotNull();
+        assertThat(envoltorioEsperado.isObject())
+                .as("El envoltorio esperado debe ser un objeto JSON")
+                .isTrue();
+
+        List<String> clavesReales = new ArrayList<>();
+        Iterator<String> itReal = nodoReal.fieldNames();
+        while (itReal.hasNext()) {
+            clavesReales.add(itReal.next());
+        }
+
+        List<String> clavesEsperadas = new ArrayList<>();
+        Iterator<String> itEsperado = envoltorioEsperado.fieldNames();
+        while (itEsperado.hasNext()) {
+            clavesEsperadas.add(itEsperado.next());
+        }
+
+        assertThat(clavesReales)
+                .as("La raíz de mensaje_whatsapp.contenido solo debe contener las propiedades esperadas: " + clavesEsperadas)
+                .containsExactlyInAnyOrderElementsOf(clavesEsperadas);
+
+        assertThat(nodoReal)
+                .as("El JSON raíz completo de mensaje_whatsapp.contenido debe coincidir exactamente con el envoltorio esperado")
+                .isEqualTo(envoltorioEsperado);
     }
 
     private void programarEscenario(String textoProveedor, CombinacionSalida combinacion) {
@@ -565,59 +668,78 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
             JsonNode interactivo,
             String textoProveedor
     ) {
-        verificarAusenciaDeTextoProveedorEnCadena("mensaje_whatsapp.contenido (JSON)", contenidoCrudo, textoProveedor);
+        verificarAusenciaDeTextoProveedorEnContenido(contenidoCrudo, interactivo, textoProveedor, null);
+    }
+
+    private void verificarAusenciaDeTextoProveedorEnContenido(
+            String contenidoCrudo,
+            JsonNode interactivo,
+            String textoProveedor,
+            String textoEsperadoServidor
+    ) {
+        verificarAusenciaDeTextoProveedorEnCadena(
+                "mensaje_whatsapp.contenido (JSON)", contenidoCrudo, textoProveedor, textoEsperadoServidor);
         verificarAusenciaDeTextoProveedorEnCadena(
                 "interactivo.body.text",
                 interactivo.path("body").path("text").asString(""),
-                textoProveedor
+                textoProveedor,
+                textoEsperadoServidor
         );
         if (interactivo.has("header")) {
             verificarAusenciaDeTextoProveedorEnCadena(
                     "interactivo.header",
                     interactivo.path("header").toString(),
-                    textoProveedor
+                    textoProveedor,
+                    textoEsperadoServidor
             );
         }
         if (interactivo.has("footer")) {
             verificarAusenciaDeTextoProveedorEnCadena(
                     "interactivo.footer",
                     interactivo.path("footer").toString(),
-                    textoProveedor
+                    textoProveedor,
+                    textoEsperadoServidor
             );
         }
         for (JsonNode boton : interactivo.path("action").path("buttons")) {
             verificarAusenciaDeTextoProveedorEnCadena(
                     "boton.id",
                     boton.path("reply").path("id").asString(""),
-                    textoProveedor
+                    textoProveedor,
+                    textoEsperadoServidor
             );
             verificarAusenciaDeTextoProveedorEnCadena(
                     "boton.title",
                     boton.path("reply").path("title").asString(""),
-                    textoProveedor
+                    textoProveedor,
+                    textoEsperadoServidor
             );
         }
         for (JsonNode seccion : interactivo.path("action").path("sections")) {
             verificarAusenciaDeTextoProveedorEnCadena(
                     "seccion.title",
                     seccion.path("title").asString(""),
-                    textoProveedor
+                    textoProveedor,
+                    textoEsperadoServidor
             );
             for (JsonNode fila : seccion.path("rows")) {
                 verificarAusenciaDeTextoProveedorEnCadena(
                         "fila.id",
                         fila.path("id").asString(""),
-                        textoProveedor
+                        textoProveedor,
+                        textoEsperadoServidor
                 );
                 verificarAusenciaDeTextoProveedorEnCadena(
                         "fila.title",
                         fila.path("title").asString(""),
-                        textoProveedor
+                        textoProveedor,
+                        textoEsperadoServidor
                 );
                 verificarAusenciaDeTextoProveedorEnCadena(
                         "fila.description",
                         fila.path("description").asString(""),
-                        textoProveedor
+                        textoProveedor,
+                        textoEsperadoServidor
                 );
             }
         }
@@ -628,16 +750,87 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
             String cadenaInspeccionada,
             String textoProveedor
     ) {
+        verificarAusenciaDeTextoProveedorEnCadena(ubicacion, cadenaInspeccionada, textoProveedor, null);
+    }
+
+    private void verificarAusenciaDeTextoProveedorEnCadena(
+            String ubicacion,
+            String cadenaInspeccionada,
+            String textoProveedor,
+            String textoEsperadoServidor
+    ) {
         assertThat(cadenaInspeccionada).as(ubicacion).isNotNull();
         for (String subcadena : subcadenasDeCuatroOMasPalabras(textoProveedor)) {
             assertThat(cadenaInspeccionada)
                     .as(ubicacion + " no debe contener subcadena de 4+ palabras del proveedor: «" + subcadena + "»")
                     .doesNotContainIgnoringCase(subcadena);
         }
-        for (String tokenProhibido : TOKENS_ADVERSARIOS_PROHIBIDOS) {
+        for (String tokenProhibido : tokensProhibidosPara(textoProveedor, textoEsperadoServidor)) {
             assertThat(cadenaInspeccionada)
-                    .as(ubicacion + " no debe contener el token adversario: «" + tokenProhibido + "»")
-                    .doesNotContain(tokenProhibido);
+                    .as(ubicacion + " no debe contener el token adversario o fragmento del proveedor: «" + tokenProhibido + "»")
+                    .doesNotContainIgnoringCase(tokenProhibido);
+        }
+    }
+
+    /**
+     * Determina el conjunto completo de tokens prohibidos para una comprobación: incluye la lista base
+     * de tokens adversarios y añade todos los fragmentos cortos del proveedor (de 2 y 3 palabras) que no
+     * formen parte del mensaje esperado del servidor (CI-14; hallazgo 5 de Codex).
+     *
+     * @param textoProveedor texto libre emitido por el modelo
+     * @param textoEsperadoServidor texto o JSON esperado del servidor, o {@code null} si no aplica
+     * @return conjunto de tokens y fragmentos prohibidos que no deben aparecer en la salida
+     */
+    static Set<String> tokensProhibidosPara(String textoProveedor, String textoEsperadoServidor) {
+        Set<String> tokens = new LinkedHashSet<>(TOKENS_ADVERSARIOS_PROHIBIDOS);
+        String esperadoNormalizado = textoEsperadoServidor != null ? textoEsperadoServidor.toLowerCase() : "";
+        for (String fragmento : subcadenasDeDosYTresPalabras(textoProveedor)) {
+            if (esperadoNormalizado.isEmpty() || !esperadoNormalizado.contains(fragmento.toLowerCase())) {
+                tokens.add(fragmento);
+            }
+        }
+        return tokens;
+    }
+
+    /**
+     * Extrae todas las subcadenas contiguas de 2 y 3 palabras del texto del proveedor (tanto con
+     * puntuación original como normalizando signos de puntuación) para comprobar su ausencia en la salida
+     * si no forman parte del mensaje esperado del servidor (CI-14; hallazgo 5 de Codex).
+     *
+     * @param texto texto libre devuelto por el proveedor
+     * @return conjunto ordenado de subcadenas de 2 y 3 palabras
+     */
+    static Set<String> subcadenasDeDosYTresPalabras(String texto) {
+        Set<String> resultado = new LinkedHashSet<>();
+        if (texto == null || texto.isBlank()) {
+            return resultado;
+        }
+        agregarVentanasDePalabras(texto.trim().split("\\s+"), 2, resultado);
+        agregarVentanasDePalabras(texto.trim().split("\\s+"), 3, resultado);
+
+        String limpio = texto.replaceAll("[¡!¿?.,;:\"'()\\[\\]]", " ").trim();
+        String[] palabrasLimpias = limpio.split("\\s+");
+        agregarVentanasDePalabras(palabrasLimpias, 2, resultado);
+        agregarVentanasDePalabras(palabrasLimpias, 3, resultado);
+        return resultado;
+    }
+
+    private static void agregarVentanasDePalabras(String[] palabras, int tamanoVentana, Set<String> destino) {
+        if (palabras == null || palabras.length < tamanoVentana) {
+            return;
+        }
+        for (int i = 0; i <= palabras.length - tamanoVentana; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < tamanoVentana; j++) {
+                if (j > 0) {
+                    sb.append(' ');
+                }
+                sb.append(palabras[i + j]);
+            }
+            String ventana = sb.toString().trim();
+            if (!ventana.isBlank()) {
+                destino.add(ventana);
+            }
         }
     }
 
