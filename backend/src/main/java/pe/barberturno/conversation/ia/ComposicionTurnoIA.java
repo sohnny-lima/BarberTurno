@@ -124,6 +124,25 @@ public class ComposicionTurnoIA {
         return "No pude entenderte bien; elige una opción del menú.";
     }
 
+    /**
+     * Texto fijo emitido cuando la consulta del cliente está fuera del alcance de reservas y citas (17-v2-12 §13.3).
+     *
+     * @return texto fijo de alcance
+     */
+    public String fueraDeAlcance() {
+        return "Puedo ayudarte a reservar, cambiar o cancelar citas. Elige una opción:";
+    }
+
+    /**
+     * Texto fijo del servidor que encabeza la lista interactiva de franjas disponibles en un turno de IA
+     * (17-v2-12 §13.3; V2-DA-86).
+     *
+     * @return texto fijo para elegir horario
+     */
+    public String elegirFranja() {
+        return "Estos son los horarios disponibles. Elige uno:";
+    }
+
     private static String tituloSeccion(LocalDate dia) {
         String diaSemana = dia.getDayOfWeek()
                 .getDisplayName(TextStyle.SHORT, LOCALE_PE)
