@@ -128,3 +128,68 @@ expected: Sustituido[motivo=AFIRMA_OPERACION]
 - Sin merge: expresamente excluido del encargo. `git diff --check` ejecutado antes de cada commit. Rama conservada.
 
 Solo se han escrito los cuatro archivos de código y esta evidencia, además de salidas ignoradas de herramientas. Sin cambios en APF2, entregables, evidencias v1, bases, Azure, requisitos, arquitectura, AGENTS o CLAUDE; sin secretos, datos personales reales, remotos, etiquetas, servicios externos o pagos. No se instalaron dependencias, crearon worktrees ni iniciaron servidores. Todas las sesiones de verificación terminaron. Comprobación CIM posterior: ningún Java, navegador o Node de pruebas/Angular asociado a este worktree; se preserva el Node preexistente PID 178628 (creado a las 00:11:04, antes de las verificaciones, sin marcadores de Vitest/Angular/pruebas/servidor). Sin procesos propios pendientes.
+
+## Correcciones de g098 y V2-DA-85
+
+**Encargo 132 · 05/11/2026 · terminado.** Misma rama. Estado inicial limpio y `git log -3` comprobado: los merges del coordinador `125caec` (V2-DA-85, contrato reparado y correcciones de Claude) y `5482ae3` (g097, guiones/arnés) ya estaban presentes. Base de esta continuación: `5482ae38543fe9dbceedce8bd304594dc1e5fd17`. No se realizó ningún merge propio.
+
+Se leyeron AGENTS, la Definición de Hecho, V2-DA-85, el §5 reparado del contrato 17, el contrato de bandeja y el nuevo saneador. Por la referencia expresa del encargo 132 se leyó únicamente el informe `g098-revision-131.md` indicado, sin explorar otras rutas de coordinación ni mostrar valores de configuración local. Los hallazgos editoriales y la divergencia Unicode anotados en 131 pertenecen a la base anterior: el coordinador ya trajo sus correcciones.
+
+### Implementación
+
+- **GuardasSalida.java:** de 620 a 133 líneas. Se retiran la extracción/validación de combinaciones, `esValido`, `fechasPara`, resolución de días y años, mapas de franjas y patrones propios de teléfono/correo. Cualquier referencia temporal detectada se sustituye incluso si coincide con las franjas. Se conserva la firma pública; Javadoc de clase, constructor y `revisar` documenta V2-DA-85 y que `franjas`/`ahora` solo permanecen por compatibilidad, sin uso. Se mantiene el orden vacío → longitud → datos → afirmaciones → horarios y el texto aceptado intacto.
+- **Detección temporal:** se reconocen días, meses, relativos y expresiones habladas de hora, además de cualquier cifra. Esto cubre `17h`, `17h30`, `17 hs`, `18 horas`, `5 a. m.`, «cinco treinta», «diecisiete treinta», «próximo viernes» y fechas con guiones Unicode, sin interpretarlos. Se acepta conscientemente sustituir números de opciones y duraciones, como permite la decisión conservadora. Un patrón de forma de fecha solo evita confundirla con un teléfono en la guarda previa: no valida calendarios, años ni disponibilidad.
+- **Afirmaciones:** formas personales, participios y tiempos de reservar/confirmar/cancelar/reprogramar/agendar; preguntas y negaciones quedan fuera de esa guarda. Se conserva la revisión de datos y horarios dentro de preguntas/negaciones: «¿Te reservo el viernes a las 17:00?» da `HORARIO_NO_OFRECIDO`, mientras «¿Te reservo ese turno?» se acepta. Las afirmaciones fuera de una pregunta o posteriores a «pero», «y ya…» o a otra cláusula siguen rechazándose. Se distinguen nombres e instrucciones («tu reserva», «confirma con el botón») de afirmaciones. Las tildes distinguen indicativo y subjuntivo.
+- **Datos personales e importes:** llamadas a `SaneadorTexto.contieneDatoPersonal`, sin otro detector personal. Se canonizan espacios alrededor de separadores antes de una segunda llamada al mismo helper para cubrir `987 - 654 - 321` sin cambiar el saneador, cuyo patrón conserva un máximo de dos separadores consecutivos. Se añaden «1 sol», «25 sol» y «25 lucas», incluidos decimales. Los datos personales de los tests siguen siendo ficticios.
+- **GuardasSalidaTest.java:** expectativas de horarios antes admitidos actualizadas a V2-DA-85 y nombres ajustados; regresiones de los textos de g098, personas/tiempos, preguntas, negaciones y sus límites, Unicode, importes y parámetros de compatibilidad sin uso. **271 casos** de guardas, con comprobaciones con/sin franjas en los nuevos casos temporales.
+- **bandeja.ts:** `mensajeAccion` se conserva al navegar a la lista y se limpia al seleccionar otra conversación. Un POST confirmado invalida las consultas de detalle anteriores y cierra su estado de carga, por lo que el sondeo no borra el mensaje creado. La lista se refresca antes de descartar efectos de un POST de una conversación anterior; también al terminar una devolución anterior. No cambia el destino de ningún POST ni los permisos recibidos del servidor.
+- **bandeja.spec.ts:** **28 casos**. La devolución emite `paramMap` vacío desde la navegación espiada y comprueba el aviso en `aria-live`. Nuevas regresiones de dos consultas de lista fuera de orden con éxito/error y sondeo previo al POST con éxito/404. Las pruebas de cambio A → B comprueban también la recarga lateral tras los POST tardíos.
+
+### Verificación y registros
+
+Mismo entorno que 131: Temurin 21.0.8+9, wrapper Maven 3.9.16, Spring Boot 4.1.1, Node 24.21.0 por fnm y Vitest 5.0.3. Los guiones usaron PostgreSQL **18.6** en la base de pruebas v2 y el adaptador falso, nunca Anthropic real. Inicialización de Java/fnm igual a la sección anterior. Las órdenes se ejecutaron con escalación por las restricciones de entorno ya comprobadas en 131, sin tocar ACL, propietarios ni configuración.
+
+| Directorio | Orden | Resultado | Registro bajo `backend/target/` |
+|---|---|---|---|
+| `backend` | `.\mvnw.cmd -Dtest=GuardasSalidaTest,ComposicionTurnoIATest,SaneadorTextoTest "-Djacoco.skip=true" test` | Primera ronda: **298/1/0/0**, corregida; final **303/0/0/0**, `BUILD SUCCESS`, 36,608 s (271 guardas + 13 composición + 19 saneador) | `encargo-132-unitarias-inicial.log`, `encargo-132-unitarias-final.log` |
+| `backend` | `.\mvnw.cmd -DskipTests verify` | **BUILD SUCCESS**, 28,138 s, Javadoc/doclint sin avisos | `encargo-132-verify.log` |
+| raíz | `pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-12-r129 -Registro target\encargo-132-guiones.log "-Dtest=ConversacionGuionesIT" test` | Ejecutor serializado, `mvnw rc=0`; **24/0/0/0**, `BUILD SUCCESS`, 2:07 min | `encargo-132-guiones.log` |
+| `frontend` | `npm test -- --watch=false --include src/app/features/bandeja-whatsapp/bandeja.spec.ts` | **28/28**, 1 archivo, código 0, 27,41 s | `encargo-132-frontend-test.log` |
+| `frontend` | `npm run lint` | Código 0; `All files pass linting`, TypeScript E2E conforme | `encargo-132-lint.log` |
+| `frontend` | `npm run build` | Código 0; 30,563 s; inicial **499,56 kB** | `encargo-132-build.log` |
+| `frontend` | `node_modules/.bin/prettier.cmd --write src/app/features/bandeja-whatsapp/bandeja.ts src/app/features/bandeja-whatsapp/bandeja.spec.ts` | Solo los dos archivos autorizados | Consola |
+| raíz | `git diff --check`, comprobación de bytes y CIM | Sin errores; UTF-8 sin BOM y LF; ningún proceso Java/Node/navegador asociado al worktree al cerrar | Consola |
+
+Se reutilizó la configuración existente de `ConversacionGuionesIT` (con `@DirtiesContext`), sin añadir contextos o pools; ninguna otra suite ni aplicación se ejecutó contra PostgreSQL durante los guiones. Las unitarias y el empaquetado se completaron antes de iniciar el ejecutor serializado. No se ejecutó el arnés en vivo, ni una batería global con BD, ni se acredita cobertura global con este `verify -DskipTests`.
+
+**Único fallo funcional intermedio:** el detector confundía el pronombre «Tú» con el posesivo «tu» al permitir nombres/instrucciones. La regresión «Tú confirmas tu cita.» esperaba `AFIRMA_OPERACION` y se aceptaba. Se separaron esas excepciones y se preservó la tilde del sujeto. Salida resumida del fallo (tildes del texto reconstruidas por la codificación de consola):
+
+```text
+[ERROR] Tests run: 266, Failures: 1, Errors: 0, Skipped: 0 -- in GuardasSalidaTest
+expected: Sustituido[motivo=AFIRMA_OPERACION]
+ but was: Aceptado[texto=Tú confirmas tu cita.]
+[ERROR] Tests run: 298, Failures: 1, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+```
+
+Después de corregirlo y añadir regresiones de negación coordinada, «no solo», «sin problemas» y futuro en subordinadas:
+
+```text
+[INFO] Tests run: 303, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] --- javadoc:3.12.0:javadoc-no-fork (javadoc-verificacion) @ barberturno ---
+[INFO] BUILD SUCCESS
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0 -- in ConversacionGuionesIT
+[INFO] BUILD SUCCESS
+mvnw rc=0
+```
+
+### Guiones, decisiones y cierre
+
+- Los **12 YAML de g097 y sus 24 pruebas** pasan sin modificar guiones ni su suite. **Ningún guion afectado con espera incompatible** en esta base: 01 conserva `sustitucionGuardas: HORARIO_NO_OFRECIDO`, 02 conserva `AFIRMA_OPERACION` y 03/04 conservan propuestas y confirmaciones deterministas. Se respetó la propiedad de Gemini.
+- Riesgo aceptado por V2-DA-85: se sustituye de más el texto con cifras, duraciones o referencias temporales ambiguas, manteniendo la lista compuesta por el servidor. Las afirmaciones siguen basadas en patrones y contexto de cláusula; estas regresiones no constituyen una garantía de comprensión de cualquier paráfrasis. No se introducen contratos, DDL, reglas de negocio ni dependencias nuevas.
+- El patrón compartido del saneador no se modificó: la canonización de separadores en salida resuelve el caso de tres separadores de g098 con el helper existente. No queda una segunda expresión de teléfono que mantener en las guardas.
+- `fe7eaa598f5cbf5e14d12c16bb58bcaa1c651b86` · `fix(ia): simplificar guardas según V2-DA-85 y revisión g098 [V2-12]`.
+- `9724b6980bbd0bd81ce5adfc90666c09684419df` · `fix(whatsapp): conservar avisos y respuestas tras el sondeo [V2-11]`.
+- Esta sección se registra en `docs: registrar cierre de g098 y V2-DA-85 [V2-12]`; hash en el informe final y mediante `git log -1 --format=%H -- docs/v2/pruebas/v2-12-correcciones-129.md`.
+- Sin cambio de rama, merge propio, push, publicación, tags, remotos, instalaciones ni worktrees nuevos. Solo los cuatro archivos de código autorizados y esta evidencia, más salidas ignoradas de herramientas. No se tocaron `docs/tareas.md`, backlog, README, documentación protegida, APF2, entregables, evidencias v1, Azure ni bases v1. Sin secretos ni datos reales expuestos. Todas las sesiones de verificación finalizaron y la comprobación CIM no encontró procesos Java/Node/navegador asociados al worktree; sin servidores ni procesos propios pendientes.
