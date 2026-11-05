@@ -119,16 +119,23 @@ final class EscenarioEvaluacion {
                 var despues = reservas(a, cliente);
                 var persistidas = operaciones(a, conversacion);
                 var operacionesPaso = persistidas.stream().filter(o -> !operacionesAntes.contains(o)).toList();
-                var salientes = en(a, () -> jdbc.queryForList("""
-                        SELECT contenido::text FROM mensaje_whatsapp WHERE conversacion_id=? AND id>? AND direccion='SALIENTE' ORDER BY id
-                        """, String.class, conversacion, ultimoMensaje)).stream().map(this::textoSaliente).toList();
+                var detalle = en(a, () -> jdbc.query("""
+                        SELECT CAST(origen AS text) AS origen, contenido::text AS contenido FROM mensaje_whatsapp
+                        WHERE conversacion_id=? AND id>? AND direccion='SALIENTE' ORDER BY id
+                        """, (fila, n) -> new Correctores.SalienteCliente(fila.getString("origen"), fila.getString("contenido")),
+                        conversacion, ultimoMensaje));
+                var salientes = detalle.stream().map(Correctores.SalienteCliente::contenidoJson).map(this::textoSaliente).toList();
+                // Lo que el turno encoló según el observador, con el mismo envoltorio que escribe SalidaWhatsAppService.
+                var compuestos = obs.map(ObservadorEvaluacionRegistro.RegistroTurno::salidas).orElse(List.of()).stream()
+                        .map(this::envoltorio).toList();
                 var originales = obs.map(o -> o.respuestas().stream().flatMap(r -> r.texto().stream()).toList()).orElse(List.of());
                 String estadoEvento = en(a, () -> jdbc.queryForObject("SELECT estado FROM evento_whatsapp_entrante WHERE clave_idempotencia=?", String.class, "m:" + wamid));
                 String estado = turno == 0 ? ("PROCESADO".equals(estadoEvento) ? "DETERMINISTA" : "EVENTO_" + estadoEvento)
                         : en(a, () -> jdbc.queryForObject("SELECT estado FROM turno_ia WHERE id=?", String.class, turno));
                 var evidencia = new EvidenciaPaso(salientes, monitor.desde(peticionesAntes), originales, operacionesPaso, antes, despues,
                         pe.barberturno.conversation.PalabraClave.de(texto) == pe.barberturno.conversation.PalabraClave.SI,
-                        en(a, () -> "HUMANO".equals(jdbc.queryForObject("SELECT modo FROM conversacion WHERE id=?", String.class, conversacion))), reloj.instant(), persistidas);
+                        en(a, () -> "HUMANO".equals(jdbc.queryForObject("SELECT modo FROM conversacion WHERE id=?", String.class, conversacion))), reloj.instant(), persistidas,
+                        detalle, compuestos);
                 var herramientas = obs.map(ObservadorEvaluacionRegistro.RegistroTurno::herramientas).orElse(List.of());
                 turnos.add(new TurnoTranscripcion(turno, texto, originales.isEmpty() ? Optional.empty() : Optional.of(originales.getLast()),
                         herramientas.stream().map(ObservadorEvaluacionRegistro.RegistroHerramienta::llamada).toList(),
@@ -225,6 +232,15 @@ final class EscenarioEvaluacion {
             return new OperacionSnapshot(r.getLong(1), r.getString(2), r.getString(3), datos.path("reservaId").asLong(),
                     datos.path("servicioId").asLong(), datos.path("barberoId").asLong(), Instant.parse(datos.path("inicio").asText()), resultado);
         }, conversacion));
+    }
+
+    private String envoltorio(pe.barberturno.conversation.ia.MensajeAsistente mensaje) {
+        var raiz = json.createObjectNode();
+        switch (mensaje) {
+            case pe.barberturno.conversation.ia.MensajeAsistente.Texto(var texto) -> raiz.put("texto", texto);
+            case pe.barberturno.conversation.ia.MensajeAsistente.Interactivo(var contenido) -> raiz.set("interactivo", contenido);
+        }
+        return json.writeValueAsString(raiz);
     }
 
     private String textoSaliente(String contenido) {

@@ -54,8 +54,11 @@ El negocio de la evaluación atiende de **09:00 a 18:00**; con servicios de 30 m
 | IMP-08 | «1:30 de la tarde, que es su hora de almuerzo» | SIN_OPERACION | El horario sembrado **no tiene pausa**: la franja existe y una propuesta sería correcta |
 | IMP-07 | «5 citas seguidas… este domingo» | SIN_OPERACION | Imposible en un turno: el asistente solo prepara una operación por turno (CI-3), con o sin domingo |
 | AMB-05 | «corte clásico en la tarde» (sin día) | ACLARACION | Coherente: falta el día |
+| DIR-09, ORT-09 | «mañana miércoles» | OPERACION el miércoles 04/11 | El reloj es el **lunes** 02/11: «mañana» sería martes 03/11. El mensaje se contradice; pedir aclaración sería razonable y hoy se penaliza (revisión 140). Corregir el reloj, el mensaje o el esperado |
 
 Las anotaciones de los casos no se han cambiado: se cambian cuando el responsable lo decida.
+
+**Limitación del corrector (preexistente, revisión 140):** en los **cambios de opinión** (CAM-*), cada propuesta se compara con el objetivo **final**. Una primera propuesta coherente con lo que el cliente pidió en ese momento (p. ej. barba en CAM-02, antes de cambiar a corte clásico) cuenta como acción incorrecta, y en CAM-08 una propuesta válida que luego se retira penaliza la conversación. Corregirlo exige **objetivos por paso** en el conjunto (anotación del responsable); hasta entonces, «Acciones incorrectas» es pesimista en esa categoría. Las comprobaciones de ejecución y confirmación no cambian.
 
 ## 5. Qué mide el conjunto tras V2-DA-86
 - El modelo ya no escribe al cliente. «Aclaración necesaria» se acredita con la **decisión validada** (`PEDIR_DATO` o una lista del servidor), no con un «?» en su texto.
@@ -67,4 +70,6 @@ Las anotaciones de los casos no se han cambiado: se cambian cuando el responsabl
 2. ¿El negocio de la evaluación abre el **domingo**? Según la respuesta, se ajustan IMP-02/IMP-10 o el horario sembrado y REL-06.
 3. ¿Tiene **pausa de almuerzo**? Si no, IMP-08 pasa a OPERACION o se reescribe.
 4. ¿REL-01, REL-02 y REL-10 con hora exacta o con ventana?
-5. ¿Se mantiene la partición de prueba (24 casos, 2 por categoría)?
+5. ¿DIR-09 y ORT-09: se corrige el reloj, el mensaje o el esperado?
+6. ¿Se anotan objetivos por paso en los cambios de opinión?
+7. ¿Se mantiene la partición de prueba (24 casos, 2 por categoría)?

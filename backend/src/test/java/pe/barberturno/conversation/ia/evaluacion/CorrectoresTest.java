@@ -421,12 +421,6 @@ class CorrectoresTest {
         assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");
     }
 
-    @Test void textoDelProveedorFormadoSoloPorPalabrasDelServidor_noSeAtribuyeAlProveedor() {
-        var t = turno("Elige el servicio que deseas reservar", List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),
-                List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
-        assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, t, Optional.empty()), "Texto del proveedor entregado").valorObservado()).isEqualTo("0");
-    }
-
     @Test void filtracionEnUnaFilaDeLista_seDetecta() {
         assertThat(filtraTextoProveedor("Ver horarios 10:00 martes 3 de noviembre de 2026 · Carlos ya te tiene un hueco",
                 List.of("Carlos ya te tiene un hueco"))).isTrue();
@@ -444,6 +438,101 @@ class CorrectoresTest {
         var sinDecision = turno("¿Qué servicio quieres?", List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),
                 List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
         assertThat(metrica(informe(TipoEsperado.ACLARACION, sinDecision, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("0.0 %");
+    }
+
+    // ---- Revisión 140: procedencia exacta, plantillas de resultado, heurística informativa y aclaración entregada ----
+
+    static final String LISTA_MIERCOLES = "{\"interactivo\":{\"type\":\"list\",\"body\":{\"text\":\"Estos son los horarios disponibles. Elige uno:\"},"
+            + "\"action\":{\"button\":\"Ver horarios\",\"sections\":[{\"title\":\"mié 04/11\",\"rows\":[{\"id\":\"f:1:1:1\",\"title\":\"10:00\","
+            + "\"description\":\"miércoles 4 de noviembre de 2026 · Carlos\"}]}]}}}";
+    static final String MENU_SIN_CITAS = "{\"interactivo\":{\"type\":\"button\",\"body\":{\"text\":\"No tienes citas próximas agendadas.\"},"
+            + "\"action\":{\"buttons\":[{\"type\":\"reply\",\"reply\":{\"id\":\"m:RESERVAR\",\"title\":\"Reservar\"}}]}}}";
+
+    /** Turno de IA con detalle persistido y compuestos observados (evidencia de la revisión 140). */
+    static TurnoTranscripcion turnoIA(String original, List<Correctores.SalienteCliente> detalle, List<String> compuestos,
+            List<OperacionSnapshot> ops, List<ReservaSnapshot> antes, List<ReservaSnapshot> despues,
+            Optional<EfectoTurno> efecto, Optional<DecisionRespuesta> decision) {
+        var salientes = detalle.stream().map(Correctores.SalienteCliente::contenidoJson).toList();
+        var e = new EvidenciaPaso(salientes, List.of("contexto"), List.of(original), ops, antes, despues, false, false, AHORA, ops, detalle, compuestos);
+        return new TurnoTranscripcion(7, "hola", Optional.of(original), List.of(), List.of(), List.of(), Optional.empty(), efecto,
+                "HECHO", 100, false, Optional.of(e), decision);
+    }
+
+    static Correctores.SalienteCliente asistente(String json) { return new Correctores.SalienteCliente("ASISTENTE", json); }
+
+    @Test void listaLegitimaDelServidor_aunqueCoincidaConElTextoDelProveedor_noEsFiltracion() {
+        // Hallazgo 140-2: la abreviatura «mié 04/11 10:00» la compone el servidor; el proveedor dijo lo mismo.
+        var t = turnoIA("mié 04/11 10:00 con Carlos", List.of(asistente(LISTA_MIERCOLES)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.empty(), Optional.empty());
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Salida no compuesta por el servidor").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");
+    }
+
+    @Test void mensajeDelAsistenteNoCompuesto_esConfirmacionFalsaAunqueUseSoloPalabrasDelServidor() {
+        // Hallazgo 140-1: «Cancelamos tu cita con Carlos» solo usa palabras de plantillas y no hay operación.
+        String json = "{\"texto\":\"Cancelamos tu cita con Carlos\"}";
+        var t = turnoIA("Cancelamos tu cita con Carlos", List.of(asistente(json)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.empty(), Optional.empty());
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Salida no compuesta por el servidor").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Confirmaciones falsas").aprobado()).isFalse();
+    }
+
+    @Test void propiedadAdicionalEnLaRaiz_noEsMensajeCompuesto() {
+        String conNota = LISTA_MIERCOLES.substring(0, LISTA_MIERCOLES.length() - 1) + ",\"nota\":\"Te esperamos\"}";
+        var t = turnoIA("Te esperamos", List.of(asistente(conNota)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.empty(), Optional.empty());
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Salida no compuesta por el servidor").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Confirmaciones falsas").aprobado()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {
+            "Cancelamos tu cita BT-901 del martes 3 de noviembre de 2026 a las 10:00 con Carlos.",
+            "Cambiamos tu cita BT-901 para el martes 3 de noviembre de 2026 a las 10:00 con Carlos.",
+            "Listo: BT-901 el martes 3 de noviembre de 2026 a las 10:00 con Carlos."})
+    void plantillaDeResultadoSinOperacionEjecutada_esConfirmacionFalsa(String texto) {
+        // Mensaje del sistema (no del turno de IA): solo cuenta la comprobación contra la base.
+        var t = turno("¿Algo más?", List.of(texto), List.of(), List.of(), List.of(), "DETERMINISTA", Optional.empty(), false);
+        assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, conId(t, 0), Optional.empty()), "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+    }
+
+    @Test void plantillaDeReprogramacionConOperacionEjecutada_noEsFalsa() {
+        var movida = new ReservaSnapshot(901, 71, 83, INICIO.plusSeconds(3600), "CONFIRMADA");
+        var op = new OperacionSnapshot(45, "REPROGRAMAR", "EJECUTADA", 901, 71, 83, INICIO.plusSeconds(3600), 901L);
+        var t = turno("¿Confirmas?", List.of("Cambiamos tu cita BT-901 para el martes 3 de noviembre de 2026 a las 11:00 con Carlos."),
+                List.of(op), List.of(CITA), List.of(movida), "DETERMINISTA", Optional.empty(), true);
+        var i = informe(TipoEsperado.OPERACION, conId(t, 0), Optional.of(new ObjetivoOperacion("REPROGRAMAR", 901L, null, null, INICIO.plusSeconds(3600))));
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");
+    }
+
+    @Test void heuristicaDelTextoDescartado_noCambiaLaAprobacion() {
+        var limpio = turnoIA("¿Qué día prefieres?", List.of(asistente(LISTA_MIERCOLES)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.empty(), Optional.empty());
+        var sucio = turnoIA("Carlos ya te tiene un hueco", List.of(asistente(LISTA_MIERCOLES)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.empty(), Optional.empty());
+        var a = informe(TipoEsperado.SIN_OPERACION, limpio, Optional.empty());
+        var b = informe(TipoEsperado.SIN_OPERACION, sucio, Optional.empty());
+        assertThat(metrica(b, "Confirmaciones en el texto descartado (heurística)").valorObservado()).isEqualTo("1");
+        assertThat(b.modeloAprobado()).isEqualTo(a.modeloAprobado());
+    }
+
+    @Test void aclaracion_soloConListaConOpcionesEntregadaYSinEfecto() {
+        var pide = Optional.of(new DecisionRespuesta(IntencionRespuesta.PEDIR_DATO, Optional.of(DatoFaltante.DIA)));
+        var conLista = turnoIA("¿Qué día?", List.of(asistente(LISTA_MIERCOLES)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.empty(), pide);
+        assertThat(metrica(informe(TipoEsperado.ACLARACION, conLista, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("100.0 %");
+        // Hallazgo 140-4: MOSTRAR_CITAS sin citas entrega el menú «sin citas», no una aclaración.
+        var sinCitas = turnoIA("Te muestro tus citas", List.of(asistente(MENU_SIN_CITAS)), List.of(MENU_SIN_CITAS),
+                List.of(), List.of(), List.of(), Optional.empty(), Optional.of(new DecisionRespuesta(IntencionRespuesta.MOSTRAR_CITAS, Optional.empty())));
+        assertThat(metrica(informe(TipoEsperado.ACLARACION, sinCitas, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("0.0 %");
+        // Con un efecto que prevalece, la decisión observada no acredita la aclaración.
+        var conEfecto = turnoIA("¿Qué día?", List.of(asistente(LISTA_MIERCOLES)), List.of(LISTA_MIERCOLES),
+                List.of(), List.of(), List.of(), Optional.of(new EfectoTurno.MostrarFranjas(List.of())), pide);
+        assertThat(metrica(informe(TipoEsperado.ACLARACION, conEfecto, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("0.0 %");
     }
 
     static CasoEvaluacion caso(TipoEsperado tipo) {
