@@ -113,7 +113,7 @@ export class Bandeja {
         this.textoRespuesta.set('');
         this.errorDetalle.set('');
         this.mensajeEnvio.set('');
-        this.mensajeAccion.set('');
+        if (id !== null) this.mensajeAccion.set('');
         this.cargandoDetalle.set(false);
         this.cargandoAnteriores.set(false);
         this.enviando.set(false);
@@ -270,7 +270,11 @@ export class Bandeja {
       )
       .subscribe({
         next: (mensajeCreado) => {
+          this.cargarLista(false);
           if (!vigente()) return;
+          // El GET de sondeo anterior al POST ya no representa el historial actual.
+          ++this.consultaDetalle;
+          this.cargandoDetalle.set(false);
           this.textoRespuesta.set('');
           this.mensajeEnvio.set('Mensaje enviado correctamente');
           this.detalle.update((actual) =>
@@ -281,7 +285,6 @@ export class Bandeja {
                 }
               : null,
           );
-          this.cargarLista(false);
         },
         error: (error: HttpErrorResponse) => {
           if (!vigente()) return;
@@ -323,10 +326,10 @@ export class Bandeja {
           )
           .subscribe({
             next: () => {
+              this.cargarLista(false);
               if (!vigente()) return;
               this.mensajeAccion.set('Conversación devuelta al asistente');
               void this.router.navigate([this.negocio.ruta('whatsapp')]);
-              this.cargarLista(true);
             },
             error: (error: HttpErrorResponse) => {
               if (!vigente()) return;

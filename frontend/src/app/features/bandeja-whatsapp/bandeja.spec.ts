@@ -358,7 +358,10 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     fixture.detectChanges();
 
     const router = TestBed.inject(Router);
-    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockImplementation(async () => {
+      paramsSubject.next(convertToParamMap({}));
+      return true;
+    });
 
     const btnDevolver = fixture.nativeElement.querySelector('.btn-devolver') as HTMLButtonElement;
     btnDevolver.click();
@@ -384,6 +387,11 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     expect(reqLista.request.method).toBe('GET');
     reqLista.flush({ contenido: [], totalElementos: 0, pagina: 0, tamano: 50, totalPaginas: 0 });
     fixture.detectChanges();
+    expect(fixture.componentInstance.seleccionadaId()).toBeNull();
+    expect(fixture.componentInstance.mensajeAccion()).toBe('Conversación devuelta al asistente');
+    expect(fixture.nativeElement.querySelector('[aria-live="polite"]').textContent).toContain(
+      'Conversación devuelta al asistente',
+    );
   });
 
   it('maneja errores 404 y 422 adecuadamente', () => {
@@ -542,6 +550,7 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     const envioB = http.expectOne('/api/n/prueba/whatsapp/conversaciones/20/respuestas');
     expect(envioB.request.body).toEqual({ texto: 'Respuesta para B' });
     envioA.flush({ ...MENSAJE_PERSONAL, texto: 'Respuesta para A' });
+    http.expectOne((r) => r.url.endsWith('/conversaciones')).flush({ contenido: [CONVERSACION_1] });
     expect(fixture.componentInstance.enviando()).toBe(true);
     expect(fixture.componentInstance.textoRespuesta()).toBe('Respuesta para B');
     expect(fixture.componentInstance.mensajeEnvio()).toBe('');
@@ -598,8 +607,56 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
     fixture.componentInstance.textoRespuesta.set('Borrador de B');
     devolverA.flush(null, { status: 204, statusText: 'No Content' });
+    http
+      .expectOne((r) => r.url.endsWith('/conversaciones'))
+      .flush({ contenido: [DETALLE_2.conversacion] });
     expect(navegar).not.toHaveBeenCalled();
     expect(fixture.componentInstance.textoRespuesta()).toBe('Borrador de B');
     expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
   });
+
+  it.each([true, false])(
+    'solo aplica la última consulta de lista (respuesta anterior correcta: %s)',
+    (exito) => {
+      const fixture = inicializar();
+      fixture.componentInstance.cargarLista();
+      const antigua = http.expectOne((r) => r.url.endsWith('/conversaciones'));
+      fixture.componentInstance.cargarLista();
+      const reciente = http.expectOne((r) => r.url.endsWith('/conversaciones'));
+      reciente.flush({ contenido: [CONVERSACION_BLOQUEADA] });
+      if (exito) antigua.flush({ contenido: [CONVERSACION_1] });
+      else antigua.flush(null, { status: 500, statusText: 'Error de prueba' });
+      expect(fixture.componentInstance.conversaciones()).toEqual([CONVERSACION_BLOQUEADA]);
+      expect(fixture.componentInstance.errorLista()).toBe('');
+      expect(fixture.componentInstance.cargandoLista()).toBe(false);
+    },
+  );
+
+  it.each([true, false])(
+    'conserva el mensaje del POST frente al sondeo iniciado antes (éxito: %s)',
+    (exito) => {
+      paramsSubject.next(convertToParamMap({ id: '10' }));
+      const fixture = inicializar();
+      http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+      fixture.componentInstance.cargarDetalle(10, false);
+      const sondeo = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+      fixture.componentInstance.textoRespuesta.set('Mensaje confirmado por el servidor');
+      fixture.componentInstance.enviarRespuesta();
+      const mensaje = { ...MENSAJE_PERSONAL, id: 5, texto: 'Mensaje confirmado por el servidor' };
+      http.expectOne('/api/n/prueba/whatsapp/conversaciones/10/respuestas').flush(mensaje);
+      http
+        .expectOne((r) => r.url.endsWith('/conversaciones'))
+        .flush({ contenido: [CONVERSACION_1] });
+      if (exito) sondeo.flush(DETALLE_1);
+      else sondeo.flush(null, { status: 404, statusText: 'Not Found' });
+      fixture.detectChanges();
+      expect(fixture.componentInstance.detalle()?.mensajes).toEqual([
+        ...DETALLE_1.mensajes,
+        mensaje,
+      ]);
+      expect(fixture.componentInstance.errorDetalle()).toBe('');
+      expect(fixture.componentInstance.cargandoDetalle()).toBe(false);
+      expect(fixture.nativeElement.textContent).toContain('Mensaje confirmado por el servidor');
+    },
+  );
 });
