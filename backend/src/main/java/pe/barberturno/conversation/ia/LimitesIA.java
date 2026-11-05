@@ -9,7 +9,8 @@ package pe.barberturno.conversation.ia;
 public interface LimitesIA {
     /**
      * Comprueba si el texto libre de esta conversación puede ir a la IA. Exige la transacción de entrega con la
-     * conversación bloqueada; no escribe nada.
+     * conversación bloqueada. Solo escribe el aviso diario {@code LIMITE_IA} al propietario cuando el presupuesto
+     * mensual ya está agotado (g095-2), una vez al día y en esa misma transacción.
      * @param conversacionId conversación del negocio actual
      * @return disponibilidad
      */
