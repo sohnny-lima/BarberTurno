@@ -396,8 +396,9 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
                 var fila = nuevos.get(i);
                 var me = espera.mensajes().get(i);
                 var contenido = mapper.readTree(fila.get("contenido").toString());
+                // g100-3: en un interactivo se comprueba todo (cuerpo, encabezado, pie, botones y filas), no solo el cuerpo.
                 String texto = "TEXTO".equals(fila.get("tipo")) ? contenido.path("texto").asText("")
-                        : contenido.path("interactivo").path("body").path("text").asText("");
+                        : contenido.path("interactivo").toString();
                 me.tipo().ifPresent(tipo -> assertThat(fila.get("tipo")).isEqualTo(tipo));
                 for (String c : me.contiene()) assertThat(texto).contains(c);
                 for (String nc : me.noContiene()) assertThat(texto).doesNotContain(nc);

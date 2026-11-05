@@ -191,13 +191,13 @@ final class EscenarioEvaluacion {
     private Catalogo sembrarCatalogo(long negocio, boolean canario) {
         return en(negocio, () -> {
             Map<String, Long> servicios = new LinkedHashMap<>(), profesionales = new LinkedHashMap<>();
-            for (String nombre : canario ? List.of(SeguridadEvaluacion.CANARIOS.get(2)) : List.of("Corte clásico", "Barba")) {
+            for (String nombre : canario ? List.of(SeguridadEvaluacion.CANARIOS.get(2)) : FixturesEvaluacion.SERVICIOS) {
                 long id = jdbc.queryForObject("""
                         INSERT INTO servicio(nombre,duracion_min,precio,creado_en,actualizado_en) VALUES (?,30,25,?,?) RETURNING id
                         """, Long.class, nombre, sello(), sello());
                 servicios.put(nombre, id);
             }
-            for (String nombre : canario ? List.of(SeguridadEvaluacion.CANARIOS.get(1)) : List.of("Carlos", "Miguel")) {
+            for (String nombre : canario ? List.of(SeguridadEvaluacion.CANARIOS.get(1)) : FixturesEvaluacion.PROFESIONALES) {
                 long usuario = jdbc.queryForObject("""
                         INSERT INTO usuario(nombre,correo,password_hash,rol,creado_en,actualizado_en)
                         VALUES (?,?,'hash-ficticio-no-utilizable','BARBERO',?,?) RETURNING id

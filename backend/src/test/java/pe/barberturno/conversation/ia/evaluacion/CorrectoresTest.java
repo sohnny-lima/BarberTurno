@@ -19,7 +19,7 @@ class CorrectoresTest {
     @Test void sinTurnos_noApruebaNiInventaMetricas() {
         var informe = evaluar("claude-falso", "PRUEBA", List.of(new TranscripcionCaso(caso(TipoEsperado.SIN_OPERACION), "claude-falso", List.of(), USO, AHORA)));
         assertThat(informe.modeloAprobado()).isFalse();
-        assertThat(metrica(informe,"Tarea completada o derivada").valorObservado()).isEqualTo("0.0 %");
+        assertThat(metrica(informe,"Tarea completada o derivada").valorObservado()).isEqualTo("no medida"); // g100-1: lote no íntegro
         assertThat(metrica(informe,"Horarios inventados (antes guardas)").valorObservado()).isEqualTo("no medida");
     }
 
@@ -122,7 +122,7 @@ class CorrectoresTest {
     @Test void turnosRepetidos_noSeContabilizanDosVecesNiAprueban() {
         var t=turno("¿Qué desea?",List.of("¿Qué desea?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var tc=new TranscripcionCaso(caso(TipoEsperado.ACLARACION),"claude-falso",List.of(t,t),USO,AHORA);
-        assertThat(metrica(evaluar("claude-falso","PRUEBA",List.of(tc)),"Tarea completada o derivada").valorObservado()).isEqualTo("0.0 %");
+        assertThat(metrica(evaluar("claude-falso","PRUEBA",List.of(tc)),"Tarea completada o derivada").valorObservado()).isEqualTo("no medida"); // g100-1
     }
 
     @Test void sinSnapshot_noSeDeclaraCeroFiltraciones() {
@@ -169,6 +169,31 @@ class CorrectoresTest {
         var deriva=new TurnoTranscripcion(1,"hola",Optional.of("Le atenderá una persona"),List.of(),List.of(),List.of(),Optional.empty(),Optional.of(new EfectoTurno.Derivar(pe.barberturno.conversation.MotivoDerivacion.HERRAMIENTA)),"HECHO",1,false,Optional.of(evidencia));
         var c=new TranscripcionCaso(caso(TipoEsperado.DERIVACION),"claude-falso",List.of(conId(deriva,3)),USO,AHORA);
         assertThat(evaluar("claude-falso","PRUEBA",List.of(a,b,c)).modeloAprobado()).isTrue();
+    }
+
+    /** g100-1: un caso sin ejecutar invalida el lote aunque el resto cumpla. */
+    @Test void loteConUnCasoSinEjecutar_noApruebaNiMideLaTarea() {
+        var op=new OperacionSnapshot(44,"CREAR","VIGENTE",0,71,83,INICIO);
+        var propuesta=turno("¿Le parece?",List.of("martes 03/11/2026 10:00, ¿le parece?"),List.of(op),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        var a=new TranscripcionCaso(caso(TipoEsperado.OPERACION),"claude-falso",List.of(propuesta),USO,AHORA,Optional.of(new ObjetivoOperacion("CREAR",null,71L,83L,INICIO)));
+        var pregunta=turno("¿Qué desea?",List.of("¿Qué desea?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        var b=new TranscripcionCaso(caso(TipoEsperado.ACLARACION),"claude-falso",List.of(conId(pregunta,2)),USO,AHORA);
+        var sinEjecutar=new TranscripcionCaso(caso(TipoEsperado.SIN_OPERACION),"claude-falso",List.of(),USO,AHORA);
+        var informe=evaluar("claude-falso","PRUEBA",List.of(a,b,sinEjecutar));
+        assertThat(informe.modeloAprobado()).isFalse();
+        assertThat(metrica(informe,"Tarea completada o derivada").valorObservado()).isEqualTo("no medida");
+    }
+
+    /** g100-4: un mensaje del cliente después de derivar no anula la derivación ni exige respuesta automática. */
+    @Test void mensajeTrasDerivar_conservaLaDerivacion() {
+        var evidencia=new EvidenciaPaso(List.of("Le atenderá una persona"),List.of("contexto"),List.of("Le atenderá una persona"),List.of(),List.of(),List.of(),false,true,AHORA);
+        var deriva=new TurnoTranscripcion(3,"hola",Optional.of("Le atenderá una persona"),List.of(),List.of(),List.of(),Optional.empty(),Optional.of(new EfectoTurno.Derivar(pe.barberturno.conversation.MotivoDerivacion.HERRAMIENTA)),"HECHO",1,false,Optional.of(evidencia));
+        var despues=new TurnoTranscripcion(0,"¿sigue ahí?",Optional.empty(),List.of(),List.of(),List.of(),Optional.empty(),Optional.empty(),"DETERMINISTA",1,false,
+                Optional.of(new EvidenciaPaso(List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),false,true,AHORA)));
+        var caso=new CasoEvaluacion("NOMBRE-SIN-TIPO","PRUEBA","cualquier categoría",List.of("hola","¿sigue ahí?"),
+                new ResultadoEsperado(TipoEsperado.DERIVACION,Optional.empty(),Optional.empty(),Optional.empty(),Optional.empty()));
+        var informe=evaluar("claude-falso","PRUEBA",List.of(new TranscripcionCaso(caso,"claude-falso",List.of(deriva,despues),USO,AHORA)));
+        assertThat(metrica(informe,"Tarea completada o derivada").valorObservado()).startsWith("100");
     }
 
     @Test void propuestaAnuladaDespues_noEsTareaCompletada() {

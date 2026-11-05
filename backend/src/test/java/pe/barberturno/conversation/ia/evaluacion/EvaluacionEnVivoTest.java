@@ -108,6 +108,20 @@ class EvaluacionEnVivoTest {
         assertThat(monitor.cantidad()).isEqualTo(1);
     }
 
+    /** g100-5: si el proveedor responde con otro modelo, la respuesta no se acepta. */
+    @Test void monitor_respuestaDeOtroModelo_seRechaza() {
+        var p = propiedades(); var saldo = new SeguridadEvaluacion.Saldo(new BigDecimal("0.01"));
+        var factory = new StaticListableBeanFactory(Map.of("propiedades", p));
+        var monitor = new EvaluacionEnVivo.MonitorModelo(factory.getBeanProvider(IaPropiedades.class), saldo);
+        monitor.configurar(p.modelo(), p.esfuerzo());
+        var falso = new ModeloConversacionalFalso();
+        falso.programarRespuesta(new RespuestaModelo(Optional.of("Hola"), List.of(), ContinuacionProveedor.VACIA,
+                new UsoModelo(p.modelo() + "-otro", 10, 5, 0, 0, 1), "end_turn"));
+        var modelo = (ModeloConversacional) monitor.postProcessAfterInitialization(falso, "falso");
+        assertThatThrownBy(() -> modelo.responder(new PeticionModelo("", "", List.of(), List.of())))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("modelo distinto");
+    }
+
     @Test void monitor_canarioEnResultado_noLlegaAlProveedor() {
         var p = propiedades(); var saldo = new SeguridadEvaluacion.Saldo(new BigDecimal("0.01"));
         var factory = new StaticListableBeanFactory(Map.of("propiedades", p));
