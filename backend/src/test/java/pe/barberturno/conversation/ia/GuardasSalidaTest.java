@@ -213,7 +213,7 @@ class GuardasSalidaTest {
             "¿Quieres que te reprograme la cita?",
             "¿Quieres que te agende un turno?"
     })
-    @DisplayName("revisar: propuestas y solicitudes de confirmación se sustituyen por V2-DA-85 (verdaderos negativos de afirmación)")
+    @DisplayName("revisar: propuestas y solicitudes de confirmación sin fecha ni hora se conservan (V2-DA-85)")
     void revisar_propuestasSubjuntivas_noSonAfirmacionOperacion(String texto) {
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
         assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
@@ -472,5 +472,65 @@ class GuardasSalidaTest {
         assertThat(guardas.revisar(texto, null, null)).isEqualTo(new ResultadoGuardas.Aceptado(texto));
         assertThat(guardas.revisar("17h", null, null))
                 .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Ya está.", "¡Listo, ya está!", "Ya está tu cita.", "Ya quedó tu cita.",
+            "Tu cita está lista.", "Te dejé la cita con Carlos.", "Ya anoté tu cita.",
+            "Te esperamos en la barbería.", "Tu cita ya está en la agenda.", "Tu reserva está lista.",
+            "Carlos la reserva.", "Tu reservas tu cita.", "Hablé con Carlos y confirma tu cita.",
+            "Sin duda reservamos tu cita.", "Sin falta te agendo el turno.", "Sin costo cancelé tu cita.",
+            "Sin inconvenientes confirmamos tu reserva.", "Aunque no tenías ficha te agendé el turno.",
+            "Como no había otro turno reservé ese.", "Para que no esperes ya reservé tu cita.",
+            "No tenías turno y quedó agendada tu cita.", "Ya hice que reserven tu cita.",
+            "Ya pedí que te agenden el turno.", "Ya reservé tu cita: necesitas algo más?",
+            "Registré tu turno.", "Separé tu reserva.", "Tu turno quedó con Carlos.",
+            "La cita está en nuestra agenda.", "Te anotamos el turno.", "Ya registraron tu cita.",
+            "Dejamos la cita con Carlos.", "Te dejo la cita con Carlos.",
+            "No había disponibilidad y Carlos la reservó.", "No tienes citas y tu turno quedó listo.",
+            "¿Te ayudo?: ya está tu cita.", "No tienes turno: ya lo registré.",
+            "¿Quieres que lo cancele? Registré otro turno.", "No he reservado; pero te separé la cita."
+    })
+    void revisar_afirmacionesG099YEstadosCompletados_sustituye(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.AFIRMA_OPERACION));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Tenemos turnos los sábados.", "Atendemos los domingos.", "Tenemos disponibilidad este mes.",
+            "Hay turnos esta tarde.", "Podemos atenderte por la noche.", "Es la una.",
+            "Tenemos turno cinco y quince.", "Queda libre cinco y veinte.", "Turno dieciocho horas.",
+            "Este año", "Esta semana", "Este mes", "Esta noche", "Por la tarde", "En la noche",
+            "Al mediodía", "Temprano", "Más tarde", "Cinco quince", "Diecisiete veinte",
+            "Cinco y veinticinco", "A la una", "La una", "Veinticuatro horas"
+    })
+    void revisar_referenciasTemporalesG099SinCifras_sustituye(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "¿Te reservo ese turno?", "¿Quieres que lo cancele?", "No tienes citas agendadas.",
+            "Con gusto te ayudo con tu reserva.", "Te envío el resumen para que lo confirmes con el botón.",
+            "Tu cita no está lista.", "No está en la agenda.", "No registré tu turno.",
+            "No he separado tu cita.", "Sin citas confirmadas.", "¿Tu cita está lista?",
+            "Revisa los datos y confirma con el botón.", "No reservamos ni confirmamos tu cita.",
+            "¿Deseas ver tu reserva? Necesitas algo más?", "¿Quieres que te separe un turno?",
+            "Te envío el resumen para que Carlos lo confirme.", "No tienes citas agendadas y confirmadas."
+    })
+    void revisar_exencionesG099QueGobiernanLaOperacion_conserva(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Aceptado(texto));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"987\u200b654\u200b321", "987\u2060654\u2060321", "987\ufeff654\ufeff321",
+            "987\u2212654\u2212321", "987 - 654 - 321"})
+    void revisar_saneadorAmpliadoDelMerge_sigueBloqueandoDatos(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.DATOS_PROHIBIDOS));
     }
 }
