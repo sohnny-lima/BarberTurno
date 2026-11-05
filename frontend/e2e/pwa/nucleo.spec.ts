@@ -20,16 +20,50 @@ async function ingresar(page: Page, correo: string) {
 }
 
 async function salir(page: Page) {
+  const errores: string[] = [];
+  const escuchar = (mensaje: import('@playwright/test').ConsoleMessage) => {
+    if (mensaje.type() === 'error' && mensaje.text().startsWith('ERROR'))
+      errores.push(mensaje.text());
+  };
+  page.on('console', escuchar);
+  await page.evaluate(() => {
+    const anterior = history.back.bind(history);
+    const control = { llamadas: 0 };
+    history.back = () => {
+      control.llamadas++;
+      anterior();
+    };
+    Object.defineProperty(window, '__pwaAtras', {
+      get: () => control.llamadas,
+      configurable: true,
+    });
+  });
   const cuenta = page.getByRole('button', { name: 'Abrir cuenta', exact: true });
   const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
   if (await cuenta.isVisible()) await cuenta.click();
   else if (await menu.isVisible()) await menu.click();
+  const respuesta = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/auth/logout' && r.request().method() === 'POST',
+  );
   await page
     .getByRole('button', { name: 'Salir', exact: true })
     .or(page.getByRole('menuitem', { name: 'Salir', exact: true }))
     .filter({ visible: true })
     .click();
-  await expect(page).toHaveURL(/\/ingresar/);
+  expect((await respuesta).status()).toBe(204);
+  try {
+    await expect(page).toHaveURL(/\/ingresar/);
+  } catch (error) {
+    const estado = await page.evaluate(() => ({
+      ruta: location.pathname,
+      marca: history.state?.barberturnoSuperposicion ?? null,
+      navegacion: history.state?.navigationId,
+      atras: Reflect.get(window, '__pwaAtras'),
+    }));
+    throw new Error('Salida incompleta: ' + JSON.stringify({ estado, errores }), { cause: error });
+  } finally {
+    page.off('console', escuchar);
+  }
   await expect(page.getByRole('heading', { name: 'Iniciar sesión', exact: true })).toBeVisible();
   await expect(page.locator('app-agenda, app-mis-citas, app-perfil')).toHaveCount(0);
 }
