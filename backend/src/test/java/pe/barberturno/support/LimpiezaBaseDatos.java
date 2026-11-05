@@ -24,7 +24,7 @@ public final class LimpiezaBaseDatos {
             consulta.execute("""
                 TRUNCATE notificacion, auditoria_reserva, reserva, bloqueo,
                     jornada, barbero, servicio, usuario, canal_whatsapp, evento_whatsapp_entrante,
-                    mensaje_whatsapp, conversacion
+                    mensaje_whatsapp, conversacion, turno_ia, llamada_ia, uso_ia
                     RESTART IDENTITY CASCADE
                 """);
             consulta.execute("DELETE FROM negocio WHERE id <> 1");

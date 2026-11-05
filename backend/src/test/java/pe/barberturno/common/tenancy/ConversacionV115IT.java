@@ -11,7 +11,7 @@ class ConversacionV115IT extends TenancyPruebaBase {
     @Test void permisosExactos_rlsForzada_yColumnasInmutables() {
         var actualizables = Map.of(
                 "operacion_pendiente", Set.of("estado", "resultado", "actualizado_en"),
-                "conversacion", Set.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en", "modo", "derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en"),
+                "conversacion", Set.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en", "modo", "derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en", "minuto_entradas", "entradas_minuto"),
                 "evento_whatsapp_entrante", Set.of("cuerpo", "negocio_id", "estado", "motivo", "intentos", "proximo_intento", "procesado_en"));
         for (var entrada : actualizables.entrySet()) {
             String tabla = entrada.getKey();
