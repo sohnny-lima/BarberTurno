@@ -69,6 +69,9 @@ export class Bandeja {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private revisionSeleccion = 0;
+  private consultaDetalle = 0;
+  private consultaLista = 0;
 
   readonly movil = toSignal(
     inject(BreakpointObserver)
@@ -104,6 +107,18 @@ export class Bandeja {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const idStr = params.get('id');
       const id = idStr ? Number(idStr) : null;
+      if (id !== this.seleccionadaId()) {
+        this.revisionSeleccion++;
+        this.detalle.set(null);
+        this.textoRespuesta.set('');
+        this.errorDetalle.set('');
+        this.mensajeEnvio.set('');
+        this.mensajeAccion.set('');
+        this.cargandoDetalle.set(false);
+        this.cargandoAnteriores.set(false);
+        this.enviando.set(false);
+        this.devolviendo.set(false);
+      }
       this.seleccionadaId.set(id);
       if (id) {
         this.cargarDetalle(id, true);
@@ -128,6 +143,7 @@ export class Bandeja {
   }
 
   cargarLista(mostrarCarga = true) {
+    const consulta = ++this.consultaLista;
     if (mostrarCarga) this.cargandoLista.set(true);
     this.errorLista.set('');
     this.api
@@ -135,20 +151,26 @@ export class Bandeja {
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => {
-          if (mostrarCarga) this.cargandoLista.set(false);
+          if (consulta === this.consultaLista) this.cargandoLista.set(false);
         }),
       )
       .subscribe({
         next: (pagina) => {
+          if (consulta !== this.consultaLista) return;
           this.conversaciones.set(pagina.contenido);
         },
         error: (error: HttpErrorResponse) => {
+          if (consulta !== this.consultaLista) return;
           this.errorLista.set(mostrarErrores(new FormGroup({}), error));
         },
       });
   }
 
   cargarDetalle(id: number, mostrarCarga = true) {
+    if (id !== this.seleccionadaId()) return;
+    const revision = this.revisionSeleccion;
+    const consulta = ++this.consultaDetalle;
+    const vigente = () => this.esSeleccionActual(id, revision) && consulta === this.consultaDetalle;
     if (mostrarCarga) this.cargandoDetalle.set(true);
     this.errorDetalle.set('');
     this.api
@@ -156,14 +178,16 @@ export class Bandeja {
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => {
-          if (mostrarCarga) this.cargandoDetalle.set(false);
+          if (vigente()) this.cargandoDetalle.set(false);
         }),
       )
       .subscribe({
         next: (datos) => {
+          if (!vigente()) return;
           this.detalle.set(datos);
         },
         error: (error: HttpErrorResponse) => {
+          if (!vigente()) return;
           if (error.status === 404) {
             this.errorDetalle.set('Esta conversación ya no está derivada');
           } else {
@@ -175,26 +199,45 @@ export class Bandeja {
 
   verAnteriores() {
     const det = this.detalle();
-    if (!det || !det.hayAnteriores || det.mensajes.length === 0 || this.cargandoAnteriores()) {
+    if (
+      !det ||
+      det.conversacion.id !== this.seleccionadaId() ||
+      !det.hayAnteriores ||
+      det.mensajes.length === 0 ||
+      this.cargandoAnteriores()
+    ) {
       return;
     }
+    const revision = this.revisionSeleccion;
+    const consulta = this.consultaDetalle;
+    const vigente = () =>
+      this.esSeleccionActual(det.conversacion.id, revision) && consulta === this.consultaDetalle;
     const primerMensajeId = det.mensajes[0].id;
     this.cargandoAnteriores.set(true);
     this.api
       .detalle(det.conversacion.id, primerMensajeId)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.cargandoAnteriores.set(false)),
+        finalize(() => {
+          if (this.esSeleccionActual(det.conversacion.id, revision))
+            this.cargandoAnteriores.set(false);
+        }),
       )
       .subscribe({
         next: (anteriores) => {
-          this.detalle.set({
-            conversacion: anteriores.conversacion,
-            mensajes: [...anteriores.mensajes, ...det.mensajes],
-            hayAnteriores: anteriores.hayAnteriores,
-          });
+          if (!vigente()) return;
+          this.detalle.update((actual) =>
+            actual
+              ? {
+                  ...actual,
+                  mensajes: [...anteriores.mensajes, ...actual.mensajes],
+                  hayAnteriores: anteriores.hayAnteriores,
+                }
+              : null,
+          );
         },
         error: (error: HttpErrorResponse) => {
+          if (!vigente()) return;
           this.errorDetalle.set(mostrarErrores(new FormGroup({}), error));
         },
       });
@@ -203,9 +246,17 @@ export class Bandeja {
   enviarRespuesta() {
     const det = this.detalle();
     const texto = this.textoRespuesta().trim();
-    if (!det || !texto || this.enviando() || !det.conversacion.puedeResponder) {
+    if (
+      !det ||
+      det.conversacion.id !== this.seleccionadaId() ||
+      !texto ||
+      this.enviando() ||
+      !det.conversacion.puedeResponder
+    ) {
       return;
     }
+    const revision = this.revisionSeleccion;
+    const vigente = () => this.esSeleccionActual(det.conversacion.id, revision);
     this.enviando.set(true);
     this.mensajeEnvio.set('');
     this.errorDetalle.set('');
@@ -213,10 +264,13 @@ export class Bandeja {
       .responder(det.conversacion.id, texto)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.enviando.set(false)),
+        finalize(() => {
+          if (vigente()) this.enviando.set(false);
+        }),
       )
       .subscribe({
         next: (mensajeCreado) => {
+          if (!vigente()) return;
           this.textoRespuesta.set('');
           this.mensajeEnvio.set('Mensaje enviado correctamente');
           this.detalle.update((actual) =>
@@ -230,6 +284,7 @@ export class Bandeja {
           this.cargarLista(false);
         },
         error: (error: HttpErrorResponse) => {
+          if (!vigente()) return;
           if (error.status === 422) {
             this.errorDetalle.set(
               'La ventana de 24 h de WhatsApp está cerrada: solo puede responder cuando el cliente vuelva a escribir',
@@ -245,7 +300,9 @@ export class Bandeja {
 
   devolver() {
     const det = this.detalle();
-    if (!det || this.devolviendo()) return;
+    if (!det || det.conversacion.id !== this.seleccionadaId() || this.devolviendo()) return;
+    const revision = this.revisionSeleccion;
+    const vigente = () => this.esSeleccionActual(det.conversacion.id, revision);
     const dialogo = this.dialogos.open(ConfirmarDevolucionDialogo, {
       data: { cliente: det.conversacion.cliente },
     });
@@ -253,22 +310,26 @@ export class Bandeja {
       .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmado) => {
-        if (!confirmado) return;
+        if (!confirmado || !vigente()) return;
         this.devolviendo.set(true);
         this.errorDetalle.set('');
         this.api
           .devolver(det.conversacion.id)
           .pipe(
             takeUntilDestroyed(this.destroyRef),
-            finalize(() => this.devolviendo.set(false)),
+            finalize(() => {
+              if (vigente()) this.devolviendo.set(false);
+            }),
           )
           .subscribe({
             next: () => {
+              if (!vigente()) return;
               this.mensajeAccion.set('Conversación devuelta al asistente');
               void this.router.navigate([this.negocio.ruta('whatsapp')]);
               this.cargarLista(true);
             },
             error: (error: HttpErrorResponse) => {
+              if (!vigente()) return;
               if (error.status === 404) {
                 this.errorDetalle.set('Esta conversación ya no está derivada');
               } else {
@@ -285,6 +346,11 @@ export class Bandeja {
     if (id) {
       this.cargarDetalle(id, true);
     }
+  }
+
+  /** Invalida también respuestas de una visita anterior al mismo id (A → B → A). */
+  private esSeleccionActual(id: number, revision: number): boolean {
+    return id === this.seleccionadaId() && revision === this.revisionSeleccion;
   }
 
   motivoLegible(motivo: MotivoDerivacion): string {
