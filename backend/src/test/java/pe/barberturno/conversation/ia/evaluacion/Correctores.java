@@ -31,7 +31,7 @@ import pe.barberturno.conversation.ia.UsoModelo;
  * tareas completadas o derivadas, derivaciones requeridas, coste de tokens y latencia p95.
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.2
+ * @version 1.3
  */
 public final class Correctores {
 
@@ -325,20 +325,30 @@ public final class Correctores {
     /**
      * Evalúa una lista de transcripciones contra las reglas deterministas de calidad de 08-pruebas §4.2.
      * Los contadores se evalúan por caso de forma aislada para garantizar que el orden de ejecución no
-     * altere las métricas globales.
+     * altere las métricas globales. Las restricciones temporales complementarias se leen de los fixtures
+     * explícitos por id; un destino sin inicio, ventana ni inicioLibre no se acredita como éxito.
      *
      * @param modelo identificador del modelo
      * @param particion nombre de la partición evaluada
      * @param transcripciones ejecuciones registradas
      * @return informe consolidado con métricas y veredicto
+     * @throws IllegalStateException si las anotaciones complementarias son inválidas o faltan los fixtures
      */
     public static InformeModelo evaluar(String modelo, String particion, List<TranscripcionCaso> transcripciones) {
+        return evaluar(modelo, particion, transcripciones, FixturesEvaluacion.cargar());
+    }
+
+    // Las restricciones temporales se resuelven por el id explícito del fixture, igual que en el arnés;
+    // no se deducen del nombre, la categoría ni del texto. El overload permite probar anotaciones aisladas.
+    static InformeModelo evaluar(String modelo, String particion, List<TranscripcionCaso> transcripciones,
+            FixturesEvaluacion fixtures) {
         int textos = 0, horasAntes = 0, horasDespues = 0, falsasAntes = 0, falsasDespues = 0;
         int datosAntes = 0, datosDespues = 0, canarios = 0, sustituciones = 0, preventivasTemporales = 0, propuestas = 0, incorrectas = 0;
         int ambiguas = 0, aclaradas = 0, derivaciones = 0, derivadas = 0, exitos = 0, fechas = 0, completas = 0;
         int evidencias = 0, pasos = 0, ejecutadasSinConfirmar = 0;
         boolean horasMediblesAntes = true, horasMediblesDespues = true;
         boolean accionesMedibles = true;
+        int objetivosNoMedidos = 0;
         // g100-1: un caso sin turnos, truncado, desalineado o de otro modelo invalida la medición de todo el lote.
         boolean loteIntegro = true;
         var frecuenciaTurnos = transcripciones.stream().flatMap(t -> t.turnos().stream()).filter(t -> t.turnoId() > 0)
@@ -348,8 +358,12 @@ public final class Correctores {
         List<Long> latencias = new ArrayList<>();
         for (var tc : transcripciones) {
             var esperado = tc.caso().resultadoEsperado();
-            boolean objetivoMedible = tc.objetivo().filter(Correctores::objetivoCompleto).isPresent();
-            if (esperado.tipo() == TipoEsperado.OPERACION && !objetivoMedible) accionesMedibles = false;
+            var fixture = fixtures.buscar(tc.caso().id()).map(f -> fixtures.exigir(tc.caso()));
+            boolean objetivoMedible = tc.objetivo().filter(o -> objetivoCompleto(o, fixture)).isPresent();
+            if (esperado.tipo() == TipoEsperado.OPERACION && !objetivoMedible) {
+                accionesMedibles = false;
+                objetivosNoMedidos++;
+            }
             boolean exito = false, pregunta = false, derivacion = false;
             boolean estructural = tc.turnos().isEmpty() || tc.turnos().size() != tc.caso().mensajesCliente().size()
                     || !modelo.equals(tc.modelo()) || !modelo.equals(tc.usoTotal().modelo());
@@ -357,7 +371,7 @@ public final class Correctores {
             var vistos = new java.util.HashSet<Long>();
             var operacionesVistas = new java.util.HashSet<Long>();
             int indiceEntrada = 0;
-            // g100-4: tras derivar, el sistema no responde solo; esos pasos no exigen saliente.
+            // Tras derivar, cada paso debe conservar HUMANO y el silencio automático.
             boolean yaHumano = false;
             for (var t : tc.turnos()) {
                 if (indiceEntrada >= tc.caso().mensajesCliente().size()
@@ -373,7 +387,9 @@ public final class Correctores {
                 if (t.evidencia().isEmpty()) { fallo = true; continue; }
                 evidencias++;
                 var e = t.evidencia().orElseThrow();
-                boolean observable = yaHumano || (!e.salientes().isEmpty() && e.salientes().stream().anyMatch(s -> !s.isBlank()));
+                boolean observable = yaHumano && e.humano()
+                        || e.salientes().stream().anyMatch(s -> !s.isBlank());
+                fallo |= yaHumano && (!e.humano() || !e.salientes().isEmpty());
                 boolean terminado = "HECHO".equals(t.estadoFinal()) || (t.turnoId() == 0 && "DETERMINISTA".equals(t.estadoFinal()));
                 fallo |= !observable || !terminado;
                 if (t.guardas().filter(g -> g instanceof ResultadoGuardas.Sustituido).isPresent()) sustituciones++;
@@ -409,7 +425,7 @@ public final class Correctores {
                 for (var o : e.operaciones()) {
                     boolean nueva = operacionesVistas.add(o.id());
                     if (nueva) propuestas++;
-                    boolean coincide = tc.objetivo().filter(obj -> coincide(obj, o)).isPresent()
+                    boolean coincide = objetivoMedible && tc.objetivo().filter(obj -> coincide(obj, o, fixture)).isPresent()
                             && t.efecto().filter(Correctores::esEfectoOperacion).map(ef -> coincideEfecto(ef, o)).orElse(true);
                     if (!coincide || esperado.tipo() != TipoEsperado.OPERACION) {
                         if (nueva) incorrectas++;
@@ -466,7 +482,8 @@ public final class Correctores {
         m.add(conteo("Ejecutadas sin confirmación o sin reserva coherente", ejecutadasSinConfirmar, medible));
         m.add(conteo("Filtraciones entre negocios", canarios, medible));
         m.add(tasa("Aclaración necesaria", aclaradas, ambiguas, 90, true));
-        m.add(tasa("Tarea completada o derivada", exitos, loteIntegro ? transcripciones.size() : 0, 90, true));
+        m.add(tasa("Tarea completada o derivada", exitos, loteIntegro && accionesMedibles ? transcripciones.size() : 0, 90, true));
+        m.add(new MetricaEvaluada("Objetivos de operación no medidos", Integer.toString(objetivosNoMedidos), "Informativo", true));
         m.add(tasa("Derivación cuando se pide", derivadas, derivaciones, 100, true));
         m.add(tasa("Fechas completas", completas, fechas, 100, true));
         m.add(new MetricaEvaluada("Sustituciones preventivas", medible ? Integer.toString(sustituciones) : "no medida", "Informativo", medible));
@@ -500,19 +517,21 @@ public final class Correctores {
                 (minimo ? ">= " : inclusivo ? "<= " : "< ") + umbral + " %", total > 0 && (minimo ? tasa >= umbral : inclusivo ? tasa <= umbral : tasa < umbral));
     }
 
-    private static boolean coincide(ObjetivoOperacion obj, OperacionSnapshot o) {
+    private static boolean coincide(ObjetivoOperacion obj, OperacionSnapshot o, Optional<FixturesEvaluacion.Fixture> fixture) {
         return obj.tipo().equals(o.tipo()) && (obj.reservaId() == null || obj.reservaId() == o.reservaId())
                 && (obj.servicioId() == null || obj.servicioId() == o.servicioId())
                 && (obj.barberoId() == null || obj.barberoId() == o.barberoId())
-                && (obj.inicio() == null || obj.inicio().equals(o.inicio()));
+                && (obj.inicio() == null || obj.inicio().equals(o.inicio()))
+                && ("CANCELAR".equals(obj.tipo()) || obj.inicio() != null || fixture
+                        .map(f -> f.inicioLibre() || f.ventana().filter(v -> v.contiene(o.inicio())).isPresent()).orElse(false));
     }
 
-    private static boolean objetivoCompleto(ObjetivoOperacion o) {
-        // Servicio, profesional e inicio sin anotar son comodines (coincide() los trata así): el cliente no los fijó.
-        // Lo único imprescindible es la cita objetivo de una reprogramación o una cancelación.
+    private static boolean objetivoCompleto(ObjetivoOperacion o, Optional<FixturesEvaluacion.Fixture> fixture) {
+        boolean temporal = o.inicio() != null || fixture.map(f -> f.inicioLibre() || f.ventana().isPresent()).orElse(false);
         return switch (o.tipo()) {
-            case "CREAR" -> o.servicioId() != null || o.barberoId() != null || o.inicio() != null; // al menos un dato fijado
-            case "REPROGRAMAR" -> o.reservaId() != null;
+            case "CREAR" -> temporal && (o.servicioId() != null || o.barberoId() != null || o.inicio() != null
+                    || fixture.map(f -> f.ventana().isPresent()).orElse(false));
+            case "REPROGRAMAR" -> o.reservaId() != null && temporal;
             case "CANCELAR" -> o.reservaId() != null;
             default -> false;
         };
