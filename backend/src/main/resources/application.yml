@@ -50,6 +50,10 @@ springdoc:
     enabled: false
 
 barberturno:
+  # V2-18 (V2-DA-95): asociación con la app Android (TWA); vacía = /.well-known/assetlinks.json responde 404.
+  android:
+    paquete: ${BT_TWA_PAQUETE:}
+    huellas: ${BT_TWA_HUELLAS:}
   reservas:
     anticipacion-cambio-cliente: 2h
     horizonte-dias: 30
