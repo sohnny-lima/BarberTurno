@@ -193,3 +193,90 @@ mvnw rc=0
 - `9724b6980bbd0bd81ce5adfc90666c09684419df` · `fix(whatsapp): conservar avisos y respuestas tras el sondeo [V2-11]`.
 - Esta sección se registra en `docs: registrar cierre de g098 y V2-DA-85 [V2-12]`; hash en el informe final y mediante `git log -1 --format=%H -- docs/v2/pruebas/v2-12-correcciones-129.md`.
 - Sin cambio de rama, merge propio, push, publicación, tags, remotos, instalaciones ni worktrees nuevos. Solo los cuatro archivos de código autorizados y esta evidencia, más salidas ignoradas de herramientas. No se tocaron `docs/tareas.md`, backlog, README, documentación protegida, APF2, entregables, evidencias v1, Azure ni bases v1. Sin secretos ni datos reales expuestos. Todas las sesiones de verificación finalizaron y la comprobación CIM no encontró procesos Java/Node/navegador asociados al worktree; sin servidores ni procesos propios pendientes.
+
+## Correcciones de g099
+
+**Encargo 135 · 05/11/2026.** Continuación en `tarea/V2-12-correcciones-129`, inicialmente limpia sobre `276d6eb`. Se ejecutó el merge pedido, sin conflictos:
+
+```powershell
+git merge --no-ff tarea/V2-12-conversacion-ia -m 'merge: traer el saneador ampliado (53326bd) [V2-12]'
+```
+
+Merge **`3028fa6a8cedaab377834516899720b111e4467c`**. Incorpora `53326bd`: saneador compartido con tres separadores, caracteres de formato `\p{Cf}` y U+2212, sus pruebas y los documentos del coordinador. Esos seis archivos llegaron mediante el merge expresamente autorizado; no se editaron manualmente. Se leyó únicamente el informe g099 expresamente indicado, además de las instrucciones y documentos aplicables. La bandeja no se modifica ni se vuelve a probar en esta ronda.
+
+### Decisión del coordinador y cambios
+
+Se registra la decisión comunicada en el encargo: **«Esta es la última ronda de patrones. Ante la duda, sustituir»**. Se amplía el rechazo a estados completados relativos a cita/reserva/turno aunque no contengan un verbo de reserva. Las exenciones de preguntas, negaciones y propuestas deben gobernar el verbo concreto en su cláusula; una negación subordinada, «sin duda», «sin falta» o «ya pedí que…» no justifican una exención global. Las paráfrasis libres se documentan como riesgo residual medido por la evaluación en vivo; no se intenta convertir las guardas en un analizador completo del lenguaje.
+
+- **`GuardasSalida.java`:** añade anotar/registrar/separar y resultados «ya está», «quedó», «listo/lista», «dejé la cita», «te esperamos» y estados de cita/agenda. Las negaciones se comprueban por su relación inmediata con la operación; solo se heredan entre participios negados coordinados. Las instrucciones requieren un marcador concreto y los nombres reserva/agenda respetan el número del determinante y un contexto nominal, evitando «Carlos la reserva» y «Tu reservas». Las propuestas declarativas se limitan a marcadores como «para que…» y no se eximen si ya hay indicio de realización. Se incorpora `:` al límite de pregunta sin `¿`, y `?` como delimitador de cláusula.
+- **Referencias temporales:** sábados/domingos, «este/esta» con semana/mes/año, momentos del día, «temprano», «más tarde», «la una», horas y minutos hablados con/sin «y», incluidos «cinco y quince», «cinco veinte», «dieciocho horas». No se reintroduce validación con franjas ni resolución de fechas.
+- **Exenciones conservadas:** «¿Te reservo ese turno?», «¿Quieres que lo cancele?», «No tienes citas agendadas.», «Con gusto te ayudo con tu reserva.» y «Te envío el resumen para que lo confirmes con el botón.», además de las regresiones válidas de las rondas previas. No se cambia la firma de `revisar` ni `MotivoGuarda`.
+- **`GuardasSalidaTest.java`:** incluye todos los textos citados en g099, sus negativos, estados adicionales, subordinación y delimitadores, referencias sin cifras y teléfonos con U+200B/U+2060/U+FEFF/U+2212 del saneador incorporado. Corrige el `@DisplayName` a «propuestas y solicitudes de confirmación sin fecha ni hora se conservan (V2-DA-85)». Total: **355 pruebas de guardas**.
+- **Javadoc:** clase actualizada a versión 2.1 y método público documentados con el sesgo conservador y el rechazo de estados completados sin verbo de operación. Constructor útil y parámetros de compatibilidad sin uso conservados.
+
+### Verificación
+
+Entorno: Temurin 21.0.8+9, Maven wrapper 3.9.16, Spring Boot 4.1.1; PostgreSQL 18.6 exclusivamente mediante el ejecutor serializado para los guiones. Java inicializado con `JAVA_HOME` como en las rondas anteriores. Sin Anthropic real ni cambios de dependencias. Registros bajo `backend/target/`, ignorados por Git.
+
+| Directorio | Orden | Resultado | Registro |
+|---|---|---|---|
+| `backend` | `.\mvnw.cmd -Dtest=GuardasSalidaTest "-Djacoco.skip=true" test` | Reproducción previa: **355/58/0/0**, `BUILD FAILURE`, 31,790 s | `encargo-135-regresiones-antes.log` |
+| `backend` | `.\mvnw.cmd -Dtest=GuardasSalidaTest,ComposicionTurnoIATest,SaneadorTextoTest "-Djacoco.skip=true" test` | Primera corrección: **388/1/0/0**; corregido el motivo de sustitución de «Hay turnos esta tarde» | `encargo-135-unitarias.log` |
+| `backend` | Misma orden, código final | **388/0/0/0**, `BUILD SUCCESS`, 28,892 s; guardas 355, composición 13, saneador 20 | `encargo-135-unitarias-final.log` |
+| `backend` | `.\mvnw.cmd -DskipTests verify` | Primer intento: fallo por datos JaCoCo parciales y anteriores a los cambios | `encargo-135-verify.log` |
+| `backend` | Misma orden, tras conservar el artefacto anterior | **BUILD SUCCESS**, 28,780 s; empaquetado y Javadoc/doclint sin avisos | `encargo-135-verify-final.log` |
+| raíz | `pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-12-r129 -Registro target\encargo-135-guiones.log "-Dtest=ConversacionGuionesIT" test` | **24/0/0/0**, `BUILD SUCCESS`, 53,972 s; `mvnw rc=0` | `encargo-135-guiones.log` |
+| raíz | `git diff --check` y comprobación de bytes | Sin errores; Java y tests UTF-8 sin BOM, LF | Consola |
+
+**Fallos y resolución.** La reproducción previa detectó los huecos de la revisión; no se modificó el producto hasta que terminó esa ejecución. Ejemplo y resumen de la salida:
+
+```text
+expected: Sustituido[motivo=AFIRMA_OPERACION]
+ but was: Aceptado[texto=Ya está.]
+expected: Sustituido[motivo=HORARIO_NO_OFRECIDO]
+ but was: Aceptado[texto=Tenemos disponibilidad este mes.]
+[ERROR] Tests run: 355, Failures: 58, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+```
+
+Tras la primera corrección, todos esos textos se sustituyeron. Una regresión detectó que el demostrativo de «Hay turnos esta tarde.» se interpretaba como estado completado: se sustituyó por `AFIRMA_OPERACION` en vez de `HORARIO_NO_OFRECIDO`. Se distinguió ese contexto temporal del verbo «está», sin cambiar la aserción ni el orden de guardas:
+
+```text
+expected: Sustituido[motivo=HORARIO_NO_OFRECIDO]
+ but was: Sustituido[motivo=AFIRMA_OPERACION]
+[ERROR] Tests run: 388, Failures: 1, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+```
+
+El primer `verify -DskipTests` encontró `target/jacoco.exec` (**791318 bytes**, modificado a las **01:08:15**, antes del encargo), producido por la batería focal anterior. Tenía clases distintas de las actuales y no representa la cobertura de una ejecución global. Su salida, conservada completa en el registro, incluyó:
+
+```text
+[WARNING] Execution data for class pe/barberturno/conversation/ia/SaneadorTexto does not match.
+[WARNING] Execution data for class pe/barberturno/conversation/ia/GuardasSalida does not match.
+[WARNING] Rule violated for package pe.barberturno.common.tenancy: lines covered ratio is 0.41, but expected minimum is 0.70
+[WARNING] Rule violated for package pe.barberturno.scheduling: lines covered ratio is 0.41, but expected minimum is 0.70
+[WARNING] Rule violated for package pe.barberturno.reservations.dto: lines covered ratio is 0.05, but expected minimum is 0.70
+[WARNING] Rule violated for package pe.barberturno.reservations: lines covered ratio is 0.29, but expected minimum is 0.70
+[WARNING] Rule violated for package pe.barberturno.customers: lines covered ratio is 0.18, but expected minimum is 0.70
+[WARNING] Rule violated for package pe.barberturno.customers.dto: lines covered ratio is 0.00, but expected minimum is 0.70
+[WARNING] Rule violated for package pe.barberturno.scheduling.dto: lines covered ratio is 0.10, but expected minimum is 0.70
+[INFO] BUILD FAILURE
+```
+
+Se **conservó**, sin borrarlo, mediante `Move-Item -LiteralPath` a `backend/target/encargo-135-jacoco-preexistente.exec`, y se repitió exactamente `mvnw.cmd -DskipTests verify`, sin cambiar umbrales, POM ni propiedades de cobertura. Al no existir datos de ejecución para esa orden sin pruebas, JaCoCo omite su informe/comprobación y se ejecuta Javadoc. **No se acredita cobertura global**: el éxito final corresponde al empaquetado y doclint solicitados. No se ejecutaron simultáneamente dos Maven sobre el worktree ni dos suites contra PostgreSQL.
+
+### Riesgo residual aceptado y cierre
+
+La decisión permite sustituir texto benigno ante la duda, por ejemplo una descripción ambigua del estado de una cita o una cifra que nombra opciones. Las cinco frases negativas exigidas y las regresiones previas siguen aceptándose; no se promete una clasificación perfecta de cualquier mensaje en castellano.
+
+**Paráfrasis libres que pueden escapar:** «Carlos ya te tiene un hueco», «Todo arreglado, pasa por la barbería» o «Cuenta con tu espacio» pueden inducir a creer que hay una cita sin usar las formas cubiertas; «al caer el sol» puede expresar una referencia temporal indirecta. Son ejemplos del riesgo residual, no comportamientos que se consoliden como requisito mediante tests. No se añaden más rondas de patrones para perseguir esas paráfrasis. Corresponde a la métrica **«Confirmaciones falsas»** de la evaluación en vivo (`08-pruebas-migracion-reversion.md` §4, objetivo **0**) medirlas con el modelo real; el arnés en vivo no se ha ejecutado aquí. La integridad sigue en el servidor: las guardas no crean ni ejecutan reservas y V2-RN-10 exige la confirmación determinista del resumen vigente. Un texto aceptado nunca acredita una operación ejecutada.
+
+**Guiones:** los 12 YAML y sus 24 pruebas pasan sin cambios; no hay espera incompatible que trasladar al coordinador. Se reutilizó el contexto y `@DirtiesContext` existentes; no se añadieron pools ni contextos nuevos. No se ejecutó la evaluación en vivo ni una batería global de cobertura.
+
+**Commits:**
+
+- Merge autorizado: `3028fa6a8cedaab377834516899720b111e4467c` · `merge: traer el saneador ampliado (53326bd) [V2-12]`.
+- Implementación y pruebas: `5e366034ec4acff1f282b18e1133434b774dba3c` · `fix(ia): cerrar hallazgos g099 con guardas conservadoras [V2-12]`.
+- Evidencia: commit `docs: registrar última ronda de guardas g099 [V2-12]`; hash en el informe final y mediante `git log -1 --format=%H -- docs/v2/pruebas/v2-12-correcciones-129.md`.
+
+**Cierre:** fuera del merge pedido, únicamente se editaron `GuardasSalida.java`, `GuardasSalidaTest.java` y esta evidencia. Sin cambios de bandeja, contratos, DDL, reglas de negocio, configuración, README o tareas; sin push, remotos, etiquetas, publicación, pagos, dependencias ni worktrees nuevos. No se tocaron bases v1, Azure, APF2, entregables o evidencias v1. Sin secretos ni datos reales expuestos. Todas las sesiones Maven/ejecutor terminaron, sin Java o navegador propios. Se conserva el Node preexistente PID 117992, creado a las 01:20:55 antes de las verificaciones; no se ejecutó ningún comando Node ni se inició servidor de aplicación en este encargo. Sin procesos propios pendientes. `git diff --check` antes de cada commit de implementación/evidencia y archivos UTF-8 sin BOM con LF comprobados.
