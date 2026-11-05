@@ -13,12 +13,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.*;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.AopTestUtils;
 import org.springframework.transaction.support.*;
 import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.conversation.*;
 import pe.barberturno.scheduling.JornadaRepository;
 import pe.barberturno.whatsapp.WhatsAppSalidaPruebaBase;
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.*;
 
 /** CI-2/3/4/6/7/8: aplicación real, dos negocios y HTTP falso sin ninguna transacción abierta. */
 @Import(TurnosIAIT.Configuracion.class)
@@ -33,7 +37,7 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
     @Autowired ObservadorEvaluacionRegistro observador;
     @Autowired JornadaRepository jornadas;
     @Autowired RetencionWhatsApp retencion;
-    @Autowired OperacionesConversacion propuestas;
+    @MockitoSpyBean OperacionesConversacion propuestas;
     @Autowired pe.barberturno.whatsapp.SalidaWhatsApp salida;
     @Autowired ConversacionesWhatsApp conversaciones;
     @Autowired pe.barberturno.customers.AnonimizacionFichas anonimizacion;
@@ -168,6 +172,23 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
             assertThat(contenido).contains("Confirmar", "2026");
             return null;
         });
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void vencimientoDuranteAplicacion_reviertePropuestaYSalida(boolean venceConcesion) {
+        long c = conversacion(a, true), t = encolar(a, c, "Un corte");
+        programarPropuesta(false);
+        OperacionesConversacion destino = AopTestUtils.getUltimateTargetObject(propuestas);
+        doAnswer(invocacion -> {
+            Object resultado = invocacion.callRealMethod();
+            reloj.fijar(reloj.instant().plusSeconds(venceConcesion ? 121 : 91));
+            return resultado;
+        }).when(destino).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any(Instant.class));
+        turnos.procesarPendientes();
+        assertThat(operaciones(a)).isZero();
+        assertThat(reservas(a)).isZero();
+        assertThat(estado(a, t)).isEqualTo(venceConcesion ? "PENDIENTE" : "FALLIDO");
+        assertThat(mensajes(a, c)).isEqualTo(venceConcesion ? 0 : 1);
     }
 
     @Test void sinFicha_pideConsentimientoConFranjaPendiente() {

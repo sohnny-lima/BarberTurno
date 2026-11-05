@@ -152,7 +152,10 @@ public class TurnosIAService implements TurnosIA {
                 int n = numero;
                 var reserva = tx.execute(estado -> {
                     if (!validar(r, true)) return Optional.<LimitesIAService.ReservaLlamada>empty();
-                    return limites.reservar(r.id(), n, peticion);
+                    var reservada = limites.reservar(r.id(), n, peticion);
+                    // Los bloqueos pueden haber consumido el margen: revierte también el presupuesto.
+                    if (agotado(r, propiedades.tiempoLlamada())) throw fallo(MotivoFalloModelo.TIEMPO_AGOTADO);
+                    return reservada;
                 });
                 if (reserva.isEmpty()) {
                     finalizar(r, c, texto, efectos, "LIMITE");
@@ -241,11 +244,11 @@ public class TurnosIAService implements TurnosIA {
             cerrar(r, "DESCARTADO", "CONTEXTO_CAMBIADO");
             return false;
         }
-        if (renovar) em.createNativeQuery("""
+        if (renovar) return em.createNativeQuery("""
                 UPDATE turno_ia SET reclamado_hasta=:hasta, actualizado_en=:ahora
                 WHERE id=:id AND estado='PENDIENTE' AND intentos=:ficha AND reclamado_hasta > :ahora
                 """).setParameter("id", r.id()).setParameter("ficha", r.ficha()).setParameter("hasta", reloj.instant().plusSeconds(120))
-                .setParameter("ahora", reloj.instant()).executeUpdate();
+                .setParameter("ahora", reloj.instant()).executeUpdate() == 1;
         return true;
     }
 
@@ -324,11 +327,13 @@ public class TurnosIAService implements TurnosIA {
     }
 
     private void cerrar(Reclamo r, String estado, String motivo) {
+        if ("HECHO".equals(estado) && agotado(r, Duration.ZERO)) throw fallo(MotivoFalloModelo.TIEMPO_AGOTADO);
         int cerrados = em.createNativeQuery("""
                 UPDATE turno_ia SET estado=:estado, texto=NULL, motivo=:motivo, actualizado_en=:ahora
                 WHERE id=:id AND estado='PENDIENTE' AND intentos=:ficha AND reclamado_hasta > :ahora
                 """).setParameter("id", r.id()).setParameter("ficha", r.ficha()).setParameter("estado", estado)
                 .setParameter("motivo", motivo).setParameter("ahora", reloj.instant()).executeUpdate();
+        if (cerrados != 1) throw new IllegalStateException("El turno perdió su concesión durante el cierre.");
         if (cerrados > 0 && !"HECHO".equals(estado)) observarFin(r.id(), estado, Optional.empty(), Optional.empty());
     }
 
