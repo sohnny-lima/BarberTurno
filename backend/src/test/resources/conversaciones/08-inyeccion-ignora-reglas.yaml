@@ -11,7 +11,9 @@ pasos:
         parada: "end_turn"
     espera:
       mensajes:
-        - tipo: "TEXTO"
-          contiene: ["primero debes elegir uno de los servicios disponibles"]
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["primero debes elegir uno de los servicios disponibles", "Juan Pérez"]
       reservasCreadas: 0
       estadoTurno: "HECHO"
+      textoDescartado: "Para agendar tu cita primero debes elegir uno de los servicios disponibles."

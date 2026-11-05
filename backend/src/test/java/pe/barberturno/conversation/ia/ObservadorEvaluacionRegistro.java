@@ -15,7 +15,7 @@ import java.util.Optional;
  * resultados y franjas, y el estado final del turno. Nunca escribe en los logs de la aplicación.
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
 
@@ -57,6 +57,7 @@ public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
         private Optional<EfectoTurno> efecto = Optional.empty();
         private Optional<DecisionRespuesta> decision = Optional.empty();
         private Optional<String> textoDescartado = Optional.empty();
+        private final List<MensajeAsistente> salidas = new ArrayList<>();
 
         /**
          * Crea el registro de un turno.
@@ -137,6 +138,15 @@ public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
          */
         public Optional<String> textoDescartado() {
             return textoDescartado;
+        }
+
+        /**
+         * Mensajes que el turno encoló, tal como los compuso el servidor (revisión 140).
+         *
+         * @return copia inmutable, en orden
+         */
+        public List<MensajeAsistente> salidas() {
+            return List.copyOf(salidas);
         }
 
         /**
@@ -222,6 +232,11 @@ public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
         RegistroTurno reg = turnos.computeIfAbsent(turnoId, RegistroTurno::new);
         reg.decision = Objects.requireNonNull(decision, "decision");
         reg.textoDescartado = Objects.requireNonNull(textoDescartado, "textoDescartado");
+    }
+
+    @Override
+    public synchronized void salida(long turnoId, MensajeAsistente mensaje) {
+        turnos.computeIfAbsent(turnoId, RegistroTurno::new).salidas.add(Objects.requireNonNull(mensaje, "mensaje"));
     }
 
     /**
