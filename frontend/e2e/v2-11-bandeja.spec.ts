@@ -12,11 +12,15 @@ async function ingresar(page: Page, correo: string) {
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  if (/\/n\/barberturno\//.test(new URL(page.url()).pathname)) return;
+  // Con dos relaciones se elige la barbería; con dos papeles en ella se abre solo el diálogo de papel,
+  // que tapa el botón: en ese caso elige quien llama.
   const botonEntrar = page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true });
-  if (await botonEntrar.isVisible()) {
-    await botonEntrar.click();
-    await expect(page).toHaveURL(/\/n\/barberturno\//);
-  }
+  const dialogoPapel = page.getByRole('dialog').filter({ hasText: '¿Cómo quiere entrar' });
+  await expect(botonEntrar.or(dialogoPapel).first()).toBeVisible();
+  if (await dialogoPapel.isVisible()) return;
+  await botonEntrar.click();
+  await expect(page).toHaveURL(/\/n\/barberturno\//);
 }
 
 test.describe('V2-11 · Bandeja de WhatsApp (CB-14)', () => {
@@ -78,10 +82,10 @@ test.describe('V2-11 · Bandeja de WhatsApp (CB-14)', () => {
 
     // 9. Vuelve a la lista y la conversación ya no se encuentra en modo HUMANO
     await expect(page).toHaveURL(/\/n\/barberturno\/whatsapp$/);
-    await expect(page.locator('.lista-items')).not.toContainText('Cliente WhatsApp E2E');
+    await expect(page.locator('main')).not.toContainText('Cliente WhatsApp E2E'); // sin conversaciones la lista no existe: estado vacío
 
     // 10. Un PROFESIONAL / BARBERO no ve la entrada de menú de WhatsApp
-    await page.goto('/ingresar');
+    await page.context().clearCookies(); // otra cuenta: sin la sesión del encargado
     await ingresar(page, 'personal-cliente@ejemplo.test');
     const dialogoPapel = page.getByRole('dialog');
     if (await dialogoPapel.isVisible()) {

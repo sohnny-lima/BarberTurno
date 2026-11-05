@@ -96,6 +96,9 @@ export interface DatosSiembraDerivacion {
  * Siembra por SQL una conversación con ficha en modo HUMANO, un mensaje entrante reciente
  * y un aviso DERIVACION para el encargado (V2-11 CB-14).
  */
+/** 15 min antes del reloj fijo del jar E2E (fixture.ts, 2026-09-28T09:00-05:00): dentro de la ventana de 24 h. */
+const INSTANTE_SIEMBRA = "TIMESTAMPTZ '2026-09-28T08:45:00-05:00'";
+
 export function sembrarConversacionDerivada(
   slugNegocio = 'barberturno',
   correoEncargado = 'encargado@ejemplo.test',
@@ -128,21 +131,26 @@ export function sembrarConversacionDerivada(
 
       PERFORM set_config('app.negocio_id', v_negocio_id::text, false);
 
+      -- Canal activo: sin canal la bandeja da NEGOCIO_NO_OPERATIVO y no deja responder (los datos demo no lo crean). SQL en ASCII: psql recibe el texto en la pagina de codigos de la consola.
+      INSERT INTO canal_whatsapp (negocio_id, waba_id, phone_number_id, numero_visible, estado, creado_en, actualizado_en)
+      VALUES (v_negocio_id, '100000000000001', '100000000000002', '+51900000000', 'ACTIVO', ${INSTANTE_SIEMBRA}, ${INSTANTE_SIEMBRA})
+      ON CONFLICT (negocio_id) DO UPDATE SET estado = 'ACTIVO', actualizado_en = ${INSTANTE_SIEMBRA};
+
       INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
-      VALUES (v_negocio_id, 'Cliente WhatsApp E2E', '51999111222', '999111222', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES (v_negocio_id, 'Cliente WhatsApp E2E', '51999111222', '999111222', true, ${INSTANTE_SIEMBRA}, ${INSTANTE_SIEMBRA}, ${INSTANTE_SIEMBRA})
       ON CONFLICT (negocio_id, wa_id) WHERE wa_id IS NOT NULL DO UPDATE SET nombre = EXCLUDED.nombre
       RETURNING id INTO v_cliente_id;
 
       INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)
-      VALUES (v_negocio_id, '51999111222', v_cliente_id, 'HUMANO', CURRENT_TIMESTAMP, 'PETICION', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (negocio_id, wa_id) DO UPDATE SET modo = 'HUMANO', cliente_id = v_cliente_id, derivada_en = CURRENT_TIMESTAMP, motivo_derivacion = 'PETICION', ultima_entrada_en = CURRENT_TIMESTAMP
+      VALUES (v_negocio_id, '51999111222', v_cliente_id, 'HUMANO', ${INSTANTE_SIEMBRA}, 'PETICION', ${INSTANTE_SIEMBRA}, ${INSTANTE_SIEMBRA}, ${INSTANTE_SIEMBRA})
+      ON CONFLICT (negocio_id, wa_id) DO UPDATE SET modo = 'HUMANO', cliente_id = v_cliente_id, derivada_en = ${INSTANTE_SIEMBRA}, motivo_derivacion = 'PETICION', ultima_entrada_en = ${INSTANTE_SIEMBRA}
       RETURNING id INTO v_conversacion_id;
 
       INSERT INTO mensaje_whatsapp (negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, creado_en, actualizado_en)
-      VALUES (v_negocio_id, v_conversacion_id, 'ENTRANTE', 'CLIENTE', 'TEXTO', '{"texto": "Hola, necesito hablar con un asesor"}'::jsonb, 'wamid.e2e.' || floor(random() * 1000000)::text, 'RECIBIDO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+      VALUES (v_negocio_id, v_conversacion_id, 'ENTRANTE', 'CLIENTE', 'TEXTO', '{"texto": "Hola, necesito hablar con un asesor"}'::jsonb, 'wamid.e2e.' || floor(random() * 1000000)::text, 'RECIBIDO', ${INSTANTE_SIEMBRA}, ${INSTANTE_SIEMBRA});
 
       INSERT INTO notificacion (negocio_id, usuario_id, conversacion_id, tipo, mensaje, leida, creado_en)
-      VALUES (v_negocio_id, v_usuario_id, v_conversacion_id, 'DERIVACION', 'Cliente WhatsApp E2E solicita atención', false, CURRENT_TIMESTAMP);
+      VALUES (v_negocio_id, v_usuario_id, v_conversacion_id, 'DERIVACION', U&'Cliente WhatsApp E2E solicita atenci\\00F3n', false, ${INSTANTE_SIEMBRA});
     END $$;
     SELECT set_config('app.negocio_id', (SELECT id::text FROM negocio WHERE slug = '${slugNegocio}'), false);
     SELECT c.id || '|' || n.id || '|' || c.cliente_id

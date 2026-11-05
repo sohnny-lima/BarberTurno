@@ -6,7 +6,7 @@ process.env['PLAYWRIGHT_BROWSERS_PATH'] ??= resolve('tmp/navegadores');
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: '**/recorrido.spec.ts',
+  testMatch: ['**/recorrido.spec.ts', '**/v2-11-bandeja.spec.ts'],
   globalSetup: './e2e/preparacion.ts',
   fullyParallel: false,
   workers: 1,
