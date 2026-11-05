@@ -40,7 +40,19 @@ public enum HerramientaIA {
     /** {@code derivar_a_persona}: Pasa la conversación al equipo de la barbería: queja, petición de una persona, tema ajeno a las reservas o falta de avance. */
     DERIVAR_A_PERSONA("derivar_a_persona",
             "Pasa la conversación al equipo de la barbería: queja, petición de una persona, tema ajeno a las reservas o falta de avance.",
-            "{\"type\":\"object\",\"properties\":{\"motivo\":{\"type\":\"string\",\"enum\":[\"QUEJA\",\"PETICION\",\"FUERA_DE_ALCANCE\",\"SIN_AVANCE\"],\"description\":\"Por qué se pasa con el equipo.\"}},\"required\":[\"motivo\"],\"additionalProperties\":false}");
+            "{\"type\":\"object\",\"properties\":{\"motivo\":{\"type\":\"string\",\"enum\":[\"QUEJA\",\"PETICION\",\"FUERA_DE_ALCANCE\",\"SIN_AVANCE\"],\"description\":\"Por qué se pasa con el equipo.\"}},\"required\":[\"motivo\"],\"additionalProperties\":false}"),
+
+    /** Cierre estructurado: el servidor valida la intención y compone todo el mensaje visible. */
+    RESPONDER_AL_CLIENTE("responder_al_cliente",
+            "Cierra el turno con una intención y selecciones conocidas; el servidor redacta la respuesta. No envíes texto libre.",
+            """
+            {"type":"object","properties":{
+              "intencion":{"type":"string","enum":["PEDIR_DATO","MOSTRAR_SERVICIOS","MOSTRAR_PROFESIONALES","MOSTRAR_CITAS","SIN_DISPONIBILIDAD","FUERA_DE_ALCANCE","SALUDO"]},
+              "falta":{"type":["string","null"],"enum":["SERVICIO","PROFESIONAL","DIA","CITA",null]},
+              "servicio":{"type":["string","null"],"description":"Alias de servicio conocido en este turno, o null para conservar la selección."},
+              "profesional":{"type":["string","null"],"description":"Alias de profesional conocido, cualquiera, o null para conservar la selección."}
+            },"required":["intencion","falta","servicio","profesional"],"additionalProperties":false}
+            """);
 
     private final String nombre;
     private final String descripcion;
