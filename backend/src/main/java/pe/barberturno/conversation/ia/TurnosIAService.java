@@ -263,11 +263,16 @@ public class TurnosIAService implements TurnosIA {
                 cerrar(r, "FALLIDO", motivo == null ? "TIEMPO_AGOTADO" : motivo);
                 return;
             }
-            var franjas = c.franjas.values().stream().map(ContextoTurno.FranjaValidada::ofrecida).toList();
+            EfectoTurno efecto = elegir(efectos);
+            // La composición admite diez filas: solo esas franjas se muestran y autorizan el texto.
+            if (efecto instanceof EfectoTurno.MostrarFranjas mostrar)
+                efecto = new EfectoTurno.MostrarFranjas(mostrar.franjas().stream().limit(10).toList());
+            List<FranjaOfrecida> franjas = efecto instanceof EfectoTurno.MostrarFranjas mostrar
+                    ? mostrar.franjas() : List.of();
             var resultadoGuardas = guardas.revisar(texto, franjas, reloj.instant().atZone(TiempoNegocio.ZONA));
             String seguro = resultadoGuardas instanceof ResultadoGuardas.Aceptado aceptado ? aceptado.texto() : composicion.neutro();
             var distintos = efectos.stream().filter(this::esPropuesta).distinct().toList();
-            EfectoTurno efecto = elegir(efectos);
+            EfectoTurno aplicado = efecto;
             if (efecto instanceof EfectoTurno.Derivar d) {
                 // V2-DA-83: con SOLO_HUMANO el texto que provoca la derivación no se guardó al entrar; se guarda
                 // aquí (conversación ya bloqueada por validar) antes del acuse. Con TODOS ya está en el historial.
@@ -277,7 +282,10 @@ public class TurnosIAService implements TurnosIA {
             }
             else if (efecto instanceof EfectoTurno.SolicitarConsentimientoDerivacion d)
                 consentimiento(r, new CodigoSeleccion.Menu(OpcionMenu.PERSONA).codificar(), d.motivo());
-            else if (distintos.size() > 1) menu(r, composicion.aclararPropuestas());
+            else if (distintos.size() > 1) {
+                menu(r, composicion.aclararPropuestas());
+                aplicado = null;
+            }
             else if (efecto instanceof EfectoTurno.SolicitarConsentimientoReserva s)
                 consentimiento(r, new CodigoSeleccion.Franja(s.servicioId(), s.barberoId(), s.inicio().getEpochSecond()).codificar(), null);
             else if (esPropuesta(efecto)) {
@@ -292,7 +300,10 @@ public class TurnosIAService implements TurnosIA {
                     salida.encolarInteractivo(r.conversacion(), menus.confirmacion(textos.resumen(p.resumen()), p.operacionId(), p.nonce()),
                             OrigenMensaje.ASISTENTE, OptionalLong.empty());
                     guardarBorrador(r, c);
-                } else menu(r, textos.noDisponible());
+                } else {
+                    menu(r, textos.noDisponible());
+                    aplicado = null;
+                }
             } else if (efecto instanceof EfectoTurno.MostrarFranjas mostrar && !mostrar.franjas().isEmpty()) {
                 salida.encolarInteractivo(r.conversacion(), composicion.franjas(seguro, mostrar.franjas(), c.hoy),
                         OrigenMensaje.ASISTENTE, OptionalLong.empty());
@@ -300,10 +311,13 @@ public class TurnosIAService implements TurnosIA {
             } else if (resultadoGuardas instanceof ResultadoGuardas.Aceptado) {
                 salida.encolarTexto(r.conversacion(), seguro, OrigenMensaje.ASISTENTE, OptionalLong.empty());
                 guardarBorrador(r, c);
-            } else menu(r, composicion.neutro());
+            } else {
+                menu(r, composicion.neutro());
+                aplicado = null;
+            }
             cerrar(r, "HECHO", null);
             observarFin(r.id(), "HECHO", texto.isEmpty() && efecto != null ? Optional.empty() : Optional.of(resultadoGuardas),
-                    Optional.ofNullable(efecto));
+                    Optional.ofNullable(aplicado));
         });
     }
 

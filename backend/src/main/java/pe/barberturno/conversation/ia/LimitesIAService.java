@@ -34,7 +34,12 @@ public class LimitesIAService implements LimitesIA {
         this.tx = new TransactionTemplate(gestor);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * Comprueba los límites en la transacción de entrega o reserva, con la conversación ya bloqueada.
+     * Si el gasto mensual está agotado, confirma con esa decisión el aviso diario al propietario.
+     * @param conversacionId conversación del negocio actual cuyo bloqueo posee el llamador
+     * @return disponibilidad según configuración, entradas, llamadas y gasto acumulado
+     */
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public DisponibilidadIA disponibilidad(long conversacionId) {
@@ -58,7 +63,10 @@ public class LimitesIAService implements LimitesIA {
                 SELECT count(*) FROM llamada_ia WHERE conversacion_id=:id AND dia=:dia
                 """).setParameter("id", conversacionId).setParameter("dia", dia()).getSingleResult()).longValue();
         if (llamadas >= entero(fila[2], propiedades.limites().llamadasDia())) return DisponibilidadIA.LIMITE_DIA;
-        if (gastoMensual() >= presupuesto(fila[3])) return DisponibilidadIA.PRESUPUESTO;
+        if (gastoMensual() >= presupuesto(fila[3])) {
+            avisos.presupuesto(conversacionId);
+            return DisponibilidadIA.PRESUPUESTO;
+        }
         return DisponibilidadIA.DISPONIBLE;
     }
 
@@ -69,10 +77,7 @@ public class LimitesIAService implements LimitesIA {
                     .setParameter("id", turnoId).getResultList();
             if (turnos.isEmpty()) return Optional.empty();
             long conversacionId = ((Number) turnos.getFirst()).longValue();
-            if (disponibilidad(conversacionId) != DisponibilidadIA.DISPONIBLE) {
-                if (disponibilidad(conversacionId) == DisponibilidadIA.PRESUPUESTO) avisos.presupuesto(conversacionId);
-                return Optional.empty();
-            }
+            if (disponibilidad(conversacionId) != DisponibilidadIA.DISPONIBLE) return Optional.empty();
             // Un token puede representar un solo byte. Se añade margen para el formato del proveedor;
             // la caché se reserva al mayor precio de entrada, nunca se presume un acierto de caché.
             long bytes = entradaMaxima(peticion);

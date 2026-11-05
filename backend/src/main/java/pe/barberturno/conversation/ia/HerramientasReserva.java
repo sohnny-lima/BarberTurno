@@ -48,6 +48,7 @@ public class HerramientasReserva {
 
     /**
      * Valida exactamente el esquema y resuelve solo alias conocidos de este contexto.
+     * Una búsqueda concede alias solo tras consultar todo el rango y no emite efecto si está vacía.
      * @param contexto capacidades de un solo turno
      * @param llamada herramienta y JSON del proveedor
      * @return error genérico o resultado y efecto proyectados, sin entidades gestionadas
@@ -162,18 +163,20 @@ public class HerramientasReserva {
         String aliasProfesional = texto(a, "profesional");
         OptionalLong profesional = cita != null ? OptionalLong.of(cita.barberoId()) : aliasProfesional == null
                 ? OptionalLong.empty() : OptionalLong.of(Objects.requireNonNull(c.profesionales.get(aliasProfesional)).id());
-        var ofrecidas = new ArrayList<FranjaOfrecida>();
-        for (LocalDate dia = desde; !dia.isAfter(hasta) && ofrecidas.size() < 20; dia = dia.plusDays(1)) {
+        var candidatas = new ArrayList<FranjaOpcion>();
+        // Consulta todo el rango antes de conceder capacidades: un fallo posterior no deja alias.
+        for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
             var opciones = cita == null ? consultas.franjas(servicio, profesional, dia)
                     : consultas.franjasCambio(c.ficha.orElseThrow(), cita.reservaId(), dia);
             for (var f : opciones) {
                 LocalTime hora = TiempoNegocio.aLima(f.inicio()).toLocalTime();
                 if ((hDesde == null || !hora.isBefore(hDesde)) && (hHasta == null || !hora.isAfter(hHasta))) {
-                    ofrecidas.add(c.franja(servicio, cita == null ? null : cita.reservaId(), f));
-                    if (ofrecidas.size() == 20) break;
+                    if (candidatas.size() < 20) candidatas.add(f);
                 }
             }
         }
+        var ofrecidas = candidatas.stream()
+                .map(f -> c.franja(servicio, cita == null ? null : cita.reservaId(), f)).toList();
         c.servicioBorrador = servicio;
         c.profesionalBorrador = profesional.isPresent() ? profesional.getAsLong() : null;
         c.diaBorrador = desde;
@@ -181,7 +184,7 @@ public class HerramientasReserva {
         for (var f : ofrecidas) lista.addObject().put("alias", f.alias())
                 .put("inicio", TiempoNegocio.aLima(f.inicio()).toString())
                 .put("fin", TiempoNegocio.aLima(f.fin()).toString()).put("profesional", limpio(f.profesional()));
-        return ok(l, lista, new EfectoTurno.MostrarFranjas(ofrecidas));
+        return ok(l, lista, ofrecidas.isEmpty() ? null : new EfectoTurno.MostrarFranjas(ofrecidas));
     }
 
     private static LocalDate fecha(String valor) {

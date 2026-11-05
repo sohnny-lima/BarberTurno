@@ -38,6 +38,9 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
     @Autowired JornadaRepository jornadas;
     @Autowired RetencionWhatsApp retencion;
     @MockitoSpyBean OperacionesConversacion propuestas;
+    @MockitoSpyBean ConsultasConversacion consultas;
+    @MockitoSpyBean pe.barberturno.notifications.AvisosLimiteIA avisos;
+    @Autowired pe.barberturno.whatsapp.ReceptorMensajesWhatsApp receptor;
     @Autowired pe.barberturno.whatsapp.SalidaWhatsApp salida;
     @Autowired ConversacionesWhatsApp conversaciones;
     @Autowired pe.barberturno.customers.AnonimizacionFichas anonimizacion;
@@ -434,6 +437,127 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         reloj.fijar(reloj.instant().plus(Duration.ofDays(1)));
         ejecutor.ejecutar(a, () -> limites.reservar(t1, 3, peticion()));
         assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT count(*) FROM notificacion WHERE tipo='LIMITE_IA'", Long.class))).isEqualTo(2);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"ultima", "vacia", "recorte"})
+    void dosBusquedas_guardasSoloAceptanLasFilasQueSeEnvian(String caso) {
+        long c = conversacion(a, true), t = encolar(a, c, "Busco horarios");
+        String primera = argumentosDisponibilidad().replace("2026-11-10", "2026-11-04");
+        modelo.programarLlamadas(List.of(
+                llamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, primera),
+                llamada(HerramientaIA.BUSCAR_DISPONIBILIDAD,
+                        "vacia".equals(caso) ? primera.replace("10:00", "23:00")
+                                : "ultima".equals(caso) ? primera.replace("10:00", "15:00") : primera)));
+        String texto = "recorte".equals(caso) ? "Hay opciones a las 17:00." : "Hay opciones a las 10:00.";
+        modelo.programarTexto(texto);
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        var registro = observador.buscarTurno(t).orElseThrow();
+        var mostrar = (EfectoTurno.MostrarFranjas) registro.efecto().orElseThrow();
+        assertThat(mostrar.franjas()).hasSizeLessThanOrEqualTo(10).isNotEmpty();
+        if ("vacia".equals(caso)) {
+            assertThat(registro.herramientas().getLast().resultado().json()).isEqualTo("[]");
+            assertThat(registro.guardas().orElseThrow()).isInstanceOf(ResultadoGuardas.Aceptado.class);
+        } else assertThat(registro.motivoSustitucion()).contains(MotivoGuarda.HORARIO_NO_OFRECIDO);
+        ejecutor.ejecutar(a, () -> {
+            var contenido = mapper.readTree(sql.queryForObject(
+                    "SELECT CAST(contenido AS text) FROM mensaje_whatsapp WHERE conversacion_id=?", String.class, c))
+                    .path("interactivo");
+            var filas = new ArrayList<String>();
+            for (var seccion : contenido.path("action").path("sections"))
+                for (var fila : seccion.path("rows")) filas.add(fila.path("id").asString());
+            assertThat(filas).containsExactlyElementsOf(mostrar.franjas().stream()
+                    .map(f -> f.seleccion().codificar()).toList());
+            assertThat(contenido.path("body").path("text").asString())
+                    .isEqualTo("vacia".equals(caso) ? texto : "Te muestro las opciones disponibles.");
+            return null;
+        });
+    }
+
+    @Test void falloEnDiaPosterior_noConcedeAliasNiCambiaBorrador() {
+        long c = conversacion(a, true);
+        var contexto = new ContextoTurno(a, ficha(a, c), TiempoNegocio.fechaLima(reloj.instant()));
+        ejecutor.ejecutar(a, () -> constructor.construir(c, contexto));
+        ConsultasConversacion destino = AopTestUtils.getUltimateTargetObject(consultas);
+        doAnswer(invocacion -> { throw new IllegalStateException("Fallo simulado del segundo día"); })
+                .when(destino).franjas(anyLong(), any(OptionalLong.class), eq(LocalDate.of(2026, 11, 5)));
+        var resultado = ejecutor.ejecutar(a, () -> herramientas.ejecutar(contexto,
+                llamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, argumentosDisponibilidad())));
+        assertThat(resultado.paraModelo().error()).isTrue();
+        assertThat(resultado.efecto()).isEmpty();
+        assertThat(contexto.franjas).isEmpty();
+        assertThat(contexto.servicioBorrador).isNull();
+        assertThat(ejecutor.ejecutar(a, () -> herramientas.ejecutar(contexto,
+                llamada(HerramientaIA.PROPONER_RESERVA, "{\"franja\":\"f1\"}"))).paraModelo().error()).isTrue();
+        assertThat(operaciones(a)).isZero();
+    }
+
+    @Test void presupuestoAgotadoAntesDeEncolar_avisaEnEntregaBajoBloqueo_ySoloUnaVezPorDia() {
+        long c = conversacion(a, true);
+        sql.update("UPDATE negocio SET ia_presupuesto_mensual_usd=0.01 WHERE id=?", a);
+        ejecutor.ejecutar(a, () -> sql.update("""
+                INSERT INTO uso_ia(negocio_id,dia,llamadas,coste_micro_usd) VALUES (?, ?, 1, 10000)
+                """, a, TiempoNegocio.fechaLima(reloj.instant())));
+        pe.barberturno.notifications.AvisosLimiteIA destino = AopTestUtils.getUltimateTargetObject(avisos);
+        var avisosComprobados = new AtomicInteger();
+        doAnswer(invocacion -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isTrue();
+            long conversacionId = invocacion.getArgument(0);
+            // Otra transacción del rol real no puede adquirir la conversación: la entrega ya la bloqueó.
+            try (var hilo = Executors.newSingleThreadExecutor()) {
+                hilo.submit(() -> ejecutor.ejecutar(a, () -> {
+                    assertThatThrownBy(() -> sql.queryForObject(
+                            "SELECT id FROM conversacion WHERE id=? FOR UPDATE NOWAIT", Long.class, conversacionId))
+                            .hasRootCauseInstanceOf(java.sql.SQLException.class)
+                            .satisfies(error -> assertThat(((java.sql.SQLException)
+                                    org.springframework.core.NestedExceptionUtils.getMostSpecificCause(error)).getSQLState())
+                                    .isEqualTo("55P03"));
+                    return null;
+                })).get(5, TimeUnit.SECONDS);
+            }
+            avisosComprobados.incrementAndGet();
+            return invocacion.callRealMethod();
+        }).when(destino).presupuesto(anyLong());
+        for (int i = 0; i < 2; i++) recibirTextoIA(c);
+        assertThat(avisosComprobados).hasValue(2);
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE tipo='LIMITE_IA' AND conversacion_id=? AND usuario_id=?",
+                Long.class, c, titular.getId()))).isEqualTo(1);
+        reloj.fijar(reloj.instant().plus(Duration.ofDays(1)));
+        recibirTextoIA(conversacion(a, true));
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE tipo='LIMITE_IA'", Long.class))).isEqualTo(2);
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT count(*) FROM turno_ia", Long.class))).isZero();
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT count(*) FROM llamada_ia", Long.class))).isZero();
+        assertThat(modelo.cantidadPeticiones()).isZero();
+    }
+
+    private void recibirTextoIA(long c) {
+        String wa = ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT wa_id FROM conversacion WHERE id=?", String.class, c));
+        var dato = mapper.createObjectNode();
+        dato.putObject("text").put("body", "Busco un corte especial");
+        var mensaje = new pe.barberturno.whatsapp.MensajeEntrante(1, a, wa, ficha(a, c), "Cliente",
+                "wamid.g095." + UUID.randomUUID(), "text", reloj.instant(), dato);
+        ejecutor.ejecutar(a, () -> sql.enTransaccion(() -> { receptor.recibir(mensaje); return null; }));
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void efectoDegradado_aMenuOAclaracion_noSeNotificaComoAplicado(boolean doble) {
+        long c = conversacion(a, true), t = encolar(a, c, "Un corte");
+        programarPropuesta(doble);
+        if (!doble) {
+            OperacionesConversacion destino = AopTestUtils.getUltimateTargetObject(propuestas);
+            doAnswer(invocacion -> new Propuesta.Rechazada(pe.barberturno.common.error.ErrorCodigo.VALIDACION))
+                    .when(destino).proponerCreacion(anyLong(), anyLong(), anyLong(), anyLong(), any(Instant.class));
+        }
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        assertThat(operaciones(a)).isZero();
+        assertThat(mensajes(a, c)).isEqualTo(1);
+        assertThat(observador.buscarTurno(t).orElseThrow().efecto()).isEmpty();
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT CAST(contenido AS text) FROM mensaje_whatsapp WHERE conversacion_id=?", String.class, c)))
+                .contains(doble ? "elige una sola" : new TextosConversacion().noDisponible());
     }
 
     @Test void liquidacion_idempotente_yAgregadoSobreviveAPurga() {
