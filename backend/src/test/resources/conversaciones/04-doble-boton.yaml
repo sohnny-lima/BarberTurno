@@ -34,9 +34,15 @@ pasos:
       seleccionDelUltimoMensaje: 0
     modelo: []
     espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Listo:"]
       reservasCreadas: 1
   - cliente:
       repetirSeleccion: true
     modelo: []
     espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Listo:"]
       reservasCreadas: 1

@@ -240,7 +240,7 @@ public record GuionConversacion(
     /**
      * Expectativas tras procesar un paso del guion (CI-11; 08-pruebas §4.1).
      *
-     * @param mensajes mensajes nuevos esperados en la bandeja de salida
+     * @param mensajes expectativas de todos los salientes nuevos del paso, en orden y con cardinalidad exacta
      * @param reservasCreadas total de reservas activas esperadas en la base
      * @param operacionVigente si debe haber o no una operación pendiente vigente
      * @param modoConversacion modo de la conversación ({@code "ASISTENTE"}, {@code "HUMANO"})
@@ -248,7 +248,7 @@ public record GuionConversacion(
      * @param sustitucionGuardas motivo de sustitución de guardas esperado, o vacío
      * @param llamadasModelo número exacto de llamadas nuevas al modelo realizadas en este paso
      * @param salientesNuevos número exacto de mensajes salientes nuevos generados en este paso
-     * @param peticionNoContiene cadenas que la última petición enviada al modelo NO debe contener
+     * @param peticionNoContiene cadenas prohibidas en cada petición nueva enviada durante el paso
      * @param herramientaError si alguna herramienta ejecutada en este paso devolvió error ({@code is_error})
      */
     public record ExpectativaPaso(

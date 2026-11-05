@@ -269,6 +269,17 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
     }
 
     /**
+     * Incluye instrucciones y definiciones además de contexto, argumentos y resultados para buscar canarios.
+     * @param peticion petición completa enviada al proveedor
+     * @return contenido inspeccionable de todas las partes de la petición
+     */
+    public static String extraerPeticionCompleta(PeticionModelo peticion) {
+        StringBuilder texto = new StringBuilder(peticion.instrucciones()).append('\n').append(extraerTextoCompleto(peticion));
+        for (var herramienta : peticion.herramientas()) texto.append(herramienta.descripcion()).append(herramienta.esquemaJson());
+        return texto.toString();
+    }
+
+    /**
      * Reinicia la cola de respuestas programadas, la lista de peticiones recibidas y el gancho previo.
      */
     public synchronized void reiniciar() {

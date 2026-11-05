@@ -22,6 +22,7 @@ import pe.barberturno.whatsapp.ProcesadorEventosWhatsApp;
 import pe.barberturno.whatsapp.WhatsAppSalidaPruebaBase;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Suite determinista de integración para la conversación guiada con IA (CI-11; 08-pruebas §4.1).
@@ -76,17 +77,61 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
      */
     public ConversacionGuionesIT() { }
 
+    @Test
+    void expectativas_primerSalienteProhibidoNoSeOcultaConElUltimoCorrecto() {
+        asegurarFichaCliente(a, WA_CLIENTE, "Cliente ficticio");
+        insertarSalidaPrueba("prohibido"); insertarSalidaPrueba("correcto");
+        var mensaje = new GuionConversacion.MensajeEsperado(Optional.of("TEXTO"), List.of(), List.of("prohibido"));
+        var espera = new GuionConversacion.ExpectativaPaso(List.of(mensaje, mensaje), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        assertThatThrownBy(() -> comprobarExpectativas(a, WA_CLIENTE, espera, null, null, 0, 2, 0)).isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void expectativas_mensajeAnteriorNoAcreditaSalidaNueva() {
+        asegurarFichaCliente(a, WA_CLIENTE, "Cliente ficticio"); insertarSalidaPrueba("correcto");
+        long ultimo = consultarUltimoMensajeSalienteId(a, WA_CLIENTE);
+        var mensaje = new GuionConversacion.MensajeEsperado(Optional.of("TEXTO"), List.of("correcto"), List.of());
+        var espera = new GuionConversacion.ExpectativaPaso(List.of(mensaje), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        assertThatThrownBy(() -> comprobarExpectativas(a, WA_CLIENTE, espera, null, ultimo, 0, 0, 0)).isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void expectativas_sinMensajesEsperados_rechazaCualquierSalienteNuevo() {
+        asegurarFichaCliente(a, WA_CLIENTE, "Cliente ficticio"); insertarSalidaPrueba("salida inesperada");
+        var espera = new GuionConversacion.ExpectativaPaso(List.of(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        assertThatThrownBy(() -> comprobarExpectativas(a, WA_CLIENTE, espera, null, null, 0, 1, 0)).isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void expectativas_guardaDeTurnoAnteriorNoAcreditaPasoActual() {
+        observadorRegistro.fin(900, "HECHO", Optional.of(new ResultadoGuardas.Sustituido(MotivoGuarda.AFIRMA_OPERACION)), Optional.empty());
+        var espera = new GuionConversacion.ExpectativaPaso(List.of(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.of("AFIRMA_OPERACION"));
+        assertThatThrownBy(() -> comprobarExpectativas(a, WA_CLIENTE, espera, 901L, null, 0, 0, 0)).isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void expectativas_errorDeHerramientaAnteriorNoAcreditaPasoActual() {
+        observadorRegistro.herramienta(900, new LlamadaHerramienta("call", HerramientaIA.LISTAR_SERVICIOS, "{}"),
+                new ResultadoHerramienta("call", "{}", true), List.of());
+        var espera = new GuionConversacion.ExpectativaPaso(List.of(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), List.of(), Optional.of(true));
+        assertThatThrownBy(() -> comprobarExpectativas(a, WA_CLIENTE, espera, 901L, null, 0, 0, 0)).isInstanceOf(AssertionError.class);
+    }
+
+    private void insertarSalidaPrueba(String texto) {
+        ejecutor.ejecutar(a, () -> sql.update("""
+                INSERT INTO mensaje_whatsapp(conversacion_id,direccion,origen,tipo,contenido,estado,creado_en,actualizado_en,proximo_intento)
+                SELECT id,'SALIENTE','ASISTENTE','TEXTO',cast(? as jsonb),'PENDIENTE',?,?,?
+                FROM conversacion WHERE wa_id=?
+                """, mapper.writeValueAsString(Map.of("texto", texto)), Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()), WA_CLIENTE));
+    }
+
     @BeforeEach
     void prepararEscenarioIA() {
         modeloFalso.reiniciar();
         observadorRegistro.reiniciar();
 
         sql.update("UPDATE negocio SET limite_reservas_activas = 3, confirmacion_manual = false WHERE id IN (?, ?)", a, b);
-        try {
-            sql.update("UPDATE negocio SET ia_habilitada = true WHERE id IN (?, ?)", a, b);
-        } catch (Exception e) {
-            // Columna ia_habilitada de V117 pendiente de migración en esta rama
-        }
+        sql.update("UPDATE negocio SET ia_habilitada = true WHERE id IN (?, ?)", a, b);
 
         ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, a, barberoA);
         ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, b, barberoB);
@@ -203,11 +248,7 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
         String phoneNumberId = "B".equalsIgnoreCase(guion.negocio()) ? NUMERO_B : NUMERO_A;
         String waId = WA_CLIENTE;
 
-        try {
-            sql.update("UPDATE negocio SET ia_habilitada = ? WHERE id = ?", guion.iaNegocio(), negocioId);
-        } catch (Exception e) {
-            // Columna de V117 pendiente
-        }
+        sql.update("UPDATE negocio SET ia_habilitada = ? WHERE id = ?", guion.iaNegocio(), negocioId);
 
         if (guion.limiteLlamadasDia().isPresent()) {
             sql.update("UPDATE negocio SET ia_llamadas_dia_conversacion = ? WHERE id = ?",
@@ -217,6 +258,8 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
         if ("10-canarios-dos-negocios".equals(guion.nombre())) {
             sql.update("UPDATE negocio SET nombre = 'Barbería Canario A' WHERE id = ?", a);
             sql.update("UPDATE negocio SET nombre = 'Barbería Canario B' WHERE id = ?", b);
+            ejecutor.ejecutar(b, () -> sql.update("UPDATE barbero SET nombre_visible='Profesional Canario B' WHERE id=?", barberoB));
+            ejecutor.ejecutar(b, () -> sql.update("UPDATE servicio SET nombre='Servicio Canario B' WHERE id=?", servicioB));
         }
 
         if (guion.ficha()) {
@@ -229,6 +272,7 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
 
         for (GuionConversacion.PasoGuion paso : guion.pasos()) {
             Long ultimoMensajeIdAntes = consultarUltimoMensajeSalienteId(negocioId, waId);
+            Long turnoAntes = consultarUltimoTurnoId(negocioId, waId);
             int llamadasModeloAntes = modeloFalso.cantidadPeticiones();
             int salientesAntes = contarMensajesSalientes(negocioId, waId);
 
@@ -292,6 +336,14 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             }
 
             Long turnoIdPaso = consultarUltimoTurnoId(negocioId, waId);
+            if (java.util.Objects.equals(turnoAntes, turnoIdPaso)) {
+                // Un paso sin entrada puede drenar el turno que el gancho del paso anterior dejó pendiente.
+                // Nunca se reutiliza un turno ya terminado para acreditar una guarda o una herramienta.
+                boolean sinEntrada = paso.cliente().texto().isEmpty() && paso.cliente().seleccion().isEmpty()
+                        && paso.cliente().seleccionDelUltimoMensaje().isEmpty() && !paso.cliente().repetirSeleccion().orElse(false);
+                turnoIdPaso = sinEntrada && turnoIdPaso != null && "PENDIENTE".equals(consultarEstadoTurno(negocioId, turnoIdPaso))
+                        ? turnoIdPaso : null;
+            }
 
             if (turnosIA != null) {
                 turnosIA.procesarPendientes();
@@ -301,9 +353,24 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             int salientesDespues = contarMensajesSalientes(negocioId, waId);
 
             comprobarExpectativas(negocioId, waId, paso.espera(), turnoIdPaso, ultimoMensajeIdAntes,
-                    llamadasModeloDespues - llamadasModeloAntes, salientesDespues - salientesAntes);
+                    llamadasModeloDespues - llamadasModeloAntes, salientesDespues - salientesAntes, llamadasModeloAntes);
         }
 
+        if ("10-canarios-dos-negocios".equals(guion.nombre())) {
+            var prohibidos = List.of("Barbería Canario B", "Profesional Canario B", "Servicio Canario B");
+            for (var peticion : modeloFalso.peticiones()) for (String canario : prohibidos)
+                assertThat(ModeloConversacionalFalso.extraerPeticionCompleta(peticion)).doesNotContain(canario);
+            for (var turno : observadorRegistro.turnos()) {
+                for (var h : turno.herramientas()) for (String canario : prohibidos) {
+                    assertThat(h.llamada().argumentosJson()).doesNotContain(canario);
+                    assertThat(h.resultado().json()).doesNotContain(canario);
+                }
+                for (var r : turno.respuestas()) for (String canario : prohibidos)
+                    assertThat(r.texto().orElse("")).doesNotContain(canario);
+            }
+            var salientes = ejecutor.ejecutar(negocioId, () -> sql.queryForList("SELECT contenido::text FROM mensaje_whatsapp WHERE direccion='SALIENTE'", String.class));
+            for (String salida : salientes) for (String canario : prohibidos) assertThat(salida).doesNotContain(canario);
+        }
         modeloFalso.verificarSinDatosPrivados();
     }
 
@@ -314,31 +381,28 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             Long turnoIdPaso,
             Long ultimoMensajeIdAntes,
             int llamadasModeloDelta,
-            int salientesNuevosDelta
+            int salientesNuevosDelta,
+            int peticionesAntes
     ) {
-        MensajeSalientePrueba ultimoMsg = ConversacionPruebas.leerUltimoMensajeSaliente(ejecutor, sql, mapper, negocioId, waId);
-
+        var nuevos = ejecutor.ejecutar(negocioId, () -> sql.queryForList("""
+                SELECT m.tipo,m.contenido::text AS contenido FROM mensaje_whatsapp m
+                JOIN conversacion c ON c.id=m.conversacion_id AND c.negocio_id=m.negocio_id
+                WHERE c.wa_id=? AND m.direccion='SALIENTE' AND m.id>? ORDER BY m.id
+                """, waId, ultimoMensajeIdAntes == null ? 0L : ultimoMensajeIdAntes));
+        assertThat(nuevos).as("Todos los salientes del paso deben tener expectativa, en orden")
+                .hasSize(espera.mensajes().size());
         if (!espera.mensajes().isEmpty()) {
-            assertThat(ultimoMsg)
-                    .as("Se esperaban mensajes salientes para " + waId + " pero no se encontró ninguno")
-                    .isNotNull();
-            assertThat(ultimoMensajeIdAntes == null || ultimoMsg.id() > ultimoMensajeIdAntes)
-                    .as("Se esperaba un mensaje saliente nuevo en este paso")
-                    .isTrue();
-
-            for (GuionConversacion.MensajeEsperado me : espera.mensajes()) {
-                if (me.tipo().isPresent()) {
-                    assertThat(ultimoMsg.tipo()).isEqualTo(me.tipo().get());
-                }
-                for (String c : me.contiene()) {
-                    assertThat(ultimoMsg.texto()).contains(c);
-                }
-                for (String nc : me.noContiene()) {
-                    assertThat(ultimoMsg.texto()).doesNotContain(nc);
-                }
+            for (int i = 0; i < nuevos.size(); i++) {
+                var fila = nuevos.get(i);
+                var me = espera.mensajes().get(i);
+                var contenido = mapper.readTree(fila.get("contenido").toString());
+                String texto = "TEXTO".equals(fila.get("tipo")) ? contenido.path("texto").asText("")
+                        : contenido.path("interactivo").path("body").path("text").asText("");
+                me.tipo().ifPresent(tipo -> assertThat(fila.get("tipo")).isEqualTo(tipo));
+                for (String c : me.contiene()) assertThat(texto).contains(c);
+                for (String nc : me.noContiene()) assertThat(texto).doesNotContain(nc);
             }
         }
-
         if (espera.reservasCreadas().isPresent()) {
             int reservas = contarReservasActivas(negocioId);
             assertThat(reservas).isEqualTo(espera.reservasCreadas().get());
@@ -356,14 +420,10 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
 
         if (espera.sustitucionGuardas().isPresent()) {
             String motivoEsperado = espera.sustitucionGuardas().get();
-            assertThat(observadorRegistro.turnos())
-                    .as("Se esperaba sustitución por guardas pero el observador de turnos está vacío")
-                    .isNotEmpty();
-            boolean sustituido = observadorRegistro.turnos().stream()
-                    .anyMatch(t -> t.motivoSustitucion()
-                            .map(Enum::name)
-                            .filter(m -> m.equalsIgnoreCase(motivoEsperado))
-                            .isPresent());
+            assertThat(turnoIdPaso).as("La sustitución debe pertenecer al turno NUEVO del paso").isNotNull();
+            assertThat(observadorRegistro.buscarTurno(turnoIdPaso)).as("Observación del turno del paso").isPresent();
+            boolean sustituido = observadorRegistro.buscarTurno(turnoIdPaso).orElseThrow().motivoSustitucion()
+                    .map(Enum::name).filter(m -> m.equalsIgnoreCase(motivoEsperado)).isPresent();
             assertThat(sustituido)
                     .as("Se esperaba sustitución por guarda: " + motivoEsperado)
                     .isTrue();
@@ -373,7 +433,7 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             String estadoEsperado = espera.estadoTurno().get();
             String estadoReal = (turnoIdPaso != null)
                     ? consultarEstadoTurno(negocioId, turnoIdPaso)
-                    : consultarUltimoEstadoTurno(negocioId, waId);
+                    : null;
             assertThat(estadoReal)
                     .as("Estado del turno IA de la conversación " + waId)
                     .isEqualTo(estadoEsperado);
@@ -392,11 +452,10 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
         }
 
         if (!espera.peticionNoContiene().isEmpty()) {
-            assertThat(modeloFalso.peticiones())
-                    .as("Se esperaba inspeccionar la petición al modelo pero no se recibieron llamadas")
+            assertThat(modeloFalso.peticiones().subList(peticionesAntes, modeloFalso.cantidadPeticiones()))
+                    .as("Se esperaba inspeccionar peticiones NUEVAS del paso")
                     .isNotEmpty();
-            PeticionModelo ultPeticion = modeloFalso.ultimaPeticion();
-            String textoPeticion = ModeloConversacionalFalso.extraerTextoCompleto(ultPeticion);
+            String textoPeticion = modeloFalso.peticiones().subList(peticionesAntes, modeloFalso.cantidadPeticiones()).stream().map(ModeloConversacionalFalso::extraerPeticionCompleta).collect(java.util.stream.Collectors.joining("\n"));
             for (String prohibido : espera.peticionNoContiene()) {
                 assertThat(textoPeticion)
                         .as("La petición enviada al modelo no debe contener: " + prohibido)
@@ -406,10 +465,9 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
 
         if (espera.herramientaError().isPresent()) {
             boolean esperadoError = espera.herramientaError().get();
-            assertThat(observadorRegistro.turnos())
-                    .as("Se esperaba verificar resultado de herramienta pero no hay turnos observados")
-                    .isNotEmpty();
-            var ultimoTurnoObs = observadorRegistro.turnos().get(observadorRegistro.turnos().size() - 1);
+            assertThat(turnoIdPaso).as("El error de herramienta debe pertenecer al turno NUEVO del paso").isNotNull();
+            assertThat(observadorRegistro.buscarTurno(turnoIdPaso)).as("Observación del turno del paso").isPresent();
+            var ultimoTurnoObs = observadorRegistro.buscarTurno(turnoIdPaso).orElseThrow();
             assertThat(ultimoTurnoObs.herramientas())
                     .as("No se registraron herramientas en el turno observado")
                     .isNotEmpty();
