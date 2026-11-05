@@ -198,6 +198,8 @@ export class Shell {
     this.destroyRef.onDestroy(
       this.sesion.registrarLimpieza(() => {
         mensajes.dismiss();
+        this.tituloVista.texto.set(null);
+        this.tituloVista.actualizarAgenda.set(null);
         return this.historial.cerrarTodas();
       }),
     );
