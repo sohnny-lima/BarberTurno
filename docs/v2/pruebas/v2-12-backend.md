@@ -300,3 +300,112 @@ HTTP locales y sus ejecutores se cerraron en las pruebas. No se crearon worktree
 No se modificó ningún archivo fuera del inventario, ninguna etiqueta (incluida `T-03-registro`), remoto,
 configuración de Codex, base v1, Azure, APF2 o entregable. P2-03, P2-06, el presupuesto y la revisión de la
 evaluación real siguen pendientes del responsable; no se ejecutó el arnés ni se usó ninguna clave real.
+
+## Correcciones de g095
+
+Encargo 130, 04/11/2026. Partida `22d81a230b636b1cbc4ed277c7bb4b6d2dec6c7b`,
+rama `tarea/V2-12-conversacion-ia-backend`, inicialmente limpia. Esta sección registra únicamente
+las correcciones solicitadas; el estado histórico del encargo 128 no constituye el cierre de V2-12.
+
+- **g095-1:** `HerramientasReserva` consulta todos los días del rango antes de registrar los alias,
+  aunque ya haya reunido las veinte candidatas máximas. Un fallo posterior no concede capacidades
+  parciales ni cambia el borrador. Una búsqueda vacía devuelve `[]` sin `MostrarFranjas`.
+  **Decisión:** se conserva la última búsqueda con resultados, que representa el filtro más reciente;
+  una consulta vacía no la sustituye. `TurnosIAService` recorta ese efecto a las diez filas de §5 antes
+  de revisar el texto y enviar la lista; las guardas solo reciben esas filas. Si prevalece una propuesta,
+  un consentimiento, una derivación o texto, reciben una lista vacía.
+- **g095-2:** `LimitesIAService.disponibilidad` emite el aviso también cuando el gasto ya está agotado
+  antes del encolado. Reutiliza `AvisosLimiteIA.presupuesto` y su marcador atómico diario, sin cambiar
+  DDL ni destinatario. Se elimina la segunda consulta de disponibilidad en `reservar`.
+  El orquestador invoca esta ruta en la transacción de entrega después de `conversaciones.bloquear`;
+  el trabajador sigue validando conversación y turno antes de reservar presupuesto.
+- **g095-5.2:** el observador recibe el efecto aplicado después del commit, o vacío si dos propuestas
+  distintas exigen aclaración o si el dominio rechaza la propuesta y se envía el menú. El efecto de
+  franjas observado contiene exactamente las filas enviadas.
+
+`TurnosIAIT` añade cuatro métodos de regresión (siete invocaciones): dos búsquedas con resultados,
+segunda búsqueda vacía y recorte a diez filas; fallo del segundo día sin alias ni borrador residuales;
+presupuesto agotado antes del encolado con aviso diario y destinatario propietario; degradación por
+dos propuestas o rechazo del dominio. En la prueba del aviso, una segunda transacción con el rol real
+intenta `FOR UPDATE NOWAIT` sobre la conversación y recibe SQLState `55P03`: demuestra que la entrega
+ya mantiene el bloqueo. También se comprueba la transacción activa, cero turnos/llamadas y cero HTTP
+al modelo. Se reutiliza el contexto existente, con `@DirtiesContext(AFTER_CLASS)` heredado.
+
+Javadoc ampliado en `HerramientasReserva.ejecutar` (capacidades atómicas y búsqueda vacía) y
+`LimitesIAService.disponibilidad` (bloqueo previo, aviso en la entrega, parámetro y resultado).
+No se añaden endpoints ni contratos nuevos.
+
+Órdenes mediante el ejecutor serializado obligatorio, con JDK Temurin 21.0.8, Maven 3.9.16 y
+PostgreSQL 18.6 en `localhost:5433`, exclusivamente `barberturno_v2_test`:
+
+```powershell
+pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 `
+  -Worktree D:\Proyectos\BarberTurno-v2-12-backend -Registro target\g095-pruebas.log `
+  '-Dtest=TurnosIAIT,DerivacionConversacionIT,OrquestadorConversacionIT,OrquestadorConversacionTest' test
+pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 `
+  -Worktree D:\Proyectos\BarberTurno-v2-12-backend -Registro target\g095-pruebas-final.log `
+  '-Dtest=TurnosIAIT,DerivacionConversacionIT,OrquestadorConversacionIT,OrquestadorConversacionTest' test
+pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 `
+  -Worktree D:\Proyectos\BarberTurno-v2-12-backend -Registro target\g095-verify.log `
+  -DskipTests verify
+```
+
+Repetición final (`g095-pruebas-final.log`): **BUILD SUCCESS**, código 0,
+**89 pruebas, 0 fallos, 0 errores, 0 omisiones**: `TurnosIAIT` 40,
+`DerivacionConversacionIT` 4, `OrquestadorConversacionIT` 8 y `OrquestadorConversacionTest` 37.
+Se mantiene acotada la verificación: no se ejecutan suites generales ni evaluación en vivo.
+
+`g095-verify.log`: **BUILD SUCCESS**, código 0, 35,400 s. Pruebas omitidas expresamente;
+empaquetado correcto, `All coverage checks have been met` de JaCoCo y Javadoc sin avisos.
+No se afirma una nueva ejecución de la suite completa: JaCoCo usa los datos locales acumulados.
+
+Commit de implementación y regresiones: `8ff6dd9e578da9c9b50516210c9ffde609ef0ef8`
+(`fix(conversacion): corregir franjas, aviso y efecto observado [V2-12]`).
+Esta sección se cierra en el commit documental `docs: registrar las correcciones de g095 [V2-12]`,
+cuyo hash se entrega en el informe final. **Merge: ninguno. Push: ninguno.**
+
+Primer intento Maven (`g095-pruebas.log`, código 1): **89 pruebas, 3 fallos, 0 errores/omisiones**.
+Los tres casos de listas fallaron por buscar `action.sections` en la raíz del JSON persistido, en vez
+de dentro de `interactivo`. Se corrigió únicamente esa ruta de lectura; se mantiene la comparación
+exacta de todas las filas contra el efecto observado, sin debilitar la prueba. Extracto de la salida:
+
+```text
+[ERROR] Tests run: 40, Failures: 3, Errors: 0, Skipped: 0 -- in pe.barberturno.conversation.ia.TurnosIAIT
+org.opentest4j.AssertionFailedError:
+Expecting actual:
+  []
+to contain exactly (and in same order):
+  ["f:1:1:1793822400", ...]
+[ERROR] Tests run: 89, Failures: 3, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+```
+
+La salida íntegra de las tres aserciones permanece en `backend/target/g095-pruebas.log`.
+
+Incidencias de entorno: la consulta inicial de Git fue rechazada por propiedad dudosa y se repitió
+con escalada aprobada, sin tocar ACL, propietarios ni configuración. `rg` no está instalado y se usa
+`Select-String`. El primer intento del ejecutor no pudo crear su cerrojo fuera del sandbox:
+
+```text
+mvn-v2-test.ps1: Excepción al llamar a "Open" con "4" argumentos: "Access to the path 'D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock' is denied."
+```
+
+Se repitió mediante escalada aprobada; aquel intento no llegó a ejecutar Maven ni abrir la base.
+
+Hallazgo documental para Claude: el Javadoc de `LimitesIA.disponibilidad` aún dice «no escribe nada».
+La corrección explícita g095-2 autoriza el aviso; se deja esa interfaz intacta por estar fuera del alcance.
+
+Riesgo aceptado **g095-3:** `agotado` reserva el margen de la última llamada; Claude añadirá la validación de `plazoTurno > tiempoLlamada` en `IaPropiedades`.
+
+Riesgo aceptado **g095-4:** el primer turno de IA omite los salientes previos de la sesión guiada por el corte conservador `max(id)`, conforme al contexto mínimo de §7.
+
+Comprobación de cierre: solo cinco archivos modificados (los tres servicios, `TurnosIAIT` y esta sección);
+`ContextoTurno` y `AvisosLimiteIA` no necesitaron cambios. `git diff --check` correcto antes de cada
+commit; UTF-8 válido sin BOM y LF en los cinco archivos. Sin cambios en `docs/tareas.md`, backlog,
+README, requisitos, arquitectura, AGENTS, CLAUDE, contratos, DDL, material APF2, entregables, evidencias
+v1, etiquetas, remotos, configuración de Codex, ACL, Azure ni bases v1. Sin acceso a
+`.local/coordinacion/`, exposición de secretos, evaluación en vivo ni llamadas reales a Anthropic.
+No se crearon servidores ni worktrees. Los ejecutores terminaron; ambas JVM de pruebas
+(209144 y 89248) ya no existen. Solo permanece el Java preexistente 79804 (inicio 14:44:59), intacto;
+no quedan procesos propios de este encargo. La repetición esperó el cerrojo común antes de arrancar,
+sin retirar cerrojos ajenos ni solapar ejecuciones contra PostgreSQL.
