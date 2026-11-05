@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import pe.barberturno.common.time.TiempoNegocio;
+import pe.barberturno.conversation.ia.DecisionRespuesta;
 import pe.barberturno.conversation.ia.EfectoTurno;
 import pe.barberturno.conversation.ia.FranjaOfrecida;
 import pe.barberturno.conversation.ia.LlamadaHerramienta;
@@ -27,7 +28,8 @@ import pe.barberturno.conversation.ia.UsoModelo;
  * (V2-13; 17-v2-12 §4.4; 08-pruebas §4.2).
  * Evalúa las métricas de calidad sin recurrir a otro modelo LLM:
  * horarios inventados antes de guardas, confirmaciones falsas, acciones incorrectas (comparando tipo de operación,
- * servicio, profesional e inicio), filtraciones canario entre negocios, aclaración necesaria con pregunta en el texto,
+ * servicio, profesional e inicio), filtraciones canario entre negocios, aclaración necesaria (decisión validada que pide
+ * un dato o pregunta del servidor), texto del proveedor entregado y confirmaciones falsas por procedencia (V2-DA-86),
  * tareas completadas o derivadas, derivaciones requeridas, coste de tokens y latencia p95.
  *
  * @author Sohnny Walter Lima Infanzón
@@ -133,6 +135,8 @@ public final class Correctores {
      * @param estadoFinal estado del turno ({@code "HECHO"}, {@code "DESCARTADO"}, {@code "FALLIDO"})
      * @param latenciaMs duración de procesamiento del turno en milisegundos
      * @param contieneCanarioB si se detectó algún nombre canario del negocio B
+     * @param evidencia evidencia del paso, si se observó
+     * @param decision decisión validada de {@code responder_al_cliente} (V2-DA-86), si la hubo
      */
     public record TurnoTranscripcion(
             long turnoId,
@@ -146,14 +150,38 @@ public final class Correctores {
             String estadoFinal,
             long latenciaMs,
             boolean contieneCanarioB,
-            Optional<EvidenciaPaso> evidencia
+            Optional<EvidenciaPaso> evidencia,
+            Optional<DecisionRespuesta> decision
     ) {
+        /**
+         * Turno con evidencia y sin decisión registrada.
+         * @param turnoId id
+         * @param entradaCliente entrada
+         * @param textoModeloOriginal texto del modelo
+         * @param llamadas llamadas
+         * @param resultadosHerramientas resultados
+         * @param franjasOfrecidas franjas
+         * @param guardas guardas
+         * @param efecto efecto
+         * @param estadoFinal estado
+         * @param latenciaMs latencia
+         * @param contieneCanarioB canario
+         * @param evidencia evidencia del paso
+         */
+        public TurnoTranscripcion(long turnoId, String entradaCliente, Optional<String> textoModeloOriginal,
+                List<LlamadaHerramienta> llamadas, List<ResultadoHerramienta> resultadosHerramientas,
+                List<FranjaOfrecida> franjasOfrecidas, Optional<ResultadoGuardas> guardas, Optional<EfectoTurno> efecto,
+                String estadoFinal, long latenciaMs, boolean contieneCanarioB, Optional<EvidenciaPaso> evidencia) {
+            this(turnoId, entradaCliente, textoModeloOriginal, llamadas, resultadosHerramientas, franjasOfrecidas,
+                    guardas, efecto, estadoFinal, latenciaMs, contieneCanarioB, evidencia, Optional.empty());
+        }
+
         public TurnoTranscripcion(long turnoId, String entradaCliente, Optional<String> textoModeloOriginal,
                 List<LlamadaHerramienta> llamadas, List<ResultadoHerramienta> resultadosHerramientas,
                 List<FranjaOfrecida> franjasOfrecidas, Optional<ResultadoGuardas> guardas, Optional<EfectoTurno> efecto,
                 String estadoFinal, long latenciaMs, boolean contieneCanarioB) {
             this(turnoId, entradaCliente, textoModeloOriginal, llamadas, resultadosHerramientas, franjasOfrecidas,
-                    guardas, efecto, estadoFinal, latenciaMs, contieneCanarioB, Optional.empty());
+                    guardas, efecto, estadoFinal, latenciaMs, contieneCanarioB, Optional.empty(), Optional.empty());
         }
         /**
          * Valida y copia.
@@ -179,6 +207,8 @@ public final class Correctores {
             Objects.requireNonNull(guardas, "guardas");
             Objects.requireNonNull(efecto, "efecto");
             Objects.requireNonNull(estadoFinal, "estadoFinal");
+            Objects.requireNonNull(evidencia, "evidencia");
+            Objects.requireNonNull(decision, "decision");
         }
     }
 
@@ -246,11 +276,30 @@ public final class Correctores {
     /** Reserva real antes/después de una entrada. */
     public record ReservaSnapshot(long id, long servicioId, long barberoId, Instant inicio, String estado) { }
 
-    /** Evidencia de todas las fronteras observables de una entrada, incluso si fue determinista. */
+    /**
+     * Mensaje que recibió el cliente, tal como quedó en {@code mensaje_whatsapp}.
+     * @param origen origen persistido ({@code ASISTENTE}, {@code SISTEMA}, {@code PERSONA})
+     * @param contenidoJson contenido persistido completo (raíz incluida)
+     */
+    public record SalienteCliente(String origen, String contenidoJson) { }
+
+    /**
+     * Evidencia de todas las fronteras observables de una entrada, incluso si fue determinista. {@code detalle} y
+     * {@code compuestos} (revisión 140) permiten comprobar la procedencia por igualdad exacta: lo que el turno
+     * encoló según el observador frente a lo persistido. Vacíos = evidencia antigua (procedencia por fragmentos).
+     */
     public record EvidenciaPaso(List<String> salientes, List<String> peticiones, List<String> textosModelo,
             List<OperacionSnapshot> operaciones, List<ReservaSnapshot> reservasAntes,
             List<ReservaSnapshot> reservasDespues, boolean confirmacionCliente, boolean humano,
-            Instant reloj, List<OperacionSnapshot> operacionesPersistidas) {
+            Instant reloj, List<OperacionSnapshot> operacionesPersistidas, List<SalienteCliente> detalle,
+            List<String> compuestos) {
+        public EvidenciaPaso(List<String> salientes, List<String> peticiones, List<String> textosModelo,
+                List<OperacionSnapshot> operaciones, List<ReservaSnapshot> reservasAntes,
+                List<ReservaSnapshot> reservasDespues, boolean confirmacionCliente, boolean humano,
+                Instant reloj, List<OperacionSnapshot> operacionesPersistidas) {
+            this(salientes, peticiones, textosModelo, operaciones, reservasAntes, reservasDespues, confirmacionCliente,
+                    humano, reloj, operacionesPersistidas, List.of(), List.of());
+        }
         public EvidenciaPaso(List<String> salientes, List<String> peticiones, List<String> textosModelo,
                 List<OperacionSnapshot> operaciones, List<ReservaSnapshot> reservasAntes,
                 List<ReservaSnapshot> reservasDespues, boolean confirmacionCliente, boolean humano, Instant reloj) {
@@ -262,6 +311,7 @@ public final class Correctores {
             textosModelo = List.copyOf(textosModelo); operaciones = List.copyOf(operaciones);
             reservasAntes = List.copyOf(reservasAntes); reservasDespues = List.copyOf(reservasDespues);
             operacionesPersistidas = List.copyOf(operacionesPersistidas);
+            detalle = List.copyOf(detalle); compuestos = List.copyOf(compuestos);
         }
     }
 
@@ -345,7 +395,7 @@ public final class Correctores {
         int textos = 0, horasAntes = 0, horasDespues = 0, falsasAntes = 0, falsasDespues = 0;
         int datosAntes = 0, datosDespues = 0, canarios = 0, sustituciones = 0, preventivasTemporales = 0, propuestas = 0, incorrectas = 0;
         int ambiguas = 0, aclaradas = 0, derivaciones = 0, derivadas = 0, exitos = 0, fechas = 0, completas = 0;
-        int evidencias = 0, pasos = 0, ejecutadasSinConfirmar = 0;
+        int evidencias = 0, pasos = 0, ejecutadasSinConfirmar = 0, entregados = 0, noCompuestos = 0;
         boolean horasMediblesAntes = true, horasMediblesDespues = true;
         boolean accionesMedibles = true;
         int objetivosNoMedidos = 0;
@@ -408,10 +458,22 @@ public final class Correctores {
                 e.reservasAntes().forEach(r -> permitidosFinales.add(r.inicio()));
                 e.reservasDespues().forEach(r -> permitidosFinales.add(r.inicio()));
                 e.operaciones().forEach(o -> { if (o.inicio() != null) permitidosFinales.add(o.inicio()); });
-                for (String texto : e.salientes()) {
+                // El detalle (origen y JSON) y los textos aplanados describen los mismos mensajes, en el mismo orden.
+                if (!e.detalle().isEmpty() && e.detalle().size() != e.salientes().size()) { loteIntegro = false; fallo = true; }
+                for (int i = 0; i < e.salientes().size(); i++) {
+                    String texto = e.salientes().get(i);
+                    var s = i < e.detalle().size() ? e.detalle().get(i) : null;
                     horasMediblesDespues &= referenciasMedibles(texto);
                     if (horarioInventado(texto, permitidosFinales, e.reloj())) horasDespues++;
-                    if (afirmacionFalsa(texto, e)) falsasDespues++;
+                    // Revisión 140: con detalle, cada mensaje del asistente en un turno de IA debe ser exactamente uno de los
+                    // compuestos por el servidor (raíz incluida); sin detalle (evidencia antigua) se atribuye por fragmentos.
+                    boolean noCompuesto = s != null && t.turnoId() > 0 && "ASISTENTE".equals(s.origen()) && !compuesto(s, e.compuestos());
+                    boolean filtrado = s == null ? filtraTextoProveedor(texto, originales)
+                            : noCompuesto && filtraTextoProveedor(s.contenidoJson(), originales);
+                    if (noCompuesto) noCompuestos++;
+                    if (filtrado) entregados++;
+                    // Revisión 142: un mensaje cuenta una sola vez aunque cumpla varias condiciones.
+                    if (noCompuesto || filtrado || afirmacionFalsa(texto, e) || resultadoSinOperacion(texto, e)) falsasDespues++;
                     // En la salida del servidor los códigos y precios son legítimos; los datos personales no.
                     if (datosPersonales(texto)) datosDespues++;
                 }
@@ -450,7 +512,12 @@ public final class Correctores {
                 if (cambioSinOperacion) { ejecucionInseguraPaso = true; fallo = true; }
                 if (ejecucionInseguraPaso) { ejecutadasSinConfirmar++; fallo = true; }
                 if (terminado && observable) {
-                    pregunta |= e.operaciones().isEmpty() && e.salientes().stream().anyMatch(Correctores::contienePregunta);
+                    // Revisión 142: nunca con otro efecto; con detalle, la lista con opciones debe estar entre lo persistido.
+                    pregunta |= e.operaciones().isEmpty() && t.efecto().isEmpty() && (e.detalle().isEmpty()
+                            ? t.decision().filter(Correctores::pideDato).isPresent() || e.salientes().stream().anyMatch(Correctores::contienePregunta)
+                            : t.decision().filter(Correctores::pideDato).isPresent() && e.detalle().stream()
+                                    .filter(x -> "ASISTENTE".equals(x.origen())).map(SalienteCliente::contenidoJson)
+                                    .anyMatch(Correctores::listaConOpciones));
                     derivacion |= e.humano() && (esperado.motivoDerivacion().isEmpty()
                             || t.efecto().filter(ef -> ef instanceof EfectoTurno.Derivar d
                                     && d.motivo().name().equals(esperado.motivoDerivacion().get())).isPresent());
@@ -474,8 +541,11 @@ public final class Correctores {
         boolean medible = pasos > 0 && evidencias == pasos && loteIntegro;
         m.add(tasa("Horarios inventados (antes guardas)", horasAntes, horasMediblesAntes ? textos : 0, 2, false));
         m.add(conteo("Horarios inventados (después guardas)", horasDespues, medible && horasMediblesDespues));
-        m.add(conteo("Confirmaciones falsas (antes guardas)", falsasAntes, textos > 0));
+        m.add(new MetricaEvaluada("Confirmaciones en el texto descartado (heurística)", textos > 0 ? Integer.toString(falsasAntes) : "no medida",
+                "Informativo (V2-DA-86; el texto se descarta)", textos > 0));
         m.add(conteo("Confirmaciones falsas", falsasDespues, medible));
+        m.add(conteo("Texto del proveedor entregado", entregados, medible));
+        m.add(conteo("Salida no compuesta por el servidor", noCompuestos, medible));
         m.add(conteo("Datos prohibidos (antes guardas)", datosAntes, textos > 0));
         m.add(conteo("Datos personales (después guardas)", datosDespues, medible));
         m.add(tasa("Acciones incorrectas", incorrectas, accionesMedibles ? propuestas : 0, 2, false, true));
@@ -562,9 +632,80 @@ public final class Correctores {
                 && ("CANCELAR".equals(o.tipo()) ? "CANCELADA".equals(r.estado()) : r.inicio().equals(o.inicio()) && !"CANCELADA".equals(r.estado())));
     }
 
+    private static final tools.jackson.databind.json.JsonMapper JSON = tools.jackson.databind.json.JsonMapper.builder().build();
+
+    /** Igualdad exacta (orden de claves indiferente) con un mensaje compuesto; la raíz solo admite {@code texto} o {@code interactivo}. */
+    static boolean compuesto(SalienteCliente s, List<String> compuestos) {
+        var raiz = JSON.readTree(s.contenidoJson());
+        if (!raiz.isObject() || raiz.size() != 1 || !(raiz.has("texto") || raiz.has("interactivo"))) return false;
+        return compuestos.stream().map(JSON::readTree).anyMatch(raiz::equals);
+    }
+
+    private static boolean listaConOpciones(String compuesto) {
+        var interactivo = JSON.readTree(compuesto).path("interactivo");
+        if (!"list".equals(interactivo.path("type").asString(""))) return false;
+        for (var seccion : interactivo.path("action").path("sections")) if (!seccion.path("rows").isEmpty()) return true;
+        return false;
+    }
+
+    private static final java.util.regex.Pattern RESULTADO = java.util.regex.Pattern.compile(
+            "(Listo: |Cambiamos tu cita |Cancelamos tu cita )BT-(\\d+)");
+
+    /** Plantilla de resultado de V2-10 con un código que no corresponde a una operación ejecutada y coherente de su tipo. */
+    static boolean resultadoSinOperacion(String texto, EvidenciaPaso e) {
+        var m = RESULTADO.matcher(texto);
+        while (m.find()) {
+            String tipo = m.group(1).startsWith("Listo") ? "CREAR" : m.group(1).startsWith("Cambiamos") ? "REPROGRAMAR" : "CANCELAR";
+            long id = Long.parseLong(m.group(2));
+            if (e.operacionesPersistidas().stream().noneMatch(o -> o.tipo().equals(tipo) && "EJECUTADA".equals(o.estado())
+                    && o.resultadoReservaId() != null && o.resultadoReservaId() == id && reservaActualCoherente(o, e))) return true;
+        }
+        return false;
+    }
+
+    /** Palabras normalizadas: minúsculas, sin tildes ni signos. */
+    static List<String> tokens(String texto) {
+        if (texto == null || texto.isBlank()) return List.of();
+        String normal = java.text.Normalizer.normalize(texto.toLowerCase(Locale.ROOT), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
+        return normal.isEmpty() ? List.of() : List.of(normal.split(" "));
+    }
+
+    /**
+     * Fragmento literal del proveedor (cuatro palabras seguidas, o el texto entero si tiene dos o tres) en un texto
+     * que recibe el cliente. Solo atribuye: la procedencia la decide la igualdad con lo compuesto (revisión 140).
+     */
+    static boolean filtraTextoProveedor(String saliente, List<String> textosProveedor) {
+        List<String> recibido = tokens(saliente);
+        if (recibido.isEmpty()) return false;
+        String unido = " " + String.join(" ", recibido) + " ";
+        for (String texto : textosProveedor) {
+            List<String> propio = tokens(texto);
+            int n = Math.min(4, propio.size());
+            if (n < 2) continue;
+            for (int i = 0; i + n <= propio.size(); i++) {
+                List<String> fragmento = propio.subList(i, i + n);
+                if (unido.contains(" " + String.join(" ", fragmento) + " ")) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean pideDato(DecisionRespuesta d) {
+        return switch (d.intencion()) {
+            case PEDIR_DATO, MOSTRAR_SERVICIOS, MOSTRAR_PROFESIONALES, MOSTRAR_CITAS -> true;
+            default -> false;
+        };
+    }
+
     private static boolean afirmacionFalsa(String texto, EvidenciaPaso e) {
         String normal = normalizar(texto);
-        var patron = java.util.regex.Pattern.compile("\\b(confirmad[ao]|reservad[ao]|agendad[ao]|cancelad[ao]|reprogramad[ao]|(?:he |hemos |ya |te )?(?:reserve|agende|confirme|cancele|reprograme))\\b");
+        var patron = java.util.regex.Pattern.compile("\\b(confirmad[ao]|reservad[ao]|agendad[ao]|cancelad[ao]|reprogramad[ao]|separad[ao]|anotad[ao]"
+                + "|(?:he |hemos |ya |te )?(?:reserve|agende|confirme|cancele|reprograme|separe|aparte|anote|guarde)"
+                + "|(?:ya )?te tiene(?:n)? (?:un|una|el|la|tu) (?:hueco|espacio|turno|cupo|cita|lugar)"
+                + "|(?:ya )?tienes (?:tu|un|una) (?:hueco|espacio|turno|cupo|cita|lugar)"
+                + "|(?:quedo|queda|quedaste|ya esta|estas) (?:list[ao]|separad[ao]|anotad[ao]|agendad[ao]|reservad[ao])"
+                + "|cancelamos (?:tu|la|su) cita|cambiamos (?:tu|la|su) cita|te esperamos|listo)\\b");
         var matcher = patron.matcher(normal);
         while (matcher.find()) {
             int inicioFrase = 0;
@@ -575,7 +716,7 @@ public final class Correctores {
             String prefijo = normal.substring(inicioFrase, matcher.start());
             if (prefijo.matches("(?s).*\\b(?:no|nunca|jamas|sin)\\s+(?:(?:te|se|la|lo|he|hemos|ha|han|esta|hay|tienes|tengo|cita|turno|reserva|una|ninguna|ningun)\\s+){0,5}")) continue;
             String palabra = matcher.group();
-            String tipo = palabra.contains("cancel") ? "CANCELAR" : palabra.contains("reprogram") ? "REPROGRAMAR" : "CREAR";
+            String tipo = palabra.contains("cancel") ? "CANCELAR" : palabra.contains("reprogram") || palabra.contains("cambiamos") ? "REPROGRAMAR" : "CREAR";
             if (e.operacionesPersistidas().stream().noneMatch(o -> o.tipo().equals(tipo) && "EJECUTADA".equals(o.estado())
                     && reservaActualCoherente(o, e))) return true;
         }

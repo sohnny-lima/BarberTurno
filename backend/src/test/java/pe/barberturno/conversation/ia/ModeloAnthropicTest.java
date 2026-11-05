@@ -79,6 +79,14 @@ class ModeloAnthropicTest {
             assertThat(herramienta.path("input_schema").path("required").size())
                     .isEqualTo(herramienta.path("input_schema").path("properties").size());
         }
+        var terminal = java.util.stream.StreamSupport.stream(enviada.path("tools").spliterator(), false)
+                .filter(h -> h.path("name").asString().equals("responder_al_cliente")).findFirst().orElseThrow();
+        var esquema = terminal.path("input_schema");
+        assertThat(esquema.path("properties").size()).isEqualTo(4);
+        assertThat(esquema.path("required").toString()).contains("intencion", "falta", "servicio", "profesional");
+        assertThat(esquema.path("properties").path("intencion").path("enum").size()).isEqualTo(7);
+        assertThat(esquema.path("properties").path("falta").path("enum").size()).isEqualTo(5);
+        assertThat(esquema.path("properties").path("profesional").toString()).contains("cualquiera");
         for (String ausente : List.of("temperature", "top_p", "top_k", "tool_choice", "fallbacks"))
             assertThat(enviada.has(ausente)).as(ausente).isFalse();
         assertThat(enviada.toString()).doesNotContain("wa_id", "@", "BT-", "PERSONA", "cliente_id", "negocio_id");
@@ -90,6 +98,7 @@ class ModeloAnthropicTest {
     @Test void pensamientoYResultados_vuelvenIntactosYJuntos() throws Exception {
         String bloques = """
                 [{"type":"thinking","thinking":"razonamiento-ficticio","signature":"firma-ficticia"},
+                 {"type":"redacted_thinking","data":"cifrado-ficticio"},
                  {"type":"text","text":"Voy a consultar."},
                  {"type":"tool_use","id":"t1","name":"listar_servicios","input":{}},
                  {"type":"tool_use","id":"t2","name":"listar_profesionales","input":{}}]
@@ -99,11 +108,18 @@ class ModeloAnthropicTest {
         recibidas.remove();
         assertThat(primera.llamadas()).hasSize(2);
         assertThat(primera.continuacion().toString()).doesNotContain("razonamiento", "firma-ficticia");
-        planes.add(new Plan(200, respuesta("end_turn", "[{\"type\":\"text\",\"text\":\"Elige una opción.\"}]"), 0));
-        modelo.responder(peticion(List.of(new MensajeModelo.DelCliente("Un corte"),
+        planes.add(new Plan(200, respuesta("tool_use", """
+                [{"type":"tool_use","id":"terminal","name":"responder_al_cliente",
+                  "input":{"intencion":"PEDIR_DATO","falta":"DIA","servicio":"s1","profesional":"cualquiera"}}]
+                """), 0));
+        var cierre = modelo.responder(peticion(List.of(new MensajeModelo.DelCliente("Un corte"),
                 new MensajeModelo.DelAsistente(primera.texto(), primera.llamadas(), primera.continuacion()),
                 new MensajeModelo.ResultadosHerramientas(List.of(new ResultadoHerramienta("t1", "[]", false),
                         new ResultadoHerramienta("t2", "{}", true))))));
+        assertThat(cierre.llamadas()).singleElement().satisfies(l -> {
+            assertThat(l.herramienta()).isEqualTo(HerramientaIA.RESPONDER_AL_CLIENTE);
+            assertThat(l.argumentosJson()).contains("cualquiera");
+        });
         var enviados = json.readTree(recibidas.remove()).path("messages");
         assertThat(enviados.get(1).path("content")).isEqualTo(json.readTree(bloques));
         var resultados = enviados.get(2).path("content");

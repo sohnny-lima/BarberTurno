@@ -22,7 +22,8 @@ pasos:
     espera:
       mensajes:
         - tipo: "INTERACTIVO"
-          contiene: ["Te muestro las opciones disponibles."]
-          noContiene: ["5 y media"]
+          contiene: ["Estos son los horarios disponibles. Elige uno:"]
+          noContiene: ["5 y media", "Te tengo un horario"]
       sustitucionGuardas: "HORARIO_NO_OFRECIDO"
+      textoDescartado: "Te tengo un horario hoy a las 5 y media de la tarde con Carlos."
       estadoTurno: "HECHO"

@@ -18,7 +18,33 @@ Texto íntegro de `barberturno.whatsapp.conversacion.privacidad.texto` en `appli
 > Hola, soy el asistente de reservas de {negocio}. Para reservar guardaremos tu nombre de WhatsApp y tu número, y los usaremos solo para gestionar tus citas con {negocio}. Puedes leer el aviso de privacidad en {enlace}. ¿Aceptas?
 
 ### 1.3 Qué debería contener el aviso enlazado (lista de comprobación, no texto legal)
-Identidad y contacto del responsable del tratamiento, y del encargado si lo hay (§3, D3); finalidad; datos tratados (§2); destinatarios y transferencias (Meta como proveedor de WhatsApp); plazos (§2); cómo ejercer los derechos de acceso, rectificación, cancelación y oposición; consecuencias de no aceptar (se puede consultar, pero no reservar); y fecha y versión del aviso.
+Identidad y contacto del responsable del tratamiento, y del encargado si lo hay (§3, D3); finalidad; datos tratados (§2); destinatarios y transferencias (Meta como proveedor de WhatsApp y, si se activa, el proveedor de IA: §1.4); plazos (§2); cómo ejercer los derechos de acceso, rectificación, cancelación y oposición; consecuencias de no aceptar (se puede consultar, pero no reservar); y fecha y versión del aviso.
+
+### 1.4 Qué enviaría el adaptador al proveedor de IA (V2-12; V2-DA-81 y V2-DA-86) — BORRADOR
+> Hoy **no se envía nada**: sin clave (P2-03) la IA está desactivada y los clientes reciben los menús guiados. Esta sección describe el flujo **si** el responsable activa la IA, para que el aviso de privacidad y D2/D7 lo cubran. No afirma que el flujo cumpla la ley ni que esté aprobado.
+
+**Cuándo:** solo cuando un cliente escribe texto libre en WhatsApp, la IA está habilitada para la barbería y no se alcanzó ningún límite (`17-…` §6). Los botones y las listas no pasan por la IA.
+
+**Qué se envía en cada llamada** (lista blanca de `ConstructorContextoModelo` y resultados de las herramientas):
+
+| Dato | Por qué | Personal |
+|---|---|---|
+| Texto del mensaje del cliente, **saneado**: teléfonos y correos sustituidos por `[dato]` (`SaneadorTexto`), como máximo 2000 caracteres | Entender la petición | Sí: lo que el cliente escriba (puede incluir nombres u otros datos que no sean teléfono ni correo) |
+| Nombre de la barbería, fecha y hora actuales en Lima | Interpretar «mañana», «el viernes» | No |
+| Catálogo con **alias** (`s1`…), nombre, duración y precio; profesionales con alias y nombre visible publicado | Elegir servicio y profesional | Nombres visibles de los profesionales (ya públicos en la página del negocio) |
+| Si existe ficha (sí/no) y el borrador de la conversación traducido a alias (servicio, profesional, día) y `ultimaRespuesta` (lista cerrada) | Continuar la conversación | No identifica al cliente |
+| Resultados de las herramientas que pida el modelo: franjas libres (alias, inicio, fin, profesional) y, **con ficha**, sus citas futuras (alias, servicio, profesional, inicio y si se puede cancelar o reprogramar) | Proponer horarios y operaciones | Las citas del propio cliente, sin código, teléfono ni nombre |
+
+**Qué no se envía nunca:** número de WhatsApp (`wa_id`), nombre de perfil ni nombre de la ficha (retirado por V2-DA-86), códigos de cita `BT-…`, identificadores internos, mensajes del personal (`PERSONA`), contenido retirado, *nonces*, historial de textos del asistente (retirado por V2-DA-86) ni datos de otras barberías.
+
+**Qué vuelve del proveedor y qué se hace con ello:** llamadas a herramientas con alias y una intención de lista cerrada. El texto libre que devuelva el proveedor **no se envía al cliente, no se guarda en la base ni en los registros** (V2-DA-86); solo existe en memoria durante el turno.
+
+**Qué guarda BarberTurno:** el texto saneado del turno en `turno_ia.texto` mientras está pendiente (como máximo 15 min) y se vacía al terminar; en `llamada_ia`, solo contabilidad (tokens, coste, modelo), sin contenido.
+
+**Pendiente del responsable (no se simula):**
+- **P2-03:** proveedor, modelo y región; condiciones de retención del proveedor (si conserva las peticiones, cuánto tiempo y si las usa para entrenar). No se han consultado ni aceptado.
+- **D2/D7:** el aviso enlazado debe nombrar al proveedor de IA como destinatario y la **transferencia internacional**, y explicar el texto temporal de los clientes sin ficha (`17-…` §7).
+- Si el responsable prefiere no enviar texto de clientes **sin ficha**, existe la alternativa de usar solo los menús guiados hasta que acepten la privacidad (decisión de producto, no implementada).
 
 ## 2. P2-06 · Datos almacenados, finalidad y plazos
 «Implementado» = existe en el código de la rama conjunta. «Propuesto» = pendiente de aprobación; no hay mecanismo activo.

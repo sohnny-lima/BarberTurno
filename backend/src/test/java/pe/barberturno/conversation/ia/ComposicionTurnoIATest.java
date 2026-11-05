@@ -255,4 +255,18 @@ class ComposicionTurnoIATest {
         assertThat(composicion.fallo())
                 .isEqualTo("No pude entenderte bien; elige una opción del menú.");
     }
+
+    @Test
+    @DisplayName("fueraDeAlcance: devuelve texto fijo de alcance para reservar, cambiar o cancelar citas")
+    void fueraDeAlcance_devuelveTextoFijo() {
+        assertThat(composicion.fueraDeAlcance())
+                .isEqualTo("Puedo ayudarte a reservar, cambiar o cancelar citas. Elige una opción:");
+    }
+
+    @Test
+    @DisplayName("elegirFranja: devuelve texto fijo para elegir horario disponible")
+    void elegirFranja_devuelveTextoFijo() {
+        assertThat(composicion.elegirFranja())
+                .isEqualTo("Estos son los horarios disponibles. Elige uno:");
+    }
 }

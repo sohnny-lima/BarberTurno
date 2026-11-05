@@ -15,7 +15,7 @@ import java.util.Optional;
  * resultados y franjas, y el estado final del turno. Nunca escribe en los logs de la aplicación.
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.2
  */
 public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
 
@@ -55,6 +55,9 @@ public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
         private String estadoFinal;
         private Optional<ResultadoGuardas> guardas = Optional.empty();
         private Optional<EfectoTurno> efecto = Optional.empty();
+        private Optional<DecisionRespuesta> decision = Optional.empty();
+        private Optional<String> textoDescartado = Optional.empty();
+        private final List<MensajeAsistente> salidas = new ArrayList<>();
 
         /**
          * Crea el registro de un turno.
@@ -117,6 +120,33 @@ public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
          */
         public Optional<EfectoTurno> efecto() {
             return efecto;
+        }
+
+        /**
+         * Decisión validada de {@code responder_al_cliente} (V2-DA-86).
+         *
+         * @return decisión, o vacía si no la hubo o no era válida
+         */
+        public Optional<DecisionRespuesta> decision() {
+            return decision;
+        }
+
+        /**
+         * Texto libre del proveedor descartado al cerrar el turno (V2-DA-86): nunca llega al cliente.
+         *
+         * @return texto descartado, o vacío
+         */
+        public Optional<String> textoDescartado() {
+            return textoDescartado;
+        }
+
+        /**
+         * Mensajes que el turno encoló, tal como los compuso el servidor (revisión 140).
+         *
+         * @return copia inmutable, en orden
+         */
+        public List<MensajeAsistente> salidas() {
+            return List.copyOf(salidas);
         }
 
         /**
@@ -195,6 +225,18 @@ public class ObservadorEvaluacionRegistro implements ObservadorEvaluacion {
         reg.estadoFinal = estado;
         reg.guardas = Objects.requireNonNull(guardas, "guardas");
         reg.efecto = Objects.requireNonNull(efecto, "efecto");
+    }
+
+    @Override
+    public synchronized void decision(long turnoId, Optional<DecisionRespuesta> decision, Optional<String> textoDescartado) {
+        RegistroTurno reg = turnos.computeIfAbsent(turnoId, RegistroTurno::new);
+        reg.decision = Objects.requireNonNull(decision, "decision");
+        reg.textoDescartado = Objects.requireNonNull(textoDescartado, "textoDescartado");
+    }
+
+    @Override
+    public synchronized void salida(long turnoId, MensajeAsistente mensaje) {
+        turnos.computeIfAbsent(turnoId, RegistroTurno::new).salidas.add(Objects.requireNonNull(mensaje, "mensaje"));
     }
 
     /**

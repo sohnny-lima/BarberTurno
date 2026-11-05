@@ -21,7 +21,9 @@ pasos:
         parada: "end_turn"
     espera:
       mensajes:
-        - tipo: "TEXTO"
-          contiene: ["No encontré ese servicio en la barbería."]
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["No encontré ese servicio en la barbería.", "s99_ajeno", "p99_ajeno"]
       estadoTurno: "HECHO"
       herramientaError: true
+      textoDescartado: "No encontré ese servicio en la barbería."
