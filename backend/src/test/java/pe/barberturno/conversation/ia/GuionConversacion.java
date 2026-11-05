@@ -23,8 +23,14 @@ import tools.jackson.databind.json.JsonMapper;
  * Utiliza SnakeYAML seguro ({@link SafeConstructor}) y valida estrictamente el esquema: cualquier campo
  * no reconocido provoca un error de validación.
  *
+ * @param nombre nombre identificativo del guion
+ * @param negocio identificador del negocio ({@code "A"} o {@code "B"})
+ * @param reloj instante inicial simulado
+ * @param ficha si el cliente posee ficha creada y enlazada al inicio
+ * @param iaNegocio si la IA está habilitada a nivel del negocio
+ * @param pasos secuencia de pasos a ejecutar
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 public record GuionConversacion(
         String nombre,
@@ -40,10 +46,13 @@ public record GuionConversacion(
             "nombre", "negocio", "reloj", "ficha", "iaNegocio", "pasos"
     );
     private static final Set<String> CAMPOS_PASO = Set.of(
-            "cliente", "modelo", "espera"
+            "cliente", "modelo", "espera", "avanzarMinutos", "durante"
     );
     private static final Set<String> CAMPOS_CLIENTE = Set.of(
-            "texto", "seleccion"
+            "texto", "seleccion", "seleccionDelUltimoMensaje", "repetirSeleccion"
+    );
+    private static final Set<String> CAMPOS_DURANTE = Set.of(
+            "texto"
     );
     private static final Set<String> CAMPOS_MODELO = Set.of(
             "texto", "llamadas", "fallo", "parada"
@@ -79,21 +88,62 @@ public record GuionConversacion(
      * Entrada del cliente en un paso del guion.
      *
      * @param texto texto libre escrito por el cliente
-     * @param seleccion identificador de selección o botón pulsado
+     * @param seleccion identificador estático de selección o botón pulsado
+     * @param seleccionDelUltimoMensaje índice de opción del último interactivo saliente (H-XI-03)
+     * @param repetirSeleccion si debe repetirse la selección previamente enviada (H-XI-03)
      */
-    public record EntradaCliente(Optional<String> texto, Optional<String> seleccion) {
+    public record EntradaCliente(
+            Optional<String> texto,
+            Optional<String> seleccion,
+            Optional<Integer> seleccionDelUltimoMensaje,
+            Optional<Boolean> repetirSeleccion
+    ) {
         /**
-         * Valida que al menos haya texto o selección.
+         * Entrada vacía cuando el paso no requiere acción previa del cliente.
+         */
+        public static final EntradaCliente VACIA = new EntradaCliente(
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()
+        );
+
+        /**
+         * Constructor para compatibilidad con código existente (texto y selección estática).
+         *
+         * @param texto texto libre opcional
+         * @param seleccion identificador de selección opcional
+         */
+        public EntradaCliente(Optional<String> texto, Optional<String> seleccion) {
+            this(texto, seleccion, Optional.empty(), Optional.empty());
+        }
+
+        /**
+         * Valida los componentes de la entrada.
          *
          * @param texto texto libre
          * @param seleccion selección de botón o lista
+         * @param seleccionDelUltimoMensaje índice de opción dinámica
+         * @param repetirSeleccion indicador para reenviar la última selección
          */
         public EntradaCliente {
             Objects.requireNonNull(texto, "texto");
             Objects.requireNonNull(seleccion, "seleccion");
-            if (texto.isEmpty() && seleccion.isEmpty()) {
-                throw new IllegalArgumentException("La entrada del cliente debe tener texto o seleccion.");
-            }
+            Objects.requireNonNull(seleccionDelUltimoMensaje, "seleccionDelUltimoMensaje");
+            Objects.requireNonNull(repetirSeleccion, "repetirSeleccion");
+        }
+    }
+
+    /**
+     * Evento concurrente que ocurre durante la llamada al modelo en este paso (H-XI-05; guion 11).
+     *
+     * @param texto texto entrante del cliente a enviar mientras el modelo procesa
+     */
+    public record DurantePaso(Optional<String> texto) {
+        /**
+         * Valida que el texto opcional no sea nulo.
+         *
+         * @param texto texto opcional
+         */
+        public DurantePaso {
+            Objects.requireNonNull(texto, "texto");
         }
     }
 
@@ -105,10 +155,10 @@ public record GuionConversacion(
      */
     public record LlamadaGuion(HerramientaIA herramienta, String argumentosJson) {
         /**
-         * Valida.
+         * Valida componentes de la llamada.
          *
-         * @param herramienta herramienta
-         * @param argumentosJson JSON
+         * @param herramienta herramienta invocada
+         * @param argumentosJson argumentos en JSON
          */
         public LlamadaGuion {
             Objects.requireNonNull(herramienta, "herramienta");
@@ -212,23 +262,42 @@ public record GuionConversacion(
      * @param cliente entrada del cliente
      * @param modelo respuestas programadas para el adaptador falso durante este paso
      * @param espera expectativas a comprobar
+     * @param avanzarMinutos minutos opcionales a adelantar el reloj antes de procesar el paso (H-XI-02)
+     * @param durante evento concurrente a disparar durante la llamada HTTP al modelo (H-XI-05)
      */
     public record PasoGuion(
             EntradaCliente cliente,
             List<RespuestaProgramadaGuion> modelo,
-            ExpectativaPaso espera
+            ExpectativaPaso espera,
+            Optional<Integer> avanzarMinutos,
+            Optional<DurantePaso> durante
     ) {
         /**
-         * Valida y copia.
+         * Constructor de compatibilidad para 3 argumentos.
          *
-         * @param cliente cliente
-         * @param modelo modelo
-         * @param espera espera
+         * @param cliente entrada del cliente
+         * @param modelo respuestas del modelo
+         * @param espera expectativas del paso
+         */
+        public PasoGuion(EntradaCliente cliente, List<RespuestaProgramadaGuion> modelo, ExpectativaPaso espera) {
+            this(cliente != null ? cliente : EntradaCliente.VACIA, modelo, espera, Optional.empty(), Optional.empty());
+        }
+
+        /**
+         * Valida y copia los componentes del paso.
+         *
+         * @param cliente entrada del cliente
+         * @param modelo lista de respuestas del modelo
+         * @param espera expectativas a validar
+         * @param avanzarMinutos minutos a avanzar el reloj
+         * @param durante evento concurrente
          */
         public PasoGuion {
-            Objects.requireNonNull(cliente, "cliente");
+            cliente = cliente != null ? cliente : EntradaCliente.VACIA;
             modelo = List.copyOf(modelo != null ? modelo : List.of());
             Objects.requireNonNull(espera, "espera");
+            Objects.requireNonNull(avanzarMinutos, "avanzarMinutos");
+            Objects.requireNonNull(durante, "durante");
         }
     }
 
@@ -295,15 +364,43 @@ public record GuionConversacion(
     private static PasoGuion parsearPaso(Map<String, Object> paso, int indice) {
         validarCamposPermitidos("paso " + indice, paso.keySet(), CAMPOS_PASO);
 
-        Object clienteObj = paso.get("cliente");
-        if (!(clienteObj instanceof Map<?, ?> clienteMapa)) {
-            throw new IllegalArgumentException("El campo 'cliente' del paso " + indice + " debe ser un mapa.");
+        EntradaCliente cliente = EntradaCliente.VACIA;
+        if (paso.containsKey("cliente")) {
+            Object clienteObj = paso.get("cliente");
+            if (!(clienteObj instanceof Map<?, ?> clienteMapa)) {
+                throw new IllegalArgumentException("El campo 'cliente' del paso " + indice + " debe ser un mapa.");
+            }
+            Map<String, Object> cm = (Map<String, Object>) clienteMapa;
+            validarCamposPermitidos("paso " + indice + ".cliente", cm.keySet(), CAMPOS_CLIENTE);
+            Optional<String> texto = Optional.ofNullable((String) cm.get("texto"));
+            Optional<String> seleccion = Optional.ofNullable((String) cm.get("seleccion"));
+            Optional<Integer> seleccionDelUltimoMensaje = Optional.empty();
+            if (cm.containsKey("seleccionDelUltimoMensaje")) {
+                seleccionDelUltimoMensaje = Optional.of(((Number) cm.get("seleccionDelUltimoMensaje")).intValue());
+            }
+            Optional<Boolean> repetirSeleccion = Optional.empty();
+            if (cm.containsKey("repetirSeleccion")) {
+                repetirSeleccion = Optional.of(Boolean.parseBoolean(String.valueOf(cm.get("repetirSeleccion"))));
+            }
+            cliente = new EntradaCliente(texto, seleccion, seleccionDelUltimoMensaje, repetirSeleccion);
         }
-        Map<String, Object> cm = (Map<String, Object>) clienteMapa;
-        validarCamposPermitidos("paso " + indice + ".cliente", cm.keySet(), CAMPOS_CLIENTE);
-        Optional<String> texto = Optional.ofNullable((String) cm.get("texto"));
-        Optional<String> seleccion = Optional.ofNullable((String) cm.get("seleccion"));
-        EntradaCliente cliente = new EntradaCliente(texto, seleccion);
+
+        Optional<Integer> avanzarMinutos = Optional.empty();
+        if (paso.containsKey("avanzarMinutos")) {
+            avanzarMinutos = Optional.of(((Number) paso.get("avanzarMinutos")).intValue());
+        }
+
+        Optional<DurantePaso> durante = Optional.empty();
+        if (paso.containsKey("durante")) {
+            Object dObj = paso.get("durante");
+            if (!(dObj instanceof Map<?, ?> dm)) {
+                throw new IllegalArgumentException("El campo 'durante' del paso " + indice + " debe ser un mapa.");
+            }
+            Map<String, Object> dmap = (Map<String, Object>) dm;
+            validarCamposPermitidos("paso " + indice + ".durante", dmap.keySet(), CAMPOS_DURANTE);
+            Optional<String> txt = Optional.ofNullable((String) dmap.get("texto"));
+            durante = Optional.of(new DurantePaso(txt));
+        }
 
         List<RespuestaProgramadaGuion> respuestasModelo = new ArrayList<>();
         Object modeloObj = paso.get("modelo");
@@ -317,7 +414,7 @@ public record GuionConversacion(
 
         ExpectativaPaso espera = parsearEspera((Map<String, Object>) paso.get("espera"), indice);
 
-        return new PasoGuion(cliente, respuestasModelo, espera);
+        return new PasoGuion(cliente, respuestasModelo, espera, avanzarMinutos, durante);
     }
 
     @SuppressWarnings("unchecked")
