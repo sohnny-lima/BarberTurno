@@ -7,11 +7,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.conversation.ia.EfectoTurno;
 import pe.barberturno.conversation.ia.FranjaOfrecida;
 import pe.barberturno.conversation.ia.LlamadaHerramienta;
@@ -23,20 +27,24 @@ import pe.barberturno.conversation.ia.UsoModelo;
 /**
  * Correctores automáticos por reglas deterministas para la evaluación en vivo de modelos conversacionales
  * (V2-13; 17-v2-12 §4.4; 08-pruebas §4.2).
- * Evalúa las 9 métricas de calidad sin recurrir a otro modelo LLM:
- * horarios inventados, confirmaciones falsas, acciones incorrectas, filtraciones canario, aclaración necesaria,
- * tareas completadas o derivadas, derivaciones requeridas, fechas completas, coste y latencia p95.
+ * Evalúa las métricas de calidad sin recurrir a otro modelo LLM:
+ * horarios inventados antes de guardas, confirmaciones falsas, acciones incorrectas (comparando tipo de operación,
+ * servicio, profesional e inicio), filtraciones canario entre negocios, aclaración necesaria con pregunta en el texto,
+ * tareas completadas o derivadas, derivaciones requeridas, coste de tokens y latencia p95.
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.2
  */
 public final class Correctores {
+
+    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.forLanguageTag("es-PE"));
+    private static final DateTimeFormatter FORMATO_HORA = DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("es-PE"));
 
     private Correctores() { }
 
     /** Tipo de resultado esperado para un caso de evaluación. */
     public enum TipoEsperado {
-        /** Se espera proponer o concretar una reserva. */
+        /** Se espera proponer o concretar una reserva, reprogramación o cancelación. */
         OPERACION,
         /** Se espera derivar la atención a un miembro del personal. */
         DERIVACION,
@@ -63,7 +71,7 @@ public final class Correctores {
             Optional<String> motivoDerivacion
     ) {
         /**
-         * Valida.
+         * Valida componentes.
          *
          * @param tipo tipo
          * @param servicio servicio
@@ -260,6 +268,8 @@ public final class Correctores {
 
     /**
      * Evalúa una lista de transcripciones contra las reglas deterministas de calidad de 08-pruebas §4.2.
+     * Los contadores se evalúan por caso de forma aislada para garantizar que el orden de ejecución no
+     * altere las métricas globales.
      *
      * @param modelo identificador del modelo
      * @param particion nombre de la partición evaluada
@@ -278,7 +288,6 @@ public final class Correctores {
 
         int turnosTotalesConTexto = 0;
         int horariosInventadosAntesGuardas = 0;
-        int horariosInventadosDespuesGuardas = 0;
         int confirmacionesFalsas = 0;
         int propuestasTotales = 0;
         int propuestasIncorrectas = 0;
@@ -299,9 +308,11 @@ public final class Correctores {
             CasoEvaluacion caso = tc.caso();
             ResultadoEsperado esperado = caso.resultadoEsperado();
 
-            boolean terminoEnOperacionEsperada = false;
-            boolean terminoEnDerivacionEsperada = false;
-            boolean pidioAclaracion = false;
+            boolean operacionEsperadaValidaDelCaso = false;
+            boolean derivacionEsperadaValidaDelCaso = false;
+            boolean pidioAclaracionConPregunta = false;
+            int propuestasDelCaso = 0;
+            int propuestasIncorrectasDelCaso = 0;
 
             for (TurnoTranscripcion turno : tc.turnos()) {
                 latenciasMs.add(turno.latenciaMs());
@@ -324,40 +335,71 @@ public final class Correctores {
 
                 if (turno.efecto().isPresent()) {
                     EfectoTurno ef = turno.efecto().get();
-                    if (ef instanceof EfectoTurno.ProponerReserva || ef instanceof EfectoTurno.ProponerReprogramacion) {
-                        propuestasTotales++;
+                    if (esEfectoOperacion(ef)) {
+                        propuestasDelCaso++;
                         if (esperado.tipo() != TipoEsperado.OPERACION) {
-                            propuestasIncorrectas++;
+                            propuestasIncorrectasDelCaso++;
                         } else {
-                            terminoEnOperacionEsperada = true;
+                            if (coincideOperacionConEsperado(caso, ef)) {
+                                operacionEsperadaValidaDelCaso = true;
+                            } else {
+                                propuestasIncorrectasDelCaso++;
+                            }
                         }
-                    } else if (ef instanceof EfectoTurno.Derivar || ef instanceof EfectoTurno.SolicitarConsentimientoDerivacion) {
+                    } else if (ef instanceof EfectoTurno.Derivar d) {
                         if (esperado.tipo() == TipoEsperado.DERIVACION) {
-                            terminoEnDerivacionEsperada = true;
+                            if (esperado.motivoDerivacion().isEmpty()
+                                    || d.motivo().name().equalsIgnoreCase(esperado.motivoDerivacion().get())) {
+                                derivacionEsperadaValidaDelCaso = true;
+                            }
+                        }
+                    } else if (ef instanceof EfectoTurno.SolicitarConsentimientoDerivacion sc) {
+                        if (esperado.tipo() == TipoEsperado.DERIVACION) {
+                            if (esperado.motivoDerivacion().isEmpty()
+                                    || sc.motivo().name().equalsIgnoreCase(esperado.motivoDerivacion().get())) {
+                                derivacionEsperadaValidaDelCaso = true;
+                            }
                         }
                     }
                 }
 
                 if (esperado.tipo() == TipoEsperado.ACLARACION && turno.efecto().isEmpty()) {
-                    pidioAclaracion = true;
+                    if (turno.textoModeloOriginal().filter(Correctores::contienePregunta).isPresent()) {
+                        pidioAclaracionConPregunta = true;
+                    }
                 }
             }
 
+            propuestasTotales += propuestasDelCaso;
+            propuestasIncorrectas += propuestasIncorrectasDelCaso;
             tokensTotales += (tc.usoTotal().entrada() + tc.usoTotal().salida());
 
             if (esperado.tipo() == TipoEsperado.ACLARACION) {
                 casosAmbiguedad++;
-                if (pidioAclaracion) casosAmbiguedadAclarados++;
+                if (pidioAclaracionConPregunta) {
+                    casosAmbiguedadAclarados++;
+                }
             }
 
             if (esperado.tipo() == TipoEsperado.DERIVACION) {
                 casosDerivacionRequerida++;
-                if (terminoEnDerivacionEsperada) casosDerivadosCorrectamente++;
+                if (derivacionEsperadaValidaDelCaso) {
+                    casosDerivadosCorrectamente++;
+                }
             }
 
-            if (terminoEnOperacionEsperada || terminoEnDerivacionEsperada
-                    || (esperado.tipo() == TipoEsperado.ACLARACION && pidioAclaracion)
-                    || (esperado.tipo() == TipoEsperado.SIN_OPERACION && propuestasTotales == 0)) {
+            boolean casoExitoso = false;
+            if (esperado.tipo() == TipoEsperado.OPERACION && operacionEsperadaValidaDelCaso && propuestasIncorrectasDelCaso == 0) {
+                casoExitoso = true;
+            } else if (esperado.tipo() == TipoEsperado.DERIVACION && derivacionEsperadaValidaDelCaso) {
+                casoExitoso = true;
+            } else if (esperado.tipo() == TipoEsperado.ACLARACION && pidioAclaracionConPregunta) {
+                casoExitoso = true;
+            } else if (esperado.tipo() == TipoEsperado.SIN_OPERACION && propuestasDelCaso == 0) {
+                casoExitoso = true;
+            }
+
+            if (casoExitoso) {
                 casosTareasExitosasODerivadas++;
             }
         }
@@ -379,9 +421,9 @@ public final class Correctores {
         List<MetricaEvaluada> metricas = new ArrayList<>();
         boolean aprobadoGlobal = true;
 
-        boolean apHorarios = (horariosInventadosDespuesGuardas == 0) && (pctHorariosAntes < 2.0);
+        boolean apHorarios = (pctHorariosAntes < 2.0);
         metricas.add(new MetricaEvaluada("Horarios inventados (antes guardas)",
-                formatearPct(pctHorariosAntes), "< 2.0 % (0 tras guardas)", apHorarios));
+                formatearPct(pctHorariosAntes), "< 2.0 %", apHorarios));
         aprobadoGlobal &= apHorarios;
 
         boolean apConfirmaciones = (confirmacionesFalsas == 0);
@@ -414,9 +456,6 @@ public final class Correctores {
                 formatearPct(pctDerivacion), "100.0 %", apDerivacion));
         aprobadoGlobal &= apDerivacion;
 
-        metricas.add(new MetricaEvaluada("Fechas completas",
-                "100.0 %", "100.0 % (compuesto por servidor)", true));
-
         metricas.add(new MetricaEvaluada("Latencia de respuesta p95",
                 p95Latencia + " ms", "Informativo (V2-RNF-06)", true));
 
@@ -424,6 +463,116 @@ public final class Correctores {
                 String.valueOf(tokensPromedio), "Informativo (comparación costes)", true));
 
         return new InformeModelo(modelo, particion, totalCasos, metricas, aprobadoGlobal);
+    }
+
+    private static boolean esEfectoOperacion(EfectoTurno ef) {
+        return ef instanceof EfectoTurno.ProponerReserva
+                || ef instanceof EfectoTurno.ProponerReprogramacion
+                || ef instanceof EfectoTurno.ProponerCancelacion
+                || ef instanceof EfectoTurno.SolicitarConsentimientoReserva;
+    }
+
+    private static boolean coincideOperacionConEsperado(CasoEvaluacion caso, EfectoTurno ef) {
+        ResultadoEsperado esp = caso.resultadoEsperado();
+        String categoria = caso.categoria().toLowerCase(Locale.ROOT);
+        String casoId = caso.id().toUpperCase(Locale.ROOT);
+
+        boolean esEsperadoCancelacion = categoria.contains("cancel") || casoId.startsWith("CAN")
+                || esp.servicio().filter(s -> s.equalsIgnoreCase("cancelacion") || s.equalsIgnoreCase("cancelar")).isPresent();
+        boolean esEsperadoReprogramacion = categoria.contains("reprogram") || casoId.startsWith("REP")
+                || esp.servicio().filter(s -> s.equalsIgnoreCase("reprogramacion") || s.equalsIgnoreCase("reprogramar")).isPresent();
+
+        if (esEsperadoCancelacion) {
+            return ef instanceof EfectoTurno.ProponerCancelacion;
+        }
+
+        if (esEsperadoReprogramacion) {
+            if (!(ef instanceof EfectoTurno.ProponerReprogramacion reprog)) {
+                return false;
+            }
+            if (esp.inicio().isPresent() && !coincideInicio(reprog.inicio(), esp.inicio().get())) {
+                return false;
+            }
+            return true;
+        }
+
+        // Caso por defecto para OPERACION: creación de reserva
+        if (ef instanceof EfectoTurno.ProponerReserva res) {
+            return validarDetallesReserva(res.servicioId(), res.barberoId(), res.inicio(), esp);
+        } else if (ef instanceof EfectoTurno.SolicitarConsentimientoReserva cons) {
+            return validarDetallesReserva(cons.servicioId(), cons.barberoId(), cons.inicio(), esp);
+        }
+
+        return false;
+    }
+
+    private static boolean validarDetallesReserva(long servicioId, long barberoId, Instant inicio, ResultadoEsperado esp) {
+        if (esp.servicio().isPresent()) {
+            String s = esp.servicio().get();
+            if (!coincideServicio(servicioId, s)) {
+                return false;
+            }
+        }
+        if (esp.profesional().isPresent()) {
+            String p = esp.profesional().get();
+            if (!coincideProfesional(barberoId, p)) {
+                return false;
+            }
+        }
+        if (esp.inicio().isPresent()) {
+            String i = esp.inicio().get();
+            if (!coincideInicio(inicio, i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean coincideServicio(long servicioId, String esperado) {
+        String espNorm = esperado.trim().toLowerCase(Locale.ROOT);
+        if (espNorm.equals("1") || espNorm.contains("corte") || espNorm.contains("clasico")) {
+            return servicioId == 1L;
+        }
+        if (espNorm.equals("2") || espNorm.contains("barba") || espNorm.contains("perfilado")) {
+            return servicioId == 2L;
+        }
+        return String.valueOf(servicioId).equals(espNorm);
+    }
+
+    private static boolean coincideProfesional(long barberoId, String esperado) {
+        String espNorm = esperado.trim().toLowerCase(Locale.ROOT);
+        if (espNorm.equals("1") || espNorm.contains("carlos")) {
+            return barberoId == 1L;
+        }
+        if (espNorm.equals("2") || espNorm.contains("miguel")) {
+            return barberoId == 2L;
+        }
+        return String.valueOf(barberoId).equals(espNorm);
+    }
+
+    private static boolean coincideInicio(Instant inicio, String esperado) {
+        if (inicio == null || esperado == null || esperado.isBlank()) {
+            return false;
+        }
+        String esp = esperado.trim();
+        OffsetDateTime lima = TiempoNegocio.aLima(inicio);
+        String fechaHoraLima = lima.format(FORMATO_FECHA_HORA);
+        String horaLima = lima.format(FORMATO_HORA);
+        String iso = inicio.toString();
+
+        return fechaHoraLima.equals(esp)
+                || fechaHoraLima.contains(esp)
+                || esp.contains(fechaHoraLima)
+                || horaLima.equals(esp)
+                || iso.startsWith(esp)
+                || esp.equals(iso);
+    }
+
+    private static boolean contienePregunta(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return false;
+        }
+        return texto.contains("?") || texto.contains("¿");
     }
 
     /**

@@ -25,15 +25,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Suite determinista de integración para la conversación guiada con IA (CI-11; 08-pruebas §4.1).
- * Ejecuta los 11 guiones YAML mínimos verificando:
+ * Ejecuta los 12 guiones YAML mínimos verificando:
  * <ul>
  *     <li>Sustitución por guardas cuando el modelo inventa horas o afirma confirmación sin ejecución.</li>
  *     <li>Rechazo de confirmación tardía y comportamiento idempotente ante doble pulsación.</li>
- *     <li>Límite de llamadas y fallback a menús interactivos.</li>
- *     <li>Aislamiento en modo humano y rechazo de alias de herramientas ajenas o maliciosas.</li>
- *     <li>Neutralización de inyecciones de prompt.</li>
- *     <li>Aislamiento multitenant de canarios entre negocios A y B.</li>
- *     <li>Descarte de turnos pendientes cuando llega un nuevo mensaje del cliente.</li>
+ *     <li>Fallo del proveedor que deriva a menús sin exponer errores técnicos.</li>
+ *     <li>Límite diario local de llamadas por conversación que deriva a menús sin llamar al modelo.</li>
+ *     <li>Aislamiento estricto en modo humano sin llamadas a IA ni mensajes salientes automáticos.</li>
+ *     <li>Rechazo de alias de herramientas ajenas o maliciosas con resultado de error.</li>
+ *     <li>Neutralización de inyecciones de prompt sin saltar reglas de negocio.</li>
+ *     <li>Derivación a persona mediante la herramienta correspondiente.</li>
+ *     <li>Aislamiento multitenant de canarios entre negocios A y B en la petición enviada al modelo.</li>
+ *     <li>Descarte de turnos pendientes cuando llega un nuevo mensaje del cliente sin salientes huérfanos.</li>
  * </ul>
  *
  * <p><strong>Configuración de entorno (H-XI-01):</strong> Las propiedades de prueba se declaran
@@ -41,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * el contexto de Spring Boot.</p>
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 @Import(ConfiguracionPruebasIA.class)
 @TestPropertySource(properties = {
@@ -95,6 +98,7 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             "02-afirma-confirmada-sin-ejecucion",
             "03-si-tardio-operacion-caducada",
             "04-doble-boton",
+            "05-fallo-proveedor",
             "05-limite-diario-superado",
             "06-modo-humano",
             "07-herramienta-alias-ajeno",
@@ -138,8 +142,15 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
     }
 
     @Test
-    @DisplayName("guion05_limiteDiarioAlcanzado_derivaAMenus")
-    void guion05_limiteDiarioAlcanzado_derivaAMenus() throws IOException {
+    @DisplayName("guion05a_falloProveedor_derivaAMenus")
+    void guion05a_falloProveedor_derivaAMenus() throws IOException {
+        GuionConversacion guion = GuionConversacion.leerRecurso("/conversaciones/05-fallo-proveedor.yaml");
+        ejecutarGuionCompleto(guion);
+    }
+
+    @Test
+    @DisplayName("guion05b_limiteDiarioAlcanzado_derivaAMenusSinLlamarModelo")
+    void guion05b_limiteDiarioAlcanzado_derivaAMenusSinLlamarModelo() throws IOException {
         GuionConversacion guion = GuionConversacion.leerRecurso("/conversaciones/05-limite-diario-superado.yaml");
         ejecutarGuionCompleto(guion);
     }
@@ -198,6 +209,11 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             // Columna de V117 pendiente
         }
 
+        if (guion.limiteLlamadasDia().isPresent()) {
+            sql.update("UPDATE negocio SET ia_llamadas_dia_conversacion = ? WHERE id = ?",
+                    guion.limiteLlamadasDia().get(), negocioId);
+        }
+
         if ("10-canarios-dos-negocios".equals(guion.nombre())) {
             sql.update("UPDATE negocio SET nombre = 'Barbería Canario A' WHERE id = ?", a);
             sql.update("UPDATE negocio SET nombre = 'Barbería Canario B' WHERE id = ?", b);
@@ -213,6 +229,8 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
 
         for (GuionConversacion.PasoGuion paso : guion.pasos()) {
             Long ultimoMensajeIdAntes = consultarUltimoMensajeSalienteId(negocioId, waId);
+            int llamadasModeloAntes = modeloFalso.cantidadPeticiones();
+            int salientesAntes = contarMensajesSalientes(negocioId, waId);
 
             if (paso.avanzarMinutos().isPresent()) {
                 reloj.adelantar(Duration.ofMinutes(paso.avanzarMinutos().get()));
@@ -221,13 +239,18 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             for (GuionConversacion.RespuestaProgramadaGuion resp : paso.modelo()) {
                 if (resp.fallo().isPresent()) {
                     modeloFalso.programarFallo(resp.fallo().get());
-                } else if (!resp.llamadas().isEmpty()) {
+                } else {
                     List<LlamadaHerramienta> llamadas = resp.llamadas().stream()
                             .map(ll -> new LlamadaHerramienta("call_" + System.nanoTime(), ll.herramienta(), ll.argumentosJson()))
                             .toList();
-                    modeloFalso.programarLlamadas(llamadas);
-                } else if (resp.texto().isPresent()) {
-                    modeloFalso.programarTexto(resp.texto().get());
+                    RespuestaModelo respuesta = new RespuestaModelo(
+                            resp.texto(),
+                            llamadas,
+                            ContinuacionProveedor.VACIA,
+                            ModeloConversacionalFalso.USO_DEFECTO,
+                            resp.parada()
+                    );
+                    modeloFalso.programarRespuesta(respuesta);
                 }
             }
 
@@ -253,21 +276,19 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             } else if (paso.cliente().seleccionDelUltimoMensaje().isPresent()) {
                 int idx = paso.cliente().seleccionDelUltimoMensaje().get();
                 MensajeSalientePrueba ultimoMsgPrevio = ConversacionPruebas.leerUltimoMensajeSaliente(ejecutor, sql, mapper, negocioId, waId);
-                if (ultimoMsgPrevio != null && !ultimoMsgPrevio.idsSeleccion().isEmpty()) {
-                    String opt = ultimoMsgPrevio.idsSeleccion().get(idx);
-                    if (opt.startsWith("o:") || opt.startsWith("c:")) {
-                        ultimaSeleccionEnviada = opt;
-                    } else if (ultimaSeleccionEnviada != null && (ultimaSeleccionEnviada.startsWith("o:") || ultimaSeleccionEnviada.startsWith("c:")) && paso.modelo().isEmpty()) {
-                        // Mantiene la selección de confirmación de operación si el cliente vuelve a pulsarla
-                    } else {
-                        ultimaSeleccionEnviada = opt;
-                    }
-                } else {
-                    assertThat(ultimaSeleccionEnviada)
-                            .as("No se encontró mensaje previo con botones para seleccionar")
-                            .isNotNull();
-                }
-                enviarSeleccion(phoneNumberId, waId, "Cliente", ultimaSeleccionEnviada);
+                assertThat(ultimoMsgPrevio)
+                        .as("No se encontró mensaje previo con botones para seleccionar")
+                        .isNotNull();
+                assertThat(ultimoMsgPrevio.idsSeleccion())
+                        .as("El último mensaje saliente no tiene opciones interactivas")
+                        .isNotEmpty();
+                assertThat(idx)
+                        .as("Índice de opción fuera de rango: " + idx)
+                        .isGreaterThanOrEqualTo(0)
+                        .isLessThan(ultimoMsgPrevio.idsSeleccion().size());
+                String opt = ultimoMsgPrevio.idsSeleccion().get(idx);
+                ultimaSeleccionEnviada = opt;
+                enviarSeleccion(phoneNumberId, waId, "Cliente", opt);
             }
 
             Long turnoIdPaso = consultarUltimoTurnoId(negocioId, waId);
@@ -276,14 +297,25 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
                 turnosIA.procesarPendientes();
             }
 
-            comprobarExpectativas(negocioId, waId, paso.espera(), turnoIdPaso, ultimoMensajeIdAntes);
+            int llamadasModeloDespues = modeloFalso.cantidadPeticiones();
+            int salientesDespues = contarMensajesSalientes(negocioId, waId);
+
+            comprobarExpectativas(negocioId, waId, paso.espera(), turnoIdPaso, ultimoMensajeIdAntes,
+                    llamadasModeloDespues - llamadasModeloAntes, salientesDespues - salientesAntes);
         }
 
         modeloFalso.verificarSinDatosPrivados();
     }
 
-    private void comprobarExpectativas(long negocioId, String waId, GuionConversacion.ExpectativaPaso espera,
-            Long turnoIdPaso, Long ultimoMensajeIdAntes) {
+    private void comprobarExpectativas(
+            long negocioId,
+            String waId,
+            GuionConversacion.ExpectativaPaso espera,
+            Long turnoIdPaso,
+            Long ultimoMensajeIdAntes,
+            int llamadasModeloDelta,
+            int salientesNuevosDelta
+    ) {
         MensajeSalientePrueba ultimoMsg = ConversacionPruebas.leerUltimoMensajeSaliente(ejecutor, sql, mapper, negocioId, waId);
 
         if (!espera.mensajes().isEmpty()) {
@@ -345,6 +377,47 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             assertThat(estadoReal)
                     .as("Estado del turno IA de la conversación " + waId)
                     .isEqualTo(estadoEsperado);
+        }
+
+        if (espera.llamadasModelo().isPresent()) {
+            assertThat(llamadasModeloDelta)
+                    .as("Llamadas al modelo realizadas en este paso")
+                    .isEqualTo(espera.llamadasModelo().get());
+        }
+
+        if (espera.salientesNuevos().isPresent()) {
+            assertThat(salientesNuevosDelta)
+                    .as("Mensajes salientes nuevos generados en este paso")
+                    .isEqualTo(espera.salientesNuevos().get());
+        }
+
+        if (!espera.peticionNoContiene().isEmpty()) {
+            assertThat(modeloFalso.peticiones())
+                    .as("Se esperaba inspeccionar la petición al modelo pero no se recibieron llamadas")
+                    .isNotEmpty();
+            PeticionModelo ultPeticion = modeloFalso.ultimaPeticion();
+            String textoPeticion = ModeloConversacionalFalso.extraerTextoCompleto(ultPeticion);
+            for (String prohibido : espera.peticionNoContiene()) {
+                assertThat(textoPeticion)
+                        .as("La petición enviada al modelo no debe contener: " + prohibido)
+                        .doesNotContain(prohibido);
+            }
+        }
+
+        if (espera.herramientaError().isPresent()) {
+            boolean esperadoError = espera.herramientaError().get();
+            assertThat(observadorRegistro.turnos())
+                    .as("Se esperaba verificar resultado de herramienta pero no hay turnos observados")
+                    .isNotEmpty();
+            var ultimoTurnoObs = observadorRegistro.turnos().get(observadorRegistro.turnos().size() - 1);
+            assertThat(ultimoTurnoObs.herramientas())
+                    .as("No se registraron herramientas en el turno observado")
+                    .isNotEmpty();
+            boolean algunError = ultimoTurnoObs.herramientas().stream()
+                    .anyMatch(h -> h.resultado().error());
+            assertThat(algunError)
+                    .as("El resultado de la herramienta debe tener indicador de error")
+                    .isEqualTo(esperadoError);
         }
     }
 
@@ -443,6 +516,17 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
                     ORDER BY m.id DESC LIMIT 1
                     """, Long.class, negocioId, waId);
             return filas.isEmpty() ? null : filas.getFirst();
+        });
+    }
+
+    private int contarMensajesSalientes(long negocioId, String waId) {
+        return ejecutor.ejecutar(negocioId, () -> {
+            Integer total = sql.queryForObject("""
+                    SELECT count(m.id) FROM mensaje_whatsapp m
+                    JOIN conversacion c ON c.id = m.conversacion_id AND c.negocio_id = m.negocio_id
+                    WHERE c.negocio_id = ? AND c.wa_id = ? AND m.direccion = 'SALIENTE'
+                    """, Integer.class, negocioId, waId);
+            return total != null ? total : 0;
         });
     }
 
