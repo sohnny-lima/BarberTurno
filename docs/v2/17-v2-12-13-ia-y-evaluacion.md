@@ -97,6 +97,7 @@ Los escribe Claude en el commit de contrato. **Nadie cambia una firma sin pedirl
 - `IaPropiedades` (Claude, `barberturno.ia`): `habilitada`, `clave`, `modelo`, `esfuerzo`, `urlBase`, `tiempoLlamada`, `plazoTurno`, `maxLlamadas`, `maxHerramientas`, límites por defecto, precios por modelo, intervalo y lote del trabajador.
 
 ## 5. Guardas y composición (V2-RN-11/12)
+> **Sustituido en el camino de salida por §13 (V2-DA-86, 05/11/2026):** el texto libre del modelo ya no se envía al cliente; las guardas quedan como indicador heurístico de la evaluación.
 - **Las franjas que ve el cliente las compone siempre el servidor** (`ComposicionTurnoIA`), con fecha completa. El texto del modelo **no** debe contener horas ni fechas; las guardas son la red de seguridad:
   - **horarios**: **cualquier** referencia a una fecha o una hora (días, meses, «hoy», «mañana», «el viernes», «23/10», `2027-01-01`, «5», «5 y media», `17h`, `5 p. m.`) → `HORARIO_NO_OFRECIDO`, sin validar combinaciones: las franjas solo las muestra la composición del servidor (V2-DA-85);
   - **afirmaciones de operación** en cualquier persona y tiempo («reservé», «reservamos», «se reservó», «quedó confirmada», «agendada», «cancelé», «reprogramé», «te esperamos el…») → `AFIRMA_OPERACION`; no las preguntas ni las negaciones (V2-DA-85);
@@ -139,7 +140,7 @@ Excepción explícita a `16-…` §2.5: el texto de un cliente **sin ficha** se 
 | CI-2 | Reclamo con ficha; un trabajador con la concesión vencida no aplica nada; revisión cambiada (otro mensaje, botón, derivación, personal, retorno) → `DESCARTADO` sin salida ni operación; conversación borrada → terminado sin recrearla | Codex |
 | CI-3 | Propuesta creada solo en la transacción final; una por turno; dos distintas → ninguna y aclaración; derivación con precedencia; «sí» tras una propuesta de IA confirma como en V2-10 | Codex |
 | CI-4 | Herramientas: alias opacos para todo; alias desconocido, de otro turno, de otra finalidad, de otro negocio o de otra ficha → `is_error` genérico; ninguna escribe reservas; límites de herramientas y franjas | Codex |
-| CI-5 | Guardas: cada motivo sustituye por la composición del servidor; textos válidos pasan; la composición de franjas cumple los límites de Meta y da fecha completa | Gemini |
+| CI-5 | *(Retirado como garantía por V2-DA-86: las guardas ya no están en la salida; quedan como indicador de la evaluación.)* La composición de franjas cumple los límites de Meta y da fecha completa | Gemini |
 | CI-6 | Límites: llamadas por día, presupuesto mensual con reserva previa (dos turnos concurrentes no superan el saldo), liquidación también con fallo, un aviso diario al propietario; por negocio | Codex |
 | CI-7 | Fallos del modelo (tiempo, 429, 500, `refusal`, `max_tokens`, JSON inválido) → menús y `FALLIDO`; pendientes abandonados terminados por la retención | Codex |
 | CI-8 | Adaptador contra el servidor local: herramientas estrictas, `cache_control`, modelo, esfuerzo, sin muestreo ni `tool_choice` forzado, continuación intacta (pensamiento), tokens de caché; la petición no contiene teléfono, correo, `wa_id`, ids internos ni mensajes `PERSONA` | Codex |
@@ -148,6 +149,10 @@ Excepción explícita a `16-…` §2.5: el texto de un cliente **sin ficha** se 
 | CI-11 | `ConversacionGuionesIT`: los 8 casos mínimos de `08-…` §4.1 + derivación por herramienta + límite + dos negocios con nombres canario + turno descartado por un mensaje nuevo | Gemini (guiones) y Claude (ejecución) |
 | CI-12 | Arnés en vivo: compila, se niega a ejecutar sin clave, sin base desechable o sin tope de gasto; calcula las métricas de `08-…` §4.2 sobre transcripciones del adaptador falso | Gemini |
 | CI-13 | `verify` completo en verde con JaCoCo y Javadoc; registros sin contenido, clave ni continuación | Claude |
+| CI-14 | V2-DA-86: con cualquier texto del proveedor (incluidas paráfrasis de confirmación, inyecciones, importes, enlaces, fechas y horas), lo que recibe el cliente en `mensaje_whatsapp` y lo que muestra la bandeja procede solo de `RespuestasAsistente` o de V2-10; ninguna subcadena del texto del proveedor aparece | Gemini (RD-2) |
+| CI-15 | Terminal `responder_al_cliente`: orden, duplicada, inválida, alias, «cualquiera», degradaciones de §13.2.3 y precedencia de efectos; citas solo de la ficha revalidada; contexto sin nombre de pila ni historial textual | Codex (SE) |
+| CI-16 | Una propuesta de IA confirmada por el cliente produce `TextosConversacion.resultado` con el código, la fecha y la hora reales de la base; antes de confirmar, ningún mensaje afirma la reserva | Gemini (RD-2) |
+| CI-17 | La métrica «Confirmaciones falsas» detecta los ejemplos conocidos en lo que recibe el cliente con un criterio estructural (procedencia y operación ejecutada), no solo con el detector léxico | Claude (EV) |
 
 ## 10. Reparto, ramas y revisión cruzada
 | Bloque | Responsable | Worktree y rama | Archivos (alcance) | Revisa |
@@ -192,3 +197,75 @@ Excepción explícita a `16-…` §2.5: el texto de un cliente **sin ficha** se 
 | 20 | Alias y franjas heredados | El borrador guarda ids validados; disponibilidad siempre nueva; franjas compuestas por el servidor (§3.4, §5) |
 | 21 | V2-13 | SnakeYAML seguro, observador, perfil Maven aparte, 96 + 24 (§1, §4.4) |
 | 22 | Solapes y huecos de archivos | §10 |
+
+## 13. Salida estructurada y respuestas deterministas (V2-DA-86, 05/11/2026) — **sustituye §5 en el camino de salida**
+**Problema:** con §5, el texto libre del modelo llegaba al cliente si pasaba las guardas (cuerpo de la lista de franjas o mensaje de texto). Las guardas son patrones: una paráfrasis («Carlos ya te tiene un hueco») podía prometer una cita inexistente. **Decisión:** el texto libre del proveedor **no llega nunca al cliente** por ningún camino (WhatsApp, *outbox* `mensaje_whatsapp`, bandeja, vista previa, avisos). El modelo solo elige **intenciones y alias**; el servidor valida y compone el mensaje con los menús y textos deterministas de V2-10.
+
+### 13.1 Qué produce el modelo
+- Las herramientas de §4.2 (sin cambios) y una nueva herramienta **terminal** `responder_al_cliente` con esquema estricto `{"intencion": enum, "falta": enum | null, "servicio": alias | null, "profesional": alias | "cualquiera" | null}` (138-2: comunica lo elegido antes de buscar disponibilidad):
+  - `IntencionRespuesta`: `PEDIR_DATO`, `MOSTRAR_SERVICIOS`, `MOSTRAR_PROFESIONALES`, `MOSTRAR_CITAS`, `SIN_DISPONIBILIDAD`, `FUERA_DE_ALCANCE`, `SALUDO`.
+  - `DatoFaltante` (solo con `PEDIR_DATO`): `SERVICIO`, `PROFESIONAL`, `DIA`, `CITA`.
+- No hay ningún campo de texto libre. El texto que el proveedor devuelva igualmente (`RespuestaModelo.texto`) se **descarta para la salida, la persistencia y los registros**: solo lo ve el observador de la evaluación (§4.4) y la continuación opaca del mismo bucle (pensamiento y firmas intactos, 138-6). `tool_choice` sigue en automático: forzar la terminal impediría consultar herramientas.
+
+### 13.2 Qué valida el servidor (Codex)
+1. `responder_al_cliente` cierra el bucle (138-3): se examinan **todas** las llamadas de la respuesta antes de despacharlas; se ejecutan primero las no terminales, aunque aparezcan después; no hay otra llamada al modelo. La terminal cuenta dentro de `maxHerramientas`. Terminal duplicada, esquema inválido, alias desconocido o `falta` incoherente → se cierra con los efectos válidos precedentes o con `NEUTRO`, sin seguir el bucle. `observador.herramienta` no se llama para la terminal; sí `observador.decision`.
+2. **Precedencia:** derivación > consentimiento > propuesta > franjas > `responder_al_cliente` > respuesta por defecto (`MotivoMenu.NEUTRO`: menú principal). La intención nunca anula un efecto.
+3. **Coherencia con los datos del servidor** (degradaciones deterministas, sin error visible):
+   - `SIN_DISPONIBILIDAD` solo si en **este** turno la **última** `buscar_disponibilidad` válida devolvió `[]` (se registra explícitamente; hoy no produce efecto); si no → `NEUTRO`.
+   - `PEDIR_DATO(PROFESIONAL)` o `MOSTRAR_PROFESIONALES` sin servicio conocido → `PEDIR_DATO(SERVICIO)`; `PEDIR_DATO(DIA)` sin servicio → `PEDIR_DATO(SERVICIO)`; sin profesional **elegido** → `PEDIR_DATO(PROFESIONAL)`; con «cualquiera» → días con `barberoId = 0` (g102-1).
+   - Catálogo o profesionales vacíos, o una selección desactivada entre la consulta y el cierre → `menus.menuPrincipal(textos.sinOpciones())`, nunca una lista vacía (138-5, g102-2).
+   - `MOSTRAR_CITAS` / `PEDIR_DATO(CITA)`: las citas se cargan **solo** con la ficha revalidada de la conversación (`citasFuturas(ficha)`), nunca con un identificador del modelo; sin ficha o sin citas → el mismo texto «sin citas» con el menú principal (no revela si existe una ficha).
+   - «Conocido» = validado en este turno o en el borrador (§3.4), bajo RLS del negocio.
+4. Carga los datos de la respuesta en la transacción final bajo RLS (`DatosRespuesta`) y llama a `RespuestasAsistente`; encola **solo** lo que esta devuelve o lo que ya compone V2-10 (`menus.confirmacion` con `textos.resumen`).
+5. **Confirmaciones:** el turno de IA solo puede **proponer** (operación `VIGENTE` con *nonce*, protocolo de V2-10, sin una segunda implementación de las reglas). El único mensaje que afirma una reserva, un cambio o una cancelación es `TextosConversacion.resultado(ResultadoOperacion)`, que emite el flujo de V2-10 **después** de ejecutar la operación que el cliente confirmó (botón o «sí» determinista, `06-flujos.md`), con el código real (V2-RN-11).
+6. **Mensajes anteriores (138-4):** V2-12 nunca se desplegó (no está en `v2` ni en producción); en `dev` y `test` la base de revisión se vacía en cada sesión. No hay mensajes antiguos con texto del modelo que tratar; si apareciera alguno en una base de desarrollo, no se reenvía (la *outbox* solo envía lo encolado por `SalidaWhatsApp`).
+
+### 13.3 Composición (Gemini) — `RespuestasAsistente`
+| Entrada | Mensaje |
+|---|---|
+| `PEDIR_DATO(SERVICIO)`, `MOSTRAR_SERVICIOS` | `menus.servicios(textos.elegirServicio(), servicios, 0)` (precios del catálogo del servidor) |
+| `PEDIR_DATO(PROFESIONAL)`, `MOSTRAR_PROFESIONALES` | `menus.profesionales(textos.elegirProfesional(servicio), …)` |
+| `PEDIR_DATO(DIA)` | `menus.dias(textos.elegirDia(), servicio, profesional o 0 si «cualquiera», hoy)` |
+| `PEDIR_DATO(CITA)`, `MOSTRAR_CITAS` | `menus.citas(textos.misCitas(), citas)`; sin citas: `menus.menuPrincipal(textos.sinCitas())` |
+| `SIN_DISPONIBILIDAD` | `menus.menuPrincipal(textos.sinOpciones())` |
+| `FUERA_DE_ALCANCE` | `menus.menuPrincipal(<texto fijo de alcance de `ComposicionTurnoIA`>)` (g102-3: `noSoportado()` habla de adjuntos) |
+| `SALUDO` | `menus.menuPrincipal(textos.bienvenida(negocio))` |
+| franjas (efecto) | `ComposicionTurnoIA.franjas(<texto fijo del servidor>, franjas, hoy)` |
+| `MotivoMenu.NEUTRO`, `FALLO`, `VARIAS_PROPUESTAS`, `NO_DISPONIBLE` | menú principal con el texto fijo correspondiente |
+
+Mismos códigos de selección que V2-10: pulsar una opción continúa por el flujo guiado. Ningún parámetro de entrada procede del texto del modelo.
+
+### 13.4 Tipos (contrato, Claude; nadie cambia una firma sin pedirlo al coordinador)
+```java
+enum IntencionRespuesta { PEDIR_DATO, MOSTRAR_SERVICIOS, MOSTRAR_PROFESIONALES, MOSTRAR_CITAS, SIN_DISPONIBILIDAD, FUERA_DE_ALCANCE, SALUDO }
+enum DatoFaltante { SERVICIO, PROFESIONAL, DIA, CITA }
+enum MotivoMenu { NEUTRO, FALLO, VARIAS_PROPUESTAS, NO_DISPONIBLE }
+record DecisionRespuesta(IntencionRespuesta intencion, Optional<DatoFaltante> falta)   // ya validada y degradada
+sealed interface SeleccionProfesional { record SinElegir(); record Cualquiera(); record Concreto(ProfesionalOpcion profesional); }   // 138-1
+record DatosRespuesta(String negocio, LocalDate hoy, Optional<ServicioOpcion> servicio, SeleccionProfesional profesional,
+                      List<ServicioOpcion> servicios, List<ProfesionalOpcion> profesionales, List<CitaOpcion> citas)
+sealed interface MensajeAsistente { record Texto(String texto); record Interactivo(ObjectNode contenido); }
+@Component class RespuestasAsistente {
+  MensajeAsistente responder(DecisionRespuesta decision, DatosRespuesta datos);
+  MensajeAsistente franjas(List<FranjaOfrecida> franjas, LocalDate hoy);
+  MensajeAsistente menu(MotivoMenu motivo);
+}
+// ObservadorEvaluacion, método nuevo con implementación vacía:
+default void decision(long turnoId, Optional<DecisionRespuesta> decision, Optional<String> textoDescartado) { }
+```
+
+### 13.5 Guardas
+`GuardasSalida` deja de estar en el camino de salida (no queda texto libre que revisar). Se conserva **solo como indicador heurístico de la evaluación** sobre el texto descartado («qué habría dicho»), nunca como garantía.
+
+### 13.6 Contexto mínimo (sustituye parte de §7)
+Dejan de enviarse al proveedor el **nombre de pila** del cliente (ya no hay texto personalizado) y el **historial de textos** del asistente (podía contener códigos de cita y fechas). En su lugar, `ultimaRespuesta`: un valor de lista cerrada derivado de la respuesta **realmente aplicada** en el turno anterior (`MOSTRAR_FRANJAS`, `PROPUESTA`, `CONSENTIMIENTO`, `DERIVAR`, `NEUTRO`, el nombre de la intención o `PEDIR_DATO:<DATO>`), guardado en `conversacion.estado.ia.ultima` sin migración (138-7). `guardarBorrador` admite selecciones parciales (`ia.servicio`, `ia.profesional` con `0` = cualquiera, `ia.dia`) y el borrador se revalida al cargar; los vaciados existentes (menú, ejecución, derivación, inactividad) se mantienen. Lo que sí se envía: `15-decisiones-pendientes-p2-05-p2-06.md` §1.4.
+
+### 13.7 Reparto (sin solapes de archivos)
+| Bloque | Responsable | Rama · worktree | Archivos | Revisa |
+|---|---|---|---|---|
+| Contrato y tipos de 13.4 | Claude | `tarea/V2-12-conversacion-ia` · `-v2-12` | este documento, `07-decisiones`, tipos de 13.4 (`RespuestasAsistente` como esqueleto), `ObservadorEvaluacion` | Codex y Gemini (consulta) |
+| SE · contrato estructurado, validación y conexión | Codex | `tarea/V2-12-salida-estructurada` · `-v2-12-se` | `HerramientaIA`, `HerramientasReserva`, validador nuevo, `TurnosIAService`, `ConstructorContextoModelo`, `InstruccionesAsistente`, `ModeloAnthropic` y sus pruebas (`TurnosIAIT`, `ModeloAnthropicTest`…) | Gemini Argon |
+| RD · composición, canales y adversarias | Gemini | `tarea/V2-12-respuestas-deterministas` · `-v2-12-rd` | RD-1: cuerpo de `RespuestasAsistente`, `ComposicionTurnoIA`, `RespuestasAsistenteTest`; RD-2: `SalidaClienteIT` (nueva), `ModeloConversacionalFalso`, guiones y `ConversacionGuionesIT` | Codex (solo lectura) |
+
+**Orden:** contrato → RD-1 (sin dependencias) → unión en `tarea/V2-12-conversacion-ia` → SE (Codex) y RD-2 (Gemini) en paralelo → unión → pruebas de canal → revisiones cruzadas. Consultas de acuerdo: 138 (Codex) y g102 (Gemini), 05/11/2026.
+| EV · evaluación, métricas y conjunto | Claude | `tarea/V2-12-evaluacion` · `-v2-12-eval` | `Correctores`, `CorrectoresTest`, `EvaluacionEnVivo*`, `FixturesEvaluacion`, convenciones del conjunto | Codex (solo lectura) |
