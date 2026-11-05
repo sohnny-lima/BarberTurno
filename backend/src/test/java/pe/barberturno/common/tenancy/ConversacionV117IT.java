@@ -44,7 +44,8 @@ class ConversacionV117IT extends TenancyPruebaBase {
         long tb = enNegocio(b, () -> turno(cb, "PENDIENTE", "Otro", 0));
         assertThat(enNegocio(null, () -> jdbc.queryForObject("select count(*) from turno_ia", Long.class))).isZero();
         assertThat(enNegocio(b, () -> jdbc.queryForList("select id from turno_ia", Long.class))).containsExactly(tb);
-        falla("23503", () -> enNegocio(1L, () -> turno(cb, "PENDIENTE", "Otro", 0)));
+        // Evita que la unicidad del pendiente se compruebe antes que la FK que se está probando.
+        falla("23503", () -> enNegocio(1L, () -> turno(cb, "HECHO", null, 0)));
         falla("23503", () -> enNegocio(1L, () -> llamada(tb, ca, 1)));
         falla("42501", () -> enNegocio(null, () -> turno(ca, "PENDIENTE", "Otro", 0)));
         enNegocio(1L, () -> llamada(ta, ca, 1));

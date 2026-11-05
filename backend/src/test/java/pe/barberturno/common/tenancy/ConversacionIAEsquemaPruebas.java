@@ -32,5 +32,6 @@ final class ConversacionIAEsquemaPruebas {
         assertThat(jdbc.queryForObject("select has_function_privilege(current_user,'incrementar_revision_conversacion()','EXECUTE')", Boolean.class)).isFalse();
         assertThat(jdbc.queryForObject("select has_column_privilege(current_user,'conversacion','revision','UPDATE')", Boolean.class)).isFalse();
         assertThat(jdbc.queryForObject("select count(*) from information_schema.columns where table_name='uso_ia' and column_name='conversacion_id'", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("select data_type from information_schema.columns where table_name='conversacion' and column_name='entradas_minuto'", String.class)).isEqualTo("smallint");
     }
 }

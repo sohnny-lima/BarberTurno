@@ -453,7 +453,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
                     assertThat(actuales.get(i).get("creada_por")).as("creada_por conservado en reserva fila %d", i).isEqualTo(previas.get(i).get("creada_por"));
                 } else if ("conversacion".equals(tabla.getKey())) {
                     if (actual.containsKey("revision")) assertThat(actual.remove("revision")).isEqualTo(0L);
-                    if (actual.containsKey("entradas_minuto")) assertThat(actual.remove("entradas_minuto")).isEqualTo((short) 0);
+                    if (actual.containsKey("entradas_minuto")) assertThat(((Number) actual.remove("entradas_minuto")).intValue()).isZero();
                     assertThat(actual.values()).allMatch(java.util.Objects::isNull);
                 } else if ("negocio".equals(tabla.getKey())) {
                     if (actual.containsKey("ia_habilitada")) assertThat(actual.remove("ia_habilitada")).isEqualTo(false);
