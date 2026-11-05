@@ -25,4 +25,10 @@ class ProgramadorRetencionWhatsApp {
     void ejecutar() {
         retencion.purgar();
     }
+
+    // El texto temporal de IA no espera al intervalo horario de la purga general.
+    @Scheduled(fixedDelay = 30_000, initialDelay = 30_000)
+    void abandonarTurnosIA() {
+        retencion.abandonarTurnosIA();
+    }
 }

@@ -12,7 +12,7 @@ import pe.barberturno.common.security.UsuarioAutenticado;
 
 /**
  * Anonimiza fichas sin cuenta conservando reservas y auditoría (V2-DA-75).
- * Bloquea conversación, operaciones y ficha, revalida y marca antes de borrar los datos asociados.
+ * Bloquea conversación, turnos de IA, operaciones y ficha, revalida y marca antes de borrar los datos asociados.
  * Los cuerpos crudos de eventos mantienen su retención propia; nunca se toman sus bloqueos aquí.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
@@ -47,6 +47,9 @@ public class AnonimizacionFichas {
         // sin invertir el orden de bloqueos.
         if (!conversaciones.isEmpty()) {
             entidades.createNativeQuery("""
+                    SELECT id FROM turno_ia WHERE conversacion_id IN (:ids) ORDER BY id FOR UPDATE
+                    """, Long.class).setParameter("ids", conversaciones).getResultList();
+            entidades.createNativeQuery("""
                     SELECT id FROM operacion_pendiente WHERE conversacion_id IN (:ids) ORDER BY id FOR UPDATE
                     """, Long.class).setParameter("ids", conversaciones).getResultList();
         }
@@ -80,7 +83,12 @@ public class AnonimizacionFichas {
                 """).setParameter("id", fichaId).setParameter("negocio", negocioId)
                 .setParameter("ahora", reloj.instant()).executeUpdate();
         if (!conversaciones.isEmpty()) {
-            for (String tabla : java.util.List.of("notificacion", "operacion_pendiente", "mensaje_whatsapp")) {
+            entidades.createNativeQuery("""
+                    UPDATE turno_ia SET estado='DESCARTADO', texto=NULL, motivo='ANONIMIZACION', actualizado_en=:ahora
+                    WHERE conversacion_id IN (:ids) AND estado='PENDIENTE'
+                    """).setParameter("ids", conversaciones).setParameter("ahora", reloj.instant()).executeUpdate();
+            // Los costes ya están en uso_ia desde la reserva; borrar detalle no los vuelve a sumar.
+            for (String tabla : java.util.List.of("llamada_ia", "turno_ia", "notificacion", "operacion_pendiente", "mensaje_whatsapp")) {
                 entidades.createNativeQuery("DELETE FROM " + tabla + " WHERE conversacion_id IN (:ids)")
                         .setParameter("ids", conversaciones).executeUpdate();
             }
