@@ -140,6 +140,21 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         assertThat(mensajes(a, c)).isEqualTo(1);
     }
 
+    @Test void continuacion_soloViveEnElBucle_yNoSeEntregaAlObservador() {
+        long c = conversacion(a, true), t = encolar(a, c, "Consulta");
+        var opaca = new ContinuacionProveedor() { };
+        modelo.programarRespuesta(new RespuestaModelo(Optional.empty(),
+                List.of(llamada(HerramientaIA.LISTAR_SERVICIOS, "{}")), opaca,
+                new UsoModelo("claude-opus-5-5", 10, 20, 0, 0, 1), "tool_use"));
+        modelo.programarTexto("¿Qué servicio prefieres?");
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        var devuelta = (MensajeModelo.DelAsistente) modelo.ultimaPeticion().mensajes().get(1);
+        assertThat(devuelta.continuacion()).isSameAs(opaca);
+        assertThat(observador.turnos().getFirst().respuestas()).allSatisfy(
+                respuesta -> assertThat(respuesta.continuacion()).isSameAs(ContinuacionProveedor.VACIA));
+    }
+
     @Test void creacion_seValidaSinOperacion_ySoloSeProponeAlFinal() {
         long c = conversacion(a, true), t = encolar(a, c, "Un corte");
         programarPropuesta(false);
@@ -371,6 +386,9 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
             return null;
         });
         assertThat(ejecutor.ejecutar(b, () -> sql.queryForObject("SELECT count(*) FROM uso_ia", Long.class))).isZero();
+        long conversacionB = conversacion(b, true), turnoB = encolar(b, conversacionB, "Consulta de B");
+        assertThat(ejecutor.ejecutar(b, () -> limites.reservar(turnoB, 1, peticion()))).isPresent();
+        assertThat(ejecutor.ejecutar(b, () -> sql.queryForObject("SELECT count(*) FROM uso_ia", Long.class))).isEqualTo(1);
         reloj.fijar(reloj.instant().plus(Duration.ofDays(1)));
         ejecutor.ejecutar(a, () -> limites.reservar(t1, 3, peticion()));
         assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT count(*) FROM notificacion WHERE tipo='LIMITE_IA'", Long.class))).isEqualTo(2);

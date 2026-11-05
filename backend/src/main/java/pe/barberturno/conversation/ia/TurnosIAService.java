@@ -167,7 +167,9 @@ public class TurnosIAService implements TurnosIA {
                     fallo.uso().ifPresent(uso -> limites.liquidar(reserva.get(), uso));
                     throw fallo;
                 }
-                observador.llamada(r.id(), respuesta);
+                // El observador puede conservar transcripciones: el pensamiento solo vive en este bucle.
+                observador.llamada(r.id(), new RespuestaModelo(respuesta.texto(), respuesta.llamadas(),
+                        ContinuacionProveedor.VACIA, respuesta.uso(), respuesta.parada()));
                 if ("refusal".equals(respuesta.parada())) throw fallo(MotivoFalloModelo.RECHAZO);
                 if ("max_tokens".equals(respuesta.parada())) throw fallo(MotivoFalloModelo.SALIDA_INVALIDA);
                 texto = respuesta.texto().orElse("");

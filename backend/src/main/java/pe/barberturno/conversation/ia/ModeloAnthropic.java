@@ -3,6 +3,7 @@ package pe.barberturno.conversation.ia;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.core.ObjectMappers;
 import com.anthropic.errors.AnthropicServiceException;
+import com.anthropic.errors.AnthropicIoException;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -98,10 +99,15 @@ public final class ModeloAnthropic implements ModeloConversacional {
             throw fallo(fallo.statusCode() == 429 ? MotivoFalloModelo.LIMITE_PROVEEDOR : MotivoFalloModelo.PROVEEDOR, uso);
         } catch (Exception fallo) {
             boolean tiempo = false;
-            for (Throwable causa = fallo; causa != null; causa = causa.getCause())
+            boolean jsonInvalido = false;
+            for (Throwable causa = fallo; causa != null; causa = causa.getCause()) {
                 if (causa instanceof java.net.SocketTimeoutException || causa instanceof java.net.http.HttpTimeoutException
                         || causa instanceof java.io.InterruptedIOException) tiempo = true;
-            throw fallo(tiempo ? MotivoFalloModelo.TIEMPO_AGOTADO : MotivoFalloModelo.SALIDA_INVALIDA, uso);
+                if (causa instanceof com.fasterxml.jackson.core.JsonProcessingException) jsonInvalido = true;
+            }
+            throw fallo(tiempo ? MotivoFalloModelo.TIEMPO_AGOTADO
+                    : fallo instanceof AnthropicIoException && !jsonInvalido ? MotivoFalloModelo.PROVEEDOR
+                    : MotivoFalloModelo.SALIDA_INVALIDA, uso);
         }
     }
 

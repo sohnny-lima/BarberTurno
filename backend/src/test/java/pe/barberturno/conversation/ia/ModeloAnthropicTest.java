@@ -157,6 +157,17 @@ class ModeloAnthropicTest {
                 });
     }
 
+    @Test void conexionRechazada_esProveedorSinUsoNiCausaCruda() {
+        servidor.stop(0);
+        assertThatThrownBy(() -> modelo.responder(peticion(List.of(new MensajeModelo.DelCliente("Consulta")))))
+                .isInstanceOfSatisfying(FalloModelo.class, fallo -> {
+                    assertThat(fallo.motivo()).isEqualTo(MotivoFalloModelo.PROVEEDOR);
+                    assertThat(fallo.uso()).isEmpty();
+                    assertThat(fallo.getCause()).isNull();
+                });
+        assertThat(recibidas).isEmpty();
+    }
+
     @Test void sinClave_arrancaYRespondeNoConfigurado() {
         new ApplicationContextRunner().withUserConfiguration(ConfiguracionModeloIA.class)
                 .withBean(IaPropiedades.class, () -> propiedades("", "http://127.0.0.1:1", Duration.ofMillis(100)))
