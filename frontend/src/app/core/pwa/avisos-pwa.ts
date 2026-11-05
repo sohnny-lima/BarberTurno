@@ -33,10 +33,13 @@ import { Actualizaciones } from './actualizaciones';
     </div>
   `,
   styles: `
-    .avisos {
-      position: fixed;
-      inset: auto 0 env(safe-area-inset-bottom, 0);
+    :host {
+      display: block;
+      position: sticky;
+      top: env(safe-area-inset-top, 0);
       z-index: 1100;
+    }
+    .avisos {
       pointer-events: none;
     }
     p {
