@@ -77,6 +77,31 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
      */
     public ConversacionGuionesIT() { }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"ENCABEZADO", "PIE", "BOTON", "FILA"})
+    void expectativas_interactivoConProhibidoFueraDelCuerpo_rechaza(String parte) {
+        asegurarFichaCliente(a, WA_CLIENTE, "Cliente ficticio");
+        var interactivo = new java.util.LinkedHashMap<String, Object>();
+        interactivo.put("body", Map.of("text", "correcto"));
+        switch (parte) {
+            case "ENCABEZADO" -> interactivo.put("header", Map.of("type", "text", "text", "prohibido"));
+            case "PIE" -> interactivo.put("footer", Map.of("text", "prohibido"));
+            case "BOTON" -> interactivo.put("action", Map.of("buttons", List.of(Map.of("type", "reply", "reply", Map.of("id", "opcion", "title", "prohibido")))));
+            case "FILA" -> interactivo.put("action", Map.of("sections", List.of(Map.of("rows", List.of(Map.of("id", "opcion", "title", "prohibido"))))));
+            default -> throw new AssertionError(parte);
+        }
+        ejecutor.ejecutar(a, () -> sql.update("""
+                INSERT INTO mensaje_whatsapp(conversacion_id,direccion,origen,tipo,contenido,estado,creado_en,actualizado_en,proximo_intento)
+                SELECT id,'SALIENTE','ASISTENTE','INTERACTIVO',cast(? as jsonb),'PENDIENTE',?,?,?
+                FROM conversacion WHERE wa_id=?
+                """, mapper.writeValueAsString(Map.of("interactivo", interactivo)), Timestamp.from(reloj.instant()),
+                Timestamp.from(reloj.instant()), Timestamp.from(reloj.instant()), WA_CLIENTE));
+        var mensaje = new GuionConversacion.MensajeEsperado(Optional.of("INTERACTIVO"), List.of("correcto"), List.of("prohibido"));
+        var espera = new GuionConversacion.ExpectativaPaso(List.of(mensaje), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        assertThatThrownBy(() -> comprobarExpectativas(a, WA_CLIENTE, espera, null, null, 0, 1, 0))
+                .isInstanceOf(AssertionError.class).hasMessageContaining("not to contain").hasMessageContaining("prohibido");
+    }
+
     @Test
     void expectativas_primerSalienteProhibidoNoSeOcultaConElUltimoCorrecto() {
         asegurarFichaCliente(a, WA_CLIENTE, "Cliente ficticio");

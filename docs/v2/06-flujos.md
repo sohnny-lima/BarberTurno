@@ -94,7 +94,7 @@ sequenceDiagram
   O->>D: consultarFranjas(...) dentro del negocio
   D-->>O: 17:30, 18:00, 19:10
   O->>L: resultado de la herramienta
-  L-->>O: «Carlos tiene libre mañana jueves 23/10 a las 17:30, 18:00 y 19:10. ¿Cuál prefieres?»
+  L-->>O: «Carlos tiene libre mañana. ¿Cuál de estas opciones prefieres?»
   O->>O: Guardas: sin fechas ni horas en el texto ✔, sin confirmaciones ✔ (V2-DA-85)
   O-->>C: texto + lista interactiva (generada por el servidor) con las 3 franjas
   C->>O: «la de las 6»
