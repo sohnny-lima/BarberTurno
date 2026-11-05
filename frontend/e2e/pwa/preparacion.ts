@@ -1,9 +1,28 @@
 import { randomBytes } from 'node:crypto';
+import { createConnection } from 'node:net';
 import { BASE_E2E, comprobarSinSesiones, sql, vaciar, validarBase } from '../base-datos';
 
 /** El cerrojo externo entrega credenciales por entorno; este arnés nunca lee .local. */
 export default async function preparar() {
   validarBase();
+  // Repite la guarda tras compilar: el puerto pudo ocuparse después de tomar el cerrojo.
+  const ocupado = await new Promise<boolean>((resolver) => {
+    const socket = createConnection({ host: 'localhost', port: 8081 });
+    socket.once('connect', () => {
+      socket.destroy();
+      resolver(true);
+    });
+    socket.once('error', () => {
+      socket.destroy();
+      resolver(false);
+    });
+    socket.setTimeout(2000, () => {
+      socket.destroy();
+      resolver(true);
+    });
+  });
+  if (ocupado)
+    throw new Error('8081 ocupado o no comprobable: no se inicia ni se limpia la base E2E.');
   if (!process.env['BT_DB_PASSWORD'] || !process.env['BT_FLYWAY_PASSWORD'])
     throw new Error('Faltan las credenciales E2E en el entorno del cerrojo.');
   comprobarSinSesiones();
