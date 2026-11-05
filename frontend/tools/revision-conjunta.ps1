@@ -304,7 +304,7 @@ BEGIN
 
   PERFORM set_config('app.negocio_id', v_negocio_id::text, true);
 
-  -- Canal de WhatsApp activo para barberturno si no existe o está inactivo (operatividad V2-DA-56)
+  -- Canal de WhatsApp activo para barberturno si no existe o esta inactivo (operatividad V2-DA-56)
   INSERT INTO canal_whatsapp (negocio_id, waba_id, phone_number_id, numero_visible, estado, creado_en, actualizado_en)
   VALUES (v_negocio_id, '100000000000001', '100000000000002', '+51900000000', 'ACTIVO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   ON CONFLICT (negocio_id) DO UPDATE SET estado = 'ACTIVO', actualizado_en = CURRENT_TIMESTAMP;
@@ -312,19 +312,16 @@ BEGIN
   SELECT id INTO v_encargado_id FROM usuario WHERE correo = 'encargado@ejemplo.test';
   SELECT id INTO v_propietario_id FROM usuario WHERE correo = 'multirol@ejemplo.test';
   IF v_encargado_id IS NULL OR v_propietario_id IS NULL THEN
-    RAISE EXCEPTION 'Usuarios de gestión no encontrados para los avisos de derivación';
+    RAISE EXCEPTION 'Usuarios de gestion no encontrados para los avisos de derivacion';
   END IF;
 
-  -- 1. Ficha ficticia sin cuenta web: Rosa Revisión (wa_id ficticio 51900000999)
+  -- 1. Ficha ficticia sin cuenta web: Rosa Revision (wa_id ficticio 51900000999)
   INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
   VALUES (v_negocio_id, U&'Rosa Revisi\\00F3n', '51900000999', '900000999', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-  ON CONFLICT (negocio_id, wa_id) DO UPDATE SET
-    nombre = U&'Rosa Revisi\\00F3n',
-    activo = true,
-    actualizado_en = CURRENT_TIMESTAMP
+  ON CONFLICT (negocio_id, wa_id) WHERE wa_id IS NOT NULL DO UPDATE SET nombre = EXCLUDED.nombre
   RETURNING id INTO v_cliente_rosa_id;
 
-  -- Conversación en modo HUMANO dentro de la ventana de 24 h (última entrada reciente)
+  -- Conversacion en modo HUMANO dentro de la ventana de 24 h (ultima entrada reciente)
   INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)
   VALUES (
     v_negocio_id,
@@ -368,13 +365,13 @@ BEGIN
     );
   END IF;
 
-  -- Mensaje SALIENTE / SISTEMA (acuse de derivación)
+  -- Mensaje SALIENTE / SISTEMA (acuse de derivacion)
   IF NOT EXISTS (
     SELECT 1 FROM mensaje_whatsapp
     WHERE negocio_id = v_negocio_id AND conversacion_id = v_conv_rosa_id AND direccion = 'SALIENTE' AND origen = 'SISTEMA'
   ) THEN
     INSERT INTO mensaje_whatsapp (
-      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, creado_en, actualizado_en
+      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, enviado_como, creado_en, actualizado_en
     ) VALUES (
       v_negocio_id,
       v_conv_rosa_id,
@@ -384,12 +381,13 @@ BEGIN
       U&'{"texto": "Te paso con el equipo de BarberTurno. Te responder\\00E1n por aqu\\00ED en cuanto puedan."}'::jsonb,
       'wamid.rev.acuse.' || floor(random() * 1000000)::text,
       'ENVIADO',
+      'TEXTO',
       CURRENT_TIMESTAMP - interval '14 minutes',
       CURRENT_TIMESTAMP - interval '14 minutes'
     );
   END IF;
 
-  -- Avisos DERIVACION (conversacion_id no nulo, reserva_id nulo) no leídos para encargado y propietario
+  -- Avisos DERIVACION (conversacion_id no nulo, reserva_id nulo) no leidos para encargado y propietario
   IF NOT EXISTS (
     SELECT 1 FROM notificacion
     WHERE negocio_id = v_negocio_id AND usuario_id = v_encargado_id AND conversacion_id = v_conv_rosa_id AND tipo = 'DERIVACION'
@@ -424,7 +422,7 @@ BEGIN
     );
   END IF;
 
-  -- 2. Segunda conversación derivada FUERA DE LA VENTANA (última entrada hace 30 h)
+  -- 2. Segunda conversacion derivada FUERA DE LA VENTANA (ultima entrada hace 30 h)
   INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
   VALUES (
     v_negocio_id,
@@ -436,10 +434,7 @@ BEGIN
     CURRENT_TIMESTAMP - interval '30 hours',
     CURRENT_TIMESTAMP - interval '30 hours'
   )
-  ON CONFLICT (negocio_id, wa_id) DO UPDATE SET
-    nombre = 'Mateo Demora',
-    activo = true,
-    actualizado_en = CURRENT_TIMESTAMP
+  ON CONFLICT (negocio_id, wa_id) WHERE wa_id IS NOT NULL DO UPDATE SET nombre = EXCLUDED.nombre
   RETURNING id INTO v_cliente_fuera_id;
 
   INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)
@@ -489,7 +484,7 @@ BEGIN
     WHERE negocio_id = v_negocio_id AND conversacion_id = v_conv_fuera_id AND direccion = 'SALIENTE' AND origen = 'SISTEMA'
   ) THEN
     INSERT INTO mensaje_whatsapp (
-      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, creado_en, actualizado_en
+      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, enviado_como, creado_en, actualizado_en
     ) VALUES (
       v_negocio_id,
       v_conv_fuera_id,
@@ -499,6 +494,7 @@ BEGIN
       U&'{"texto": "Te paso con el equipo de BarberTurno. Te responder\\00E1n por aqu\\00ED en cuanto puedan."}'::jsonb,
       'wamid.rev.acuse2.' || floor(random() * 1000000)::text,
       'ENVIADO',
+      'TEXTO',
       CURRENT_TIMESTAMP - interval '29 hours',
       CURRENT_TIMESTAMP - interval '29 hours'
     );
@@ -950,7 +946,7 @@ try {
     # - Profesional: recibe 403 Prohibido.
     $sesionEncargado = $sesionesPorCuenta['encargado']
     $respBandeja = Invoke-RestMethod -Uri "http://localhost:$puerto/api/n/barberturno/whatsapp/conversaciones" -WebSession $sesionEncargado
-    $conversaciones = @($respBandeja.elementos)
+    $conversaciones = @($respBandeja.contenido)
     if ($conversaciones.Count -lt 2) {
       throw "La bandeja de WhatsApp esperaba al menos 2 conversaciones pero devolvió $($conversaciones.Count)."
     }
