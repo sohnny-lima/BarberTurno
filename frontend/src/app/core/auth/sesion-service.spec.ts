@@ -99,6 +99,33 @@ describe('SesionService', () => {
     peticion.flush(cliente, { status: 201, statusText: 'Created' });
     expect(sesion.usuario()).toEqual(cliente);
   });
+  it('otra identidad limpia barbería y todas las claves propias de ambos almacenes', () => {
+    cargar();
+    prepararNegocio();
+    for (const almacen of [sessionStorage, localStorage]) {
+      almacen.setItem('barberturno.reserva', 'anterior');
+      almacen.setItem('barberturno.futura', 'anterior');
+      almacen.setItem('otra-app', 'conservar');
+    }
+    sesion.login({ correo: 'otra@ejemplo.test', password: 'Ficticia12345' }).subscribe();
+    http.expectOne('/api/auth/login').flush({ ...cliente, id: 99, correo: 'otra@ejemplo.test' });
+    expect(sesion.usuario()?.id).toBe(99);
+    for (const almacen of [sessionStorage, localStorage]) {
+      expect(almacen.getItem('barberturno.reserva')).toBeNull();
+      expect(almacen.getItem('barberturno.futura')).toBeNull();
+      expect(almacen.getItem('otra-app')).toBe('conservar');
+      almacen.removeItem('otra-app');
+    }
+  });
+  it('una carga anterior a la salida no puede repoblar la identidad', () => {
+    cargar();
+    sesion.cargar().subscribe();
+    const pendiente = http.expectOne('/api/auth/sesion');
+    sesion.logout().subscribe();
+    http.expectOne('/api/auth/logout').flush(null);
+    pendiente.flush(cliente);
+    expect(sesion.usuario()).toBeNull();
+  });
   it('logout borra las señales al completar el servidor', () => {
     cargar();
     sesion.logout().subscribe();

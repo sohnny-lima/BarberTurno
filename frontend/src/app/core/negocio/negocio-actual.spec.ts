@@ -141,6 +141,7 @@ describe('Contexto multinegocio y transporte', () => {
     expect(negocio.estado()).toBeNull();
     expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
       queryParams: { returnUrl: '/n/a/mis-citas?papel=cliente' },
+      replaceUrl: true,
     });
   });
   it.each([

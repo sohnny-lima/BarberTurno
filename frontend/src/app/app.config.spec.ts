@@ -1,3 +1,4 @@
+import { SwUpdate } from '@angular/service-worker';
 import { HttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApplicationInitStatus, LOCALE_ID } from '@angular/core';
@@ -33,6 +34,9 @@ describe('Configuración de la aplicación', () => {
     expect(inicializacion.done).toBe(true);
   });
 
+  it('el worker está deshabilitado en el modo de pruebas', () => {
+    expect(TestBed.inject(SwUpdate).isEnabled).toBe(false);
+  });
   it('usa el locale es-PE', () => {
     expect(TestBed.inject(LOCALE_ID)).toBe('es-PE');
   });

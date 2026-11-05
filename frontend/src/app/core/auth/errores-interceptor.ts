@@ -1,3 +1,4 @@
+import { ERROR_ESCRITURA_RED } from '../pwa/red';
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -22,13 +23,21 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
       const ruta = peticion.url.split('?')[0];
       const origen = peticion.context.get(ORIGEN_NEGOCIO);
       if (origen && !negocio.vigente(origen)) return throwError(() => error);
-      if (peticion.context.get(CONSULTA_CONTEXTO)) return throwError(() => error);
+      if (peticion.context.get(CONSULTA_CONTEXTO)) {
+        if (error.status === 401 && sesion.autenticado()) sesion.limpiar();
+        return throwError(() => error);
+      }
+      if (error.status === 401 && ruta === '/api/auth/login') sesion.limpiar();
       if (error.status === 401 && ruta === '/api/auth/sesion' && peticion.method === 'GET') {
+        sesion.limpiar();
         return throwError(() => error);
       }
       if (error.status === 401 && ruta !== '/api/auth/login') {
         sesion.limpiar();
-        void router.navigate(['/ingresar'], { queryParams: { returnUrl: router.url } });
+        void router.navigate(['/ingresar'], {
+          queryParams: { returnUrl: router.url },
+          replaceUrl: true,
+        });
       } else if (error.status === 403 && problema?.codigo === 'CAMBIO_PASSWORD_REQUERIDO') {
         void router.navigate(['/cambiar-password']);
       } else if (error.status === 403 && origen) {
@@ -58,7 +67,10 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
               if (consulta.status === 401 && negocio.vigente(origen)) {
                 const retorno = router.url;
                 sesion.limpiar();
-                void router.navigate(['/ingresar'], { queryParams: { returnUrl: retorno } });
+                void router.navigate(['/ingresar'], {
+                  queryParams: { returnUrl: retorno },
+                  replaceUrl: true,
+                });
               }
             },
           });
@@ -67,8 +79,19 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
         // sesión abierta, el aviso fijo aparece sin esperar a recargar. Sin snackbar duplicado.
         if (origen) negocio.marcarSuspendido();
       } else {
-        const mensaje =
-          error.status === 0 || error.status >= 500
+        const escrituraSinRed =
+          error.status === 0 && !['GET', 'HEAD', 'OPTIONS'].includes(peticion.method);
+        if (escrituraSinRed) {
+          error = new HttpErrorResponse({
+            error: { detail: ERROR_ESCRITURA_RED },
+            status: 0,
+            statusText: error.statusText,
+            url: error.url ?? undefined,
+          });
+        }
+        const mensaje = escrituraSinRed
+          ? ERROR_ESCRITURA_RED
+          : error.status === 0 || error.status >= 500
             ? 'No pudimos completar la solicitud. Intente nuevamente.'
             : problema?.detail || 'No pudimos completar la solicitud.';
         // Diferido: si la vista muestra el error junto a la acción (marcarPresentado en su

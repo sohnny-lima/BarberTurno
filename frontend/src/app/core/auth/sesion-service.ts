@@ -1,7 +1,7 @@
 import { NegocioActual } from '../negocio/negocio-actual';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { catchError, of, switchMap, tap, throwError } from 'rxjs';
+import { catchError, EMPTY, filter, of, switchMap, tap, throwError } from 'rxjs';
 import { AuthApi } from '../api/auth-api';
 import {
   CambiarPasswordDto,
@@ -15,6 +15,7 @@ import {
 export class SesionService {
   private readonly api = inject(AuthApi);
   private readonly negocio = inject(NegocioActual);
+  private generacion = 0;
   private readonly identidad = signal<UsuarioSesionDto | null>(null);
   readonly usuario = this.identidad.asReadonly();
   readonly autenticado = computed(() => this.usuario() !== null);
@@ -22,19 +23,27 @@ export class SesionService {
   readonly debeCambiarPassword = computed(() => this.usuario()?.debeCambiarPassword ?? false);
 
   cargar() {
+    const generacion = this.generacion;
     return this.api.sesion().pipe(
-      tap((usuario) => this.identidad.set(usuario)),
+      filter(() => generacion === this.generacion),
+      tap((usuario) => this.aceptar(usuario)),
       catchError((error: HttpErrorResponse) => {
+        if (generacion !== this.generacion) return EMPTY;
         this.limpiar();
         return error.status === 401 ? of(null) : throwError(() => error);
       }),
     );
   }
   login(datos: LoginDto) {
-    return this.api.login(datos).pipe(tap((usuario) => this.identidad.set(usuario)));
+    return this.api.login(datos).pipe(
+      tap((usuario) => {
+        this.limpiar();
+        this.identidad.set(usuario);
+      }),
+    );
   }
   registrar(datos: RegistroDto) {
-    return this.api.registrar(datos).pipe(tap((usuario) => this.identidad.set(usuario)));
+    return this.api.registrar(datos).pipe(tap((usuario) => this.aceptar(usuario)));
   }
   logout() {
     return this.api.logout().pipe(tap(() => this.limpiar()));
@@ -45,7 +54,12 @@ export class SesionService {
   actualizarPerfil(perfil: PerfilDto) {
     this.identidad.update((usuario) => (usuario ? { ...usuario, nombre: perfil.nombre } : null));
   }
+  private aceptar(usuario: UsuarioSesionDto) {
+    if (this.usuario() && this.usuario()!.id !== usuario.id) this.limpiar();
+    this.identidad.set(usuario);
+  }
   limpiar() {
+    this.generacion++;
     this.identidad.set(null);
     this.negocio.limpiar();
   }

@@ -33,6 +33,18 @@ describe('Interceptor de errores', () => {
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
   afterEach(() => peticiones.verify());
+  it('una escritura sin red devuelve un mensaje claro y nunca se reintenta al volver', async () => {
+    const error = vi.fn();
+    http.post('/api/reservas', {}).subscribe({ error });
+    peticiones.expectOne('/api/reservas').error(new ProgressEvent('error'));
+    expect(error.mock.calls[0][0].error.detail).toContain('No se reintentará automáticamente');
+    window.dispatchEvent(new Event('online'));
+    peticiones.expectNone('/api/reservas');
+    await microtareas();
+    expect(abrir).toHaveBeenCalledWith(expect.stringContaining('falta de conexión'), 'Cerrar', {
+      duration: 6000,
+    });
+  });
   it('401 protegida limpia la sesión y navega a ingresar', () => {
     const sesion = TestBed.inject(SesionService);
     sesion.cargar().subscribe();
@@ -44,6 +56,7 @@ describe('Interceptor de errores', () => {
     expect(sesion.autenticado()).toBe(false);
     expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
       queryParams: { returnUrl: '/' },
+      replaceUrl: true,
     });
   });
   it('401 de sesión inicial no navega ni muestra error', async () => {
