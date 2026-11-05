@@ -12,11 +12,15 @@ export class Teclado {
     if (!ventana || !viewport) return;
     let cuadro = 0;
     let altoInicial = viewport.height;
+    let anchoInicial = viewport.width;
     const actualizar = () => {
       const campo = documento.activeElement;
       const editable =
         campo instanceof HTMLElement && campo.matches('input, textarea, [contenteditable="true"]');
-      if (!editable && viewport.scale === 1) altoInicial = viewport.height;
+      if (viewport.scale === 1 && (!editable || Math.abs(viewport.width - anchoInicial) > 50)) {
+        altoInicial = viewport.height;
+        anchoInicial = viewport.width;
+      }
       const abierto = editable && viewport.scale === 1 && altoInicial - viewport.height > 150;
       this.abierto.set(abierto);
       ventana.cancelAnimationFrame(cuadro);
