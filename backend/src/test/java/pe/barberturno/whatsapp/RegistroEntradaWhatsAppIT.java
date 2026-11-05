@@ -65,6 +65,39 @@ class RegistroEntradaWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(((Timestamp) fila.get("ultima_entrada_en")).toInstant()).isEqualTo(t2);
     }
 
+    /**
+     * Revisión 129 (defecto 6): el reloj se lee antes del bloqueo. Una entrega que leyó el minuto anterior y
+     * escribe después de otra del minuto nuevo no hace retroceder el minuto ni reinicia la cuenta.
+     */
+    @Test
+    void registrar_muestraDeUnMinutoAnteriorQueLlegaDespues_noRetrocedeNiReiniciaElContador() {
+        Instant minutoNuevo = Instant.parse("2026-11-05T15:01:10Z");
+        reloj.fijar(minutoNuevo);
+        recibirEnTransaccion();
+        recibirEnTransaccion();
+        reloj.fijar(Instant.parse("2026-11-05T15:00:59Z")); // muestra tomada antes del bloqueo
+        recibirEnTransaccion();
+
+        var fila = ejecutor.ejecutar(a, () -> sql.queryForMap(
+                "SELECT minuto_entradas, entradas_minuto FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));
+        assertThat(((Timestamp) fila.get("minuto_entradas")).toInstant()).isEqualTo(Instant.parse("2026-11-05T15:01:00Z"));
+        assertThat(((Number) fila.get("entradas_minuto")).intValue()).as("cuenta en el minuto más reciente").isEqualTo(3);
+
+        reloj.fijar(Instant.parse("2026-11-05T15:02:05Z"));
+        recibirEnTransaccion();
+        var siguiente = ejecutor.ejecutar(a, () -> sql.queryForMap(
+                "SELECT minuto_entradas, entradas_minuto FROM conversacion WHERE negocio_id = ? AND wa_id = ?", a, WA_CLIENTE));
+        assertThat(((Number) siguiente.get("entradas_minuto")).intValue()).as("minuto nuevo: reinicia").isEqualTo(1);
+    }
+
+    private void recibirEnTransaccion() {
+        Instant enviado = reloj.instant();
+        ejecutor.ejecutar(a, () -> new TransactionTemplate(gestor).execute(status -> {
+            receptorMensajes.recibir(mensaje(a, WA_CLIENTE, enviado));
+            return null;
+        }));
+    }
+
     @Test
     void recibir_mensajeAtrasado_noRetrocedeUltimaEntradaEn() {
         Instant tReciente = reloj.instant().minus(Duration.ofMinutes(10));

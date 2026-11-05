@@ -7,16 +7,31 @@ import java.util.regex.Pattern;
  * enviarlo al modelo (17-v2-12 §7; V2-RNF-05). Conservador: prefiere ocultar de más (un número de 7 o más dígitos,
  * aunque no fuera un teléfono) que enviar un dato personal al proveedor.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 public final class SaneadorTexto {
     /** Sustituto visible para el modelo. */
     public static final String DATO = "[dato]";
     private static final Pattern CORREO = Pattern.compile("[\\p{L}\\p{N}._%+-]+@[\\p{L}\\p{N}-]+(?:\\.[\\p{L}\\p{N}-]+)+");
-    /** 7 o más dígitos con hasta dos separadores entre ellos (espacio, guion, punto, paréntesis) y un {@code +} inicial opcional. */
-    private static final Pattern TELEFONO = Pattern.compile("\\+?\\(?\\d(?:[\\s().-]{0,2}\\d){6,}");
+    /**
+     * 7 o más dígitos con hasta dos separadores entre ellos y un {@code +} inicial opcional. Separadores: espacios
+     * (también los Unicode, como U+00A0 o U+202F), guiones (también U+2011 o U+2013), puntos y paréntesis. Con
+     * {@code UNICODE_CHARACTER_CLASS} también cuentan los dígitos de otras escrituras (revisión 129, V2-DA-84).
+     */
+    private static final Pattern TELEFONO = Pattern.compile("\\+?\\(?\\d(?:[\\s\\p{Zs}\\p{Pd}().]{0,2}\\d){6,}",
+            Pattern.UNICODE_CHARACTER_CLASS);
 
     private SaneadorTexto() { }
+
+    /**
+     * Dice si el texto contiene un teléfono o un correo según los mismos patrones con los que se sanea la entrada,
+     * para que las guardas de salida no diverjan del saneador (V2-DA-85).
+     * @param texto texto a examinar; nulo equivale a vacío
+     * @return verdadero si hay algún teléfono o correo
+     */
+    public static boolean contieneDatoPersonal(String texto) {
+        return texto != null && (TELEFONO.matcher(texto).find() || CORREO.matcher(texto).find());
+    }
 
     /**
      * Devuelve el texto con los correos y teléfonos sustituidos y recortado a {@code maximo} puntos de código.
