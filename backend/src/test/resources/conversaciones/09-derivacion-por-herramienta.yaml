@@ -14,5 +14,8 @@ pasos:
       - texto: "Te estoy comunicando de inmediato con nuestro equipo."
         parada: "end_turn"
     espera:
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["Te paso con el equipo", "Te responderán por aquí"]
       modoConversacion: "HUMANO"
       estadoTurno: "HECHO"

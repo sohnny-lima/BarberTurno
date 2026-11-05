@@ -1,212 +1,209 @@
 package pe.barberturno.conversation.ia.evaluacion;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Timestamp;
-import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import org.springframework.boot.SpringApplication;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import pe.barberturno.BarberTurnoApplication;
-import pe.barberturno.common.tenancy.EjecutorEnNegocio;
-import pe.barberturno.conversation.ConversacionPruebas;
-import pe.barberturno.conversation.ia.EfectoTurno;
-import pe.barberturno.conversation.ia.FranjaOfrecida;
-import pe.barberturno.conversation.ia.LlamadaHerramienta;
-import pe.barberturno.conversation.ia.ObservadorEvaluacionRegistro;
-import pe.barberturno.conversation.ia.ResultadoGuardas;
-import pe.barberturno.conversation.ia.ResultadoHerramienta;
-import pe.barberturno.conversation.ia.TurnosIA;
-import pe.barberturno.conversation.ia.UsoModelo;
-import pe.barberturno.whatsapp.ProcesadorEventosWhatsApp;
+import pe.barberturno.conversation.ia.*;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Arnés ejecutable para la evaluación en vivo de modelos conversacionales (V2-13; 17-v2-12 §4.4; 08-pruebas §4.2).
- * Levanta el contexto real de Spring Boot bajo el perfil {@code evaluacion-en-vivo} con el adaptador real de
- * Anthropic y reproduce cada conversación mediante la entrega real de WhatsApp y el trabajador de turnos.
- *
- * <p><strong>Controles de seguridad obligatorios al arrancar:</strong>
- * <ul>
- *     <li>Exige la clave de API en la variable de entorno {@code BT_IA_API_KEY}.</li>
- *     <li>Exige una base de datos desechable cuyo nombre sea estrictamente {@code barberturno_v2_test}.</li>
- *     <li>Exige un tope de gasto explícito mediante la propiedad {@code -Devaluacion.tope-usd=<n>}.</li>
- * </ul>
- * Si falta cualquiera de estos tres requisitos, el arnés se niega tajantemente a iniciar y no invoca a ningún
- * proveedor externo.
- *
- * <p>El tope de gasto autorizado se impone directamente sobre el negocio de prueba en la base de datos
- * mediante la columna {@code ia_presupuesto_mensual_usd}.</p>
- *
- * <p>Los resultados, transcripciones y el informe comparativo en Markdown se escriben en {@code target/evaluacion/}.</p>
- *
+ * Ensayo explícito fuera de CI. Valida destino antes del refresh, impone configuración y reserva
+ * el máximo global antes de cada llamada. Nunca ejecutar sin P2-03 y presupuesto aprobado.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.2
+ * @version 2.0
  */
-public class EvaluacionEnVivo {
-
+public final class EvaluacionEnVivo {
     private static final String RUTA_CONJUNTO = "evaluacion/conjunto-v1";
     private static final Path DIRECTORIO_SALIDA = Path.of("target", "evaluacion");
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    static final Instant RELOJ = Instant.parse("2026-11-02T15:00:00Z");
 
-    /**
-     * Configuración complementaria para registrar el observador en memoria durante la evaluación en vivo.
-     */
-    @TestConfiguration(proxyBeanMethods = false) // no @Configuration: el escaneo de los *IT la cargaría en todos los contextos
+    private EvaluacionEnVivo() { }
+
+    @TestConfiguration(proxyBeanMethods = false)
     public static class ConfiguracionEvaluacion {
+        @Bean @Primary
+        pe.barberturno.support.RelojAjustable relojEvaluacion() { var reloj = new pe.barberturno.support.RelojAjustable(); reloj.fijar(RELOJ); return reloj; }
 
-        /** Constructor público para Spring Boot. */
-        public ConfiguracionEvaluacion() { }
+        @Bean @Primary
+        ObservadorEvaluacionRegistro observadorEvaluacionRegistro() { return new ObservadorEvaluacionRegistro(); }
 
-        /**
-         * Observador primario para registrar llamadas, herramientas y guardas.
-         *
-         * @return instancia de {@link ObservadorEvaluacionRegistro}
-         */
         @Bean
-        @Primary
-        public ObservadorEvaluacionRegistro observadorEvaluacionRegistro() {
-            return new ObservadorEvaluacionRegistro();
+        static MonitorModelo monitorModelo(ObjectProvider<IaPropiedades> propiedades, SeguridadEvaluacion.Saldo saldo) {
+            return new MonitorModelo(propiedades, saldo, true);
         }
     }
 
-    /** Constructor sin argumentos. */
-    public EvaluacionEnVivo() { }
+    /** El escaneo del arranque real no incorpora componentes ni configuraciones del classpath de pruebas. */
+    static final class ExcluirPruebas extends org.springframework.boot.context.TypeExcludeFilter {
+        @Override public boolean equals(Object otro) { return otro != null && otro.getClass() == getClass(); }
+        @Override public int hashCode() { return getClass().hashCode(); }
+        @Override
+        public boolean match(org.springframework.core.type.classreading.MetadataReader lector,
+                org.springframework.core.type.classreading.MetadataReaderFactory fabrica) throws java.io.IOException {
+            var origen = BarberTurnoApplication.class.getProtectionDomain().getCodeSource().getLocation().toExternalForm();
+            String recurso = lector.getResource().getURL().toExternalForm();
+            return !recurso.startsWith(origen) && !recurso.startsWith("jar:" + origen + "!");
+        }
+    }
+
+    static final class MonitorModelo implements BeanPostProcessor {
+        private final ObjectProvider<IaPropiedades> propiedades;
+        private final SeguridadEvaluacion.Saldo saldo;
+        private final boolean exigirProveedorReal;
+        private final List<String> peticiones = new ArrayList<>();
+        private String modelo;
+        private String esfuerzo;
+        MonitorModelo(ObjectProvider<IaPropiedades> propiedades, SeguridadEvaluacion.Saldo saldo) {
+            this(propiedades, saldo, false);
+        }
+        MonitorModelo(ObjectProvider<IaPropiedades> propiedades, SeguridadEvaluacion.Saldo saldo, boolean exigirProveedorReal) {
+            this.propiedades = propiedades; this.saldo = saldo;
+            this.exigirProveedorReal = exigirProveedorReal;
+        }
+        @Override public Object postProcessAfterInitialization(Object bean, String nombre) {
+            if (!(bean instanceof ModeloConversacional delegado)) return bean;
+            if (exigirProveedorReal && !delegado.getClass().getName().equals("pe.barberturno.conversation.ia.ModeloAnthropic"))
+                throw new IllegalStateException("El ensayo en vivo exige ModeloAnthropic; se detectó otro adaptador.");
+            return (ModeloConversacional) peticion -> {
+                var p = propiedades.getObject();
+                SeguridadEvaluacion.validarModelo(p, modelo, esfuerzo);
+                String texto = ModeloConversacionalFalso.extraerPeticionCompleta(peticion);
+                peticiones.add(texto);
+                // Registrar la fuga para el corrector, y evitar enviarla a un proveedor externo.
+                if (SeguridadEvaluacion.contieneCanario(texto)) throw new IllegalStateException("Canario detectado antes del proveedor.");
+                saldo.reservar(peticion, p);
+                var respuesta = delegado.responder(peticion);
+                if (!p.modelo().equals(respuesta.uso().modelo()))
+                    throw new IllegalStateException("El proveedor devolvió un modelo distinto al solicitado.");
+                return respuesta;
+            };
+        }
+        List<String> desde(int indice) { return List.copyOf(peticiones.subList(indice, peticiones.size())); }
+        int cantidad() { return peticiones.size(); }
+        void configurar(String modelo, String esfuerzo) {
+            SeguridadEvaluacion.validarModelo(propiedades.getObject(), modelo, esfuerzo);
+            this.modelo = modelo; this.esfuerzo = esfuerzo;
+        }
+    }
 
     /**
-     * Punto de entrada principal para la ejecución de la evaluación en vivo bajo el perfil {@code evaluacion-en-vivo}.
-     *
-     * @param args argumentos de línea de órdenes
+     * Ejecuta únicamente el ensayo explícito, nunca como prueba ni parte de verify.
+     * @param args argumentos de Spring que forman parte del entorno efectivo validado antes del refresh
+     * @throws Exception si falta un prerrequisito o no se pueden persistir las transcripciones
      */
-    public static void main(String[] args) {
-        System.out.println("=== BarberTurno v2 · Arnés de Evaluación en Vivo (V2-13) ===");
-
-        try {
-            verificarPrerrequisitos();
-        } catch (IllegalStateException e) {
-            System.err.println("ABORTADO: " + e.getMessage());
-            System.exit(1);
-            return;
+    public static void main(String[] args) throws Exception {
+        verificarPrerrequisitos();
+        var saldo = new SeguridadEvaluacion.Saldo(SeguridadEvaluacion.validarTope(System.getProperty("evaluacion.tope-usd")));
+        String particion = System.getProperty("evaluacion.particion", "PRUEBA");
+        String esfuerzo = System.getProperty("evaluacion.esfuerzo", "low");
+        var casos = cargarConjuntoCasos(particion);
+        // Valida los fixtures de TODOS los casos antes de abrir Spring o escribir datos.
+        var fixtures = FixturesEvaluacion.cargar();
+        for (var caso : casos) fixtures.exigir(caso);
+        if (casos.isEmpty()) throw new IllegalStateException("La partición no contiene casos.");
+        Files.createDirectories(DIRECTORIO_SALIDA.resolve("transcripciones"));
+        StringBuilder informe = new StringBuilder("# Evaluación en vivo\n\nConjunto BORRADOR; no acredita selección del modelo.\n\n");
+        informe.append("Esfuerzo impuesto y verificado en IaPropiedades: ").append(esfuerzo).append(".\n\n");
+        for (String modelo : System.getProperty("evaluacion.modelos", "claude-haiku-5-5").split(",")) {
+            var resultado = ejecutarModelo(modelo.trim(), esfuerzo, particion, casos, fixtures, saldo, args);
+            informe.append(resultado.aMarkdown()).append("\n");
         }
-
-        String apiKey = System.getenv("BT_IA_API_KEY");
-        BigDecimal topeUsd = new BigDecimal(System.getProperty("evaluacion.tope-usd").trim());
-        String particionPedida = System.getProperty("evaluacion.particion", "PRUEBA");
-        String modelosStr = System.getProperty("evaluacion.modelos", "claude-haiku-5-5");
-        List<String> modelos = Arrays.stream(modelosStr.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
-
-        System.out.println("Configuración verificada:");
-        System.out.println("- Tope de gasto: " + topeUsd + " USD");
-        System.out.println("- Partición: " + particionPedida);
-        System.out.println("- Modelos a evaluar: " + modelos);
-
-        List<Correctores.CasoEvaluacion> conjunto = cargarConjuntoCasos(particionPedida);
-        System.out.println("- Total de casos cargados: " + conjunto.size());
-
-        try {
-            Files.createDirectories(DIRECTORIO_SALIDA);
-            Files.createDirectories(DIRECTORIO_SALIDA.resolve("transcripciones"));
-
-            StringBuilder informeCompleto = new StringBuilder();
-            informeCompleto.append("# Informe de Evaluación en Vivo de Modelos Conversacionales (V2-13)\n\n");
-            informeCompleto.append("> Generado automáticamente el ").append(Instant.now()).append("\n");
-            informeCompleto.append("> Tope autorizado: ").append(topeUsd).append(" USD. Partición: ").append(particionPedida).append("\n\n");
-
-            for (String modelo : modelos) {
-                System.out.println("\nEjecutando evaluación real para modelo: " + modelo + "...");
-                Correctores.InformeModelo informeModelo = ejecutarEvaluacionModeloReal(modelo, particionPedida, conjunto, topeUsd, apiKey, args);
-                informeCompleto.append(informeModelo.aMarkdown()).append("\n---\n\n");
-            }
-
-            Path rutaInforme = DIRECTORIO_SALIDA.resolve("informe.md");
-            Files.writeString(rutaInforme, informeCompleto.toString(), StandardCharsets.UTF_8);
-            System.out.println("\nInforme de evaluación escrito en: " + rutaInforme.toAbsolutePath());
-            System.out.println("Evaluación finalizada con éxito.");
-        } catch (Exception e) {
-            System.err.println("Error durante la ejecución de la evaluación: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(2);
-        }
+        informe.append("Máximo global reservado (incluye errores y todos los modelos): ")
+                .append(BigDecimal.valueOf(saldo.reservado(), 6)).append(" USD.\n");
+        Files.writeString(DIRECTORIO_SALIDA.resolve("informe.md"), informe, StandardCharsets.UTF_8);
     }
 
     /**
-     * Valida de manera estricta los 3 prerrequisitos no simulables antes de cualquier llamada.
-     *
-     * @throws IllegalStateException si falta la clave, la base no es desechable o falta el tope de gasto
+     * Rechaza clave y presupuesto ausentes sin crear Spring; el destino se valida sobre su entorno efectivo.
+     * @throws IllegalStateException si no se dispone de clave y tope explícitos
      */
     public static void verificarPrerrequisitos() {
-        String apiKey = System.getenv("BT_IA_API_KEY");
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("Falta la clave BT_IA_API_KEY en el entorno. Se niega a ejecutar la evaluación.");
-        }
+        verificarPrerrequisitos(System.getenv("BT_IA_API_KEY"), System.getProperty("evaluacion.tope-usd"));
+    }
 
-        String dbUrl = obtenerUrlBaseDatos();
-        if (!dbUrl.contains("barberturno_v2_test")) {
-            throw new IllegalStateException("La base de datos '" + dbUrl + "' no contiene 'barberturno_v2_test'. "
-                    + "Se prohíbe ejecutar la evaluación en vivo sobre bases que no sean barberturno_v2_test.");
-        }
+    static void verificarPrerrequisitos(String clave, String tope) {
+        exigirClave(clave);
+        SeguridadEvaluacion.validarTope(tope);
+    }
 
-        String topeStr = System.getProperty("evaluacion.tope-usd");
-        if (topeStr == null || topeStr.isBlank()) {
-            throw new IllegalStateException("Falta el tope de gasto explícito -Devaluacion.tope-usd=<n>. "
-                    + "Se niega a ejecutar sin límite presupuestario autorizado.");
-        }
+    static void exigirClave(String clave) {
+        if (clave == null || clave.isBlank()) throw new IllegalStateException("Falta BT_IA_API_KEY; ensayo rechazado antes de abrir Spring.");
+    }
 
-        try {
-            BigDecimal tope = new BigDecimal(topeStr.trim());
-            if (tope.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalStateException("El tope de gasto debe ser un número estrictamente positivo en USD: " + topeStr);
+    static void configurarEntorno(ConfigurableEnvironment env, String modelo, String esfuerzo, String clave) {
+        exigirClave(clave);
+        if (!List.of("low", "medium", "high").contains(esfuerzo) || !modelo.matches("claude-[a-z0-9-]+"))
+            throw new IllegalStateException("Modelo o esfuerzo inválido.");
+        // Prioridad superior a YAML, argumentos y variables; el destino se toma del entorno real ya resuelto.
+        Map<String, Object> fijas = new HashMap<>();
+        fijas.put("barberturno.ia.habilitada", true);
+        fijas.put("barberturno.ia.clave", clave);
+        fijas.put("barberturno.ia.modelo", modelo);
+        fijas.put("barberturno.ia.esfuerzo", esfuerzo);
+        for (String p : List.of("barberturno.ia.trabajador.habilitado", "barberturno.whatsapp.procesador.habilitado",
+                "barberturno.whatsapp.salida.habilitado", "barberturno.whatsapp.bandeja.habilitado",
+                "barberturno.whatsapp.conversacion.retencion.habilitada")) fijas.put(p, false);
+        fijas.put("barberturno.ia.trabajador.lote", 1);
+        fijas.put("barberturno.whatsapp.salida.graph.token", "");
+        fijas.put("barberturno.admin.correo", ""); fijas.put("barberturno.admin.password", "");
+        fijas.put("server.port", 0);
+        fijas.put("spring.datasource.hikari.maximum-pool-size", 4);
+        fijas.put("spring.jpa.hibernate.ddl-auto", "validate");
+        fijas.put("spring.datasource.type", "com.zaxxer.hikari.HikariDataSource");
+        fijas.put("spring.datasource.hikari.connection-init-sql", "SET lock_timeout = '5s'");
+        env.getPropertySources().addFirst(new MapPropertySource("ensayo-obligatorio", fijas));
+        SeguridadEvaluacion.validarDestino(env);
+    }
+
+    private static Correctores.InformeModelo ejecutarModelo(String modelo, String esfuerzo, String particion,
+            List<Correctores.CasoEvaluacion> casos, FixturesEvaluacion fixtures, SeguridadEvaluacion.Saldo saldo, String[] args) throws Exception {
+        SpringApplication app = new SpringApplication(BarberTurnoApplication.class, ConfiguracionEvaluacion.class);
+        app.setAdditionalProfiles("test", "evaluacion-en-vivo");
+        app.addInitializers(ctx -> {
+            configurarEntorno(ctx.getEnvironment(), modelo, esfuerzo, System.getenv("BT_IA_API_KEY"));
+            SeguridadEvaluacion.comprobarConexion(ctx.getEnvironment());
+            ctx.getBeanFactory().registerSingleton("saldoEnsayo", saldo);
+            ctx.getBeanFactory().registerSingleton("excluirComponentesDePrueba", new ExcluirPruebas());
+        });
+        try (var ctx = app.run(args)) {
+            var p = ctx.getBean(IaPropiedades.class);
+            SeguridadEvaluacion.validarModelo(p, modelo, esfuerzo);
+            var monitor = ctx.getBean(MonitorModelo.class);
+            monitor.configurar(modelo, esfuerzo);
+            var escenario = new EscenarioEvaluacion(ctx, fixtures);
+            escenario.exigirColaAislada();
+            List<Correctores.TranscripcionCaso> transcripciones = new ArrayList<>();
+            for (var caso : casos) {
+                var transcripcion = escenario.ejecutar(caso, p.modelo(), monitor);
+                transcripciones.add(transcripcion);
+                Path carpeta = DIRECTORIO_SALIDA.resolve("transcripciones").resolve(modelo);
+                Files.createDirectories(carpeta);
+                MAPPER.writerWithDefaultPrettyPrinter().writeValue(carpeta.resolve(caso.id() + ".json").toFile(), transcripcion);
             }
-        } catch (NumberFormatException e) {
-            throw new IllegalStateException("El valor de -Devaluacion.tope-usd no es un número válido: " + topeStr);
+            return Correctores.evaluar(p.modelo(), particion, transcripciones);
         }
     }
-
     /**
-     * Detecta el nombre de la base de datos destino desde las variables de entorno o propiedades de Spring.
-     *
-     * @return identificador o URL de la base de datos
-     */
-    public static String obtenerUrlBaseDatos() {
-        String dbUrl = System.getenv("BT_DB_URL");
-        if (dbUrl != null && !dbUrl.isBlank()) return dbUrl.trim();
-
-        String pgDb = System.getenv("PGDATABASE");
-        if (pgDb != null && !pgDb.isBlank()) return pgDb.trim();
-
-        String springUrl = System.getProperty("spring.datasource.url");
-        if (springUrl != null && !springUrl.isBlank()) return springUrl.trim();
-
-        return "barberturno_v2_test";
-    }
-
-    /**
-     * Carga los casos de prueba desde el directorio de recursos según la partición solicitada.
-     *
-     * @param particionFiltro {@code "PRUEBA"}, {@code "AJUSTE"} o {@code "TODAS"}
-     * @return lista de casos de prueba
+     * Lee el conjunto congelado como BORRADOR sin modificarlo ni deducir objetivos por el nombre del caso.
+     * @param particionFiltro AJUSTE, PRUEBA o TODAS
+     * @return casos de la partición, cuya correspondencia con fixtures se valida antes del contexto
      */
     public static List<Correctores.CasoEvaluacion> cargarConjuntoCasos(String particionFiltro) {
         List<Correctores.CasoEvaluacion> todos = new ArrayList<>();
@@ -248,30 +245,30 @@ public class EvaluacionEnVivo {
                     String contenido = Files.readString(pathLocal, StandardCharsets.UTF_8);
                     return parsearCasosYaml(contenido);
                 }
-                return List.of();
+                throw new IllegalStateException("Falta un archivo del conjunto: " + rutaRecurso);
             }
             String contenido = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             return parsearCasosYaml(contenido);
         } catch (Exception e) {
-            System.err.println("Aviso: no se pudo leer el archivo " + rutaRecurso + ": " + e.getMessage());
-            return List.of();
+            throw new IllegalStateException("No se pudo cargar íntegramente el archivo del conjunto: " + rutaRecurso, e);
         }
     }
 
     @SuppressWarnings("unchecked")
     private static List<Correctores.CasoEvaluacion> parsearCasosYaml(String yamlStr) {
         List<Correctores.CasoEvaluacion> casos = new ArrayList<>();
-        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        LoaderOptions opciones = new LoaderOptions(); opciones.setAllowDuplicateKeys(false);
+        Yaml yaml = new Yaml(new SafeConstructor(opciones));
         Object obj = yaml.load(yamlStr);
-        if (!(obj instanceof Map<?, ?> mapaRaw)) return casos;
+        if (!(obj instanceof Map<?, ?> mapaRaw)) throw new IllegalArgumentException("El conjunto debe ser un mapa YAML.");
         Map<String, Object> mapa = (Map<String, Object>) mapaRaw;
 
         String categoria = (String) mapa.getOrDefault("categoria", "general");
         List<?> casosRaw = (List<?>) mapa.get("conversaciones");
-        if (casosRaw == null) return casos;
+        if (casosRaw == null || casosRaw.isEmpty()) throw new IllegalArgumentException("Archivo de conversaciones vacío.");
 
         for (Object item : casosRaw) {
-            if (!(item instanceof Map<?, ?> mRaw)) continue;
+            if (!(item instanceof Map<?, ?> mRaw)) throw new IllegalArgumentException("Conversación YAML inválida.");
             Map<String, Object> m = (Map<String, Object>) mRaw;
             String id = (String) m.get("id");
             String particion = (String) m.getOrDefault("particion", "AJUSTE");
@@ -292,10 +289,9 @@ public class EvaluacionEnVivo {
 
     private static Correctores.ResultadoEsperado parsearEsperado(Map<String, Object> espMap) {
         if (espMap == null) {
-            return new Correctores.ResultadoEsperado(Correctores.TipoEsperado.SIN_OPERACION,
-                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            throw new IllegalArgumentException("Cada conversación exige un resultado esperado explícito.");
         }
-        String tipoStr = (String) espMap.getOrDefault("tipo", "SIN_OPERACION");
+        String tipoStr = Objects.requireNonNull((String) espMap.get("tipo"), "Tipo esperado obligatorio");
         Correctores.TipoEsperado tipo = Correctores.TipoEsperado.valueOf(tipoStr.trim());
         Optional<String> servicio = Optional.ofNullable((String) espMap.get("servicio"));
         Optional<String> profesional = Optional.ofNullable((String) espMap.get("profesional"));
@@ -304,262 +300,5 @@ public class EvaluacionEnVivo {
         return new Correctores.ResultadoEsperado(tipo, servicio, profesional, inicio, motivo);
     }
 
-    /**
-     * Ejecuta la evaluación real levantando el contexto de Spring Boot con el perfil {@code evaluacion-en-vivo}.
-     *
-     * @param modelo identificador del modelo evaluado
-     * @param particion partición de casos
-     * @param casos casos a ejecutar
-     * @param topeUsd tope presupuestario
-     * @param apiKey clave API del proveedor
-     * @param args argumentos de línea de órdenes
-     * @return informe consolidado de métricas evaluadas
-     */
-    public static Correctores.InformeModelo ejecutarEvaluacionModeloReal(
-            String modelo,
-            String particion,
-            List<Correctores.CasoEvaluacion> casos,
-            BigDecimal topeUsd,
-            String apiKey,
-            String[] args
-    ) {
-        SpringApplication app = new SpringApplication(BarberTurnoApplication.class, ConfiguracionEvaluacion.class);
-        app.setAdditionalProfiles("evaluacion-en-vivo");
 
-        Map<String, Object> props = new HashMap<>();
-        props.put("spring.profiles.active", "evaluacion-en-vivo");
-        props.put("barberturno.ia.habilitada", "true");
-        props.put("barberturno.ia.clave", apiKey);
-        props.put("barberturno.ia.modelo", modelo);
-        props.put("barberturno.ia.trabajador.habilitado", "false");
-        app.setDefaultProperties(props);
-
-        try (ConfigurableApplicationContext ctx = app.run(args)) {
-            JdbcTemplate jdbc = ctx.getBean(JdbcTemplate.class);
-            EjecutorEnNegocio ejecutor = ctx.getBean(EjecutorEnNegocio.class);
-            ProcesadorEventosWhatsApp procesador = ctx.getBean(ProcesadorEventosWhatsApp.class);
-            TurnosIA turnosIA = ctx.getBean(TurnosIA.class);
-            ObservadorEvaluacionRegistro observador = ctx.getBean(ObservadorEvaluacionRegistro.class);
-            Clock reloj = ctx.getBean(Clock.class);
-
-            Long negocioId = obtenerNegocioPrueba(jdbc);
-            // Aplica el tope de gasto autorizado directamente sobre el negocio de prueba
-            jdbc.update("UPDATE negocio SET ia_habilitada = true, ia_presupuesto_mensual_usd = ? WHERE id = ?",
-                    topeUsd, negocioId);
-
-            String phoneNumberId = obtenerNumeroNegocio(jdbc, negocioId);
-
-            List<Correctores.TranscripcionCaso> transcripciones = new ArrayList<>();
-
-            for (Correctores.CasoEvaluacion caso : casos) {
-                BigDecimal gastoActual = consultarGastoTotal(jdbc, negocioId);
-                if (gastoActual.compareTo(topeUsd) >= 0) {
-                    System.out.println("Tope presupuestario alcanzado (" + gastoActual + " >= " + topeUsd + " USD). Deteniendo.");
-                    break;
-                }
-
-                Correctores.TranscripcionCaso tc = ejecutarCasoReal(
-                        caso, modelo, negocioId, phoneNumberId, procesador, turnosIA, observador, reloj, jdbc, ejecutor
-                );
-                transcripciones.add(tc);
-
-                guardarTranscripcionJson(tc);
-            }
-
-            return Correctores.evaluar(modelo, particion, transcripciones);
-        }
-    }
-
-    private static Correctores.TranscripcionCaso ejecutarCasoReal(
-            Correctores.CasoEvaluacion caso,
-            String modelo,
-            long negocioId,
-            String phoneNumberId,
-            ProcesadorEventosWhatsApp procesador,
-            TurnosIA turnosIA,
-            ObservadorEvaluacionRegistro observador,
-            Clock reloj,
-            JdbcTemplate jdbc,
-            EjecutorEnNegocio ejecutor
-    ) {
-        String waId = "51988" + String.format("%06d", Math.abs(caso.id().hashCode()) % 1_000_000);
-        asegurarFichaCliente(jdbc, ejecutor, negocioId, waId, "Cliente " + caso.id(), reloj.instant());
-
-        List<Correctores.TurnoTranscripcion> turnos = new ArrayList<>();
-        long entradaTokensTotal = 0;
-        long salidaTokensTotal = 0;
-        long cacheLeidaTotal = 0;
-        long cacheEscritaTotal = 0;
-        long duracionTotalMs = 0;
-
-        for (int i = 0; i < caso.mensajesCliente().size(); i++) {
-            String textoCliente = caso.mensajesCliente().get(i);
-            String wamid = ConversacionPruebas.nuevoWamid();
-            ObjectNode cuerpo = ConversacionPruebas.cuerpoTexto(
-                    MAPPER, phoneNumberId, waId, "Cliente", textoCliente, wamid, reloj.instant()
-            );
-
-            insertarEventoWhatsApp(jdbc, "m:" + wamid, phoneNumberId, cuerpo.toString(), reloj.instant());
-            procesador.procesarLote();
-
-            Long turnoId = consultarUltimoTurnoId(jdbc, ejecutor, negocioId, waId);
-
-            long t0 = System.currentTimeMillis();
-            if (turnosIA != null) {
-                turnosIA.procesarPendientes();
-            }
-            long latenciaMs = System.currentTimeMillis() - t0;
-            duracionTotalMs += latenciaMs;
-
-            Optional<ObservadorEvaluacionRegistro.RegistroTurno> obsOpt = (turnoId != null)
-                    ? observador.buscarTurno(turnoId)
-                    : Optional.empty();
-
-            Optional<String> textoModeloOriginal = obsOpt.flatMap(r -> r.respuestas().isEmpty()
-                    ? Optional.empty()
-                    : r.respuestas().getLast().texto());
-
-            List<LlamadaHerramienta> llamadas = obsOpt.map(r -> r.herramientas().stream()
-                    .map(ObservadorEvaluacionRegistro.RegistroHerramienta::llamada)
-                    .toList()).orElseGet(List::of);
-
-            List<ResultadoHerramienta> resultados = obsOpt.map(r -> r.herramientas().stream()
-                    .map(ObservadorEvaluacionRegistro.RegistroHerramienta::resultado)
-                    .toList()).orElseGet(List::of);
-
-            List<FranjaOfrecida> franjas = obsOpt.map(r -> r.herramientas().stream()
-                    .flatMap(h -> h.franjas().stream())
-                    .toList()).orElseGet(List::of);
-
-            Optional<ResultadoGuardas> guardas = obsOpt.flatMap(ObservadorEvaluacionRegistro.RegistroTurno::guardas);
-            Optional<EfectoTurno> efecto = obsOpt.flatMap(ObservadorEvaluacionRegistro.RegistroTurno::efecto);
-
-            String estadoFinal = (turnoId != null)
-                    ? consultarEstadoTurno(jdbc, ejecutor, negocioId, turnoId)
-                    : "NO_PROCESADO";
-
-            boolean contieneCanario = textoModeloOriginal
-                    .map(txt -> txt.contains("Canario B") || txt.contains("Barbería Canario B"))
-                    .orElse(false);
-
-            if (obsOpt.isPresent()) {
-                UsoModelo usoTurno = obsOpt.get().usoTotal();
-                entradaTokensTotal += usoTurno.entrada();
-                salidaTokensTotal += usoTurno.salida();
-                cacheLeidaTotal += usoTurno.cacheLeida();
-                cacheEscritaTotal += usoTurno.cacheEscrita();
-            }
-
-            turnos.add(new Correctores.TurnoTranscripcion(
-                    turnoId != null ? turnoId : 0L,
-                    textoCliente,
-                    textoModeloOriginal,
-                    llamadas,
-                    resultados,
-                    franjas,
-                    guardas,
-                    efecto,
-                    estadoFinal,
-                    latenciaMs,
-                    contieneCanario
-            ));
-        }
-
-        UsoModelo usoTotal = new UsoModelo(modelo, entradaTokensTotal, salidaTokensTotal,
-                cacheLeidaTotal, cacheEscritaTotal, duracionTotalMs);
-
-        return new Correctores.TranscripcionCaso(caso, modelo, turnos, usoTotal, Instant.now());
-    }
-
-    private static void guardarTranscripcionJson(Correctores.TranscripcionCaso tc) {
-        try {
-            Path archivo = DIRECTORIO_SALIDA.resolve("transcripciones").resolve(tc.caso().id() + ".json");
-            MAPPER.writerWithDefaultPrettyPrinter().writeValue(archivo.toFile(), tc);
-        } catch (Exception e) {
-            System.err.println("Aviso: no se pudo guardar transcripción para " + tc.caso().id() + ": " + e.getMessage());
-        }
-    }
-
-    private static Long obtenerNegocioPrueba(JdbcTemplate jdbc) {
-        var lista = jdbc.queryForList("SELECT id FROM negocio WHERE slug = 'barberturno' LIMIT 1", Long.class);
-        if (!lista.isEmpty()) return lista.getFirst();
-        return jdbc.queryForObject("SELECT id FROM negocio ORDER BY id LIMIT 1", Long.class);
-    }
-
-    private static String obtenerNumeroNegocio(JdbcTemplate jdbc, long negocioId) {
-        var lista = jdbc.queryForList("SELECT phone_number_id FROM canal_whatsapp WHERE negocio_id = ? LIMIT 1",
-                String.class, negocioId);
-        if (!lista.isEmpty()) return lista.getFirst();
-        return "100000000000001";
-    }
-
-    private static BigDecimal consultarGastoTotal(JdbcTemplate jdbc, long negocioId) {
-        Long microUsd = jdbc.queryForObject(
-                "SELECT coalesce(sum(coste_micro_usd), 0) FROM uso_ia WHERE negocio_id = ?",
-                Long.class, negocioId
-        );
-        if (microUsd == null || microUsd == 0L) return BigDecimal.ZERO;
-        return BigDecimal.valueOf(microUsd).divide(BigDecimal.valueOf(1_000_000), 6, java.math.RoundingMode.HALF_UP);
-    }
-
-    private static Long consultarUltimoTurnoId(JdbcTemplate jdbc, EjecutorEnNegocio ejecutor, long negocioId, String waId) {
-        return ejecutor.ejecutar(negocioId, () -> {
-            var lista = jdbc.queryForList("""
-                    SELECT t.id FROM turno_ia t
-                    JOIN conversacion c ON c.id = t.conversacion_id AND c.negocio_id = t.negocio_id
-                    WHERE c.negocio_id = ? AND c.wa_id = ?
-                    ORDER BY t.id DESC LIMIT 1
-                    """, Long.class, negocioId, waId);
-            return lista.isEmpty() ? null : lista.getFirst();
-        });
-    }
-
-    private static String consultarEstadoTurno(JdbcTemplate jdbc, EjecutorEnNegocio ejecutor, long negocioId, long turnoId) {
-        return ejecutor.ejecutar(negocioId, () -> {
-            var lista = jdbc.queryForList("SELECT estado FROM turno_ia WHERE id = ?", String.class, turnoId);
-            return lista.isEmpty() ? "FALLIDO" : lista.getFirst();
-        });
-    }
-
-    private static long insertarEventoWhatsApp(
-            JdbcTemplate jdbc, String claveIdempotencia, String phoneNumberId, String cuerpoJson, Instant ahora) {
-        jdbc.update("""
-                INSERT INTO evento_whatsapp_entrante (clave_idempotencia, tipo, phone_number_id, cuerpo, recibido_en, proximo_intento)
-                VALUES (?, 'MENSAJE', ?, cast(? as jsonb), ?, ?)
-                ON CONFLICT (clave_idempotencia) DO NOTHING
-                """, claveIdempotencia, phoneNumberId, cuerpoJson, Timestamp.from(ahora), Timestamp.from(ahora));
-        Long id = jdbc.queryForObject(
-                "SELECT id FROM evento_whatsapp_entrante WHERE clave_idempotencia = ?", Long.class, claveIdempotencia);
-        return id != null ? id : 0L;
-    }
-
-    private static void asegurarFichaCliente(
-            JdbcTemplate jdbc, EjecutorEnNegocio ejecutor, long negocioId, String waId, String nombre, Instant ahora) {
-        ejecutor.ejecutar(negocioId, () -> {
-            var clienteIds = jdbc.queryForList("SELECT id FROM cliente WHERE negocio_id = ? AND wa_id = ?",
-                    Long.class, negocioId, waId);
-            Long clienteId;
-            if (clienteIds.isEmpty()) {
-                clienteId = jdbc.queryForObject("""
-                        INSERT INTO cliente (negocio_id, nombre, wa_id, activo, creado_en, actualizado_en)
-                        VALUES (?, ?, ?, true, ?, ?) RETURNING id
-                        """, Long.class, negocioId, nombre, waId, Timestamp.from(ahora), Timestamp.from(ahora));
-            } else {
-                clienteId = clienteIds.getFirst();
-            }
-
-            var convIds = jdbc.queryForList("SELECT id FROM conversacion WHERE negocio_id = ? AND wa_id = ?",
-                    Long.class, negocioId, waId);
-            if (convIds.isEmpty()) {
-                jdbc.update("""
-                        INSERT INTO conversacion (negocio_id, wa_id, cliente_id, ultima_entrada_en, creado_en, actualizado_en)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """, negocioId, waId, clienteId, Timestamp.from(ahora), Timestamp.from(ahora), Timestamp.from(ahora));
-            } else {
-                jdbc.update("UPDATE conversacion SET cliente_id = ? WHERE negocio_id = ? AND wa_id = ?",
-                        clienteId, negocioId, waId);
-            }
-            return null;
-        });
-    }
 }

@@ -10,5 +10,8 @@ pasos:
       - texto: "Para agendar tu cita primero debes elegir uno de los servicios disponibles."
         parada: "end_turn"
     espera:
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["primero debes elegir uno de los servicios disponibles"]
       reservasCreadas: 0
       estadoTurno: "HECHO"
