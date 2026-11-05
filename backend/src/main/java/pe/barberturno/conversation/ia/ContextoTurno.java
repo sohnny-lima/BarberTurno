@@ -19,9 +19,19 @@ public final class ContextoTurno {
     final Map<String, CitaOpcion> citas = new LinkedHashMap<>();
     final Map<String, FranjaValidada> franjas = new LinkedHashMap<>();
     Long servicioBorrador;
+    // null = sin elegir; 0 = cualquiera; positivo = profesional concreto validado.
     Long profesionalBorrador;
     LocalDate diaBorrador;
-    long corteHistorial;
+    // null = no hubo búsqueda válida; una búsqueda fallida no altera el último resultado válido.
+    Boolean ultimaBusquedaVacia;
+    DecisionRespuesta decision;
+
+    static boolean ultimaValida(String ultima) {
+        return Set.of("MOSTRAR_FRANJAS", "PROPUESTA", "CONSENTIMIENTO", "DERIVAR", "NEUTRO",
+                "MOSTRAR_SERVICIOS", "MOSTRAR_PROFESIONALES", "MOSTRAR_CITAS", "SIN_DISPONIBILIDAD",
+                "FUERA_DE_ALCANCE", "SALUDO", "PEDIR_DATO:SERVICIO", "PEDIR_DATO:PROFESIONAL",
+                "PEDIR_DATO:DIA", "PEDIR_DATO:CITA").contains(ultima);
+    }
 
     /**
      * Crea un ámbito de alias vacío para una única resolución.

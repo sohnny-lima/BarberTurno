@@ -13,7 +13,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Proyección por lista blanca del contexto mínimo (V2-DA-81), sin serializar entidades,
- * remitentes, selecciones ni contenido del personal. El resultado solo contiene alias del turno.
+ * remitentes, nombre del cliente ni historial textual. Solo expone alias del turno y ultimaRespuesta
+ * de lista cerrada; revalida las selecciones parciales del borrador antes de proyectarlas.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -51,43 +52,40 @@ public class ConstructorContextoModelo {
             if (!servicios.isEmpty()) for (var p : consultas.profesionales(servicios.getFirst().id()))
                 profesionales.addObject().put("alias", c.profesional(p)).put("nombre", HerramientasReserva.limpio(p.nombre()));
             raiz.put("tieneFicha", c.ficha.isPresent());
-            if (c.ficha.isPresent()) {
-                var nombres = em.createNativeQuery("SELECT nombre FROM cliente WHERE id=:id AND activo", String.class)
-                        .setParameter("id", c.ficha.getAsLong()).getResultList();
-                if (!nombres.isEmpty()) raiz.put("nombre", HerramientasReserva.limpio(nombres.getFirst().toString().strip().split("\\s+")[0]));
-            }
             var filas = em.createNativeQuery("SELECT CAST(estado AS text) FROM conversacion WHERE id=:id", String.class)
                     .setParameter("id", conversacionId).getResultList();
             if (!filas.isEmpty()) {
-                var estadoConversacion = json.readTree(filas.getFirst().toString());
-                // Metadato interno del estado (fuera de ia): se pierde con cualquier vaciado.
-                // El corte por identidad también funciona con dos mensajes de igual sello temporal.
-                var corte = estadoConversacion.get("ia_corte_mensaje");
-                c.corteHistorial = corte != null && corte.isIntegralNumber() && corte.asLong() >= 0 ? corte.asLong()
-                        : ((Number) em.createNativeQuery("SELECT COALESCE(max(id),0) FROM mensaje_whatsapp WHERE conversacion_id=:id")
-                                .setParameter("id", conversacionId).getSingleResult()).longValue();
-                var borrador = estadoConversacion.path("ia");
+                var borrador = json.readTree(filas.getFirst().toString()).path("ia");
                 var proyectado = raiz.putObject("borrador");
-                long servicio = borrador.path("servicio").asLong(0), profesional = borrador.path("profesional").asLong(0);
-                c.servicios.forEach((alias, s) -> { if (s.id() == servicio) proyectado.put("servicio", alias); });
-                c.profesionales.forEach((alias, p) -> { if (p.id() == profesional) proyectado.put("profesional", alias); });
+                long servicio = borrador.path("servicio").asLong(-1), profesional = borrador.path("profesional").asLong(-1);
+                c.servicios.forEach((alias, s) -> {
+                    if (s.id() == servicio) {
+                        c.servicioBorrador = s.id();
+                        proyectado.put("servicio", alias);
+                    }
+                });
+                if (profesional == 0) {
+                    c.profesionalBorrador = 0L;
+                    proyectado.put("profesional", "cualquiera");
+                } else c.profesionales.forEach((alias, p) -> {
+                    if (p.id() == profesional) {
+                        c.profesionalBorrador = p.id();
+                        proyectado.put("profesional", alias);
+                    }
+                });
                 String dia = borrador.path("dia").asString("");
-                if (dia.matches("\\d{4}-\\d{2}-\\d{2}")) proyectado.put("dia", dia);
-            }
-            var historial = raiz.putArray("historial");
-            var mensajes = em.createNativeQuery("""
-                    SELECT CAST(m.contenido AS text) FROM mensaje_whatsapp m JOIN conversacion c
-                        ON c.negocio_id=m.negocio_id AND c.id=m.conversacion_id
-                    WHERE c.id=:id AND m.origen IN ('ASISTENTE','SISTEMA') AND m.direccion='SALIENTE'
-                        AND m.id > :corte AND NOT jsonb_exists(m.contenido, 'retirado')
-                    ORDER BY m.id DESC LIMIT 6
-                    """, String.class).setParameter("id", conversacionId).setParameter("corte", c.corteHistorial).getResultList();
-            for (int i = mensajes.size() - 1; i >= 0; i--) {
-                var contenido = json.readTree(mensajes.get(i).toString());
-                String texto = contenido.path("interactivo").path("body").path("text").asString(
-                        contenido.path("texto").asString(contenido.path("text").path("body").asString("")));
-                if (!texto.isBlank()) historial.add(HerramientasReserva.limpio(texto));
-            }
+                try {
+                    if (dia.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                        var fecha = java.time.LocalDate.parse(dia);
+                        if (!fecha.isBefore(c.hoy)) {
+                            c.diaBorrador = fecha;
+                            proyectado.put("dia", dia);
+                        }
+                    }
+                } catch (java.time.DateTimeException invalida) { /* Borrador obsoleto: se vuelve a pedir el día. */ }
+                String ultima = borrador.path("ultima").asString("NEUTRO");
+                raiz.put("ultimaRespuesta", ContextoTurno.ultimaValida(ultima) ? ultima : "NEUTRO");
+            } else raiz.put("ultimaRespuesta", "NEUTRO");
             return json.writeValueAsString(raiz);
         });
     }
