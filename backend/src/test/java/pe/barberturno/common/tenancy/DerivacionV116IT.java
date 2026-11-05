@@ -13,7 +13,8 @@ class DerivacionV116IT extends TenancyPruebaBase {
         for (String tabla : List.of("conversacion", "mensaje_whatsapp", "operacion_pendiente")) {
             Set<String> permitidas = switch (tabla) {
                 case "conversacion" -> Set.of("cliente_id", "estado", "version", "ultima_entrada_en", "actualizado_en",
-                        "modo", "derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en");
+                        "modo", "derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en",
+                        "minuto_entradas", "entradas_minuto"); // las dos últimas, de V117 (V2-12)
                 case "mensaje_whatsapp" -> Set.of("contenido", "wamid", "estado", "intentos", "inciertos",
                         "proximo_intento", "error_codigo", "codigo_meta", "enviado_como", "actualizado_en");
                 default -> Set.of("estado", "resultado", "actualizado_en");
