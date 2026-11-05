@@ -13,6 +13,8 @@ import java.util.*;
 /**
  * Adaptador de Messages estable con SDK oficial y sin reintentos ocultos. Encapsula Jackson 2,
  * devuelve intactos los bloques del asistente y nunca incluye el cuerpo del proveedor en errores.
+ * Publica también la terminal estructurada del servidor, sin forzar la elección de herramientas;
+ * el texto recibido solo sirve al observador y a la continuación efímera, nunca a la salida del canal.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */

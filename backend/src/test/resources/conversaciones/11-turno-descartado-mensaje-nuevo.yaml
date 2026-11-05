@@ -20,7 +20,8 @@ pasos:
     espera:
       estadoTurno: "HECHO"
       salientesNuevos: 1
+      textoDescartado: "Con gusto te ayudo con tu reserva."
       mensajes:
-        - tipo: "TEXTO"
-          contiene: ["Con gusto te ayudo con tu reserva."]
-          noContiene: ["Horario que no debe salir"]
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["Horario que no debe salir", "Con gusto te ayudo"]

@@ -8,7 +8,7 @@ import java.util.Optional;
  * no hace nada; la evaluación registra el texto del modelo <strong>antes</strong> de las guardas, las franjas, las
  * llamadas, el uso y el resultado. Nunca registra en los registros de la aplicación.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 public interface ObservadorEvaluacion {
     /**
@@ -45,4 +45,12 @@ public interface ObservadorEvaluacion {
      * @param textoDescartado texto libre que devolvió el proveedor, si lo hubo
      */
     default void decision(long turnoId, Optional<DecisionRespuesta> decision, Optional<String> textoDescartado) { }
+
+    /**
+     * Mensaje que el turno encola para el cliente, tal como lo compuso el servidor (V2-DA-86; revisión 140): la
+     * evaluación comprueba que lo persistido en {@code mensaje_whatsapp} coincide exactamente con alguno de estos.
+     * @param turnoId turno
+     * @param mensaje mensaje compuesto por {@link RespuestasAsistente} o por los menús de V2-10
+     */
+    default void salida(long turnoId, MensajeAsistente mensaje) { }
 }

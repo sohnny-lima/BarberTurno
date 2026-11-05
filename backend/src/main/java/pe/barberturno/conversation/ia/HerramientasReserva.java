@@ -48,7 +48,8 @@ public class HerramientasReserva {
 
     /**
      * Valida exactamente el esquema y resuelve solo alias conocidos de este contexto.
-     * Una búsqueda concede alias solo tras consultar todo el rango y no emite efecto si está vacía.
+     * Una búsqueda concede alias solo tras consultar todo el rango; registra si quedó vacía para
+     * validar SIN_DISPONIBILIDAD. La terminal se valida por separado al cerrar, sin ejecutar efectos.
      * @param contexto capacidades de un solo turno
      * @param llamada herramienta y JSON del proveedor
      * @return error genérico o resultado y efecto proyectados, sin entidades gestionadas
@@ -68,6 +69,29 @@ public class HerramientasReserva {
     static EjecucionHerramienta error(String id, String codigo, String mensaje) {
         return new EjecucionHerramienta(new ResultadoHerramienta(id,
                 "{\"codigo\":\"" + codigo + "\",\"mensaje\":\"" + mensaje + "\"}", true), Optional.empty());
+    }
+
+    // La terminal se examina una sola vez, tras todas las herramientas no terminales.
+    Optional<DecisionRespuesta> respuesta(ContextoTurno c, LlamadaHerramienta llamada) {
+        try {
+            if (negocio.negocioActual().orElseThrow() != c.negocioId
+                    || llamada.herramienta() != HerramientaIA.RESPONDER_AL_CLIENTE) return Optional.empty();
+            var a = argumentosEstrictos.readTree(llamada.argumentosJson());
+            validar(a, json.readTree(HerramientaIA.RESPONDER_AL_CLIENTE.esquemaJson()));
+            var decision = new DecisionRespuesta(IntencionRespuesta.valueOf(texto(a, "intencion")),
+                    Optional.ofNullable(texto(a, "falta")).map(DatoFaltante::valueOf));
+            String servicio = texto(a, "servicio"), profesional = texto(a, "profesional");
+            Long servicioId = servicio == null ? c.servicioBorrador
+                    : Long.valueOf(Objects.requireNonNull(c.servicios.get(servicio)).id());
+            Long profesionalId = profesional == null ? c.profesionalBorrador : "cualquiera".equals(profesional)
+                    ? Long.valueOf(0) : Long.valueOf(Objects.requireNonNull(c.profesionales.get(profesional)).id());
+            // Solo actualiza selecciones después de validar todos los argumentos.
+            c.servicioBorrador = servicioId;
+            c.profesionalBorrador = profesionalId;
+            return Optional.of(decision);
+        } catch (RuntimeException rechazo) {
+            return Optional.empty();
+        }
     }
 
     private void validar(JsonNode argumentos, JsonNode esquema) {
@@ -91,6 +115,7 @@ public class HerramientasReserva {
 
     private EjecucionHerramienta resolver(ContextoTurno c, LlamadaHerramienta l, JsonNode a) {
         return switch (l.herramienta()) {
+            case RESPONDER_AL_CLIENTE -> throw new IllegalArgumentException();
             case LISTAR_SERVICIOS -> {
                 var lista = json.createArrayNode();
                 for (var s : consultas.servicios()) lista.addObject().put("alias", c.servicio(s))
@@ -178,8 +203,9 @@ public class HerramientasReserva {
         var ofrecidas = candidatas.stream()
                 .map(f -> c.franja(servicio, cita == null ? null : cita.reservaId(), f)).toList();
         c.servicioBorrador = servicio;
-        c.profesionalBorrador = profesional.isPresent() ? profesional.getAsLong() : null;
+        c.profesionalBorrador = profesional.orElse(0L);
         c.diaBorrador = desde;
+        c.ultimaBusquedaVacia = ofrecidas.isEmpty();
         var lista = json.createArrayNode();
         for (var f : ofrecidas) lista.addObject().put("alias", f.alias())
                 .put("inicio", TiempoNegocio.aLima(f.inicio()).toString())

@@ -22,6 +22,8 @@ import tools.jackson.databind.node.ObjectNode;
  * Cola con ficha de reclamo y aplicación atómica de un solo efecto (V2-DA-77/78).
  * Nunca conserva una conexión ni un bloqueo durante el HTTP. La revisión, el modo y la ficha
  * se verifican nuevamente bajo bloqueo antes de cada llamada y de cualquier salida.
+ * La terminal estructurada se degrada contra datos del servidor; el texto del proveedor solo
+ * llega al observador y a la continuación efímera. La salida siempre la compone el servidor.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -47,8 +49,7 @@ public class TurnosIAService implements TurnosIA {
     private final HerramientasReserva herramientas;
     private final LimitesIAService limites;
     private final ModeloConversacional modelo;
-    private final GuardasSalida guardas;
-    private final ComposicionTurnoIA composicion;
+    private final RespuestasAsistente respuestas;
     private final InstruccionesAsistente instrucciones;
     private final ObservadorEvaluacion observador;
     private final Clock reloj;
@@ -60,7 +61,7 @@ public class TurnosIAService implements TurnosIA {
             ConversacionPropiedades conversacionPropiedades, BandejaPropiedades bandeja, IaPropiedades propiedades,
             ConstructorContextoModelo constructor,
             HerramientasReserva herramientas, LimitesIAService limites, ModeloConversacional modelo,
-            GuardasSalida guardas, ComposicionTurnoIA composicion, InstruccionesAsistente instrucciones,
+            RespuestasAsistente respuestas, InstruccionesAsistente instrucciones,
             ObservadorEvaluacion observador, Clock reloj) {
         this.em = em; this.tx = new TransactionTemplate(gestor); this.ejecutor = ejecutor; this.canales = canales;
         this.conversaciones = conversaciones; this.entradas = entradas; this.operaciones = operaciones;
@@ -68,7 +69,7 @@ public class TurnosIAService implements TurnosIA {
         this.textos = textos; this.conversacionPropiedades = conversacionPropiedades; this.bandeja = bandeja;
         this.propiedades = propiedades;
         this.constructor = constructor; this.herramientas = herramientas; this.limites = limites; this.modelo = modelo;
-        this.guardas = guardas; this.composicion = composicion; this.instrucciones = instrucciones;
+        this.respuestas = respuestas; this.instrucciones = instrucciones;
         this.observador = observador; this.reloj = reloj;
     }
 
@@ -186,7 +187,10 @@ public class TurnosIAService implements TurnosIA {
                 var resultados = new ArrayList<ResultadoHerramienta>();
                 boolean derivar = false;
                 int herramientasRespuesta = 0;
+                var terminales = respuesta.llamadas().stream()
+                        .filter(l -> l.herramienta() == HerramientaIA.RESPONDER_AL_CLIENTE).toList();
                 for (var llamada : respuesta.llamadas()) {
+                    if (llamada.herramienta() == HerramientaIA.RESPONDER_AL_CLIENTE) continue;
                     if (agotado(r, Duration.ZERO)) throw fallo(MotivoFalloModelo.TIEMPO_AGOTADO);
                     var ejecucion = ++herramientasRespuesta <= Math.min(4, propiedades.maxHerramientas())
                             ? herramientas.ejecutar(c, llamada)
@@ -201,7 +205,12 @@ public class TurnosIAService implements TurnosIA {
                     var ofrecidas = ejecucion.efecto().filter(EfectoTurno.MostrarFranjas.class::isInstance)
                             .map(EfectoTurno.MostrarFranjas.class::cast).map(EfectoTurno.MostrarFranjas::franjas).orElse(List.of());
                     observador.herramienta(r.id(), llamada, ejecucion.paraModelo(), ofrecidas);
-                    if (derivar) break;
+                }
+                if (!terminales.isEmpty()) {
+                    if (terminales.size() == 1 && ++herramientasRespuesta <= Math.min(4, propiedades.maxHerramientas()))
+                        c.decision = herramientas.respuesta(c, terminales.getFirst()).orElse(null);
+                    finalizar(r, c, texto, efectos, null);
+                    return;
                 }
                 if (derivar) {
                     finalizar(r, c, texto, efectos, null);
@@ -259,18 +268,18 @@ public class TurnosIAService implements TurnosIA {
         tx.executeWithoutResult(estado -> {
             if (!validar(r, false)) return;
             if (motivo != null || agotado(r, Duration.ZERO)) {
-                menu(r, composicion.fallo());
+                menu(r, MotivoMenu.FALLO);
                 cerrar(r, "FALLIDO", motivo == null ? "TIEMPO_AGOTADO" : motivo);
+                observarDecision(r.id(), Optional.empty(), texto);
                 return;
             }
             EfectoTurno efecto = elegir(efectos);
-            // La composición admite diez filas: solo esas franjas se muestran y autorizan el texto.
             if (efecto instanceof EfectoTurno.MostrarFranjas mostrar)
                 efecto = new EfectoTurno.MostrarFranjas(mostrar.franjas().stream().limit(10).toList());
-            List<FranjaOfrecida> franjas = efecto instanceof EfectoTurno.MostrarFranjas mostrar
-                    ? mostrar.franjas() : List.of();
-            var resultadoGuardas = guardas.revisar(texto, franjas, reloj.instant().atZone(TiempoNegocio.ZONA));
-            String seguro = resultadoGuardas instanceof ResultadoGuardas.Aceptado aceptado ? aceptado.texto() : composicion.neutro();
+            DatosRespuesta datos = datosRespuesta(r, c);
+            DecisionRespuesta decision = degradar(c, datos);
+            String ultima = "NEUTRO";
+            boolean conservarSelecciones = false;
             var distintos = efectos.stream().filter(this::esPropuesta).distinct().toList();
             EfectoTurno aplicado = efecto;
             if (efecto instanceof EfectoTurno.Derivar d) {
@@ -279,15 +288,20 @@ public class TurnosIAService implements TurnosIA {
                 if (bandeja.entrantes() == BandejaPropiedades.Entrantes.SOLO_HUMANO && r.texto() != null && !r.texto().isBlank())
                     entradas.guardarTextoDerivado(r.conversacion(), r.texto());
                 derivacion.derivar(r.conversacion(), d.motivo());
+                ultima = "DERIVAR";
             }
-            else if (efecto instanceof EfectoTurno.SolicitarConsentimientoDerivacion d)
+            else if (efecto instanceof EfectoTurno.SolicitarConsentimientoDerivacion d) {
                 consentimiento(r, new CodigoSeleccion.Menu(OpcionMenu.PERSONA).codificar(), d.motivo());
+                ultima = "CONSENTIMIENTO";
+            }
             else if (distintos.size() > 1) {
-                menu(r, composicion.aclararPropuestas());
+                menu(r, MotivoMenu.VARIAS_PROPUESTAS);
                 aplicado = null;
             }
-            else if (efecto instanceof EfectoTurno.SolicitarConsentimientoReserva s)
+            else if (efecto instanceof EfectoTurno.SolicitarConsentimientoReserva s) {
                 consentimiento(r, new CodigoSeleccion.Franja(s.servicioId(), s.barberoId(), s.inicio().getEpochSecond()).codificar(), null);
+                ultima = "CONSENTIMIENTO";
+            }
             else if (esPropuesta(efecto)) {
                 long ficha = r.cliente().orElseThrow();
                 Propuesta propuesta = switch (efecto) {
@@ -299,36 +313,99 @@ public class TurnosIAService implements TurnosIA {
                 if (propuesta instanceof Propuesta.Creada p) {
                     salida.encolarInteractivo(r.conversacion(), menus.confirmacion(textos.resumen(p.resumen()), p.operacionId(), p.nonce()),
                             OrigenMensaje.ASISTENTE, OptionalLong.empty());
-                    guardarBorrador(r, c);
+                    ultima = "PROPUESTA";
+                    conservarSelecciones = true;
                 } else {
-                    menu(r, textos.noDisponible());
+                    menu(r, MotivoMenu.NO_DISPONIBLE);
                     aplicado = null;
                 }
             } else if (efecto instanceof EfectoTurno.MostrarFranjas mostrar && !mostrar.franjas().isEmpty()) {
-                salida.encolarInteractivo(r.conversacion(), composicion.franjas(seguro, mostrar.franjas(), c.hoy),
-                        OrigenMensaje.ASISTENTE, OptionalLong.empty());
-                guardarBorrador(r, c);
-            } else if (resultadoGuardas instanceof ResultadoGuardas.Aceptado) {
-                salida.encolarTexto(r.conversacion(), seguro, OrigenMensaje.ASISTENTE, OptionalLong.empty());
-                guardarBorrador(r, c);
+                enviar(r, respuestas.franjas(mostrar.franjas(), c.hoy));
+                ultima = "MOSTRAR_FRANJAS";
+                conservarSelecciones = true;
+            } else if (decision != null) {
+                enviar(r, respuestas.responder(decision, datos));
+                ultima = decision.intencion().name() + decision.falta().map(d -> ":" + d.name()).orElse("");
+                conservarSelecciones = true;
             } else {
-                menu(r, composicion.neutro());
+                menu(r, MotivoMenu.NEUTRO);
                 aplicado = null;
             }
+            guardarBorrador(r, c, ultima, conservarSelecciones);
             cerrar(r, "HECHO", null);
-            observarFin(r.id(), "HECHO", texto.isEmpty() && efecto != null ? Optional.empty() : Optional.of(resultadoGuardas),
-                    Optional.ofNullable(aplicado));
+            observarDecision(r.id(), Optional.ofNullable(decision), texto);
+            observarFin(r.id(), "HECHO", Optional.empty(), Optional.ofNullable(aplicado));
         });
     }
 
-    private void guardarBorrador(Reclamo r, ContextoTurno c) {
+    private DatosRespuesta datosRespuesta(Reclamo r, ContextoTurno c) {
+        var servicios = consultas.servicios();
+        var servicio = servicios.stream().filter(s -> Objects.equals(c.servicioBorrador, s.id())).findFirst();
+        var activos = servicio.isPresent() ? consultas.profesionales(servicio.get().id())
+                : servicios.isEmpty() ? List.<ProfesionalOpcion>of() : consultas.profesionales(servicios.getFirst().id());
+        var profesionales = servicio.isPresent() ? activos : List.<ProfesionalOpcion>of();
+        SeleccionProfesional profesional = new SeleccionProfesional.SinElegir();
+        if (Objects.equals(c.profesionalBorrador, 0L)) profesional = new SeleccionProfesional.Cualquiera();
+        else if (c.profesionalBorrador != null) profesional = profesionales.stream()
+                .filter(p -> p.id() == c.profesionalBorrador).findFirst()
+                .<SeleccionProfesional>map(SeleccionProfesional.Concreto::new).orElse(new SeleccionProfesional.SinElegir());
+        // Una selección que desapareció entre las consultas y el cierre nunca origina una lista obsoleta.
+        boolean desactivada = c.servicioBorrador != null && servicio.isEmpty()
+                || c.profesionalBorrador != null && c.profesionalBorrador != 0
+                    && activos.stream().noneMatch(p -> p.id() == c.profesionalBorrador);
+        boolean requiereProfesionales = c.decision != null && (c.decision.intencion() == IntencionRespuesta.MOSTRAR_PROFESIONALES
+                || c.decision.falta().filter(d -> d == DatoFaltante.DIA || d == DatoFaltante.PROFESIONAL).isPresent());
+        if (c.decision != null && (desactivada || requiereProfesionales && servicio.isPresent() && profesionales.isEmpty())) {
+            c.decision = new DecisionRespuesta(IntencionRespuesta.MOSTRAR_SERVICIOS, Optional.empty());
+            servicios = List.of();
+        }
+        if (servicio.isEmpty()) c.servicioBorrador = null;
+        if (desactivada) c.profesionalBorrador = null;
+        var citas = r.cliente().isPresent() ? consultas.citasFuturas(r.cliente().getAsLong()) : List.<CitaOpcion>of();
+        return new DatosRespuesta(consultas.nombreNegocio(), c.hoy, servicio, profesional, servicios, profesionales, citas);
+    }
+
+    private DecisionRespuesta degradar(ContextoTurno c, DatosRespuesta datos) {
+        var d = c.decision;
+        if (d == null) return null;
+        if (d.intencion() == IntencionRespuesta.SIN_DISPONIBILIDAD && !Boolean.TRUE.equals(c.ultimaBusquedaVacia)) return null;
+        boolean pedirDia = d.falta().filter(DatoFaltante.DIA::equals).isPresent();
+        boolean pedirProfesional = d.intencion() == IntencionRespuesta.MOSTRAR_PROFESIONALES
+                || d.falta().filter(DatoFaltante.PROFESIONAL::equals).isPresent();
+        if ((pedirDia || pedirProfesional) && datos.servicio().isEmpty())
+            return new DecisionRespuesta(IntencionRespuesta.PEDIR_DATO, Optional.of(DatoFaltante.SERVICIO));
+        if (pedirDia && datos.profesional() instanceof SeleccionProfesional.SinElegir)
+            return new DecisionRespuesta(IntencionRespuesta.PEDIR_DATO, Optional.of(DatoFaltante.PROFESIONAL));
+        return d;
+    }
+
+    private void guardarBorrador(Reclamo r, ContextoTurno c, String ultima, boolean conservarSelecciones) {
         ObjectNode estado = conversaciones.bloquear(r.conversacion()).estado();
-        estado.put("ia_corte_mensaje", c.corteHistorial);
-        if (c.servicioBorrador != null) {
-            var ia = estado.putObject("ia").put("servicio", c.servicioBorrador).put("dia", c.diaBorrador.toString());
+        estado.remove("ia_corte_mensaje");
+        var ia = estado.putObject("ia").put("ultima", ultima);
+        if (conservarSelecciones) {
+            if (c.servicioBorrador != null) ia.put("servicio", c.servicioBorrador);
             if (c.profesionalBorrador != null) ia.put("profesional", c.profesionalBorrador);
+            if (c.diaBorrador != null) ia.put("dia", c.diaBorrador.toString());
         }
         conversaciones.guardar(r.conversacion(), estado);
+    }
+
+    private void observarDecision(long turnoId, Optional<DecisionRespuesta> decision, String texto) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /** Comunica solo la decisión cuyo cierre quedó confirmado. */
+            @Override public void afterCommit() { observador.decision(turnoId, decision,
+                    texto.isEmpty() ? Optional.empty() : Optional.of(texto)); }
+        });
+    }
+
+    private void enviar(Reclamo r, MensajeAsistente mensaje) {
+        switch (mensaje) {
+            case MensajeAsistente.Texto(var texto) -> salida.encolarTexto(r.conversacion(), texto,
+                    OrigenMensaje.ASISTENTE, OptionalLong.empty());
+            case MensajeAsistente.Interactivo(var contenido) -> salida.encolarInteractivo(r.conversacion(), contenido,
+                    OrigenMensaje.ASISTENTE, OptionalLong.empty());
+        }
     }
 
     private void consentimiento(Reclamo r, String pendiente, MotivoDerivacion motivo) {
@@ -343,10 +420,10 @@ public class TurnosIAService implements TurnosIA {
                 OrigenMensaje.ASISTENTE, OptionalLong.empty());
     }
 
-    private void menu(Reclamo r, String cuerpo) {
+    private void menu(Reclamo r, MotivoMenu motivo) {
         operaciones.anularVigente(r.conversacion());
         conversaciones.vaciar(r.conversacion());
-        salida.encolarInteractivo(r.conversacion(), menus.menuPrincipal(cuerpo), OrigenMensaje.ASISTENTE, OptionalLong.empty());
+        enviar(r, respuestas.menu(motivo));
     }
 
     private void cerrar(Reclamo r, String estado, String motivo) {
