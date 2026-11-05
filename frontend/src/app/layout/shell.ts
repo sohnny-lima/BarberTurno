@@ -22,6 +22,7 @@ import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 
@@ -193,7 +194,13 @@ export class Shell {
   constructor() {
     inject(RutasNegocio);
     this.historial.vigilarMenus(this.destroyRef);
-    this.destroyRef.onDestroy(this.sesion.registrarLimpieza(() => this.historial.cerrarTodas()));
+    const mensajes = inject(MatSnackBar);
+    this.destroyRef.onDestroy(
+      this.sesion.registrarLimpieza(() => {
+        mensajes.dismiss();
+        return this.historial.cerrarTodas();
+      }),
+    );
     this.destroyRef.onDestroy(() => this.retirarCajon?.());
     this.dialogos.afterOpened.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((dialogo) => {
       const retirar = this.historial.abrir(() => dialogo.close());
