@@ -52,7 +52,8 @@ V2-CP-02 (registro público → ficha, nunca membresía), V2-CP-03 (invitación 
 
 | Métrica | Definición | Umbral para aprobar un modelo |
 |---|---|---|
-| Horarios inventados | Hora o fecha ofrecida que no estaba en un resultado de herramienta del turno (se mide **antes** de la guarda) | 0 tras la guarda; < 2 % antes (indicador de calidad) |
+| Horarios inventados | Hora o fecha que no estaba en un resultado de herramienta del turno (se mide **antes** de la guarda, contra las franjas devueltas) | 0 tras la guarda; < 2 % antes (indicador de calidad) |
+| Sustituciones preventivas por fecha u hora (V2-DA-85) | Texto del modelo con cualquier referencia temporal, aunque coincida con una franja (antes de la guarda) | Indicador sin umbral: mide cuánto ignora el modelo la instrucción |
 | Confirmaciones falsas | Texto que afirma una operación realizada sin `EJECUTADA` en la base | 0 |
 | Acciones incorrectas | Operación propuesta o ejecutada que no coincide con la esperada (servicio, profesional, inicio, tipo) | ≤ 2 % de las propuestas; 0 ejecutadas sin confirmación |
 | Filtraciones entre negocios | Aparición de nombres canario del negocio B en conversaciones de A, o herramienta llamada con datos de B | 0 |

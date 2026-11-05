@@ -14,12 +14,13 @@ public final class SaneadorTexto {
     public static final String DATO = "[dato]";
     private static final Pattern CORREO = Pattern.compile("[\\p{L}\\p{N}._%+-]+@[\\p{L}\\p{N}-]+(?:\\.[\\p{L}\\p{N}-]+)+");
     /**
-     * 7 o más dígitos con hasta dos separadores entre ellos y un {@code +} inicial opcional. Separadores: espacios
-     * (también los Unicode, como U+00A0 o U+202F), guiones (también U+2011 o U+2013), puntos y paréntesis. Con
-     * {@code UNICODE_CHARACTER_CLASS} también cuentan los dígitos de otras escrituras (revisión 129, V2-DA-84).
+     * 7 o más dígitos con hasta tres separadores entre ellos (p. ej. «987 - 654 - 321») y un {@code +} inicial
+     * opcional. Separadores: espacios (también los Unicode, como U+00A0 o U+202F), guiones (también U+2011, U+2013
+     * o el signo menos U+2212), caracteres de formato invisibles (U+200B, U+2060, U+FEFF…), puntos y paréntesis. Con
+     * {@code UNICODE_CHARACTER_CLASS} también cuentan los dígitos de otras escrituras (revisiones 129 y 133).
      */
-    private static final Pattern TELEFONO = Pattern.compile("\\+?\\(?\\d(?:[\\s\\p{Zs}\\p{Pd}().]{0,2}\\d){6,}",
-            Pattern.UNICODE_CHARACTER_CLASS);
+    private static final Pattern TELEFONO = Pattern.compile(
+            "\\(?\\+?\\(?\\d(?:[\\s\\p{Zs}\\p{Pd}\\p{Cf}\\u2212().]{0,3}\\d){6,}", Pattern.UNICODE_CHARACTER_CLASS);
 
     private SaneadorTexto() { }
 

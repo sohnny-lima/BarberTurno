@@ -95,7 +95,7 @@ sequenceDiagram
   D-->>O: 17:30, 18:00, 19:10
   O->>L: resultado de la herramienta
   L-->>O: «Carlos tiene libre mañana jueves 23/10 a las 17:30, 18:00 y 19:10. ¿Cuál prefieres?»
-  O->>O: Guardas: horas ⊆ franjas devueltas ✔, sin confirmaciones ✔
+  O->>O: Guardas: sin fechas ni horas en el texto ✔, sin confirmaciones ✔ (V2-DA-85)
   O-->>C: texto + lista interactiva (generada por el servidor) con las 3 franjas
   C->>O: «la de las 6»
   O->>L: ... → proponer_reserva(Corte, Carlos, 2026-10-23T18:00-05:00)
