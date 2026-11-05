@@ -24,7 +24,7 @@ import tools.jackson.databind.node.ObjectNode;
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
-final class ConversacionPruebas {
+public final class ConversacionPruebas {
 
     private static final AtomicLong SECUENCIA = new AtomicLong(1000);
 
@@ -34,7 +34,7 @@ final class ConversacionPruebas {
      * Genera un identificador wamid ficticio único.
      * @return identificador wamid
      */
-    static String nuevoWamid() {
+    public static String nuevoWamid() {
         return "wamid.ficticio." + SECUENCIA.incrementAndGet();
     }
 
@@ -43,7 +43,7 @@ final class ConversacionPruebas {
      * @param seleccionId identificador codificado
      * @return {@code true} si corresponde a un botón
      */
-    static boolean esBoton(String seleccionId) {
+    public static boolean esBoton(String seleccionId) {
         return seleccionId.startsWith("m:") || seleccionId.startsWith("p:")
                 || seleccionId.startsWith("o:") || seleccionId.startsWith("a:");
     }
@@ -59,7 +59,7 @@ final class ConversacionPruebas {
      * @param ahora instante de recepción
      * @return árbol JSON del cuerpo del evento
      */
-    static ObjectNode cuerpoTexto(JsonMapper mapper, String phoneNumberId, String waId,
+    public static ObjectNode cuerpoTexto(JsonMapper mapper, String phoneNumberId, String waId,
             String nombrePerfil, String texto, String wamid, Instant ahora) {
         ObjectNode cuerpo = mapper.createObjectNode();
         cuerpo.put("phoneNumberId", phoneNumberId);
@@ -91,7 +91,7 @@ final class ConversacionPruebas {
      * @param ahora instante de recepción
      * @return árbol JSON del cuerpo del evento
      */
-    static ObjectNode cuerpoInteractivo(JsonMapper mapper, String phoneNumberId, String waId,
+    public static ObjectNode cuerpoInteractivo(JsonMapper mapper, String phoneNumberId, String waId,
             String nombrePerfil, String seleccionId, boolean esBoton, String wamid, Instant ahora) {
         ObjectNode cuerpo = mapper.createObjectNode();
         cuerpo.put("phoneNumberId", phoneNumberId);
@@ -128,7 +128,7 @@ final class ConversacionPruebas {
      * @param ahora instante del servidor
      * @return identificador asignado al evento
      */
-    static long insertarEvento(JdbcNegocioPruebas sql, JsonMapper mapper, String clave,
+    public static long insertarEvento(JdbcNegocioPruebas sql, JsonMapper mapper, String clave,
             String phoneNumberId, JsonNode cuerpo, Instant ahora) {
         sql.update("""
                 INSERT INTO evento_whatsapp_entrante(clave_idempotencia, tipo, phone_number_id, cuerpo, recibido_en, proximo_intento)
@@ -151,7 +151,7 @@ final class ConversacionPruebas {
      * @param idsSeleccion identificadores de botones o filas presentes en el interactivo
      * @param interactivo nodo JSON del interactivo
      */
-    record MensajeSalientePrueba(
+    public record MensajeSalientePrueba(
             long id,
             long conversacionId,
             Long reservaId,
@@ -211,7 +211,7 @@ final class ConversacionPruebas {
      * @param waId identificador WhatsApp del cliente
      * @return mensaje proyectado o {@code null} si no existe
      */
-    static MensajeSalientePrueba leerUltimoMensajeSaliente(EjecutorEnNegocio ejecutor,
+    public static MensajeSalientePrueba leerUltimoMensajeSaliente(EjecutorEnNegocio ejecutor,
             JdbcNegocioPruebas sql, JsonMapper mapper, long negocioId, String waId) {
         return ejecutor.ejecutar(negocioId, () -> {
             var conversacionIds = sql.queryForList("SELECT id FROM conversacion WHERE negocio_id = ? AND wa_id = ?",
@@ -267,7 +267,7 @@ final class ConversacionPruebas {
      * @param negocioId identificador del negocio
      * @return total de reservas
      */
-    static int contarReservas(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
+    public static int contarReservas(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM reserva WHERE negocio_id = ?", Integer.class, negocioId));
     }
@@ -280,7 +280,7 @@ final class ConversacionPruebas {
      * @param estado estado buscado
      * @return total de reservas con ese estado
      */
-    static int contarReservas(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, String estado) {
+    public static int contarReservas(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, String estado) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM reserva WHERE negocio_id = ? AND estado = ?", Integer.class, negocioId, estado));
     }
@@ -292,7 +292,7 @@ final class ConversacionPruebas {
      * @param negocioId identificador del negocio
      * @return total de auditorías
      */
-    static int contarAuditorias(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
+    public static int contarAuditorias(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM auditoria_reserva WHERE negocio_id = ?", Integer.class, negocioId));
     }
@@ -304,7 +304,7 @@ final class ConversacionPruebas {
      * @param negocioId identificador del negocio
      * @return total de notificaciones
      */
-    static int contarNotificaciones(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
+    public static int contarNotificaciones(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM notificacion WHERE negocio_id = ?", Integer.class, negocioId));
     }
@@ -316,7 +316,7 @@ final class ConversacionPruebas {
      * @param negocioId identificador del negocio
      * @return total de clientes
      */
-    static int contarFichas(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
+    public static int contarFichas(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM cliente WHERE negocio_id = ?", Integer.class, negocioId));
     }
@@ -329,7 +329,7 @@ final class ConversacionPruebas {
      * @param waId identificador WhatsApp
      * @return total de clientes coincidentes
      */
-    static int contarFichasConWa(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, String waId) {
+    public static int contarFichasConWa(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, String waId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM cliente WHERE negocio_id = ? AND wa_id = ?", Integer.class, negocioId, waId));
     }
@@ -341,7 +341,7 @@ final class ConversacionPruebas {
      * @param negocioId identificador del negocio
      * @return total de operaciones
      */
-    static int contarOperaciones(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
+    public static int contarOperaciones(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM operacion_pendiente WHERE negocio_id = ?", Integer.class, negocioId));
     }
@@ -354,7 +354,7 @@ final class ConversacionPruebas {
      * @param estado estado de la operación ({@code VIGENTE}, {@code EJECUTADA}, etc.)
      * @return total de operaciones coincidentes
      */
-    static int contarOperaciones(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, String estado) {
+    public static int contarOperaciones(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, String estado) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM operacion_pendiente WHERE negocio_id = ? AND estado = ?", Integer.class, negocioId, estado));
     }
@@ -367,7 +367,7 @@ final class ConversacionPruebas {
      * @param conversacionId identificador de la conversación
      * @return total de mensajes salientes
      */
-    static int contarMensajesSalientes(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, long conversacionId) {
+    public static int contarMensajesSalientes(EjecutorEnNegocio ejecutor, JdbcNegocioPruebas sql, long negocioId, long conversacionId) {
         return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT count(*) FROM mensaje_whatsapp WHERE negocio_id = ? AND conversacion_id = ? AND direccion = 'SALIENTE'",
                 Integer.class, negocioId, conversacionId));
@@ -381,7 +381,7 @@ final class ConversacionPruebas {
      * @param negocioId identificador del negocio
      * @param barberoId identificador del barbero
      */
-    static void prepararJornadasSemana(EjecutorEnNegocio ejecutor, BarberoRepository barberos,
+    public static void prepararJornadasSemana(EjecutorEnNegocio ejecutor, BarberoRepository barberos,
             JornadaRepository jornadas, long negocioId, long barberoId) {
         ejecutor.ejecutar(negocioId, () -> {
             Barbero b = barberos.findById(barberoId).orElseThrow();

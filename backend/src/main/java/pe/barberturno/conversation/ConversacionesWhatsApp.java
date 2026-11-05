@@ -96,6 +96,17 @@ public class ConversacionesWhatsApp {
     }
 
     /**
+     * Revisión actual de la conversación (17-v2-12 §3.1): la incrementa un disparador en cada actualización de la
+     * fila. Se lee después de las escrituras de la entrega para encolar un turno de IA.
+     * @param conversacionId conversación bloqueada del negocio actual
+     * @return revisión
+     */
+    public long revision(long conversacionId) {
+        return ((Number) entidades.createNativeQuery("SELECT revision FROM conversacion WHERE id = :id")
+                .setParameter("id", conversacionId).getSingleResult()).longValue();
+    }
+
+    /**
      * Conversación bloqueada tal como la ve la conversación guiada.
      * @param id identidad de la conversación
      * @param waId remitente verificado por WhatsApp

@@ -513,3 +513,30 @@
 ### V2-DA-76 · Retorno automático al asistente (04/11/2026, V2-11)
 - **Decisión:** trabajo programado cada 5 min, sin transacción exterior, por negocio y en lotes: conversaciones en `HUMANO` sin respuesta del personal durante 24 h (`barberturno.whatsapp.bandeja.retorno-automatico`) vuelven al asistente, comprobado bajo bloqueo; el aviso al cliente y el menú solo si la ventana efectiva está abierta.
 
+### V2-DA-77 · Turno de IA fuera de la transacción de entrega (04/11/2026, V2-12; consulta 127)
+- **Decisión:** la entrega solo encola un `turno_ia`; un trabajador lo reclama con ficha (`intentos`) y concesión renovable, llama al modelo **sin bloqueos abiertos**, ejecuta las herramientas en transacciones cortas y aplica un único efecto en una transacción final que comprueba `conversacion.revision` (disparador en cada actualización), el modo, la ficha y la operatividad. La propuesta real solo se crea en esa transacción.
+- **Por qué:** una llamada de segundos dentro de la entrega retendría la conexión y los bloqueos, y un fallo del proveedor repetiría la llamada (coste) con los reintentos de V2-08. Sigue la regla de V2-09: nada de HTTP con bloqueos. Un turno descartado nunca deja una operación vigente que el cliente no haya visto (V2-RN-10).
+- **Alternativas:** llamar al modelo en la entrega con un tiempo máximo (más simple, pero con los problemas anteriores); un contador solo de entradas (no cubre derivación, bandeja ni estado).
+
+### V2-DA-78 · Herramientas con alias opacos y una sola propuesta por turno (04/11/2026, V2-12)
+- **Decisión:** el modelo solo ve alias del turno (`s1`, `p1`, `c1`, `f1`); las propuestas aceptan solo alias de franjas devueltas en ese turno, con su finalidad (crear o cambiar una cita). Como mucho un efecto por turno (derivación > consentimiento > propuesta > franjas); dos propuestas distintas → ninguna y aclaración. Las franjas las compone siempre el servidor como lista cuyas filas son selecciones de V2-10.
+- **Por qué:** V2-RNF-05 (sin ids internos), V2-RN-12 (sin horarios heredados ni inventados) y V2-RN-10 (un único resumen vigente).
+
+### V2-DA-79 · Costes con reserva previa y agregado que sobrevive a la purga (04/11/2026, V2-12)
+- **Decisión:** antes de cada llamada se reserva en `llamada_ia` el coste máximo bajo un bloqueo consultivo del negocio; después se liquida con el uso real (también en los fallos con uso conocido); el coste desconocido queda reservado. `uso_ia` agrega por `(negocio_id, dia)` (corrige `04-…` §3, que lo indexaba por conversación) y no se borra con la conversación. Mensajes entrantes por minuto contados en el registro de la entrada.
+- **Por qué:** dos turnos concurrentes no deben superar el presupuesto; los turnos descartados o fallidos también cuestan.
+
+### V2-DA-80 · Adaptador de Anthropic con la API estable, sin `fallbacks` del servidor (04/11/2026, V2-12)
+- **Decisión:** SDK oficial `com.anthropic:anthropic-java`, `messages().create` y bucle manual; herramientas `strict`, `tool_choice` automático, sin parámetros de muestreo, esfuerzo configurable, `cache_control` en el bloque estable; la continuación del asistente (pensamiento incluido) vuelve intacta dentro del turno; Jackson 2 del SDK encapsulado. El respaldo `fallbacks` del servidor solo existe en la API beta del SDK de Java: **se omite**; el respaldo son los menús. `refusal` y `max_tokens` fallan antes de ejecutar herramientas.
+
+### V2-DA-81 · Contexto del modelo por lista blanca (04/11/2026, V2-12; V2-RNF-05)
+- **Decisión:** el contexto se construye solo con: nombre del negocio, catálogo y profesionales con alias, fecha y hora de Lima, nombre de pila del cliente, borrador con ids validados y los últimos mensajes de asistente y sistema saneados. Nunca mensajes del personal, teléfonos, correos, `wa_id`, códigos ni cuerpos crudos; el texto del cliente se sanea. El texto de un cliente sin ficha se guarda solo mientras su turno está pendiente (≤ 15 min).
+
+### V2-DA-82 · Evaluación determinista en `verify` y arnés en vivo aparte (04/11/2026, V2-13)
+- **Decisión:** `ConversacionGuionesIT` con guiones YAML (SnakeYAML seguro, ya en el *classpath*) y el adaptador falso en `verify`; arnés en vivo en el perfil Maven `evaluacion-en-vivo`, con nombre fuera de `*Test`/`*IT`, que se niega a ejecutarse sin clave, base desechable y tope de gasto; observador de evaluación vacío en producción. El conjunto (96 + 24) es un borrador hasta que lo revise el responsable.
+
+### V2-DA-83 · El texto que lleva a la IA a derivar se guarda para la bandeja (04/11/2026, V2-12; hallazgo H-XI-06 de Codex)
+- **Contexto:** con `entrantes = SOLO_HUMANO` (V2-DA-72) los mensajes que llegan en modo asistente no se guardan. Cuando un turno de IA aplica el efecto `Derivar`, el texto que lo provocó quedaba solo en `turno_ia.texto` (que se vacía al cerrar) y el personal veía la conversación derivada sin saber qué pidió el cliente.
+- **Decisión:** en la transacción final del turno, con la conversación ya bloqueada y **antes** de `DerivacionConversacion.derivar`, `RegistroEntradaWhatsApp.guardarTextoDerivado` guarda un `ENTRANTE`/`CLIENTE`/`RECIBIDO` de tipo `TEXTO` con el texto **saneado** del turno (`SaneadorTexto`, hasta 2000 caracteres) y **sin `wamid`** (no se inventa la identidad de Meta). Precede al acuse (la bandeja ordena por `id`). Con `entrantes = TODOS` no se guarda otra vez (ya lo guardó la entrega). Sin ficha no aplica: la IA pide consentimiento y, al aceptarlo, la aceptación es el primer mensaje visible (como en V2-11).
+- **Motivo:** completa V2-DA-72 sin ampliar los datos guardados: el personal ve la versión saneada (sin teléfonos ni correos), que es la misma que ya se envió al proveedor; si D6 se aprueba con otra opción, la regla se revisa con ella.
+- **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §3.3 (paso 5); `TurnosIAService`, `RegistroEntradaWhatsApp`; prueba `TurnosIAIT.derivacionPorIA_guardaElTextoSaneadoDelCliente_antesDelAcuse`.

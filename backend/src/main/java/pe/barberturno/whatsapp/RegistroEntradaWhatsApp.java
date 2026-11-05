@@ -59,7 +59,9 @@ public class RegistroEntradaWhatsApp {
     /**
      * Crea o actualiza la ventana de la conversación y devuelve la entrada que había antes. La fila de la
      * conversación queda bloqueada hasta el final de la transacción (por el {@code INSERT} o por el
-     * {@code ON CONFLICT DO UPDATE}), así que dos mensajes del mismo cliente se serializan aquí.
+     * {@code ON CONFLICT DO UPDATE}), así que dos mensajes del mismo cliente se serializan aquí. Cuenta además
+     * los mensajes entrantes del minuto civil del reloj del servidor (V2-RN-14, 17-v2-12 §6); un reintento tras
+     * un <i>rollback</i> no cuenta dos veces porque se revierte con la entrega.
      * @param mensaje entrada cuyo negocio ya resolvió el procesador a partir del canal
      * @return conversación y {@code ultima_entrada_en} anterior (vacía si la conversación es nueva)
      * @throws IllegalStateException si el negocio no coincide con el contexto de la transacción
@@ -73,10 +75,14 @@ public class RegistroEntradaWhatsApp {
         var enviado = mensaje.enviadoEn().isAfter(ahora) ? ahora : mensaje.enviadoEn();
         // PostgreSQL 18: RETURNING old.* da la fila previa en ON CONFLICT DO UPDATE y nulo si se insertó.
         var fila = (Object[]) entidades.createNativeQuery("""
-                INSERT INTO conversacion(wa_id, ultima_entrada_en, creado_en, actualizado_en)
-                VALUES (:wa, :enviado, :ahora, :ahora)
+                INSERT INTO conversacion(wa_id, ultima_entrada_en, minuto_entradas, entradas_minuto, creado_en,
+                    actualizado_en)
+                VALUES (:wa, :enviado, date_trunc('minute', CAST(:ahora AS timestamptz)), 1, :ahora, :ahora)
                 ON CONFLICT (negocio_id, wa_id) DO UPDATE SET
                     ultima_entrada_en = GREATEST(conversacion.ultima_entrada_en, EXCLUDED.ultima_entrada_en),
+                    entradas_minuto = CASE WHEN conversacion.minuto_entradas = EXCLUDED.minuto_entradas
+                        THEN LEAST(conversacion.entradas_minuto + 1, 32000) ELSE 1 END,
+                    minuto_entradas = EXCLUDED.minuto_entradas,
                     actualizado_en = :ahora
                 RETURNING new.id, old.ultima_entrada_en
                 """).setParameter("wa", mensaje.waId()).setParameter("enviado", enviado)
@@ -121,6 +127,30 @@ public class RegistroEntradaWhatsApp {
                     :ahora, :ahora) RETURNING id
                 """).setParameter("conversacion", conversacionId).setParameter("tipo", tipo)
                 .setParameter("contenido", contenido.toString()).setParameter("wamid", mensaje.wamid())
+                .setParameter("ahora", ahora).getSingleResult()).longValue();
+    }
+
+    /**
+     * Guarda como primer mensaje visible de la bandeja el texto que llevó a un turno de IA a derivar
+     * (V2-DA-83, H-XI-06). Con {@code entrantes = SOLO_HUMANO} ese texto llegó en modo asistente y no se
+     * guardó en la entrega; el turno solo conserva su versión saneada ({@code SaneadorTexto}, hasta 2000
+     * caracteres), que es la que se guarda. Sin {@code wamid}: no se inventa la identidad de Meta.
+     * Debe llamarse con la conversación ya bloqueada y antes de la derivación, para que preceda al acuse.
+     * @param conversacionId conversación bloqueada del negocio actual
+     * @param texto texto saneado del turno; no vacío
+     * @return id del mensaje guardado
+     * @throws IllegalArgumentException si el texto está vacío
+     */
+    public long guardarTextoDerivado(long conversacionId, String texto) {
+        if (texto == null || texto.isBlank()) throw new IllegalArgumentException("El texto derivado no puede estar vacío.");
+        var contenido = JsonNodeFactory.instance.objectNode().put("texto", recortar(texto, MAX_TEXTO));
+        var ahora = reloj.instant();
+        return ((Number) entidades.createNativeQuery("""
+                INSERT INTO mensaje_whatsapp(conversacion_id, direccion, origen, tipo, contenido, estado,
+                    creado_en, actualizado_en)
+                VALUES (:conversacion, 'ENTRANTE', 'CLIENTE', 'TEXTO', cast(:contenido as jsonb), 'RECIBIDO',
+                    :ahora, :ahora) RETURNING id
+                """).setParameter("conversacion", conversacionId).setParameter("contenido", contenido.toString())
                 .setParameter("ahora", ahora).getSingleResult()).longValue();
     }
 

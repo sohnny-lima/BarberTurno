@@ -1,0 +1,94 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "fechas-relativas"
+conversaciones:
+  - id: "REL-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quisiera atenderme mañana después de las cuatro de la tarde para corte clásico con Carlos."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-03 16:30"
+
+  - id: "REL-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola compa, ¿tienes turno para pasado mañana temprano para barba?"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      inicio: "2026-11-04 09:30"
+
+  - id: "REL-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas maestro, necesito cortarme el pelo el sábado a primera hora con Miguel."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-07 09:00"
+
+  - id: "REL-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, ¿lo antes posible qué horario tienes hoy para barba con Carlos?"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Carlos"
+
+  - id: "REL-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, quiero un turno para mañana al mediodía para corte clásico."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      inicio: "2026-11-03 12:00"
+
+  - id: "REL-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Qué tal chochera, sepárame para este fin de semana en la tarde con Carlos, un corte."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+
+  - id: "REL-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola gente, quisiera cita para pasado mañana saliendo del trabajo, tipo 5 de la tarde."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-04 17:00"
+
+  - id: "REL-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quiero corte clásico para la próxima semana el lunes a las 11 am."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      inicio: "2026-11-09 11:00"
+
+  - id: "REL-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola maestro, ¿tienen espacio mañana en la mañanita a eso de las 10 para corte con Miguel?"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-03 10:00"
+
+  - id: "REL-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, quisiera cita para este viernes después de las 3 pm para arreglo de barba."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      inicio: "2026-11-06 15:30"

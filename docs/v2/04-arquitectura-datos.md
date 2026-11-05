@@ -220,6 +220,7 @@ CREATE UNIQUE INDEX operacion_vigente_uk ON operacion_pendiente (conversacion_id
 -- Proponer una operación nueva marca antes como ANULADA la VIGENTE de la conversación (misma transacción).
 -- La caducidad se evalúa al usarla (expira_en <= ahora → CADUCADA), sin depender de un trabajo programado.
 
+-- Precisión del 04/11/2026 (V2-DA-79): uso_ia agrega por (negocio_id, dia), sin conversacion_id; el detalle por llamada va en llamada_ia (17-v2-12 §8).
 CREATE TABLE uso_ia (                               -- límites y costes (V2-RN-14)
   negocio_id bigint NOT NULL, dia date NOT NULL, conversacion_id bigint NOT NULL,
   llamadas integer NOT NULL DEFAULT 0, tokens_entrada bigint NOT NULL DEFAULT 0,

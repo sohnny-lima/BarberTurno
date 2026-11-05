@@ -1,0 +1,18 @@
+nombre: "09-derivacion-por-herramienta"
+negocio: "A"
+reloj: "2026-11-04T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Tengo un reclamo grave sobre mi corte anterior y quiero hablar con el encargado."
+    modelo:
+      - llamadas:
+          - herramienta: "derivar_a_persona"
+            argumentos:
+              motivo: "QUEJA"
+      - texto: "Te estoy comunicando de inmediato con nuestro equipo."
+        parada: "end_turn"
+    espera:
+      modoConversacion: "HUMANO"
+      estadoTurno: "HECHO"

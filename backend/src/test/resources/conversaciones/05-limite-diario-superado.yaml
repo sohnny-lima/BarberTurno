@@ -1,0 +1,14 @@
+nombre: "05-limite-diario-superado"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Consulta de disponibilidad con limite alcanzado"
+    modelo:
+      - fallo: "LIMITE_PROVEEDOR"
+    espera:
+      estadoTurno: "FALLIDO"
+      mensajes:
+        - contiene: ["No pude entenderte bien"]

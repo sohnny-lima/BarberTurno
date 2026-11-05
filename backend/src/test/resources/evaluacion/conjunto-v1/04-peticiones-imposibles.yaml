@@ -1,0 +1,72 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "peticiones-imposibles"
+conversaciones:
+  - id: "IMP-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas noches maestro, quiero un corte clásico hoy a las 11 de la noche."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, sepárame turno para este domingo a las 10 am con Carlos."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, quiero atenderme con el barbero Juan Pérez mañana a las 3 pm."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Qué tal causa, resérvame un turno para las 6 de la mañana con Miguel."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola, quiero reservar para el 28 de julio del próximo año por favor."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quisiera teñirme el pelo de color verde fosforescente hoy a las 4."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola chochera, sepárame 5 citas seguidas para toda mi mancha este domingo."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, quiero corte a la 1:30 de la tarde que es su hora de almuerzo."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola maestro, atiéndanme a la medianoche saliendo de la fiesta con Carlos."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "IMP-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, deseo atenderme este domingo que es mi único día libre."
+    esperado:
+      tipo: "SIN_OPERACION"

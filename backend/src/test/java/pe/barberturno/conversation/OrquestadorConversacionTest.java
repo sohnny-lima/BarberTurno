@@ -56,6 +56,8 @@ class OrquestadorConversacionTest {
     private OperacionesConversacion operaciones;
     private SalidaWhatsApp salida;
     private DerivacionConversacion derivacion;
+    private pe.barberturno.conversation.ia.TurnosIA turnos;
+    private pe.barberturno.conversation.ia.LimitesIA limites;
     private OrquestadorConversacion orquestador;
     private final ObjectNode interactivo = JsonMapper.builder().build().createObjectNode().put("type", "button");
 
@@ -71,13 +73,15 @@ class OrquestadorConversacionTest {
         operaciones = mock(OperacionesConversacion.class);
         salida = mock(SalidaWhatsApp.class);
         derivacion = mock(DerivacionConversacion.class);
+        turnos = mock(pe.barberturno.conversation.ia.TurnosIA.class);
+        limites = mock(pe.barberturno.conversation.ia.LimitesIA.class);
         var propiedades = new ConversacionPropiedades(
                 new ConversacionPropiedades.Privacidad("Privacidad {negocio} {enlace}", "https://x.ejemplo.test"),
                 Duration.ofHours(24), Duration.ofMinutes(10),
                 new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
         orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
                 consultas, operaciones, salida, propiedades, derivacion, bandeja(BandejaPropiedades.Entrantes.SOLO_HUMANO),
-                Clock.fixed(AHORA, ZoneOffset.UTC));
+                turnos, limites, Clock.fixed(AHORA, ZoneOffset.UTC));
         when(registro.operativo(NEGOCIO)).thenReturn(true);
         when(consultas.nombreNegocio()).thenReturn("Barbería Norte");
         when(textos.bienvenida(anyString())).thenReturn("bienvenida");
@@ -391,7 +395,7 @@ class OrquestadorConversacionTest {
                 new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
         orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
                 consultas, operaciones, salida, propiedades, derivacion, bandeja(BandejaPropiedades.Entrantes.TODOS),
-                Clock.fixed(AHORA, ZoneOffset.UTC));
+                turnos, limites, Clock.fixed(AHORA, ZoneOffset.UTC));
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
                 seleccion(new CodigoSeleccion.Menu(OpcionMenu.PERSONA)));
         recibir();
@@ -501,5 +505,56 @@ class OrquestadorConversacionTest {
         assertThat(guardado.getValue().path(OrquestadorConversacion.MOTIVO).asString()).isEqualTo("SIN_PROGRESO");
         assertThat(guardado.getValue().has(OrquestadorConversacion.FALLOS)).isFalse();
         verifyNoInteractions(derivacion);
+    }
+
+    private void recibirTexto(String cuerpo) {
+        var dato = mapper.createObjectNode();
+        dato.putObject("text").put("body", cuerpo);
+        orquestador.recibir(new MensajeEntrante(1, NEGOCIO, "51999000111", OptionalLong.empty(), "Ana Pérez",
+                "wamid.x", "text", AHORA, dato));
+    }
+
+    @Test
+    void textoLibreConIaDisponible_encolaElTurnoSaneadoConLaRevisionYNoResponde() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.OTRA));
+        when(limites.disponibilidad(CONVERSACION)).thenReturn(pe.barberturno.conversation.ia.DisponibilidadIA.DISPONIBLE);
+        when(conversaciones.revision(CONVERSACION)).thenReturn(17L);
+        recibirTexto("quiero corte mañana, mi cel 987 654 321 y ana@ejemplo.test");
+        verify(turnos).encolar(CONVERSACION, 17L, "quiero corte mañana, mi cel [dato] y [dato]");
+        verify(salida, never()).encolarInteractivo(anyLong(), any(), any(), any());
+        verify(conversaciones, never()).guardar(anyLong(), any());
+        verifyNoInteractions(derivacion);
+    }
+
+    @Test
+    void textoLibreSinFichaConIaDisponible_tambienVaALaIA() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.OTRA));
+        when(limites.disponibilidad(CONVERSACION)).thenReturn(pe.barberturno.conversation.ia.DisponibilidadIA.DISPONIBLE);
+        recibirTexto("¿hay espacio el sábado?");
+        verify(turnos).encolar(eq(CONVERSACION), anyLong(), eq("¿hay espacio el sábado?"));
+        verify(consentimiento, never()).aceptar(any(), anyString());
+    }
+
+    @Test
+    void textoLibreConLimiteAlcanzado_sigueElCaminoDeV2_11() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.OTRA));
+        when(limites.disponibilidad(CONVERSACION)).thenReturn(pe.barberturno.conversation.ia.DisponibilidadIA.LIMITE_MINUTO);
+        when(textos.noEntendido(1)).thenReturn("no te entendí");
+        recibirTexto("hola qué tal todo");
+        verifyNoInteractions(turnos);
+        verify(menus).menuPrincipal("no te entendí");
+    }
+
+    @Test
+    void palabraClaveYBotonesConIaDisponible_noVanALaIA() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.PERSONA));
+        when(limites.disponibilidad(CONVERSACION)).thenReturn(pe.barberturno.conversation.ia.DisponibilidadIA.DISPONIBLE);
+        recibirTexto("hablar con alguien");
+        verifyNoInteractions(turnos);
+        verify(derivacion).derivar(CONVERSACION, MotivoDerivacion.PETICION);
     }
 }
