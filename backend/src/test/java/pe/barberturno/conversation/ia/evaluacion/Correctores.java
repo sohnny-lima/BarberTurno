@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import pe.barberturno.common.time.TiempoNegocio;
+import pe.barberturno.conversation.ia.DecisionRespuesta;
 import pe.barberturno.conversation.ia.EfectoTurno;
 import pe.barberturno.conversation.ia.FranjaOfrecida;
 import pe.barberturno.conversation.ia.LlamadaHerramienta;
@@ -27,7 +28,8 @@ import pe.barberturno.conversation.ia.UsoModelo;
  * (V2-13; 17-v2-12 §4.4; 08-pruebas §4.2).
  * Evalúa las métricas de calidad sin recurrir a otro modelo LLM:
  * horarios inventados antes de guardas, confirmaciones falsas, acciones incorrectas (comparando tipo de operación,
- * servicio, profesional e inicio), filtraciones canario entre negocios, aclaración necesaria con pregunta en el texto,
+ * servicio, profesional e inicio), filtraciones canario entre negocios, aclaración necesaria (decisión validada que pide
+ * un dato o pregunta del servidor), texto del proveedor entregado y confirmaciones falsas por procedencia (V2-DA-86),
  * tareas completadas o derivadas, derivaciones requeridas, coste de tokens y latencia p95.
  *
  * @author Sohnny Walter Lima Infanzón
@@ -133,6 +135,8 @@ public final class Correctores {
      * @param estadoFinal estado del turno ({@code "HECHO"}, {@code "DESCARTADO"}, {@code "FALLIDO"})
      * @param latenciaMs duración de procesamiento del turno en milisegundos
      * @param contieneCanarioB si se detectó algún nombre canario del negocio B
+     * @param evidencia evidencia del paso, si se observó
+     * @param decision decisión validada de {@code responder_al_cliente} (V2-DA-86), si la hubo
      */
     public record TurnoTranscripcion(
             long turnoId,
@@ -146,14 +150,38 @@ public final class Correctores {
             String estadoFinal,
             long latenciaMs,
             boolean contieneCanarioB,
-            Optional<EvidenciaPaso> evidencia
+            Optional<EvidenciaPaso> evidencia,
+            Optional<DecisionRespuesta> decision
     ) {
+        /**
+         * Turno con evidencia y sin decisión registrada.
+         * @param turnoId id
+         * @param entradaCliente entrada
+         * @param textoModeloOriginal texto del modelo
+         * @param llamadas llamadas
+         * @param resultadosHerramientas resultados
+         * @param franjasOfrecidas franjas
+         * @param guardas guardas
+         * @param efecto efecto
+         * @param estadoFinal estado
+         * @param latenciaMs latencia
+         * @param contieneCanarioB canario
+         * @param evidencia evidencia del paso
+         */
+        public TurnoTranscripcion(long turnoId, String entradaCliente, Optional<String> textoModeloOriginal,
+                List<LlamadaHerramienta> llamadas, List<ResultadoHerramienta> resultadosHerramientas,
+                List<FranjaOfrecida> franjasOfrecidas, Optional<ResultadoGuardas> guardas, Optional<EfectoTurno> efecto,
+                String estadoFinal, long latenciaMs, boolean contieneCanarioB, Optional<EvidenciaPaso> evidencia) {
+            this(turnoId, entradaCliente, textoModeloOriginal, llamadas, resultadosHerramientas, franjasOfrecidas,
+                    guardas, efecto, estadoFinal, latenciaMs, contieneCanarioB, evidencia, Optional.empty());
+        }
+
         public TurnoTranscripcion(long turnoId, String entradaCliente, Optional<String> textoModeloOriginal,
                 List<LlamadaHerramienta> llamadas, List<ResultadoHerramienta> resultadosHerramientas,
                 List<FranjaOfrecida> franjasOfrecidas, Optional<ResultadoGuardas> guardas, Optional<EfectoTurno> efecto,
                 String estadoFinal, long latenciaMs, boolean contieneCanarioB) {
             this(turnoId, entradaCliente, textoModeloOriginal, llamadas, resultadosHerramientas, franjasOfrecidas,
-                    guardas, efecto, estadoFinal, latenciaMs, contieneCanarioB, Optional.empty());
+                    guardas, efecto, estadoFinal, latenciaMs, contieneCanarioB, Optional.empty(), Optional.empty());
         }
         /**
          * Valida y copia.
@@ -179,6 +207,8 @@ public final class Correctores {
             Objects.requireNonNull(guardas, "guardas");
             Objects.requireNonNull(efecto, "efecto");
             Objects.requireNonNull(estadoFinal, "estadoFinal");
+            Objects.requireNonNull(evidencia, "evidencia");
+            Objects.requireNonNull(decision, "decision");
         }
     }
 
@@ -345,7 +375,7 @@ public final class Correctores {
         int textos = 0, horasAntes = 0, horasDespues = 0, falsasAntes = 0, falsasDespues = 0;
         int datosAntes = 0, datosDespues = 0, canarios = 0, sustituciones = 0, preventivasTemporales = 0, propuestas = 0, incorrectas = 0;
         int ambiguas = 0, aclaradas = 0, derivaciones = 0, derivadas = 0, exitos = 0, fechas = 0, completas = 0;
-        int evidencias = 0, pasos = 0, ejecutadasSinConfirmar = 0;
+        int evidencias = 0, pasos = 0, ejecutadasSinConfirmar = 0, entregados = 0;
         boolean horasMediblesAntes = true, horasMediblesDespues = true;
         boolean accionesMedibles = true;
         int objetivosNoMedidos = 0;
@@ -411,7 +441,12 @@ public final class Correctores {
                 for (String texto : e.salientes()) {
                     horasMediblesDespues &= referenciasMedibles(texto);
                     if (horarioInventado(texto, permitidosFinales, e.reloj())) horasDespues++;
-                    if (afirmacionFalsa(texto, e)) falsasDespues++;
+                    // V2-DA-86: cualquier fragmento propio del proveedor en lo que recibe el cliente es una filtración y se
+                    // cuenta también como confirmación falsa posible (criterio estructural, sin lista de frases); el detector
+                    // léxico solo añade los casos que el servidor afirmaría sin una operación ejecutada y coherente.
+                    boolean filtrado = filtraTextoProveedor(texto, originales);
+                    if (filtrado) entregados++;
+                    if (filtrado || afirmacionFalsa(texto, e)) falsasDespues++;
                     // En la salida del servidor los códigos y precios son legítimos; los datos personales no.
                     if (datosPersonales(texto)) datosDespues++;
                 }
@@ -450,7 +485,8 @@ public final class Correctores {
                 if (cambioSinOperacion) { ejecucionInseguraPaso = true; fallo = true; }
                 if (ejecucionInseguraPaso) { ejecutadasSinConfirmar++; fallo = true; }
                 if (terminado && observable) {
-                    pregunta |= e.operaciones().isEmpty() && e.salientes().stream().anyMatch(Correctores::contienePregunta);
+                    pregunta |= e.operaciones().isEmpty() && (t.decision().filter(Correctores::pideDato).isPresent()
+                            || e.salientes().stream().anyMatch(Correctores::contienePregunta));
                     derivacion |= e.humano() && (esperado.motivoDerivacion().isEmpty()
                             || t.efecto().filter(ef -> ef instanceof EfectoTurno.Derivar d
                                     && d.motivo().name().equals(esperado.motivoDerivacion().get())).isPresent());
@@ -474,8 +510,9 @@ public final class Correctores {
         boolean medible = pasos > 0 && evidencias == pasos && loteIntegro;
         m.add(tasa("Horarios inventados (antes guardas)", horasAntes, horasMediblesAntes ? textos : 0, 2, false));
         m.add(conteo("Horarios inventados (después guardas)", horasDespues, medible && horasMediblesDespues));
-        m.add(conteo("Confirmaciones falsas (antes guardas)", falsasAntes, textos > 0));
+        m.add(conteo("Confirmaciones en el texto descartado (heurística)", falsasAntes, textos > 0));
         m.add(conteo("Confirmaciones falsas", falsasDespues, medible));
+        m.add(conteo("Texto del proveedor entregado", entregados, medible));
         m.add(conteo("Datos prohibidos (antes guardas)", datosAntes, textos > 0));
         m.add(conteo("Datos personales (después guardas)", datosDespues, medible));
         m.add(tasa("Acciones incorrectas", incorrectas, accionesMedibles ? propuestas : 0, 2, false, true));
@@ -562,9 +599,43 @@ public final class Correctores {
                 && ("CANCELAR".equals(o.tipo()) ? "CANCELADA".equals(r.estado()) : r.inicio().equals(o.inicio()) && !"CANCELADA".equals(r.estado())));
     }
 
+    /**
+     * Procedencia (V2-DA-86): el texto que recibe el cliente contiene literalmente cuatro palabras seguidas (o el texto
+     * entero, si tiene dos o tres) de un texto del proveedor, y al menos una de ellas no la puede producir el servidor
+     * ({@link VocabularioServidor}). Un fragmento formado solo por palabras del servidor no se atribuye al proveedor.
+     */
+    static boolean filtraTextoProveedor(String saliente, List<String> textosProveedor) {
+        List<String> recibido = VocabularioServidor.tokens(saliente);
+        if (recibido.isEmpty()) return false;
+        String unido = " " + String.join(" ", recibido) + " ";
+        for (String texto : textosProveedor) {
+            List<String> propio = VocabularioServidor.tokens(texto);
+            int n = Math.min(4, propio.size());
+            if (n < 2) continue;
+            for (int i = 0; i + n <= propio.size(); i++) {
+                List<String> fragmento = propio.subList(i, i + n);
+                if (fragmento.stream().allMatch(VocabularioServidor::delServidor)) continue;
+                if (unido.contains(" " + String.join(" ", fragmento) + " ")) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean pideDato(DecisionRespuesta d) {
+        return switch (d.intencion()) {
+            case PEDIR_DATO, MOSTRAR_SERVICIOS, MOSTRAR_PROFESIONALES, MOSTRAR_CITAS -> true;
+            default -> false;
+        };
+    }
+
     private static boolean afirmacionFalsa(String texto, EvidenciaPaso e) {
         String normal = normalizar(texto);
-        var patron = java.util.regex.Pattern.compile("\\b(confirmad[ao]|reservad[ao]|agendad[ao]|cancelad[ao]|reprogramad[ao]|(?:he |hemos |ya |te )?(?:reserve|agende|confirme|cancele|reprograme))\\b");
+        var patron = java.util.regex.Pattern.compile("\\b(confirmad[ao]|reservad[ao]|agendad[ao]|cancelad[ao]|reprogramad[ao]|separad[ao]|anotad[ao]"
+                + "|(?:he |hemos |ya |te )?(?:reserve|agende|confirme|cancele|reprograme|separe|aparte|anote|guarde)"
+                + "|(?:ya )?te tiene(?:n)? (?:un|una|el|la|tu) (?:hueco|espacio|turno|cupo|cita|lugar)"
+                + "|(?:ya )?tienes (?:tu|un|una) (?:hueco|espacio|turno|cupo|cita|lugar)"
+                + "|(?:quedo|queda|quedaste|ya esta|estas) (?:list[ao]|separad[ao]|anotad[ao]|agendad[ao]|reservad[ao])"
+                + "|te esperamos|listo)\\b");
         var matcher = patron.matcher(normal);
         while (matcher.find()) {
             int inicioFrase = 0;

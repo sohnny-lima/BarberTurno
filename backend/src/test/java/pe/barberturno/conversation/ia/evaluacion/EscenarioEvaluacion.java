@@ -135,7 +135,7 @@ final class EscenarioEvaluacion {
                         herramientas.stream().map(ObservadorEvaluacionRegistro.RegistroHerramienta::resultado).toList(),
                         herramientas.stream().flatMap(h -> h.franjas().stream()).toList(),
                         obs.flatMap(ObservadorEvaluacionRegistro.RegistroTurno::guardas), obs.flatMap(ObservadorEvaluacionRegistro.RegistroTurno::efecto),
-                        estado, latencia, false, Optional.of(evidencia)));
+                        estado, latencia, false, Optional.of(evidencia), obs.flatMap(ObservadorEvaluacionRegistro.RegistroTurno::decision)));
                 ms += latencia;
             }
             Optional<BigDecimal> coste = en(a, () -> {

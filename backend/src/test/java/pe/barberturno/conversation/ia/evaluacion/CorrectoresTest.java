@@ -185,7 +185,7 @@ class CorrectoresTest {
         var t=turno(salida,List.of("¿Qué desea?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var i=informe(TipoEsperado.ACLARACION,t,Optional.empty());
         assertThat(metrica(i,"Horarios inventados (antes guardas)").valorObservado()).isEqualTo("100.0 %");
-        assertThat(metrica(i,"Confirmaciones falsas (antes guardas)").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i,"Confirmaciones en el texto descartado (heurística)").valorObservado()).isEqualTo("1");
         assertThat(metrica(i,"Datos prohibidos (antes guardas)").valorObservado()).isEqualTo("1");
         assertThat(metrica(i,"Confirmaciones falsas").valorObservado()).isEqualTo("0");
         assertThat(metrica(i,"Sustituciones preventivas").valorObservado()).isEqualTo("1");
@@ -271,11 +271,11 @@ class CorrectoresTest {
 
     @Test void coberturaCompletaConEvidenciaCoherente_puedeAprobar() {
         var op=new OperacionSnapshot(44,"CREAR","VIGENTE",0,71,83,INICIO);
-        var propuesta=turno("¿Le parece?",List.of("martes 03/11/2026 10:00, ¿le parece?"),List.of(op),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        var propuesta=turno("¿Le parece?",List.of("Corte clásico con Carlos martes 03/11/2026 10:00 Confirmar Cambiar"),List.of(op),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var a=new TranscripcionCaso(caso(TipoEsperado.OPERACION),"claude-falso",List.of(propuesta),USO,AHORA,Optional.of(new ObjetivoOperacion("CREAR",null,71L,83L,INICIO)));
-        var pregunta=turno("¿Qué desea?",List.of("¿Qué desea?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        var pregunta=turno("¿Qué desea?",List.of("¿Qué día prefieres tu cita?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var b=new TranscripcionCaso(caso(TipoEsperado.ACLARACION),"claude-falso",List.of(conId(pregunta,2)),USO,AHORA);
-        var evidencia=new EvidenciaPaso(List.of("Le atenderá una persona"),List.of("contexto"),List.of("Le atenderá una persona"),List.of(),List.of(),List.of(),false,true,AHORA);
+        var evidencia=new EvidenciaPaso(List.of("Te paso con el equipo de Barbería de ensayo. Te responderán por aquí en cuanto puedan."),List.of("contexto"),List.of("Le atenderá una persona"),List.of(),List.of(),List.of(),false,true,AHORA);
         var deriva=new TurnoTranscripcion(1,"hola",Optional.of("Le atenderá una persona"),List.of(),List.of(),List.of(),Optional.empty(),Optional.of(new EfectoTurno.Derivar(pe.barberturno.conversation.MotivoDerivacion.HERRAMIENTA)),"HECHO",1,false,Optional.of(evidencia));
         var c=new TranscripcionCaso(caso(TipoEsperado.DERIVACION),"claude-falso",List.of(conId(deriva,3)),USO,AHORA);
         assertThat(evaluar("claude-falso","PRUEBA",List.of(a,b,c)).modeloAprobado()).isTrue();
@@ -284,9 +284,9 @@ class CorrectoresTest {
     /** g100-1: un caso sin ejecutar invalida el lote aunque el resto cumpla. */
     @Test void loteConUnCasoSinEjecutar_noApruebaNiMideLaTarea() {
         var op=new OperacionSnapshot(44,"CREAR","VIGENTE",0,71,83,INICIO);
-        var propuesta=turno("¿Le parece?",List.of("martes 03/11/2026 10:00, ¿le parece?"),List.of(op),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        var propuesta=turno("¿Le parece?",List.of("Corte clásico con Carlos martes 03/11/2026 10:00 Confirmar Cambiar"),List.of(op),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var a=new TranscripcionCaso(caso(TipoEsperado.OPERACION),"claude-falso",List.of(propuesta),USO,AHORA,Optional.of(new ObjetivoOperacion("CREAR",null,71L,83L,INICIO)));
-        var pregunta=turno("¿Qué desea?",List.of("¿Qué desea?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        var pregunta=turno("¿Qué desea?",List.of("¿Qué día prefieres tu cita?"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var b=new TranscripcionCaso(caso(TipoEsperado.ACLARACION),"claude-falso",List.of(conId(pregunta,2)),USO,AHORA);
         var sinEjecutar=new TranscripcionCaso(caso(TipoEsperado.SIN_OPERACION),"claude-falso",List.of(),USO,AHORA);
         var informe=evaluar("claude-falso","PRUEBA",List.of(a,b,sinEjecutar));
@@ -296,7 +296,7 @@ class CorrectoresTest {
 
     /** g100-4: un mensaje del cliente después de derivar no anula la derivación ni exige respuesta automática. */
     @Test void mensajeTrasDerivar_conservaLaDerivacion() {
-        var evidencia=new EvidenciaPaso(List.of("Le atenderá una persona"),List.of("contexto"),List.of("Le atenderá una persona"),List.of(),List.of(),List.of(),false,true,AHORA);
+        var evidencia=new EvidenciaPaso(List.of("Te paso con el equipo de Barbería de ensayo. Te responderán por aquí en cuanto puedan."),List.of("contexto"),List.of("Le atenderá una persona"),List.of(),List.of(),List.of(),false,true,AHORA);
         var deriva=new TurnoTranscripcion(3,"hola",Optional.of("Le atenderá una persona"),List.of(),List.of(),List.of(),Optional.empty(),Optional.of(new EfectoTurno.Derivar(pe.barberturno.conversation.MotivoDerivacion.HERRAMIENTA)),"HECHO",1,false,Optional.of(evidencia));
         var despues=new TurnoTranscripcion(0,"¿sigue ahí?",Optional.empty(),List.of(),List.of(),List.of(),Optional.empty(),Optional.empty(),"DETERMINISTA",1,false,
                 Optional.of(new EvidenciaPaso(List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),false,true,AHORA)));
@@ -360,17 +360,97 @@ class CorrectoresTest {
 
     @ParameterizedTest @ValueSource(strings={"¿Deseas que reserve tu cita?", "No he reservado ninguna cita.", "Tu cita no está confirmada."})
     void preguntasYNegaciones_noSeConfundenConAfirmaciones(String texto) {
-        var t=turno(texto,List.of(texto),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
+        // V2-DA-86: el texto del proveedor se descarta y el cliente recibe un texto fijo del servidor.
+        var t=turno(texto,List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),List.of(),List.of(),List.of(),"HECHO",Optional.empty(),false);
         var i=informe(TipoEsperado.SIN_OPERACION,t,Optional.empty());
-        assertThat(metrica(i,"Confirmaciones falsas (antes guardas)").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i,"Confirmaciones en el texto descartado (heurística)").valorObservado()).isEqualTo("0");
         assertThat(metrica(i,"Confirmaciones falsas").valorObservado()).isEqualTo("0");
+    }
+
+    // ---- V2-DA-86: lo que recibe el cliente (procedencia + operación ejecutada) ----
+
+    static final OperacionSnapshot CREADA = new OperacionSnapshot(44, "CREAR", "EJECUTADA", 0, 71, 83, INICIO, 901L);
+
+    @ParameterizedTest @ValueSource(strings = {
+            "Carlos ya te tiene un hueco",
+            "Listo, Carlos ya te tiene un hueco para mañana.",
+            "Ya tienes tu espacio con Miguel, nos vemos.",
+            "Quedaste anotado con Carlos para el sábado.",
+            "Te esperamos el sábado, todo en orden.",
+            "Ya está separado tu turno con Carlos."})
+    void parafrasisConocida_entregadaAlCliente_esConfirmacionFalsaPorProcedenciaYPorLexico(String texto) {
+        var t = turno(texto, List.of(texto), List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Confirmaciones falsas").aprobado()).isFalse();
+    }
+
+    @Test void parafrasisDesconocidaParaElLexico_seDetectaSoloPorProcedencia() {
+        String texto = "Todo en orden para el sábado con Carlos, maestro.";
+        var t = turno(texto, List.of(texto), List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Confirmaciones en el texto descartado (heurística)").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+    }
+
+    @Test void afirmacionDelServidorSinOperacionEjecutada_seDetectaSoloPorLexico() {
+        // El texto no procede del proveedor (que dijo otra cosa), pero afirma una reserva que no existe.
+        var t = turno("¿Qué servicio prefieres?", List.of("Listo: BT-000901 el martes 3 de noviembre de 2026 a las 10:00 con Carlos."),
+                List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+    }
+
+    @Test void confirmacionRealTrasEjecutar_conDatosDeLaBase_noEsFalsa() {
+        var t = turno("¿Confirmas?", List.of("Listo: BT-000901 el martes 3 de noviembre de 2026 a las 10:00 con Carlos."),
+                List.of(CREADA), List.of(), List.of(CITA), "DETERMINISTA", Optional.empty(), true);
+        var i = informe(TipoEsperado.OPERACION, t, Optional.of(new ObjetivoOperacion("CREAR", null, 71L, 83L, INICIO)));
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("0");
+    }
+
+    @Test void textoDescartado_conAfirmacion_noLlegaAlCliente_soloCuentaEnLaHeuristica() {
+        var t = turno("Carlos ya te tiene un hueco", List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),
+                List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var i = informe(TipoEsperado.SIN_OPERACION, t, Optional.empty());
+        assertThat(metrica(i, "Confirmaciones en el texto descartado (heurística)").valorObservado()).isEqualTo("1");
+        assertThat(metrica(i, "Texto del proveedor entregado").valorObservado()).isEqualTo("0");
+        assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");
+    }
+
+    @Test void textoDelProveedorFormadoSoloPorPalabrasDelServidor_noSeAtribuyeAlProveedor() {
+        var t = turno("Elige el servicio que deseas reservar", List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),
+                List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, t, Optional.empty()), "Texto del proveedor entregado").valorObservado()).isEqualTo("0");
+    }
+
+    @Test void filtracionEnUnaFilaDeLista_seDetecta() {
+        assertThat(filtraTextoProveedor("Ver horarios 10:00 martes 3 de noviembre de 2026 · Carlos ya te tiene un hueco",
+                List.of("Carlos ya te tiene un hueco"))).isTrue();
+        assertThat(filtraTextoProveedor("Ver horarios 10:00 martes 3 de noviembre de 2026 · Carlos",
+                List.of("Carlos ya te tiene un hueco"))).isFalse();
+    }
+
+    @Test void aclaracion_porDecisionValidadaSinSignoDePregunta_seAcredita() {
+        var base = turno("¿Qué servicio quieres?", List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),
+                List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var t = new TurnoTranscripcion(1, "hola", base.textoModeloOriginal(), List.of(), List.of(), List.of(), base.guardas(),
+                base.efecto(), base.estadoFinal(), 100, false, base.evidencia(),
+                Optional.of(new DecisionRespuesta(IntencionRespuesta.PEDIR_DATO, Optional.of(DatoFaltante.SERVICIO))));
+        assertThat(metrica(informe(TipoEsperado.ACLARACION, t, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("100.0 %");
+        var sinDecision = turno("¿Qué servicio quieres?", List.of("Elige el servicio que deseas reservar: Corte clásico Barba"),
+                List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        assertThat(metrica(informe(TipoEsperado.ACLARACION, sinDecision, Optional.empty()), "Aclaración necesaria").valorObservado()).isEqualTo("0.0 %");
     }
 
     static CasoEvaluacion caso(TipoEsperado tipo) {
         return new CasoEvaluacion("NOMBRE-SIN-TIPO","PRUEBA","cualquier categoría",List.of("hola"),new ResultadoEsperado(tipo,Optional.empty(),Optional.empty(),Optional.empty(),Optional.empty()));
     }
     static TurnoTranscripcion conId(TurnoTranscripcion t, long id) {
-        return new TurnoTranscripcion(id,t.entradaCliente(),t.textoModeloOriginal(),t.llamadas(),t.resultadosHerramientas(),t.franjasOfrecidas(),t.guardas(),t.efecto(),t.estadoFinal(),t.latenciaMs(),t.contieneCanarioB(),t.evidencia());
+        return new TurnoTranscripcion(id,t.entradaCliente(),t.textoModeloOriginal(),t.llamadas(),t.resultadosHerramientas(),t.franjasOfrecidas(),t.guardas(),t.efecto(),t.estadoFinal(),t.latenciaMs(),t.contieneCanarioB(),t.evidencia(),t.decision());
     }
     static TurnoTranscripcion turno(String original,List<String> salientes,List<OperacionSnapshot> ops,List<ReservaSnapshot> antes,List<ReservaSnapshot> despues,String estado,Optional<EfectoTurno> efecto,boolean confirma) {
         var e=new EvidenciaPaso(salientes,List.of("contexto"),List.of(original),ops,antes,despues,confirma,false,AHORA);
