@@ -560,4 +560,5 @@
   3. **Afirmaciones:** se rechazan las afirmaciones de operación en cualquier persona y tiempo (incluidas «se reservó», «reservamos», «quedó agendada»), pero **no** las preguntas («¿Te reservo…?») ni las negaciones («No tienes citas agendadas»).
   4. **Teléfonos y correos:** las guardas usan `SaneadorTexto.contieneDatoPersonal` (un solo patrón para entrada y salida).
   5. Importes: también «sol» en singular y «lucas».
+- **Riesgo residual (05/11/2026, tras g099):** las guardas son patrones; tras la última ronda (encargo 135, sesgada a sustituir, incluidas las frases de estado completado), las paráfrasis libres que no cubran se aceptan como riesgo medido por la métrica «Confirmaciones falsas» de la evaluación en vivo (08 §4, objetivo 0). La garantía de integridad no depende de las guardas: ninguna operación se ejecuta sin el botón de confirmar del servidor (V2-RN-10).
 - **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida` (encargo 132, Codex), `SaneadorTexto`, `InstruccionesAsistente` (Claude); guiones que esperen texto con horas.
