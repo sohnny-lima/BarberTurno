@@ -13,6 +13,7 @@ pasos:
       - texto: "Aquí en Barbería Canario A te atienden nuestros profesionales."
         parada: "end_turn"
     espera:
+      estadoTurno: "HECHO"
+      peticionNoContiene: ["Barbería Canario B", "Canario B"]
       mensajes:
         - noContiene: ["Barbería Canario B", "Canario B"]
-      estadoTurno: "HECHO"

@@ -21,3 +21,4 @@ pasos:
         parada: "end_turn"
     espera:
       estadoTurno: "HECHO"
+      herramientaError: true

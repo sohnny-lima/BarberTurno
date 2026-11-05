@@ -3,12 +3,27 @@ negocio: "A"
 reloj: "2026-11-02T10:00:00-05:00"
 ficha: true
 iaNegocio: true
+limiteLlamadasDia: 2 # el primer turno hace 2 llamadas (herramienta + texto); el segundo texto ya no llama
 pasos:
   - cliente:
-      texto: "Consulta de disponibilidad con limite alcanzado"
+      texto: "Hola, qué servicios tienen en la barbería?"
     modelo:
-      - fallo: "LIMITE_PROVEEDOR"
+      - llamadas:
+          - herramienta: "listar_servicios"
+            argumentos: {}
+      - texto: "Ofrecemos corte clásico y perfilado de barba."
+        parada: "end_turn"
     espera:
-      estadoTurno: "FALLIDO"
+      estadoTurno: "HECHO"
+      llamadasModelo: 2
+      salientesNuevos: 1
       mensajes:
-        - contiene: ["No pude entenderte bien"]
+        - contiene: ["Ofrecemos corte clásico"]
+  - cliente:
+      texto: "A qué hora atienden mañana?"
+    modelo: []
+    espera:
+      llamadasModelo: 0
+      salientesNuevos: 1
+      mensajes:
+        - contiene: ["No entendí ese mensaje"]
