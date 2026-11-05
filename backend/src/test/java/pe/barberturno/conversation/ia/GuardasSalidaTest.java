@@ -125,11 +125,11 @@ class GuardasSalidaTest {
     }
 
     @Test
-    @DisplayName("revisar: duraciones sin precios no son datos prohibidos")
-    void revisar_duracionesSinPrecios_noSonDatosProhibidos() {
+    @DisplayName("revisar: duraciones sin precios también son referencias temporales")
+    void revisar_duracionesSinPrecios_sustituyeComoReferenciaTemporal() {
         String texto = "El corte dura 30 min. ¿Te gustaría agendar?";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @ParameterizedTest
@@ -213,7 +213,7 @@ class GuardasSalidaTest {
             "¿Quieres que te reprograme la cita?",
             "¿Quieres que te agende un turno?"
     })
-    @DisplayName("revisar: propuestas y solicitudes de confirmación son aceptadas (verdaderos negativos de afirmación)")
+    @DisplayName("revisar: propuestas y solicitudes de confirmación se sustituyen por V2-DA-85 (verdaderos negativos de afirmación)")
     void revisar_propuestasSubjuntivas_noSonAfirmacionOperacion(String texto) {
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
         assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
@@ -285,11 +285,11 @@ class GuardasSalidaTest {
     }
 
     @Test
-    @DisplayName("revisar: hora ofrecida hoy a las 17:00 es aceptada")
-    void revisar_horaOfrecidaAceptada() {
+    @DisplayName("revisar: hora ofrecida hoy a las 17:00 también se sustituye")
+    void revisar_horaOfrecida_tambienSeSustituye() {
         String texto = "Tenemos disponible hoy a las 17:00 con Carlos.";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
@@ -301,43 +301,43 @@ class GuardasSalidaTest {
     }
 
     @Test
-    @DisplayName("revisar: «el viernes a las 5» siendo hoy viernes es aceptada")
-    void revisar_elViernesALas5SiendoHoyViernes_aceptada() {
+    @DisplayName("revisar: «el viernes a las 5» siendo hoy viernes se sustituye por V2-DA-85")
+    void revisar_elViernesALas5SiendoHoyViernes_sustituida() {
         String texto = "¿Te gustaría el viernes a las 5 con Carlos?";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
-    @DisplayName("revisar: «mañana a las 17:30» siendo mañana sábado con franja es aceptada")
-    void revisar_mananaALas1730_aceptada() {
+    @DisplayName("revisar: «mañana a las 17:30» siendo mañana sábado con franja se sustituye por V2-DA-85")
+    void revisar_mananaALas1730_sustituida() {
         String texto = "Podemos agendar mañana a las 17:30 con Mateo.";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
-    @DisplayName("revisar: fecha sola sin hora de un día ofrecido es válida")
-    void revisar_fechaSolaDeDiaOfrecido_aceptada() {
+    @DisplayName("revisar: fecha sola sin hora de un día ofrecido se sustituye por V2-DA-85")
+    void revisar_fechaSolaDeDiaOfrecido_sustituida() {
         String texto = "Tenemos disponibilidad para el viernes.";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
-    @DisplayName("revisar: fecha numérica y hora coincidentes son aceptadas")
-    void revisar_fechaNumericaYHora_aceptada() {
+    @DisplayName("revisar: fecha numérica y hora coincidentes se sustituyen por V2-DA-85")
+    void revisar_fechaNumericaYHora_sustituida() {
         String texto = "Te ofrecemos el 24/10 a las 17:30.";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
-    @DisplayName("revisar: fecha en texto y hora coincidentes son aceptadas")
-    void revisar_fechaEnTextoYHora_aceptada() {
+    @DisplayName("revisar: fecha en texto y hora coincidentes se sustituyen por V2-DA-85")
+    void revisar_fechaEnTextoYHora_sustituida() {
         String texto = "Te ofrecemos el 24 de octubre a las 17:30.";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
@@ -349,11 +349,11 @@ class GuardasSalidaTest {
     }
 
     @Test
-    @DisplayName("revisar: hora en palabras «cinco de la tarde» coincidente es aceptada")
-    void revisar_horaEnPalabras_aceptada() {
+    @DisplayName("revisar: hora en palabras «cinco de la tarde» coincidente se sustituye por V2-DA-85")
+    void revisar_horaEnPalabras_sustituida() {
         String texto = "¿Te viene bien el viernes a las cinco de la tarde?";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
-        assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(res).isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @ParameterizedTest
@@ -367,20 +367,110 @@ class GuardasSalidaTest {
             "¿Quieres el viernes a las cinco?",
             "El sábado a las cinco y media de la tarde.",
             "El corte dura 30 minutos.",
-            "Te envío el resumen para que lo confirmes."
+            "A las cinco y media."
     })
-    void revisar_combinacionesYTextosPermitidos_conservaTexto(String texto) {
+    void revisar_horariosAntesPermitidos_ahoraSeSustituyen(String texto) {
         assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
-                .isEqualTo(new ResultadoGuardas.Aceptado(texto));
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 
     @Test
-    void revisar_horaDigitalMatinal_conFranjaMatinal_acepta() {
+    void revisar_horaDigitalMatinal_conFranjaMatinal_sustituye() {
         Instant cinco = ahoraViernes.withHour(5).toInstant();
         var franja = new FranjaOfrecida("f1", cinco, cinco.plusSeconds(1800), "Carlos",
                 new CodigoSeleccion.Franja(1L, 2L, cinco.getEpochSecond()));
         String texto = "Hoy a las 05:00.";
         assertThat(guardas.revisar(texto, List.of(franja), ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "¿Te reservo el viernes a las 17:00?",
+            "¿Cuál de las 2 opciones prefieres?",
+            "¿Cuál de las dos franjas te queda mejor?",
+            "Aquí tienes las 3 alternativas.",
+            "Tenemos turno el viernes a las 18 horas.",
+            "El viernes a las 18h.",
+            "Tenemos turno a las 17h.",
+            "Tenemos turno el viernes a las cinco treinta.",
+            "Tenemos turno hoy a las 5 a.m.",
+            "Tenemos turno a las diecisiete treinta.",
+            "Tenemos turno el 23/10/26 a las 17:00.",
+            "Tenemos turno el próximo viernes a las 17:00.",
+            "A las 17:00 el viernes o el sábado.",
+            "El sábado o el viernes a las 17:00.",
+            "A las 17:00 el viernes, a las 17:00 el sábado.",
+            "A las 17:00 el viernes, a las 17:30 el sábado.",
+            "2027\u201101\u201101", "2027\u201301\u201301", "2027\u221201\u221201",
+            "17h", "17h30", "17 hs", "18 horas", "5 a. m.", "5 p. m.",
+            "Cinco treinta", "Diecisiete treinta", "Próximo viernes", "Enero", "Septiembre",
+            "A las 5 o 25", "A las cinco", "Cinco", "5", "Medianoche", "La próxima semana"
+    })
+    void revisar_referenciasG098_conYSinFranjas_siempreSustituye(String texto) {
+        var esperado = new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO);
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes)).isEqualTo(esperado);
+        assertThat(guardas.revisar(texto, List.of(), ahoraViernes)).isEqualTo(esperado);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Se reservó tu cita.", "Tu cita se confirmó.", "Se canceló tu cita.",
+            "Se reprogramó tu turno.", "Se agendó tu cita.", "Ya reservamos tu cita.",
+            "Confirmamos tu reserva.", "Te agendamos el turno.", "Ya cancelamos tu cita.",
+            "Reprogramamos tu turno.", "Carlos reserva tu cita.", "Tú confirmas tu cita.",
+            "Reservaron tu cita.", "Confirmaron tu cita.", "Agendaban tu turno.",
+            "Cancelaremos tu cita.", "Reprogramarían tu turno.", "Has reservado la cita.",
+            "Están confirmando la cita.", "Habían cancelado tu cita.",
+            "¿Te ayudo? Ya confirmé tu reserva.",
+            "No tienes citas agendadas, pero reservamos tu turno.",
+            "No confirmé tu cita; se agendó tu turno.",
+            "No tienes citas agendadas y ya confirmé tu reserva.",
+            "No solo reservamos tu cita, también la confirmamos.",
+            "Sin problemas reservamos tu cita.", "No dudes: confirmamos tu reserva.",
+            "La cita que reservará Carlos ya está lista.",
+            "Confirmamos tu reserva. ¿Quieres algo más?"
+    })
+    void revisar_afirmacionesG098_enPersonasYTiempos_distintos_rechaza(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.AFIRMA_OPERACION));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "¿Te reservo ese turno?", "¿Te agendo ese turno?", "¿Te cancelo la cita?",
+            "¿Te reprograme la cita?", "¿Deseas cambiar tu cita reservada?",
+            "No tienes citas agendadas.", "No tienes reservas confirmadas.",
+            "No he reservado tu cita.", "Tu cita no está confirmada.", "Nunca cancelamos sin permiso.",
+            "¿Confirmamos tu reserva?", "¿Ya se reservó tu cita?", "¿Habían cancelado tu cita?",
+            "Te envío el resumen para que Carlos lo confirme.",
+            "Te preparo la propuesta para que tú la confirmes.",
+            "Puedes revisar tu reserva.", "Elige una reserva.", "Agenda tu cita con el botón.",
+            "Revisa los datos y confirma.", "No tienes citas agendadas ni reservas confirmadas.",
+            "No tienes citas agendadas y confirmadas."
+    })
+    void revisar_preguntasNegacionesYPropuestasG098_conservaTexto(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
                 .isEqualTo(new ResultadoGuardas.Aceptado(texto));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "987\u2011654\u2011321", "987\u2013654\u2013321", "987 - 654 - 321",
+            "987\u00a0654\u00a0321", "987\u202f654\u202f321", "(987) 654-321",
+            "Correo: cliente@ejemplo.test", "1 sol", "25 sol", "25 lucas", "25,50 lucas",
+            "¿Cuesta 1 sol?", "No cuesta 25 lucas", "¿Es cliente@ejemplo.test tu correo?"
+    })
+    void revisar_datosCompartidosEImportesG098_rechaza(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.DATOS_PROHIBIDOS));
+    }
+
+    @Test
+    void revisar_parametrosDeCompatibilidad_noSeUsan() {
+        String texto = "¿En qué puedo ayudarte?";
+        assertThat(guardas.revisar(texto, null, null)).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+        assertThat(guardas.revisar("17h", null, null))
+                .isEqualTo(new ResultadoGuardas.Sustituido(MotivoGuarda.HORARIO_NO_OFRECIDO));
     }
 }
