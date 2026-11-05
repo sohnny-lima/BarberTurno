@@ -195,6 +195,7 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         assertThat(reservas(a)).isZero();
         assertThat(estado(a, t)).isEqualTo(venceConcesion ? "PENDIENTE" : "FALLIDO");
         assertThat(mensajes(a, c)).isEqualTo(venceConcesion ? 0 : 1);
+        comprobarSalidasObservadas(c, t, venceConcesion ? 0 : 1);
     }
 
     @Test void sinFicha_pideConsentimientoConFranjaPendiente() {
@@ -848,6 +849,40 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         assertThat(registro.efecto()).get().isInstanceOf(EfectoTurno.Derivar.class);
         assertThat(borrador(a, c).path("ultima").asString()).isEqualTo("DERIVAR");
         assertThat(borrador(a, c).has("servicio")).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"FRANJAS", "PROPUESTA", "CONSENTIMIENTO", "TERMINAL"})
+    void salidasObservadas_coincidenConCadaMensajePersistido_enNumeroYOrden(String caso) {
+        long c = conversacion(a, !"CONSENTIMIENTO".equals(caso)), t = encolar(a, c, "Un corte");
+        switch (caso) {
+            case "FRANJAS" -> {
+                modelo.programarLlamada(HerramientaIA.BUSCAR_DISPONIBILIDAD, argumentosDisponibilidad());
+                modelo.programarLlamadas(List.of(terminal("SALUDO", null, null, null)));
+            }
+            case "PROPUESTA", "CONSENTIMIENTO" -> programarPropuesta(false);
+            case "TERMINAL" -> modelo.programarLlamadas(List.of(terminal("MOSTRAR_SERVICIOS", null, null, null)));
+            default -> throw new IllegalArgumentException(caso);
+        }
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        comprobarSalidasObservadas(c, t, 1);
+    }
+
+    private void comprobarSalidasObservadas(long conversacion, long turno, int cantidad) {
+        var persistidas = ejecutor.ejecutar(a, () -> sql.queryForList("""
+                SELECT CAST(contenido AS text) FROM mensaje_whatsapp
+                WHERE conversacion_id=? AND direccion='SALIENTE' ORDER BY id
+                """, String.class, conversacion)).stream().map(mapper::readTree).toList();
+        var observadas = observador.buscarTurno(turno).orElseThrow().salidas().stream().map(mensaje -> {
+            var contenido = mapper.createObjectNode();
+            switch (mensaje) {
+                case MensajeAsistente.Interactivo(var interactivo) -> contenido.set("interactivo", interactivo);
+                case MensajeAsistente.Texto(var texto) -> contenido.put("texto", texto);
+            }
+            return contenido;
+        }).toList();
+        assertThat(observadas).hasSize(cantidad);
+        assertThat(persistidas).containsExactlyElementsOf(observadas);
     }
 
     private LlamadaHerramienta terminal(String intencion, String falta, String servicio, String profesional) {
