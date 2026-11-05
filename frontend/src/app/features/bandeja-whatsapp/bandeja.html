@@ -178,6 +178,7 @@
                 rows="3"
                 [disabled]="!d.conversacion.puedeResponder || enviando()"
                 placeholder="Escriba su mensaje al cliente…"
+                enterkeyhint="send"
               ></textarea>
               <div class="contador-caracteres" aria-hidden="true">
                 {{ textoRespuesta().length }} / 4096

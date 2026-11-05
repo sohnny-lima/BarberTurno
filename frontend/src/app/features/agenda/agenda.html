@@ -41,7 +41,13 @@
     </button>
     <mat-form-field subscriptSizing="dynamic">
       <mat-label>Fecha de Lima</mat-label>
-      <input matInput type="date" formControlName="fecha" (change)="cargar()" />
+      <input
+        matInput
+        type="date"
+        formControlName="fecha"
+        (change)="cargar()"
+        enterkeyhint="search"
+      />
       <mat-error>Seleccione una fecha válida.</mat-error>
     </mat-form-field>
     <button

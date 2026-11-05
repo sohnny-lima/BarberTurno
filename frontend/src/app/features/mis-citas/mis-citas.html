@@ -44,10 +44,12 @@
       [class.abiertos]="filtrosAbiertos()"
     >
       <mat-form-field subscriptSizing="dynamic">
-        <mat-label>Desde</mat-label><input matInput type="date" formControlName="desde" />
+        <mat-label>Desde</mat-label
+        ><input matInput type="date" formControlName="desde" enterkeyhint="next" />
       </mat-form-field>
       <mat-form-field subscriptSizing="dynamic">
-        <mat-label>Hasta</mat-label><input matInput type="date" formControlName="hasta" />
+        <mat-label>Hasta</mat-label
+        ><input matInput type="date" formControlName="hasta" enterkeyhint="done" />
       </mat-form-field>
       <mat-form-field subscriptSizing="dynamic">
         <mat-label>Estado</mat-label>

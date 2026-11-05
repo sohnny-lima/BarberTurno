@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="108" fill="#f6f8f7"/>
+  <g transform="translate(256, 256) scale(0.85) translate(-256, -256)">
+    <g fill="#145c43">
+      <!-- Hoja izquierda hacia arriba a la derecha -->
+      <path d="M 346 86 C 330 140 290 205 256 248 L 244 236 C 274 186 312 118 346 86 Z"/>
+      <!-- Hoja derecha hacia arriba a la izquierda -->
+      <path d="M 166 86 C 182 140 222 205 256 248 L 268 236 C 238 186 200 118 166 86 Z"/>
+      <!-- Vástago izquierdo hacia anillo inferior izquierdo -->
+      <path d="M 248 252 L 204 338 C 196 348 186 354 176 354 C 152 354 134 372 134 396 C 134 420 152 438 176 438 C 200 438 218 420 218 396 C 218 384 212 374 204 366 L 260 256 Z"/>
+      <!-- Vástago derecho hacia anillo inferior derecho -->
+      <path d="M 264 252 L 308 338 C 316 348 326 354 336 354 C 360 354 378 372 378 396 C 378 420 360 438 336 438 C 312 438 294 420 294 396 C 294 384 300 374 308 366 L 252 256 Z"/>
+    </g>
+    <!-- Huecos de los anillos -->
+    <circle cx="176" cy="396" r="22" fill="#f6f8f7"/>
+    <circle cx="336" cy="396" r="22" fill="#f6f8f7"/>
+    <!-- Apoyo de dedo (tang) estilizado en anillo izquierdo -->
+    <path d="M 136 404 C 122 414 114 428 116 438 C 118 444 126 444 132 438 C 138 430 142 422 144 416 Z" fill="#145c43"/>
+    <!-- Tornillo de pivote central -->
+    <circle cx="256" cy="248" r="16" fill="#145c43"/>
+    <circle cx="256" cy="248" r="8" fill="#f6f8f7"/>
+    <circle cx="256" cy="248" r="3" fill="#145c43"/>
+  </g>
+</svg>

@@ -5,8 +5,8 @@
   :host {
     display: flex;
     flex-direction: column;
-    max-height: calc(100dvh - 32px);
-    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));
     @include mat.dialog-overrides(
       (
         container-shape: 20px,

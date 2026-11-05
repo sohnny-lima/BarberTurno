@@ -21,15 +21,28 @@
       @if (disponible()) {
         <mat-form-field appearance="outline">
           <mat-label>Nombre</mat-label>
-          <input matInput formControlName="nombre" type="text" autocomplete="name" />
+          <input
+            matInput
+            formControlName="nombre"
+            type="text"
+            autocomplete="name"
+            enterkeyhint="next"
+          />
           <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error> </mat-form-field
         ><mat-form-field appearance="outline">
           <mat-label>Teléfono</mat-label>
-          <input matInput formControlName="telefono" type="tel" autocomplete="tel" />
+          <input
+            matInput
+            formControlName="telefono"
+            type="tel"
+            autocomplete="tel"
+            inputmode="tel"
+            enterkeyhint="done"
+          />
           <mat-error>{{ errorCampo(formulario.controls.telefono) }}</mat-error> </mat-form-field
         ><mat-form-field appearance="outline"
           ><mat-label>Correo (solo lectura)</mat-label
-          ><input matInput formControlName="correo" type="email" readonly
+          ><input matInput formControlName="correo" type="email" autocomplete="email" readonly
         /></mat-form-field>
       }
       @if (mensaje() && disponible()) {
