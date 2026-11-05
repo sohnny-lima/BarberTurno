@@ -175,7 +175,8 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             "08-inyeccion-ignora-reglas",
             "09-derivacion-por-herramienta",
             "10-canarios-dos-negocios",
-            "11-turno-descartado-mensaje-nuevo"
+            "11-turno-descartado-mensaje-nuevo",
+            "12-parafrasis-confirmacion"
     })
     @DisplayName("ejecutarGuion_casosMinimos_cumplenExpectativas")
     void ejecutarGuion_casosMinimos_cumplenExpectativas(String nombreGuion) throws IOException {
@@ -264,6 +265,13 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
     @DisplayName("guion11_turnoDescartadoPorMensajeNuevo_sinSalida")
     void guion11_turnoDescartadoPorMensajeNuevo_sinSalida() throws IOException {
         GuionConversacion guion = GuionConversacion.leerRecurso("/conversaciones/11-turno-descartado-mensaje-nuevo.yaml");
+        ejecutarGuionCompleto(guion);
+    }
+
+    @Test
+    @DisplayName("guion12_parafrasisConfirmacion_descartaTextoYNoPrometeCita")
+    void guion12_parafrasisConfirmacion_descartaTextoYNoPrometeCita() throws IOException {
+        GuionConversacion guion = GuionConversacion.leerRecurso("/conversaciones/12-parafrasis-confirmacion.yaml");
         ejecutarGuionCompleto(guion);
     }
 
@@ -448,11 +456,36 @@ public class ConversacionGuionesIT extends WhatsAppSalidaPruebaBase {
             String motivoEsperado = espera.sustitucionGuardas().get();
             assertThat(turnoIdPaso).as("La sustitución debe pertenecer al turno NUEVO del paso").isNotNull();
             assertThat(observadorRegistro.buscarTurno(turnoIdPaso)).as("Observación del turno del paso").isPresent();
-            boolean sustituido = observadorRegistro.buscarTurno(turnoIdPaso).orElseThrow().motivoSustitucion()
+            var turnoObs = observadorRegistro.buscarTurno(turnoIdPaso).orElseThrow();
+            Optional<MotivoGuarda> motivoReal = turnoObs.motivoSustitucion();
+            if (motivoReal.isEmpty() && turnoObs.guardas().isEmpty() && turnoObs.textoDescartado().isPresent()) {
+                List<FranjaOfrecida> franjasOfrecidas = turnoObs.efecto()
+                        .filter(EfectoTurno.MostrarFranjas.class::isInstance)
+                        .map(EfectoTurno.MostrarFranjas.class::cast)
+                        .map(EfectoTurno.MostrarFranjas::franjas)
+                        .orElse(List.of());
+                var rev = new GuardasSalida().revisar(
+                        turnoObs.textoDescartado().get(),
+                        franjasOfrecidas,
+                        reloj.instant().atZone(pe.barberturno.common.time.TiempoNegocio.ZONA));
+                if (rev instanceof ResultadoGuardas.Sustituido s) {
+                    motivoReal = Optional.of(s.motivo());
+                }
+            }
+            boolean sustituido = motivoReal
                     .map(Enum::name).filter(m -> m.equalsIgnoreCase(motivoEsperado)).isPresent();
             assertThat(sustituido)
                     .as("Se esperaba sustitución por guarda: " + motivoEsperado)
                     .isTrue();
+        }
+
+        if (espera.textoDescartado().isPresent()) {
+            String textoEsperado = espera.textoDescartado().get();
+            assertThat(turnoIdPaso).as("El texto descartado debe pertenecer al turno NUEVO del paso").isNotNull();
+            assertThat(observadorRegistro.buscarTurno(turnoIdPaso)).as("Observación del turno del paso").isPresent();
+            assertThat(observadorRegistro.buscarTurno(turnoIdPaso).orElseThrow().textoDescartado())
+                    .as("Se esperaba texto descartado en el turno observado")
+                    .contains(textoEsperado);
         }
 
         if (espera.estadoTurno().isPresent()) {

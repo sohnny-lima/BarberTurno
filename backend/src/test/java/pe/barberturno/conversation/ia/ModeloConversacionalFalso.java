@@ -112,6 +112,66 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
     }
 
     /**
+     * Crea una llamada a herramienta con un identificador correlativo único para esta sesión de prueba.
+     *
+     * @param herramienta herramienta invocada
+     * @param argumentosJson argumentos serializados en JSON
+     * @return instancia de {@link LlamadaHerramienta}
+     */
+    public synchronized LlamadaHerramienta nuevaLlamada(HerramientaIA herramienta, String argumentosJson) {
+        Objects.requireNonNull(herramienta, "herramienta");
+        Objects.requireNonNull(argumentosJson, "argumentosJson");
+        int idNum = ++contadorLlamadasHerramienta;
+        return new LlamadaHerramienta("call_" + idNum, herramienta, argumentosJson);
+    }
+
+    /**
+     * Construye el objeto JSON estricto de argumentos para la herramienta terminal {@code responder_al_cliente}
+     * (17-v2-12 §13.2; V2-DA-86).
+     *
+     * @param intencion intención de respuesta elegida
+     * @param falta dato faltante cuando {@code intencion} es {@link IntencionRespuesta#PEDIR_DATO}, o {@code null}
+     * @param servicio alias de servicio en sesión (p. ej. {@code "s1"}), o {@code null}
+     * @param profesional alias de profesional en sesión (p. ej. {@code "p1"} o {@code "cualquiera"}), o {@code null}
+     * @return cadena JSON con las cuatro propiedades requeridas por el esquema estricto
+     */
+    public static String argumentosResponderAlCliente(
+            IntencionRespuesta intencion,
+            DatoFaltante falta,
+            String servicio,
+            String profesional
+    ) {
+        Objects.requireNonNull(intencion, "intencion");
+        return "{"
+                + "\"intencion\":" + valorJson(intencion.name()) + ","
+                + "\"falta\":" + valorJson(falta != null ? falta.name() : null) + ","
+                + "\"servicio\":" + valorJson(servicio) + ","
+                + "\"profesional\":" + valorJson(profesional)
+                + "}";
+    }
+
+    /**
+     * Crea una {@link LlamadaHerramienta} para {@link HerramientaIA#RESPONDER_AL_CLIENTE} con los argumentos indicados.
+     *
+     * @param intencion intención de respuesta elegida
+     * @param falta dato faltante si aplica, o {@code null}
+     * @param servicio alias de servicio o {@code null}
+     * @param profesional alias de profesional ({@code "p1"}, {@code "cualquiera"}) o {@code null}
+     * @return llamada lista para incluirse en una {@link RespuestaModelo}
+     */
+    public synchronized LlamadaHerramienta llamadaResponderAlCliente(
+            IntencionRespuesta intencion,
+            DatoFaltante falta,
+            String servicio,
+            String profesional
+    ) {
+        return nuevaLlamada(
+                HerramientaIA.RESPONDER_AL_CLIENTE,
+                argumentosResponderAlCliente(intencion, falta, servicio, profesional)
+        );
+    }
+
+    /**
      * Programa una llamada a herramienta con sus argumentos en formato JSON.
      *
      * @param herramienta herramienta invocada
@@ -119,10 +179,43 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
      * @return este adaptador falso para encadenar
      */
     public synchronized ModeloConversacionalFalso programarLlamada(HerramientaIA herramienta, String argumentosJson) {
-        int idNum = ++contadorLlamadasHerramienta;
-        LlamadaHerramienta llamada = new LlamadaHerramienta("call_" + idNum, herramienta, argumentosJson);
+        return programarTextoYLlamada(null, herramienta, argumentosJson);
+    }
+
+    /**
+     * Programa en la misma respuesta un texto libre (p. ej. malicioso o paráfrasis) y una llamada a herramienta
+     * (17-v2-12 §13.2; CI-14).
+     *
+     * @param texto texto libre devuelto por el proveedor en la misma respuesta, o {@code null}
+     * @param herramienta herramienta invocada
+     * @param argumentosJson argumentos en formato JSON
+     * @return este adaptador falso para encadenar
+     */
+    public synchronized ModeloConversacionalFalso programarLlamada(
+            String texto,
+            HerramientaIA herramienta,
+            String argumentosJson
+    ) {
+        return programarTextoYLlamada(texto, herramienta, argumentosJson);
+    }
+
+    /**
+     * Programa en la misma respuesta un texto libre (p. ej. malicioso o paráfrasis) y una llamada a herramienta
+     * (17-v2-12 §13.2; CI-14).
+     *
+     * @param texto texto libre devuelto por el proveedor en la misma respuesta, o {@code null}
+     * @param herramienta herramienta invocada
+     * @param argumentosJson argumentos en formato JSON
+     * @return este adaptador falso para encadenar
+     */
+    public synchronized ModeloConversacionalFalso programarTextoYLlamada(
+            String texto,
+            HerramientaIA herramienta,
+            String argumentosJson
+    ) {
+        LlamadaHerramienta llamada = nuevaLlamada(herramienta, argumentosJson);
         RespuestaModelo resp = new RespuestaModelo(
-                Optional.empty(),
+                Optional.ofNullable(texto),
                 List.of(llamada),
                 ContinuacionProveedor.VACIA,
                 USO_DEFECTO,
@@ -139,16 +232,93 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
      * @return este adaptador falso para encadenar
      */
     public synchronized ModeloConversacionalFalso programarLlamadas(List<LlamadaHerramienta> llamadas) {
+        return programarTextoYLlamadas(null, llamadas);
+    }
+
+    /**
+     * Programa en la misma respuesta un texto libre y múltiples llamadas a herramientas (incluida
+     * {@code responder_al_cliente}).
+     *
+     * @param texto texto libre devuelto por el proveedor en la misma respuesta, o {@code null}
+     * @param llamadas lista de herramientas solicitadas en orden
+     * @return este adaptador falso para encadenar
+     */
+    public synchronized ModeloConversacionalFalso programarLlamadas(
+            String texto,
+            List<LlamadaHerramienta> llamadas
+    ) {
+        return programarTextoYLlamadas(texto, llamadas);
+    }
+
+    /**
+     * Programa en la misma respuesta un texto libre y múltiples llamadas a herramientas (incluida
+     * {@code responder_al_cliente}).
+     *
+     * @param texto texto libre devuelto por el proveedor en la misma respuesta, o {@code null}
+     * @param llamadas lista de herramientas solicitadas en orden
+     * @return este adaptador falso para encadenar
+     */
+    public synchronized ModeloConversacionalFalso programarTextoYLlamadas(
+            String texto,
+            List<LlamadaHerramienta> llamadas
+    ) {
         Objects.requireNonNull(llamadas, "llamadas");
         RespuestaModelo resp = new RespuestaModelo(
-                Optional.empty(),
-                llamadas,
+                Optional.ofNullable(texto),
+                List.copyOf(llamadas),
                 ContinuacionProveedor.VACIA,
                 USO_DEFECTO,
-                "tool_use"
+                llamadas.isEmpty() ? "end_turn" : "tool_use"
         );
         cola.add(new ElementoProgramado.Exito(resp));
         return this;
+    }
+
+    /**
+     * Programa una respuesta con la herramienta terminal {@code responder_al_cliente} sin texto libre.
+     *
+     * @param intencion intención de respuesta elegida
+     * @param falta dato faltante si aplica, o {@code null}
+     * @param servicio alias de servicio o {@code null}
+     * @param profesional alias de profesional ({@code "p1"}, {@code "cualquiera"}) o {@code null}
+     * @return este adaptador falso para encadenar
+     */
+    public synchronized ModeloConversacionalFalso programarResponderAlCliente(
+            IntencionRespuesta intencion,
+            DatoFaltante falta,
+            String servicio,
+            String profesional
+    ) {
+        return programarResponderAlCliente(null, intencion, falta, servicio, profesional);
+    }
+
+    /**
+     * Programa en la misma respuesta un texto libre (que el servidor debe descartar) y la herramienta terminal
+     * {@code responder_al_cliente} (17-v2-12 §13.2; V2-DA-86).
+     *
+     * @param texto texto libre devuelto junto con la herramienta terminal, o {@code null}
+     * @param intencion intención de respuesta elegida
+     * @param falta dato faltante si aplica, o {@code null}
+     * @param servicio alias de servicio o {@code null}
+     * @param profesional alias de profesional ({@code "p1"}, {@code "cualquiera"}) o {@code null}
+     * @return este adaptador falso para encadenar
+     */
+    public synchronized ModeloConversacionalFalso programarResponderAlCliente(
+            String texto,
+            IntencionRespuesta intencion,
+            DatoFaltante falta,
+            String servicio,
+            String profesional
+    ) {
+        LlamadaHerramienta llamada = llamadaResponderAlCliente(intencion, falta, servicio, profesional);
+        return programarTextoYLlamadas(texto, List.of(llamada));
+    }
+
+    private static String valorJson(String valor) {
+        if (valor == null) {
+            return "null";
+        }
+        return "\"" + valor.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     /**

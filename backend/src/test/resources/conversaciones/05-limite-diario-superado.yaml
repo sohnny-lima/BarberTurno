@@ -17,8 +17,11 @@ pasos:
       estadoTurno: "HECHO"
       llamadasModelo: 2
       salientesNuevos: 1
+      textoDescartado: "Ofrecemos corte clásico y perfilado de barba."
       mensajes:
-        - contiene: ["Ofrecemos corte clásico"]
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["Ofrecemos corte clásico", "perfilado de barba"]
   - cliente:
       texto: "A qué hora atienden mañana?"
     modelo: []
