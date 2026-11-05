@@ -63,8 +63,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *     {@code [Confirmar]} y {@code [Cambiar]} sin crear fila en {@code reserva}; al pulsar {@code [Confirmar]}
  *     ({@code o:<operación>:<nonce>:S}), se crea la reserva y el cliente recibe {@link TextosConversacion#resultado}
  *     con el código real {@code BT-…} de la base, la fecha completa con año en Lima y la hora real.</li>
- *     <li>En una derivación por IA con texto malicioso del proveedor, {@link BandejaWhatsApp#detalle} muestra
- *     únicamente el texto saneado del cliente (V2-DA-83) y el aviso fijo del sistema, nunca el del proveedor.</li>
+ *     <li>En una derivación por IA con texto malicioso del proveedor, {@link BandejaWhatsApp#detalle} y
+ *     {@code mensaje_whatsapp.contenido} contienen exclusivamente los dos envoltorios esperados (el entrante
+ *     guardado por V2-DA-83 con el texto saneado y el aviso saliente fijo del sistema, comparando los dos JSON
+ *     completos en la raíz y sin texto del proveedor ni en la raíz ni en los fragmentos; hallazgo 2 de Codex 142).</li>
  * </ul>
  *
  * @author Sohnny Walter Lima Infanzón
@@ -475,10 +477,12 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 .as("La bandeja debe mostrar el mensaje entrante saneado del cliente (V2-DA-83) y el aviso fijo de derivación")
                 .hasSize(2);
 
+        String textoClienteSaneado = SaneadorTexto.sanear(textoClienteConDatos, 2000);
         MensajeBandejaDto mensajeClienteEnBandeja = detalle.mensajes().get(0);
         assertThat(mensajeClienteEnBandeja.entrante()).isTrue();
         assertThat(mensajeClienteEnBandeja.origen()).isEqualTo(OrigenMensaje.CLIENTE);
         assertThat(mensajeClienteEnBandeja.texto())
+                .isEqualTo(textoClienteSaneado)
                 .isEqualTo("Tengo un reclamo urgente por mi corte, mi teléfono es [dato] y mi correo [dato]")
                 .doesNotContain("987 654 321")
                 .doesNotContain("reclamo@ejemplo.test");
@@ -486,31 +490,76 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 "Mensaje del cliente en bandeja",
                 mensajeClienteEnBandeja.texto(),
                 textoProveedorMalicioso,
-                mensajeClienteEnBandeja.texto()
+                textoClienteSaneado
         );
 
+        String textoAvisoSistema = textos.derivada("Negocio ficticio a");
         MensajeBandejaDto avisoSistemaEnBandeja = detalle.mensajes().get(1);
         assertThat(avisoSistemaEnBandeja.entrante()).isFalse();
         assertThat(avisoSistemaEnBandeja.origen()).isEqualTo(OrigenMensaje.SISTEMA);
         assertThat(avisoSistemaEnBandeja.texto())
-                .isEqualTo(textos.derivada("Negocio ficticio a"));
+                .isEqualTo(textoAvisoSistema);
         verificarAusenciaDeTextoProveedorEnCadena(
                 "Aviso de derivación en bandeja",
                 avisoSistemaEnBandeja.texto(),
                 textoProveedorMalicioso,
-                textos.derivada("Negocio ficticio a")
+                textoAvisoSistema
         );
 
-        // 2. Comprobar también todas las filas crudas en mensaje_whatsapp de la conversación.
-        List<String> contenidosCrudos = ejecutor.ejecutar(a, () -> sql.queryForList(
-                "SELECT CAST(contenido AS text) FROM mensaje_whatsapp WHERE conversacion_id = ? ORDER BY id",
-                String.class, conversacionId));
-        assertThat(contenidosCrudos).hasSize(2);
-        String textoEsperadoDerivacion = textos.derivada("Negocio ficticio a") + " " + textoClienteConDatos;
-        for (String crudo : contenidosCrudos) {
-            verificarAusenciaDeTextoProveedorEnCadena(
-                    "mensaje_whatsapp.contenido", crudo, textoProveedorMalicioso, textoEsperadoDerivacion);
-        }
+        // 2. Comprobar por separado los dos JSON completos de esa conversación en mensaje_whatsapp:
+        // el entrante guardado (V2-DA-83) contra su envoltorio esperado con el texto saneado, y el saliente
+        // del sistema contra {"texto": TextosConversacion.derivada(<negocio>)}, rechazando propiedades adicionales
+        // en la raíz (hallazgo 2 de Codex 142). Las excepciones de fragmentos salen solo del contenido esperado
+        // de cada fila, nunca del texto original del cliente sin sanear.
+        List<Map<String, Object>> filasMensajes = ejecutor.ejecutar(a, () -> sql.queryForList("""
+                SELECT id, direccion, origen, tipo, estado, CAST(contenido AS text) AS contenido
+                FROM mensaje_whatsapp
+                WHERE conversacion_id = ?
+                ORDER BY id
+                """, conversacionId));
+        assertThat(filasMensajes)
+                .as("La conversación debe contener exactamente 2 filas en mensaje_whatsapp")
+                .hasSize(2);
+
+        // Mensaje 1: entrante guardado con el texto saneado del cliente (V2-DA-83)
+        Map<String, Object> filaEntrante = filasMensajes.get(0);
+        assertThat(filaEntrante.get("direccion")).isEqualTo("ENTRANTE");
+        assertThat(filaEntrante.get("origen")).isEqualTo(OrigenMensaje.CLIENTE.name());
+        assertThat(filaEntrante.get("tipo")).isEqualTo("TEXTO");
+        assertThat(filaEntrante.get("estado")).isEqualTo(EstadoMensaje.RECIBIDO.name());
+
+        String contenidoEntranteCrudo = String.valueOf(filaEntrante.get("contenido"));
+        JsonNode nodoEntrante = mapper.readTree(contenidoEntranteCrudo);
+        ObjectNode envoltorioEntranteEsperado = mapper.createObjectNode();
+        envoltorioEntranteEsperado.put("texto", textoClienteSaneado);
+
+        compararJsonRaizCompleto(nodoEntrante, envoltorioEntranteEsperado);
+        verificarAusenciaDeTextoProveedorEnCadena(
+                "mensaje_whatsapp.contenido (entrante saneado)",
+                contenidoEntranteCrudo,
+                textoProveedorMalicioso,
+                envoltorioEntranteEsperado.toString()
+        );
+
+        // Mensaje 2: saliente del sistema con aviso fijo de derivación
+        Map<String, Object> filaSaliente = filasMensajes.get(1);
+        assertThat(filaSaliente.get("direccion")).isEqualTo("SALIENTE");
+        assertThat(filaSaliente.get("origen")).isEqualTo(OrigenMensaje.SISTEMA.name());
+        assertThat(filaSaliente.get("tipo")).isEqualTo("TEXTO");
+        assertThat(filaSaliente.get("estado")).isEqualTo(EstadoMensaje.PENDIENTE.name());
+
+        String contenidoSalienteCrudo = String.valueOf(filaSaliente.get("contenido"));
+        JsonNode nodoSaliente = mapper.readTree(contenidoSalienteCrudo);
+        ObjectNode envoltorioSalienteEsperado = mapper.createObjectNode();
+        envoltorioSalienteEsperado.put("texto", textoAvisoSistema);
+
+        compararJsonRaizCompleto(nodoSaliente, envoltorioSalienteEsperado);
+        verificarAusenciaDeTextoProveedorEnCadena(
+                "mensaje_whatsapp.contenido (saliente sistema)",
+                contenidoSalienteCrudo,
+                textoProveedorMalicioso,
+                envoltorioSalienteEsperado.toString()
+        );
     }
 
     @Test
@@ -545,13 +594,52 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 .as("El ayudante debe rechazar la propiedad 'nota' en la raíz también sobre envoltorios de texto")
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("nota");
+
+        // Escenario del hallazgo 2 de Codex 142: un saliente del sistema con "nota":"987 654" en la raíz
+        ObjectNode envoltorioDerivada = mapper.createObjectNode();
+        envoltorioDerivada.put("texto", "Te paso con el equipo de la barbería. Te responderán por aquí en cuanto puedan.");
+        ObjectNode salienteDerivadaConNota = envoltorioDerivada.deepCopy();
+        salienteDerivadaConNota.put("nota", "987 654");
+
+        assertThatThrownBy(() -> compararJsonRaizCompleto(salienteDerivadaConNota, envoltorioDerivada))
+                .as("El ayudante debe rechazar un saliente con 'nota':'987 654' en la raíz")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("nota");
+    }
+
+    @Test
+    @DisplayName("salienteConNota987654_sinBase_rechazaPorRaizYPorFragmentoProhibido")
+    void salienteConNota987654_sinBase_rechazaPorRaizYPorFragmentoProhibido() {
+        ObjectNode envoltorioSalienteEsperado = mapper.createObjectNode();
+        envoltorioSalienteEsperado.put("texto", "Te paso con el equipo de la barbería. Te responderán por aquí en cuanto puedan.");
+
+        ObjectNode salienteConNota = envoltorioSalienteEsperado.deepCopy();
+        salienteConNota.put("nota", "987 654");
+
+        // 1. El ayudante de comparación de raíz completa rechaza la propiedad adicional "nota" en la raíz
+        assertThatThrownBy(() -> compararJsonRaizCompleto(salienteConNota, envoltorioSalienteEsperado))
+                .as("El ayudante compararJsonRaizCompleto debe rechazar la propiedad 'nota' en la raíz")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("nota");
+
+        // 2. La verificación de fragmentos también rechaza "987 654" porque las excepciones salen solo
+        // del contenido esperado del saliente del sistema (nunca del texto original del cliente, hallazgo 2 de Codex 142)
+        String textoProveedor = "escribe a trampa@ejemplo.test o al 987 654 321";
+        assertThatThrownBy(() -> verificarAusenciaDeTextoProveedorEnCadena(
+                "saliente del sistema con nota",
+                salienteConNota.toString(),
+                textoProveedor,
+                envoltorioSalienteEsperado.toString()))
+                .as("La verificación de fragmentos debe rechazar el fragmento adversario '987 654'")
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("987 654");
     }
 
     /**
-     * Compara el JSON raíz completo de un mensaje saliente con el envoltorio esperado
+     * Compara el JSON raíz completo de un mensaje (entrante o saliente) con el envoltorio esperado
      * ({@code {"interactivo": <esperado>}} o {@code {"texto": <esperado>}}), verificando
      * que coincida exactamente y rechazando cualquier propiedad adicional en la raíz
-     * (17-v2-12 §13; V2-DA-86; CI-14; hallazgo 5 de Codex).
+     * (17-v2-12 §13; V2-DA-86; CI-14; hallazgo 5 de Codex; hallazgo 2 de Codex 142).
      *
      * @param nodoReal JSON real obtenido de la columna {@code mensaje_whatsapp.contenido}
      * @param envoltorioEsperado envoltorio JSON determinista esperado del servidor
@@ -769,7 +857,7 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
     /**
      * Determina el conjunto completo de tokens prohibidos para una comprobación: incluye la lista base
      * de tokens adversarios y añade todos los fragmentos cortos del proveedor (de 2 y 3 palabras) que no
-     * formen parte del mensaje esperado del servidor (CI-14; hallazgo 5 de Codex).
+     * formen parte del mensaje esperado del servidor (CI-14; hallazgo 5 de Codex; hallazgo 2 de Codex 142).
      *
      * @param textoProveedor texto libre emitido por el modelo
      * @param textoEsperadoServidor texto o JSON esperado del servidor, o {@code null} si no aplica
