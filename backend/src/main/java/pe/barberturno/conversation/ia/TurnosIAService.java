@@ -311,8 +311,8 @@ public class TurnosIAService implements TurnosIA {
                     default -> throw new IllegalStateException();
                 };
                 if (propuesta instanceof Propuesta.Creada p) {
-                    salida.encolarInteractivo(r.conversacion(), menus.confirmacion(textos.resumen(p.resumen()), p.operacionId(), p.nonce()),
-                            OrigenMensaje.ASISTENTE, OptionalLong.empty());
+                    enviar(r, new MensajeAsistente.Interactivo(
+                            menus.confirmacion(textos.resumen(p.resumen()), p.operacionId(), p.nonce())));
                     ultima = "PROPUESTA";
                     conservarSelecciones = true;
                 } else {
@@ -406,6 +406,10 @@ public class TurnosIAService implements TurnosIA {
             case MensajeAsistente.Interactivo(var contenido) -> salida.encolarInteractivo(r.conversacion(), contenido,
                     OrigenMensaje.ASISTENTE, OptionalLong.empty());
         }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /** Notifica el mismo mensaje encolado solo si la transacción que lo guarda se confirmó. */
+            @Override public void afterCommit() { observador.salida(r.id(), mensaje); }
+        });
     }
 
     private void consentimiento(Reclamo r, String pendiente, MotivoDerivacion motivo) {
@@ -416,8 +420,8 @@ public class TurnosIAService implements TurnosIA {
         if (motivo != null) estado.put("motivo", motivo.name());
         conversaciones.guardar(r.conversacion(), estado);
         var privacidad = conversacionPropiedades.privacidad();
-        salida.encolarInteractivo(r.conversacion(), menus.consentimiento(textos.privacidad(privacidad.texto(), consultas.nombreNegocio(), privacidad.enlace())),
-                OrigenMensaje.ASISTENTE, OptionalLong.empty());
+        enviar(r, new MensajeAsistente.Interactivo(menus.consentimiento(
+                textos.privacidad(privacidad.texto(), consultas.nombreNegocio(), privacidad.enlace()))));
     }
 
     private void menu(Reclamo r, MotivoMenu motivo) {
