@@ -29,7 +29,6 @@ import pe.barberturno.conversation.ResultadoOperacion;
 import pe.barberturno.conversation.ResumenOperacion;
 import pe.barberturno.conversation.TextosConversacion;
 import pe.barberturno.conversation.TipoOperacion;
-import pe.barberturno.reservations.CodigoReserva;
 import pe.barberturno.reservations.EstadoReserva;
 import pe.barberturno.scheduling.JornadaRepository;
 import pe.barberturno.whatsapp.BandejaWhatsApp;
@@ -284,7 +283,7 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
 
         var mostrar = (EfectoTurno.MostrarFranjas) turnoObs.efecto().orElseThrow();
         LocalDate hoy = TiempoNegocio.fechaLima(reloj.instant());
-        ObjectNode esperado = ((MensajeAsistente.Interactivo) respuestasAsistente.franjas(mostrar.franjas(), hoy)).interactivo();
+        ObjectNode esperado = ((MensajeAsistente.Interactivo) respuestasAsistente.franjas(mostrar.franjas(), hoy)).contenido();
 
         List<Map<String, Object>> salientes = consultarSalientesNuevos(a, conversacionId, ultimoSalienteAntes);
         assertThat(salientes).hasSize(1);
@@ -380,7 +379,7 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         String servicioNombreReal = String.valueOf(filaReserva.get("servicio_nombre"));
         String barberoNombreReal = String.valueOf(filaReserva.get("barbero_nombre"));
 
-        String codigoReal = new CodigoReserva(reservaIdReal).valor();
+        String codigoReal = "BT-" + reservaIdReal; // mismo formato que ConsultasConversacionService.cita
         String fechaCompletaLima = textos.fecha(inicioReal);
         String horaLima = textos.hora(inicioReal);
 
@@ -518,14 +517,14 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
             ObservadorEvaluacionRegistro.RegistroTurno turnoObs
     ) {
         return switch (combinacion) {
-            case SIN_HERRAMIENTAS -> ((MensajeAsistente.Interactivo) respuestasAsistente.menu(MotivoMenu.NEUTRO)).interactivo();
+            case SIN_HERRAMIENTAS -> ((MensajeAsistente.Interactivo) respuestasAsistente.menu(MotivoMenu.NEUTRO)).contenido();
             case RESPONDER_SALUDO -> menus.menuPrincipal(textos.bienvenida("Negocio ficticio a"));
             case BUSCAR_DISPONIBILIDAD -> {
                 var mostrar = (EfectoTurno.MostrarFranjas) turnoObs.efecto()
                         .orElseThrow(() -> new AssertionError("Se esperaba efecto MostrarFranjas"));
                 assertThat(mostrar.franjas()).isNotEmpty();
                 LocalDate hoy = TiempoNegocio.fechaLima(reloj.instant());
-                yield ((MensajeAsistente.Interactivo) respuestasAsistente.franjas(mostrar.franjas(), hoy)).interactivo();
+                yield ((MensajeAsistente.Interactivo) respuestasAsistente.franjas(mostrar.franjas(), hoy)).contenido();
             }
             case PROPONER_RESERVA -> construirConfirmacionEsperada(conversacionId);
         };
