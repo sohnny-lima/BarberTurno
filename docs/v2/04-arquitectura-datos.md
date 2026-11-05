@@ -307,7 +307,7 @@ El modelo **interpreta y redacta**; el servidor **consulta, valida, propone y ej
 No existe ninguna herramienta que escriba reservas directamente, que lea datos de otros clientes o de otro negocio, ni que acepte un `negocioId` o `clienteId` como argumento: esos valores salen del contexto del servidor.
 
 ### 7.3 Guardas
-- **Horarios inventados (V2-RN-12):** antes de enviar el texto del modelo, `GuardasSalida` extrae las horas y fechas que menciona y comprueba que pertenecen a las franjas devueltas por herramientas en ese turno; si no, descarta el texto y envía la lista de franjas compuesta por el servidor. Las franjas se ofrecen además como lista interactiva generada por el servidor.
+- **Horarios (V2-RN-12, V2-DA-85):** el texto del modelo no menciona fechas ni horas. Si `GuardasSalida` detecta cualquier referencia temporal, descarta el texto y envía el texto neutro con la lista de franjas compuesta por el servidor (sustitución preventiva; no valida combinaciones). Las franjas se ofrecen además como lista interactiva generada por el servidor.
 - **Confirmaciones falsas (V2-RN-11):** el texto del modelo no puede afirmar que algo se reservó, canceló o reprogramó (se rechazan formas como «reservé», «confirmada», «cancelé» fuera de las plantillas). Las confirmaciones solo salen de `EjecutorOperaciones`.
 - **Fechas completas:** el resumen de la propuesta lo compone el servidor con `TiempoNegocio` («jueves 23 de octubre de 2026, 17:30–18:00, Corte con Carlos, S/ 25,00»).
 - **Ambigüedad:** las instrucciones obligan a preguntar si faltan servicio, profesional o día, o si «mañana», «el viernes» o «después de las 5» admiten varias lecturas; en caso de duda se ofrece una opción concreta para elegir.

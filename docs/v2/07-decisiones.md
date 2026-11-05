@@ -540,3 +540,25 @@
 - **Decisión:** en la transacción final del turno, con la conversación ya bloqueada y **antes** de `DerivacionConversacion.derivar`, `RegistroEntradaWhatsApp.guardarTextoDerivado` guarda un `ENTRANTE`/`CLIENTE`/`RECIBIDO` de tipo `TEXTO` con el texto **saneado** del turno (`SaneadorTexto`, hasta 2000 caracteres) y **sin `wamid`** (no se inventa la identidad de Meta). Precede al acuse (la bandeja ordena por `id`). Con `entrantes = TODOS` no se guarda otra vez (ya lo guardó la entrega). Sin ficha no aplica: la IA pide consentimiento y, al aceptarlo, la aceptación es el primer mensaje visible (como en V2-11).
 - **Motivo:** completa V2-DA-72 sin ampliar los datos guardados: el personal ve la versión saneada (sin teléfonos ni correos), que es la misma que ya se envió al proveedor; si D6 se aprueba con otra opción, la regla se revisa con ella.
 - **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §3.3 (paso 5); `TurnosIAService`, `RegistroEntradaWhatsApp`; prueba `TurnosIAIT.derivacionPorIA_guardaElTextoSaneadoDelCliente_antesDelAcuse`.
+
+### V2-DA-84 · Guardas de salida más estrictas y alcance de la bandeja (05/11/2026, V2-12; revisión cruzada 129 de Codex)
+- **Contexto:** la revisión 129 halló formatos que eludían las guardas (teléfonos con puntos, «He cancelado», «Ya confirmé», fechas ISO, «05:00» aceptado como 17:00) y dos huecos de contrato: las guardas no conocen el catálogo (un precio inventado pasaba) y la excepción del enlace de privacidad obligaría a conocer el enlace autorizado.
+- **Decisión:**
+  1. El texto del modelo **no contiene precios ni enlaces**: cualquier importe (`S/`, «soles», `PEN`, `$`) o URL → `DATOS_PROHIBIDOS`. Los precios solo los muestra el servidor (resúmenes y composición) y el enlace de privacidad solo el mensaje de consentimiento del servidor. Las instrucciones del asistente lo dicen.
+  2. **Horarios:** una hora digital (`05:00`, `17:30`) significa exactamente esa hora; solo las horas habladas sin indicación («a las 5») admiten las dos lecturas. Toda referencia temporal reconocible que no se pueda validar como combinación completa (incluidas fechas ISO `2027-01-01`) → `HORARIO_NO_OFRECIDO`. Varias opciones en una frase se validan **cada hora con su fecha**.
+  3. **Teléfonos y espacios:** guardas y saneador usan los mismos separadores (espacios Unicode incluidos, puntos, guiones, paréntesis).
+  4. **Afirmaciones:** se cubren formas en primera persona, pretérito y participio de reservar, confirmar, cancelar, reprogramar y agendar, sin rechazar propuestas ni preguntas.
+  5. **Bandeja:** solo la primera página (50); la paginación de conversaciones antiguas queda como *Could* fuera del MVP.
+  6. **E2E de la bandeja (CB-14):** cubre la interfaz con estado sembrado; la ruta de servidor (evento firmado → derivación → outbox) la cubren `DerivacionConversacionIT` y `BandejaWhatsAppIT`.
+- **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida`, `SaneadorTexto`, `InstruccionesAsistente`; encargos 131 (Codex) y g097 (Gemini).
+
+### V2-DA-85 · El texto del modelo no menciona fechas ni horas (05/11/2026, V2-12; revisión g098 de Gemini Argon sobre el encargo 131)
+- **Contexto:** tras dos rondas de correcciones, la validación «combinación completa» de fechas y horas mencionadas por el modelo seguía teniendo falsos negativos (`18h`, `5 a.m.`, «próximo viernes», varias fechas coordinadas) y falsos positivos («de las 2 opciones»). Cada formato nuevo exigía otra expresión regular.
+- **Decisión (sustituye V2-DA-84.2):**
+  1. El texto del modelo **no contiene ninguna referencia a fechas ni horas** (días de la semana, meses, «hoy», «mañana», fechas numéricas, horas en cualquier formato). Si las guardas detectan una → `HORARIO_NO_OFRECIDO` y se envía la composición del servidor, que ya muestra las franjas con su fecha completa. Ya no se valida la combinación con las franjas ofrecidas.
+  2. **Preferir ocultar de más:** ante la duda se sustituye; un falso positivo solo cambia el texto por el neutro con la lista del servidor, un falso negativo puede prometer un horario.
+  3. **Afirmaciones:** se rechazan las afirmaciones de operación en cualquier persona y tiempo (incluidas «se reservó», «reservamos», «quedó agendada»), pero **no** las preguntas («¿Te reservo…?») ni las negaciones («No tienes citas agendadas»).
+  4. **Teléfonos y correos:** las guardas usan `SaneadorTexto.contieneDatoPersonal` (un solo patrón para entrada y salida).
+  5. Importes: también «sol» en singular y «lucas».
+- **Riesgo residual (05/11/2026, tras g099):** las guardas son patrones; tras la última ronda (encargo 135, sesgada a sustituir, incluidas las frases de estado completado), las paráfrasis libres que no cubran se aceptan como riesgo medido por la métrica «Confirmaciones falsas» de la evaluación en vivo (08 §4, objetivo 0). La garantía de integridad no depende de las guardas: ninguna operación se ejecuta sin el botón de confirmar del servidor (V2-RN-10).
+- **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida` (encargo 132, Codex), `SaneadorTexto`, `InstruccionesAsistente` (Claude); guiones que esperen texto con horas.

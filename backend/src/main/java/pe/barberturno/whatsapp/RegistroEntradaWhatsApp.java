@@ -61,7 +61,9 @@ public class RegistroEntradaWhatsApp {
      * conversación queda bloqueada hasta el final de la transacción (por el {@code INSERT} o por el
      * {@code ON CONFLICT DO UPDATE}), así que dos mensajes del mismo cliente se serializan aquí. Cuenta además
      * los mensajes entrantes del minuto civil del reloj del servidor (V2-RN-14, 17-v2-12 §6); un reintento tras
-     * un <i>rollback</i> no cuenta dos veces porque se revierte con la entrega.
+     * un <i>rollback</i> no cuenta dos veces porque se revierte con la entrega. El reloj se lee antes del bloqueo:
+     * una muestra anterior que llega después nunca hace retroceder el minuto guardado, cuenta en el más reciente
+     * (revisión 129, defecto 6).
      * @param mensaje entrada cuyo negocio ya resolvió el procesador a partir del canal
      * @return conversación y {@code ultima_entrada_en} anterior (vacía si la conversación es nueva)
      * @throws IllegalStateException si el negocio no coincide con el contexto de la transacción
@@ -80,9 +82,9 @@ public class RegistroEntradaWhatsApp {
                 VALUES (:wa, :enviado, date_trunc('minute', CAST(:ahora AS timestamptz)), 1, :ahora, :ahora)
                 ON CONFLICT (negocio_id, wa_id) DO UPDATE SET
                     ultima_entrada_en = GREATEST(conversacion.ultima_entrada_en, EXCLUDED.ultima_entrada_en),
-                    entradas_minuto = CASE WHEN conversacion.minuto_entradas = EXCLUDED.minuto_entradas
+                    entradas_minuto = CASE WHEN conversacion.minuto_entradas >= EXCLUDED.minuto_entradas
                         THEN LEAST(conversacion.entradas_minuto + 1, 32000) ELSE 1 END,
-                    minuto_entradas = EXCLUDED.minuto_entradas,
+                    minuto_entradas = GREATEST(conversacion.minuto_entradas, EXCLUDED.minuto_entradas),
                     actualizado_en = :ahora
                 RETURNING new.id, old.ultima_entrada_en
                 """).setParameter("wa", mensaje.waId()).setParameter("enviado", enviado)

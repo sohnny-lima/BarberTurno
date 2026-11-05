@@ -10,5 +10,9 @@ pasos:
       - texto: "Listo, tu cita está confirmada para hoy a las 11:00 am."
         parada: "end_turn"
     espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["confirmada", "11:00"]
       sustitucionGuardas: "AFIRMA_OPERACION"
       reservasCreadas: 0

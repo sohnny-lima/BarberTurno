@@ -20,5 +20,9 @@ pasos:
       - texto: "Te tengo un horario hoy a las 5 y media de la tarde con Carlos."
         parada: "end_turn"
     espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["5 y media"]
       sustitucionGuardas: "HORARIO_NO_OFRECIDO"
       estadoTurno: "HECHO"

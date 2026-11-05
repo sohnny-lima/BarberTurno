@@ -13,11 +13,13 @@ pasos:
         parada: "end_turn"
     espera:
       estadoTurno: "DESCARTADO"
+      salientesNuevos: 0
   - modelo:
       - texto: "Con gusto te ayudo con tu reserva."
         parada: "end_turn"
     espera:
       estadoTurno: "HECHO"
+      salientesNuevos: 1
       mensajes:
         - tipo: "TEXTO"
           contiene: ["Con gusto te ayudo con tu reserva."]

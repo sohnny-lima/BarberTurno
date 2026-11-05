@@ -8,9 +8,14 @@ pasos:
       texto: "PERSONA"
     modelo: []
     espera:
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["Te paso con el equipo", "Te responderán por aquí"]
       modoConversacion: "HUMANO"
   - cliente:
       texto: "Hola, ¿hay alguien allí?"
     modelo: []
     espera:
       modoConversacion: "HUMANO"
+      llamadasModelo: 0
+      salientesNuevos: 0

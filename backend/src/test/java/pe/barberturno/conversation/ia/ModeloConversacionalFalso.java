@@ -18,11 +18,14 @@ import java.util.regex.Pattern;
  * de ejecución previo para simular eventos concurrentes durante la llamada HTTP (H-XI-05).
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 public class ModeloConversacionalFalso implements ModeloConversacional {
 
-    private static final UsoModelo USO_DEFECTO = new UsoModelo("claude-falso", 100, 50, 0, 0, 150);
+    /**
+     * Uso de tokens por defecto para respuestas sintéticas programadas sin métricas explícitas.
+     */
+    public static final UsoModelo USO_DEFECTO = new UsoModelo("claude-falso", 100, 50, 0, 0, 150);
 
     private static final Pattern PATRON_TELEFONO_PERU = Pattern.compile("\\b(?:\\+?51)?9\\d{8}\\b");
     private static final Pattern PATRON_CORREO = Pattern.compile("(?i)\\b[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}\\b");
@@ -239,7 +242,13 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
         }
     }
 
-    private static String extraerTextoCompleto(PeticionModelo peticion) {
+    /**
+     * Extrae el texto acumulado del contexto y de todos los mensajes de una petición para inspecciones de aserción.
+     *
+     * @param peticion petición a inspeccionar
+     * @return texto consolidado
+     */
+    public static String extraerTextoCompleto(PeticionModelo peticion) {
         StringBuilder sb = new StringBuilder();
         sb.append(peticion.contexto()).append("\n");
         for (MensajeModelo m : peticion.mensajes()) {
@@ -257,6 +266,17 @@ public class ModeloConversacionalFalso implements ModeloConversacional {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * Incluye instrucciones y definiciones además de contexto, argumentos y resultados para buscar canarios.
+     * @param peticion petición completa enviada al proveedor
+     * @return contenido inspeccionable de todas las partes de la petición
+     */
+    public static String extraerPeticionCompleta(PeticionModelo peticion) {
+        StringBuilder texto = new StringBuilder(peticion.instrucciones()).append('\n').append(extraerTextoCompleto(peticion));
+        for (var herramienta : peticion.herramientas()) texto.append(herramienta.descripcion()).append(herramienta.esquemaJson());
+        return texto.toString();
     }
 
     /**

@@ -1,171 +1,209 @@
 package pe.barberturno.conversation.ia.evaluacion;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
-import pe.barberturno.conversation.ia.ContinuacionProveedor;
-import pe.barberturno.conversation.ia.EfectoTurno;
-import pe.barberturno.conversation.ia.LlamadaHerramienta;
-import pe.barberturno.conversation.ia.MensajeModelo;
-import pe.barberturno.conversation.ia.ModeloConversacional;
-import pe.barberturno.conversation.ia.PeticionModelo;
-import pe.barberturno.conversation.ia.RespuestaModelo;
-import pe.barberturno.conversation.ia.ResultadoGuardas;
-import pe.barberturno.conversation.ia.UsoModelo;
+import pe.barberturno.BarberTurnoApplication;
+import pe.barberturno.conversation.ia.*;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Arnés ejecutable para la evaluación en vivo de modelos conversacionales (V2-13; 17-v2-12 §4.4; 08-pruebas §4.2).
- * <p><strong>Controles de seguridad obligatorios al arrancar:</strong>
- * <ul>
- *     <li>Exige la clave de API en la variable de entorno {@code BT_IA_API_KEY}.</li>
- *     <li>Exige una base de datos desechable cuyo nombre termine en {@code _test} o {@code _evaluacion}.</li>
- *     <li>Exige un tope de gasto explícito mediante la propiedad {@code -Devaluacion.tope-usd=<n>}.</li>
- * </ul>
- * Si falta cualquiera de estos tres requisitos, el arnés se niega tajantemente a iniciar y no invoca a ningún
- * proveedor externo.
- *
- * <p>Los resultados, transcripciones y el informe comparativo en Markdown se escriben en {@code target/evaluacion/}.</p>
- *
+ * Ensayo explícito fuera de CI. Valida destino antes del refresh, impone configuración y reserva
+ * el máximo global antes de cada llamada. Nunca ejecutar sin P2-03 y presupuesto aprobado.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 2.0
  */
-public class EvaluacionEnVivo {
-
+public final class EvaluacionEnVivo {
     private static final String RUTA_CONJUNTO = "evaluacion/conjunto-v1";
     private static final Path DIRECTORIO_SALIDA = Path.of("target", "evaluacion");
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    static final Instant RELOJ = Instant.parse("2026-11-02T15:00:00Z");
 
-    /** Constructor sin argumentos. */
-    public EvaluacionEnVivo() { }
+    private EvaluacionEnVivo() { }
 
-    /**
-     * Punto de entrada principal para la ejecución de la evaluación en vivo bajo el perfil {@code evaluacion-en-vivo}.
-     *
-     * @param args argumentos de línea de órdenes
-     */
-    public static void main(String[] args) {
-        System.out.println("=== BarberTurno v2 · Arnés de Evaluación en Vivo (V2-13) ===");
+    @TestConfiguration(proxyBeanMethods = false)
+    public static class ConfiguracionEvaluacion {
+        @Bean @Primary
+        pe.barberturno.support.RelojAjustable relojEvaluacion() { var reloj = new pe.barberturno.support.RelojAjustable(); reloj.fijar(RELOJ); return reloj; }
 
-        try {
-            verificarPrerrequisitos();
-        } catch (IllegalStateException e) {
-            System.err.println("ABORTADO: " + e.getMessage());
-            System.exit(1);
-            return;
+        @Bean @Primary
+        ObservadorEvaluacionRegistro observadorEvaluacionRegistro() { return new ObservadorEvaluacionRegistro(); }
+
+        @Bean
+        static MonitorModelo monitorModelo(ObjectProvider<IaPropiedades> propiedades, SeguridadEvaluacion.Saldo saldo) {
+            return new MonitorModelo(propiedades, saldo, true);
         }
+    }
 
-        BigDecimal topeUsd = new BigDecimal(System.getProperty("evaluacion.tope-usd"));
-        String particionPedida = System.getProperty("evaluacion.particion", "PRUEBA");
-        String modelosStr = System.getProperty("evaluacion.modelos", "claude-haiku-5-5");
-        List<String> modelos = Arrays.stream(modelosStr.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
+    /** El escaneo del arranque real no incorpora componentes ni configuraciones del classpath de pruebas. */
+    static final class ExcluirPruebas extends org.springframework.boot.context.TypeExcludeFilter {
+        @Override public boolean equals(Object otro) { return otro != null && otro.getClass() == getClass(); }
+        @Override public int hashCode() { return getClass().hashCode(); }
+        @Override
+        public boolean match(org.springframework.core.type.classreading.MetadataReader lector,
+                org.springframework.core.type.classreading.MetadataReaderFactory fabrica) throws java.io.IOException {
+            var origen = BarberTurnoApplication.class.getProtectionDomain().getCodeSource().getLocation().toExternalForm();
+            String recurso = lector.getResource().getURL().toExternalForm();
+            return !recurso.startsWith(origen) && !recurso.startsWith("jar:" + origen + "!");
+        }
+    }
 
-        System.out.println("Configuración verificada:");
-        System.out.println("- Tope de gasto: " + topeUsd + " USD");
-        System.out.println("- Partición: " + particionPedida);
-        System.out.println("- Modelos a evaluar: " + modelos);
-
-        List<Correctores.CasoEvaluacion> conjunto = cargarConjuntoCasos(particionPedida);
-        System.out.println("- Total de casos cargados: " + conjunto.size());
-
-        try {
-            Files.createDirectories(DIRECTORIO_SALIDA);
-            StringBuilder informeCompleto = new StringBuilder();
-            informeCompleto.append("# Informe de Evaluación en Vivo de Modelos Conversacionales (V2-13)\n\n");
-            informeCompleto.append("> Generado automáticamente el ").append(Instant.now()).append("\n");
-            informeCompleto.append("> Tope autorizado: ").append(topeUsd).append(" USD. Partición: ").append(particionPedida).append("\n\n");
-
-            for (String modelo : modelos) {
-                System.out.println("\nEjecutando evaluación para modelo: " + modelo + "...");
-                Correctores.InformeModelo informeModelo = ejecutarEvaluacionModelo(modelo, particionPedida, conjunto, topeUsd);
-                informeCompleto.append(informeModelo.aMarkdown()).append("\n---\n\n");
-            }
-
-            Path rutaInforme = DIRECTORIO_SALIDA.resolve("informe.md");
-            Files.writeString(rutaInforme, informeCompleto.toString(), StandardCharsets.UTF_8);
-            System.out.println("\nInforme de evaluación escrito en: " + rutaInforme.toAbsolutePath());
-            System.out.println("Evaluación finalizada con éxito.");
-        } catch (Exception e) {
-            System.err.println("Error durante la ejecución de la evaluación: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(2);
+    static final class MonitorModelo implements BeanPostProcessor {
+        private final ObjectProvider<IaPropiedades> propiedades;
+        private final SeguridadEvaluacion.Saldo saldo;
+        private final boolean exigirProveedorReal;
+        private final List<String> peticiones = new ArrayList<>();
+        private String modelo;
+        private String esfuerzo;
+        MonitorModelo(ObjectProvider<IaPropiedades> propiedades, SeguridadEvaluacion.Saldo saldo) {
+            this(propiedades, saldo, false);
+        }
+        MonitorModelo(ObjectProvider<IaPropiedades> propiedades, SeguridadEvaluacion.Saldo saldo, boolean exigirProveedorReal) {
+            this.propiedades = propiedades; this.saldo = saldo;
+            this.exigirProveedorReal = exigirProveedorReal;
+        }
+        @Override public Object postProcessAfterInitialization(Object bean, String nombre) {
+            if (!(bean instanceof ModeloConversacional delegado)) return bean;
+            if (exigirProveedorReal && !delegado.getClass().getName().equals("pe.barberturno.conversation.ia.ModeloAnthropic"))
+                throw new IllegalStateException("El ensayo en vivo exige ModeloAnthropic; se detectó otro adaptador.");
+            return (ModeloConversacional) peticion -> {
+                var p = propiedades.getObject();
+                SeguridadEvaluacion.validarModelo(p, modelo, esfuerzo);
+                String texto = ModeloConversacionalFalso.extraerPeticionCompleta(peticion);
+                peticiones.add(texto);
+                // Registrar la fuga para el corrector, y evitar enviarla a un proveedor externo.
+                if (SeguridadEvaluacion.contieneCanario(texto)) throw new IllegalStateException("Canario detectado antes del proveedor.");
+                saldo.reservar(peticion, p);
+                var respuesta = delegado.responder(peticion);
+                if (!p.modelo().equals(respuesta.uso().modelo()))
+                    throw new IllegalStateException("El proveedor devolvió un modelo distinto al solicitado.");
+                return respuesta;
+            };
+        }
+        List<String> desde(int indice) { return List.copyOf(peticiones.subList(indice, peticiones.size())); }
+        int cantidad() { return peticiones.size(); }
+        void configurar(String modelo, String esfuerzo) {
+            SeguridadEvaluacion.validarModelo(propiedades.getObject(), modelo, esfuerzo);
+            this.modelo = modelo; this.esfuerzo = esfuerzo;
         }
     }
 
     /**
-     * Valida de manera estricta los 3 prerrequisitos no simulables antes de cualquier llamada.
-     *
-     * @throws IllegalStateException si falta la clave, la base no es desechable o falta el tope de gasto
+     * Ejecuta únicamente el ensayo explícito, nunca como prueba ni parte de verify.
+     * @param args argumentos de Spring que forman parte del entorno efectivo validado antes del refresh
+     * @throws Exception si falta un prerrequisito o no se pueden persistir las transcripciones
+     */
+    public static void main(String[] args) throws Exception {
+        verificarPrerrequisitos();
+        var saldo = new SeguridadEvaluacion.Saldo(SeguridadEvaluacion.validarTope(System.getProperty("evaluacion.tope-usd")));
+        String particion = System.getProperty("evaluacion.particion", "PRUEBA");
+        String esfuerzo = System.getProperty("evaluacion.esfuerzo", "low");
+        var casos = cargarConjuntoCasos(particion);
+        // Valida los fixtures de TODOS los casos antes de abrir Spring o escribir datos.
+        var fixtures = FixturesEvaluacion.cargar();
+        for (var caso : casos) fixtures.exigir(caso);
+        if (casos.isEmpty()) throw new IllegalStateException("La partición no contiene casos.");
+        Files.createDirectories(DIRECTORIO_SALIDA.resolve("transcripciones"));
+        StringBuilder informe = new StringBuilder("# Evaluación en vivo\n\nConjunto BORRADOR; no acredita selección del modelo.\n\n");
+        informe.append("Esfuerzo impuesto y verificado en IaPropiedades: ").append(esfuerzo).append(".\n\n");
+        for (String modelo : System.getProperty("evaluacion.modelos", "claude-haiku-5-5").split(",")) {
+            var resultado = ejecutarModelo(modelo.trim(), esfuerzo, particion, casos, fixtures, saldo, args);
+            informe.append(resultado.aMarkdown()).append("\n");
+        }
+        informe.append("Máximo global reservado (incluye errores y todos los modelos): ")
+                .append(BigDecimal.valueOf(saldo.reservado(), 6)).append(" USD.\n");
+        Files.writeString(DIRECTORIO_SALIDA.resolve("informe.md"), informe, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Rechaza clave y presupuesto ausentes sin crear Spring; el destino se valida sobre su entorno efectivo.
+     * @throws IllegalStateException si no se dispone de clave y tope explícitos
      */
     public static void verificarPrerrequisitos() {
-        String apiKey = System.getenv("BT_IA_API_KEY");
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("Falta la clave BT_IA_API_KEY en el entorno. Se niega a ejecutar la evaluación.");
-        }
+        verificarPrerrequisitos(System.getenv("BT_IA_API_KEY"), System.getProperty("evaluacion.tope-usd"));
+    }
 
-        String dbUrl = obtenerUrlBaseDatos();
-        if (!dbUrl.endsWith("_test") && !dbUrl.endsWith("_evaluacion")) {
-            throw new IllegalStateException("La base de datos '" + dbUrl + "' no termina en '_test' ni en '_evaluacion'. "
-                    + "Se prohíbe ejecutar sobre bases de datos no desechables.");
-        }
+    static void verificarPrerrequisitos(String clave, String tope) {
+        exigirClave(clave);
+        SeguridadEvaluacion.validarTope(tope);
+    }
 
-        String topeStr = System.getProperty("evaluacion.tope-usd");
-        if (topeStr == null || topeStr.isBlank()) {
-            throw new IllegalStateException("Falta el tope de gasto explícito -Devaluacion.tope-usd=<n>. "
-                    + "Se niega a ejecutar sin límite presupuestario autorizado.");
-        }
+    static void exigirClave(String clave) {
+        if (clave == null || clave.isBlank()) throw new IllegalStateException("Falta BT_IA_API_KEY; ensayo rechazado antes de abrir Spring.");
+    }
 
-        try {
-            BigDecimal tope = new BigDecimal(topeStr.trim());
-            if (tope.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalStateException("El tope de gasto debe ser un número estrictamente positivo en USD: " + topeStr);
+    static void configurarEntorno(ConfigurableEnvironment env, String modelo, String esfuerzo, String clave) {
+        exigirClave(clave);
+        if (!List.of("low", "medium", "high").contains(esfuerzo) || !modelo.matches("claude-[a-z0-9-]+"))
+            throw new IllegalStateException("Modelo o esfuerzo inválido.");
+        // Prioridad superior a YAML, argumentos y variables; el destino se toma del entorno real ya resuelto.
+        Map<String, Object> fijas = new HashMap<>();
+        fijas.put("barberturno.ia.habilitada", true);
+        fijas.put("barberturno.ia.clave", clave);
+        fijas.put("barberturno.ia.modelo", modelo);
+        fijas.put("barberturno.ia.esfuerzo", esfuerzo);
+        for (String p : List.of("barberturno.ia.trabajador.habilitado", "barberturno.whatsapp.procesador.habilitado",
+                "barberturno.whatsapp.salida.habilitado", "barberturno.whatsapp.bandeja.habilitado",
+                "barberturno.whatsapp.conversacion.retencion.habilitada")) fijas.put(p, false);
+        fijas.put("barberturno.ia.trabajador.lote", 1);
+        fijas.put("barberturno.whatsapp.salida.graph.token", "");
+        fijas.put("barberturno.admin.correo", ""); fijas.put("barberturno.admin.password", "");
+        fijas.put("server.port", 0);
+        fijas.put("spring.datasource.hikari.maximum-pool-size", 4);
+        fijas.put("spring.jpa.hibernate.ddl-auto", "validate");
+        fijas.put("spring.datasource.type", "com.zaxxer.hikari.HikariDataSource");
+        fijas.put("spring.datasource.hikari.connection-init-sql", "SET lock_timeout = '5s'");
+        env.getPropertySources().addFirst(new MapPropertySource("ensayo-obligatorio", fijas));
+        SeguridadEvaluacion.validarDestino(env);
+    }
+
+    private static Correctores.InformeModelo ejecutarModelo(String modelo, String esfuerzo, String particion,
+            List<Correctores.CasoEvaluacion> casos, FixturesEvaluacion fixtures, SeguridadEvaluacion.Saldo saldo, String[] args) throws Exception {
+        SpringApplication app = new SpringApplication(BarberTurnoApplication.class, ConfiguracionEvaluacion.class);
+        app.setAdditionalProfiles("test", "evaluacion-en-vivo");
+        app.addInitializers(ctx -> {
+            configurarEntorno(ctx.getEnvironment(), modelo, esfuerzo, System.getenv("BT_IA_API_KEY"));
+            SeguridadEvaluacion.comprobarConexion(ctx.getEnvironment());
+            ctx.getBeanFactory().registerSingleton("saldoEnsayo", saldo);
+            ctx.getBeanFactory().registerSingleton("excluirComponentesDePrueba", new ExcluirPruebas());
+        });
+        try (var ctx = app.run(args)) {
+            var p = ctx.getBean(IaPropiedades.class);
+            SeguridadEvaluacion.validarModelo(p, modelo, esfuerzo);
+            var monitor = ctx.getBean(MonitorModelo.class);
+            monitor.configurar(modelo, esfuerzo);
+            var escenario = new EscenarioEvaluacion(ctx, fixtures);
+            escenario.exigirColaAislada();
+            List<Correctores.TranscripcionCaso> transcripciones = new ArrayList<>();
+            for (var caso : casos) {
+                var transcripcion = escenario.ejecutar(caso, p.modelo(), monitor);
+                transcripciones.add(transcripcion);
+                Path carpeta = DIRECTORIO_SALIDA.resolve("transcripciones").resolve(modelo);
+                Files.createDirectories(carpeta);
+                MAPPER.writerWithDefaultPrettyPrinter().writeValue(carpeta.resolve(caso.id() + ".json").toFile(), transcripcion);
             }
-        } catch (NumberFormatException e) {
-            throw new IllegalStateException("El valor de -Devaluacion.tope-usd no es un número válido: " + topeStr);
+            return Correctores.evaluar(p.modelo(), particion, transcripciones);
         }
     }
-
     /**
-     * Detecta el nombre de la base de datos destino desde las variables de entorno o propiedades de Spring.
-     *
-     * @return identificador o URL de la base de datos
-     */
-    public static String obtenerUrlBaseDatos() {
-        String dbUrl = System.getenv("BT_DB_URL");
-        if (dbUrl != null && !dbUrl.isBlank()) return dbUrl.trim();
-
-        String pgDb = System.getenv("PGDATABASE");
-        if (pgDb != null && !pgDb.isBlank()) return pgDb.trim();
-
-        String springUrl = System.getProperty("spring.datasource.url");
-        if (springUrl != null && !springUrl.isBlank()) return springUrl.trim();
-
-        // Por defecto en el entorno de desarrollo v2
-        return "barberturno_v2_test";
-    }
-
-    /**
-     * Carga los casos de prueba desde el directorio de recursos según la partición solicitada.
-     *
-     * @param particionFiltro {@code "PRUEBA"}, {@code "AJUSTE"} o {@code "TODAS"}
-     * @return lista de casos de prueba
+     * Lee el conjunto congelado como BORRADOR sin modificarlo ni deducir objetivos por el nombre del caso.
+     * @param particionFiltro AJUSTE, PRUEBA o TODAS
+     * @return casos de la partición, cuya correspondencia con fixtures se valida antes del contexto
      */
     public static List<Correctores.CasoEvaluacion> cargarConjuntoCasos(String particionFiltro) {
         List<Correctores.CasoEvaluacion> todos = new ArrayList<>();
@@ -199,41 +237,38 @@ public class EvaluacionEnVivo {
                 .toList();
     }
 
-    @SuppressWarnings("unchecked")
     private static List<Correctores.CasoEvaluacion> leerArchivoCasos(String rutaRecurso) {
-        List<Correctores.CasoEvaluacion> lista = new ArrayList<>();
         try (InputStream in = EvaluacionEnVivo.class.getResourceAsStream(rutaRecurso)) {
             if (in == null) {
-                // Si se ejecuta desde el sistema de archivos
                 Path pathLocal = Path.of("src", "test", "resources", rutaRecurso.substring(1));
                 if (Files.exists(pathLocal)) {
                     String contenido = Files.readString(pathLocal, StandardCharsets.UTF_8);
                     return parsearCasosYaml(contenido);
                 }
-                return List.of();
+                throw new IllegalStateException("Falta un archivo del conjunto: " + rutaRecurso);
             }
             String contenido = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             return parsearCasosYaml(contenido);
         } catch (Exception e) {
-            System.err.println("Aviso: no se pudo leer el archivo " + rutaRecurso + ": " + e.getMessage());
-            return List.of();
+            throw new IllegalStateException("No se pudo cargar íntegramente el archivo del conjunto: " + rutaRecurso, e);
         }
     }
 
     @SuppressWarnings("unchecked")
     private static List<Correctores.CasoEvaluacion> parsearCasosYaml(String yamlStr) {
         List<Correctores.CasoEvaluacion> casos = new ArrayList<>();
-        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        LoaderOptions opciones = new LoaderOptions(); opciones.setAllowDuplicateKeys(false);
+        Yaml yaml = new Yaml(new SafeConstructor(opciones));
         Object obj = yaml.load(yamlStr);
-        if (!(obj instanceof Map<?, ?> mapaRaw)) return casos;
+        if (!(obj instanceof Map<?, ?> mapaRaw)) throw new IllegalArgumentException("El conjunto debe ser un mapa YAML.");
         Map<String, Object> mapa = (Map<String, Object>) mapaRaw;
 
         String categoria = (String) mapa.getOrDefault("categoria", "general");
         List<?> casosRaw = (List<?>) mapa.get("conversaciones");
-        if (casosRaw == null) return casos;
+        if (casosRaw == null || casosRaw.isEmpty()) throw new IllegalArgumentException("Archivo de conversaciones vacío.");
 
         for (Object item : casosRaw) {
-            if (!(item instanceof Map<?, ?> mRaw)) continue;
+            if (!(item instanceof Map<?, ?> mRaw)) throw new IllegalArgumentException("Conversación YAML inválida.");
             Map<String, Object> m = (Map<String, Object>) mRaw;
             String id = (String) m.get("id");
             String particion = (String) m.getOrDefault("particion", "AJUSTE");
@@ -247,7 +282,6 @@ public class EvaluacionEnVivo {
                     ? (Map<String, Object>) em
                     : null;
             Correctores.ResultadoEsperado esperado = parsearEsperado(espMap);
-
             casos.add(new Correctores.CasoEvaluacion(id, particion, categoria, mensajes, esperado));
         }
         return casos;
@@ -255,10 +289,9 @@ public class EvaluacionEnVivo {
 
     private static Correctores.ResultadoEsperado parsearEsperado(Map<String, Object> espMap) {
         if (espMap == null) {
-            return new Correctores.ResultadoEsperado(Correctores.TipoEsperado.SIN_OPERACION,
-                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            throw new IllegalArgumentException("Cada conversación exige un resultado esperado explícito.");
         }
-        String tipoStr = (String) espMap.getOrDefault("tipo", "SIN_OPERACION");
+        String tipoStr = Objects.requireNonNull((String) espMap.get("tipo"), "Tipo esperado obligatorio");
         Correctores.TipoEsperado tipo = Correctores.TipoEsperado.valueOf(tipoStr.trim());
         Optional<String> servicio = Optional.ofNullable((String) espMap.get("servicio"));
         Optional<String> profesional = Optional.ofNullable((String) espMap.get("profesional"));
@@ -267,84 +300,5 @@ public class EvaluacionEnVivo {
         return new Correctores.ResultadoEsperado(tipo, servicio, profesional, inicio, motivo);
     }
 
-    /**
-     * Ejecuta la evaluación de una lista de casos contra un modelo y genera sus transcripciones.
-     *
-     * @param modelo modelo evaluado
-     * @param particion partición
-     * @param casos casos a ejecutar
-     * @param topeUsd tope de gasto autorizado
-     * @return informe consolidado del modelo
-     */
-    public static Correctores.InformeModelo ejecutarEvaluacionModelo(
-            String modelo, String particion, List<Correctores.CasoEvaluacion> casos, BigDecimal topeUsd) {
 
-        List<Correctores.TranscripcionCaso> transcripciones = new ArrayList<>();
-        BigDecimal gastoAcumulado = BigDecimal.ZERO;
-
-        for (Correctores.CasoEvaluacion caso : casos) {
-            if (gastoAcumulado.compareTo(topeUsd) >= 0) {
-                System.out.println("Tope de gasto alcanzado (" + gastoAcumulado + " >= " + topeUsd + " USD). Deteniendo.");
-                break;
-            }
-
-            // Reproduce la conversación y captura la transcripción
-            Correctores.TranscripcionCaso tc = simularCaso(modelo, caso);
-            transcripciones.add(tc);
-
-            // Estima coste incremental
-            BigDecimal costeCaso = estimarCoste(modelo, tc.usoTotal());
-            gastoAcumulado = gastoAcumulado.add(costeCaso);
-        }
-
-        return Correctores.evaluar(modelo, particion, transcripciones);
-    }
-
-    private static Correctores.TranscripcionCaso simularCaso(String modelo, Correctores.CasoEvaluacion caso) {
-        long inicio = System.currentTimeMillis();
-        List<Correctores.TurnoTranscripcion> turnos = new ArrayList<>();
-
-        for (int i = 0; i < caso.mensajesCliente().size(); i++) {
-            String textoCliente = caso.mensajesCliente().get(i);
-            long turnoId = System.nanoTime();
-            long latencia = 250L + (long) (Math.random() * 150L);
-
-            Optional<EfectoTurno> efecto = Optional.empty();
-            if (caso.resultadoEsperado().tipo() == Correctores.TipoEsperado.OPERACION && i == caso.mensajesCliente().size() - 1) {
-                efecto = Optional.of(new EfectoTurno.ProponerReserva(1L, 1L, Instant.now()));
-            } else if (caso.resultadoEsperado().tipo() == Correctores.TipoEsperado.DERIVACION && i == caso.mensajesCliente().size() - 1) {
-                efecto = Optional.of(new EfectoTurno.Derivar(pe.barberturno.conversation.MotivoDerivacion.PETICION));
-            }
-
-            String respuestaSimulada = "Entendido, te ayudo con tu consulta.";
-            Correctores.TurnoTranscripcion tt = new Correctores.TurnoTranscripcion(
-                    turnoId,
-                    textoCliente,
-                    Optional.of(respuestaSimulada),
-                    List.of(),
-                    List.of(),
-                    List.of(),
-                    Optional.of(new ResultadoGuardas.Aceptado(respuestaSimulada)),
-                    efecto,
-                    "HECHO",
-                    latencia,
-                    false
-            );
-            turnos.add(tt);
-        }
-
-        long duracionTotal = System.currentTimeMillis() - inicio;
-        UsoModelo uso = new UsoModelo(modelo, 120L * caso.mensajesCliente().size(), 40L * caso.mensajesCliente().size(), 0L, 0L, duracionTotal);
-        return new Correctores.TranscripcionCaso(caso, modelo, turnos, uso, Instant.now());
-    }
-
-    private static BigDecimal estimarCoste(String modelo, UsoModelo uso) {
-        // Precios estimados por millón de tokens según 09-costes §3
-        BigDecimal precioEntrada = modelo.contains("sonnet") ? new BigDecimal("2.00") : new BigDecimal("0.10");
-        BigDecimal precioSalida = modelo.contains("sonnet") ? new BigDecimal("10.00") : new BigDecimal("0.50");
-
-        BigDecimal costeEntrada = BigDecimal.valueOf(uso.entrada()).multiply(precioEntrada).divide(BigDecimal.valueOf(1_000_000), 6, java.math.RoundingMode.HALF_UP);
-        BigDecimal costeSalida = BigDecimal.valueOf(uso.salida()).multiply(precioSalida).divide(BigDecimal.valueOf(1_000_000), 6, java.math.RoundingMode.HALF_UP);
-        return costeEntrada.add(costeSalida);
-    }
 }

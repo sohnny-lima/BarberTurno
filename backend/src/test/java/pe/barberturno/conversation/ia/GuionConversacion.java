@@ -28,9 +28,10 @@ import tools.jackson.databind.json.JsonMapper;
  * @param reloj instante inicial simulado
  * @param ficha si el cliente posee ficha creada y enlazada al inicio
  * @param iaNegocio si la IA está habilitada a nivel del negocio
+ * @param limiteLlamadasDia límite diario local opcional a configurar en {@code negocio.ia_llamadas_dia_conversacion}
  * @param pasos secuencia de pasos a ejecutar
  * @author Sohnny Walter Lima Infanzón
- * @version 1.1
+ * @version 1.2
  */
 public record GuionConversacion(
         String nombre,
@@ -38,12 +39,13 @@ public record GuionConversacion(
         Instant reloj,
         boolean ficha,
         boolean iaNegocio,
+        Optional<Integer> limiteLlamadasDia,
         List<PasoGuion> pasos
 ) {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static final Set<String> CAMPOS_RAIZ = Set.of(
-            "nombre", "negocio", "reloj", "ficha", "iaNegocio", "pasos"
+            "nombre", "negocio", "reloj", "ficha", "iaNegocio", "limiteLlamadasDia", "pasos"
     );
     private static final Set<String> CAMPOS_PASO = Set.of(
             "cliente", "modelo", "espera", "avanzarMinutos", "durante"
@@ -61,11 +63,26 @@ public record GuionConversacion(
             "herramienta", "argumentos"
     );
     private static final Set<String> CAMPOS_ESPERA = Set.of(
-            "mensajes", "reservasCreadas", "operacionVigente", "modoConversacion", "estadoTurno", "sustitucionGuardas"
+            "mensajes", "reservasCreadas", "operacionVigente", "modoConversacion", "estadoTurno",
+            "sustitucionGuardas", "llamadasModelo", "salientesNuevos", "peticionNoContiene", "herramientaError"
     );
     private static final Set<String> CAMPOS_MENSAJE = Set.of(
             "tipo", "contiene", "noContiene"
     );
+
+    /**
+     * Constructor de compatibilidad sin {@code limiteLlamadasDia}.
+     *
+     * @param nombre nombre identificativo del guion
+     * @param negocio slug o letra del negocio ({@code "A"} o {@code "B"})
+     * @param reloj instante inicial simulado
+     * @param ficha si el cliente posee ficha creada al inicio
+     * @param iaNegocio si la IA está habilitada a nivel del negocio
+     * @param pasos secuencia de pasos a ejecutar
+     */
+    public GuionConversacion(String nombre, String negocio, Instant reloj, boolean ficha, boolean iaNegocio, List<PasoGuion> pasos) {
+        this(nombre, negocio, reloj, ficha, iaNegocio, Optional.empty(), pasos);
+    }
 
     /**
      * Valida y copia los pasos del guion.
@@ -75,12 +92,14 @@ public record GuionConversacion(
      * @param reloj instante inicial simulado
      * @param ficha si el cliente posee ficha creada al inicio
      * @param iaNegocio si la IA está habilitada a nivel del negocio
+     * @param limiteLlamadasDia límite diario local opcional a configurar en el negocio
      * @param pasos secuencia de pasos a ejecutar
      */
     public GuionConversacion {
         Objects.requireNonNull(nombre, "nombre");
         Objects.requireNonNull(negocio, "negocio");
         Objects.requireNonNull(reloj, "reloj");
+        Objects.requireNonNull(limiteLlamadasDia, "limiteLlamadasDia");
         pasos = List.copyOf(pasos != null ? pasos : List.of());
     }
 
@@ -172,7 +191,7 @@ public record GuionConversacion(
      * @param texto texto opcional devuelto por el modelo
      * @param llamadas lista de llamadas a herramientas
      * @param fallo motivo de fallo programado si corresponde
-     * @param parada motivo de parada ({@code "end_turn"}, {@code "tool_use"})
+     * @param parada motivo de parada ({@code "end_turn"}, {@code "tool_use"}, {@code "max_tokens"}, {@code "refusal"})
      */
     public record RespuestaProgramadaGuion(
             Optional<String> texto,
@@ -219,14 +238,18 @@ public record GuionConversacion(
     }
 
     /**
-     * Expectativas tras procesar un paso del guion.
+     * Expectativas tras procesar un paso del guion (CI-11; 08-pruebas §4.1).
      *
-     * @param mensajes mensajes nuevos esperados en la bandeja de salida
+     * @param mensajes expectativas de todos los salientes nuevos del paso, en orden y con cardinalidad exacta
      * @param reservasCreadas total de reservas activas esperadas en la base
      * @param operacionVigente si debe haber o no una operación pendiente vigente
      * @param modoConversacion modo de la conversación ({@code "ASISTENTE"}, {@code "HUMANO"})
      * @param estadoTurno estado del turno IA si se procesó ({@code "HECHO"}, {@code "DESCARTADO"}, {@code "FALLIDO"})
      * @param sustitucionGuardas motivo de sustitución de guardas esperado, o vacío
+     * @param llamadasModelo número exacto de llamadas nuevas al modelo realizadas en este paso
+     * @param salientesNuevos número exacto de mensajes salientes nuevos generados en este paso
+     * @param peticionNoContiene cadenas prohibidas en cada petición nueva enviada durante el paso
+     * @param herramientaError si alguna herramienta ejecutada en este paso devolvió error ({@code is_error})
      */
     public record ExpectativaPaso(
             List<MensajeEsperado> mensajes,
@@ -234,8 +257,34 @@ public record GuionConversacion(
             Optional<Boolean> operacionVigente,
             Optional<String> modoConversacion,
             Optional<String> estadoTurno,
-            Optional<String> sustitucionGuardas
+            Optional<String> sustitucionGuardas,
+            Optional<Integer> llamadasModelo,
+            Optional<Integer> salientesNuevos,
+            List<String> peticionNoContiene,
+            Optional<Boolean> herramientaError
     ) {
+        /**
+         * Constructor de compatibilidad con los 6 campos originales.
+         *
+         * @param mensajes mensajes esperados
+         * @param reservasCreadas reservas activas
+         * @param operacionVigente presencia de propuesta
+         * @param modoConversacion modo de conversación
+         * @param estadoTurno estado final del turno
+         * @param sustitucionGuardas motivo de guarda
+         */
+        public ExpectativaPaso(
+                List<MensajeEsperado> mensajes,
+                Optional<Integer> reservasCreadas,
+                Optional<Boolean> operacionVigente,
+                Optional<String> modoConversacion,
+                Optional<String> estadoTurno,
+                Optional<String> sustitucionGuardas
+        ) {
+            this(mensajes, reservasCreadas, operacionVigente, modoConversacion, estadoTurno, sustitucionGuardas,
+                    Optional.empty(), Optional.empty(), List.of(), Optional.empty());
+        }
+
         /**
          * Valida y copia.
          *
@@ -245,6 +294,10 @@ public record GuionConversacion(
          * @param modoConversacion modo esperado
          * @param estadoTurno estado del turno
          * @param sustitucionGuardas sustitución esperada
+         * @param llamadasModelo llamadas esperadas al modelo
+         * @param salientesNuevos salientes generados
+         * @param peticionNoContiene textos prohibidos en la petición
+         * @param herramientaError indicador de error en herramientas
          */
         public ExpectativaPaso {
             mensajes = List.copyOf(mensajes != null ? mensajes : List.of());
@@ -253,6 +306,10 @@ public record GuionConversacion(
             Objects.requireNonNull(modoConversacion, "modoConversacion");
             Objects.requireNonNull(estadoTurno, "estadoTurno");
             Objects.requireNonNull(sustitucionGuardas, "sustitucionGuardas");
+            Objects.requireNonNull(llamadasModelo, "llamadasModelo");
+            Objects.requireNonNull(salientesNuevos, "salientesNuevos");
+            peticionNoContiene = List.copyOf(peticionNoContiene != null ? peticionNoContiene : List.of());
+            Objects.requireNonNull(herramientaError, "herramientaError");
         }
     }
 
@@ -326,6 +383,11 @@ public record GuionConversacion(
         boolean ficha = Boolean.parseBoolean(String.valueOf(raiz.getOrDefault("ficha", "false")));
         boolean iaNegocio = Boolean.parseBoolean(String.valueOf(raiz.getOrDefault("iaNegocio", "true")));
 
+        Optional<Integer> limiteLlamadasDia = Optional.empty();
+        if (raiz.containsKey("limiteLlamadasDia")) {
+            limiteLlamadasDia = Optional.of(((Number) raiz.get("limiteLlamadasDia")).intValue());
+        }
+
         List<?> pasosRaw = (List<?>) raiz.get("pasos");
         if (pasosRaw == null || pasosRaw.isEmpty()) {
             throw new IllegalArgumentException("El guion debe incluir al menos un paso en 'pasos'.");
@@ -340,7 +402,7 @@ public record GuionConversacion(
             pasos.add(parsearPaso((Map<String, Object>) pasoMapa, i + 1));
         }
 
-        return new GuionConversacion(nombre, negocio, reloj, ficha, iaNegocio, pasos);
+        return new GuionConversacion(nombre, negocio, reloj, ficha, iaNegocio, limiteLlamadasDia, pasos);
     }
 
     /**
@@ -492,7 +554,35 @@ public record GuionConversacion(
         Optional<String> estadoTurno = Optional.ofNullable((String) mapa.get("estadoTurno"));
         Optional<String> sustitucionGuardas = Optional.ofNullable((String) mapa.get("sustitucionGuardas"));
 
-        return new ExpectativaPaso(mensajes, reservasCreadas, operacionVigente, modoConversacion, estadoTurno, sustitucionGuardas);
+        Optional<Integer> llamadasModelo = Optional.empty();
+        if (mapa.containsKey("llamadasModelo")) {
+            llamadasModelo = Optional.of(((Number) mapa.get("llamadasModelo")).intValue());
+        }
+
+        Optional<Integer> salientesNuevos = Optional.empty();
+        if (mapa.containsKey("salientesNuevos")) {
+            salientesNuevos = Optional.of(((Number) mapa.get("salientesNuevos")).intValue());
+        }
+
+        List<String> peticionNoContiene = new ArrayList<>();
+        if (mapa.containsKey("peticionNoContiene")) {
+            Object pnc = mapa.get("peticionNoContiene");
+            if (pnc instanceof List<?> pncl) {
+                for (Object item : pncl) peticionNoContiene.add(String.valueOf(item));
+            } else if (pnc != null) {
+                peticionNoContiene.add(String.valueOf(pnc));
+            }
+        }
+
+        Optional<Boolean> herramientaError = Optional.empty();
+        if (mapa.containsKey("herramientaError")) {
+            herramientaError = Optional.of(Boolean.parseBoolean(String.valueOf(mapa.get("herramientaError"))));
+        }
+
+        return new ExpectativaPaso(
+                mensajes, reservasCreadas, operacionVigente, modoConversacion, estadoTurno,
+                sustitucionGuardas, llamadasModelo, salientesNuevos, peticionNoContiene, herramientaError
+        );
     }
 
     @SuppressWarnings("unchecked")

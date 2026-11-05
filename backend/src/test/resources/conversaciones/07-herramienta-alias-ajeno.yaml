@@ -20,4 +20,8 @@ pasos:
       - texto: "No encontré ese servicio en la barbería."
         parada: "end_turn"
     espera:
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["No encontré ese servicio en la barbería."]
       estadoTurno: "HECHO"
+      herramientaError: true

@@ -26,6 +26,38 @@ class SaneadorTextoTest {
         assertThat(SaneadorTexto.sanear(entrada, 2000)).isEqualTo(esperado);
     }
 
+    /** Revisión 129 (defecto 5): separadores Unicode que {@code \s} sin modo Unicode no reconocía. */
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "cel 987 654 321|cel [dato]",
+        "cel 987 654 321|cel [dato]",
+        "cel 987‑654‑321|cel [dato]",
+        "cel 987–654–321|cel [dato]",
+        "cel 987.654.321|cel [dato]",
+    })
+    void sanear_telefonosConSeparadoresUnicodeOPuntos_seSustituyen(String entrada, String esperado) {
+        assertThat(SaneadorTexto.sanear(entrada, 2000)).isEqualTo(esperado);
+    }
+
+    /** Revisión 133: tres separadores entre grupos, signo menos y caracteres de formato invisibles. */
+    @Test
+    void sanear_tresSeparadoresSignoMenosYFormatoInvisible_seSustituyen() {
+        for (String telefono : new String[] {"987 - 654 - 321", "987\u2212654\u2212321", "987\u200B654\u200B321",
+                "987 \u2013 654 \u2013 321", "(+51) 987 654 321"}) {
+            assertThat(SaneadorTexto.sanear("cel " + telefono, 2000)).as(telefono).isEqualTo("cel [dato]");
+            assertThat(SaneadorTexto.contieneDatoPersonal(telefono)).as(telefono).isTrue();
+        }
+        assertThat(SaneadorTexto.sanear("el 23/10 a las 17:30 por S/ 25", 2000)).isEqualTo("el 23/10 a las 17:30 por S/ 25");
+    }
+
+    @Test
+    void contieneDatoPersonal_coincideConLoQueSeSanea() {
+        assertThat(SaneadorTexto.contieneDatoPersonal("llámame al 987‑654‑321")).isTrue();
+        assertThat(SaneadorTexto.contieneDatoPersonal("escribe a ana@ejemplo.test")).isTrue();
+        assertThat(SaneadorTexto.contieneDatoPersonal("corte a las 17:30, S/ 25,00")).isFalse();
+        assertThat(SaneadorTexto.contieneDatoPersonal(null)).isFalse();
+    }
+
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
         "corte mañana a las 17:30",
