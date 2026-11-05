@@ -64,6 +64,7 @@ for (const viewport of [
     'admin/usuarios',
     'admin/reportes',
     'reservar',
+    'whatsapp',
   ]) {
     await dueno.goto(`${base}/n/barberturno/${ruta}`);
     await analizar(dueno, `${w}-${ruta}`);
