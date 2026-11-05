@@ -5,6 +5,7 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import pe.barberturno.conversation.ia.*;
 import pe.barberturno.conversation.CodigoSeleccion;
 import static pe.barberturno.conversation.ia.evaluacion.Correctores.*;
@@ -15,6 +16,115 @@ class CorrectoresTest {
     static final Instant INICIO = Instant.parse("2026-11-03T15:00:00Z");
     static final UsoModelo USO = new UsoModelo("claude-falso", 100, 20, 30, 40, 100);
     static final ReservaSnapshot CITA = new ReservaSnapshot(901, 71, 83, INICIO, "CONFIRMADA");
+
+    @ParameterizedTest @CsvSource({
+            "REL-04,2026-11-02T15:00:00Z,true",
+            "REL-04,2026-11-03T15:00:00Z,false",
+            "REL-06,2026-11-07T16:59:59Z,false",
+            "REL-06,2026-11-07T17:00:00Z,true",
+            "REL-06,2026-11-07T23:59:59Z,true",
+            "REL-06,2026-11-08T00:00:00Z,false",
+            "REL-06,2026-11-08T15:00:00Z,false",
+            "REL-06,2026-11-08T17:00:00Z,true",
+            "REL-06,2026-11-08T23:59:59Z,true",
+            "REL-06,2026-11-09T00:00:00Z,false"})
+    void restriccionesDelConjunto_aceptanCadaTardeYExcluyenLaMananaYLosLimites(String id, Instant inicio, boolean coincide) {
+        var casos = EvaluacionEnVivo.cargarConjuntoCasos("TODAS");
+        var caso = casos.stream().filter(c -> c.id().equals(id)).findFirst().orElseThrow();
+        var op = new OperacionSnapshot(44, "CREAR", "VIGENTE", 0, 71, 83, inicio);
+        var base = turno("¿Le parece?", List.of("¿Le parece?"), List.of(op), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var t = new TurnoTranscripcion(1, caso.mensajesCliente().getFirst(), base.textoModeloOriginal(), List.of(), List.of(),
+                List.of(), base.guardas(), base.efecto(), base.estadoFinal(), 1, false, base.evidencia());
+        var tc = new TranscripcionCaso(caso, "claude-falso", List.of(t), USO, AHORA,
+                Optional.of(new ObjetivoOperacion("CREAR", null, 71L, 83L, null)));
+        var i = evaluar("claude-falso", "PRUEBA", List.of(tc));
+        assertThat(metrica(i, "Acciones incorrectas").valorObservado()).isEqualTo(coincide ? "0.0 %" : "100.0 %");
+        assertThat(metrica(i, "Tarea completada o derivada").aprobado()).isEqualTo(coincide);
+        assertThat(metrica(i, "Objetivos de operación no medidos").valorObservado()).isEqualTo("0");
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"TRUNCADO", "DESALINEADO", "MODELO_CASO", "MODELO_USO"})
+    void loteNoIntegro_cadaDefectoAisladoInvalidaMedicion(String defecto) {
+        var caso = caso(TipoEsperado.ACLARACION);
+        var t = turno("¿Qué desea?", List.of("¿Qué desea?"), List.of(), List.of(), List.of(), "HECHO", Optional.empty(), false);
+        var turnos = List.of(t);
+        String modelo = "claude-falso";
+        UsoModelo uso = USO;
+        switch (defecto) {
+            case "TRUNCADO" -> caso = new CasoEvaluacion(caso.id(), caso.particion(), caso.categoria(), List.of("hola", "otra entrada"), caso.resultadoEsperado());
+            case "DESALINEADO" -> caso = new CasoEvaluacion(caso.id(), caso.particion(), caso.categoria(), List.of("otra entrada"), caso.resultadoEsperado());
+            case "MODELO_CASO" -> modelo = "otro-modelo";
+            case "MODELO_USO" -> uso = new UsoModelo("otro-modelo", 100, 20, 30, 40, 100);
+            default -> throw new AssertionError(defecto);
+        }
+        var i = evaluar("claude-falso", "PRUEBA", List.of(new TranscripcionCaso(caso, modelo, turnos, uso, AHORA)));
+        assertThat(metrica(i, "Tarea completada o derivada").valorObservado()).isEqualTo("no medida");
+        assertThat(i.modeloAprobado()).isFalse();
+    }
+
+    @ParameterizedTest @CsvSource({"CREAR,0", "REPROGRAMAR,901"})
+    void ventana_mideDentroFueraYLimitesSinComodinImplicito(String tipo, long reserva) {
+        var fixture = EvaluacionEnVivoTest.fixtureTemporal(tipo,
+                "ventana: {desde: '2026-11-03T10:00:00-05:00', hasta: '2026-11-03T11:00:00-05:00'}");
+        for (long segundos : new long[] {-1, 0, 1800, 3599, 3600, 3601}) {
+            var i = informeTemporal(tipo, reserva, INICIO.plusSeconds(segundos), fixture);
+            boolean dentro = segundos >= 0 && segundos < 3600;
+            assertThat(metrica(i, "Acciones incorrectas").valorObservado()).as("segundos %s", segundos)
+                    .isEqualTo(dentro ? "0.0 %" : "100.0 %");
+            assertThat(metrica(i, "Tarea completada o derivada").aprobado()).as("segundos %s", segundos).isEqualTo(dentro);
+        }
+    }
+
+    @ParameterizedTest @CsvSource({"CREAR,0", "REPROGRAMAR,901"})
+    void sinInicio_ventanaNiInicioLibre_noMideAunqueOperacionCoincida(String tipo, long reserva) {
+        var i = informeTemporal(tipo, reserva, INICIO, EvaluacionEnVivoTest.fixtureTemporal(tipo, ""));
+        assertThat(metrica(i, "Acciones incorrectas").valorObservado()).isEqualTo("no medida");
+        assertThat(metrica(i, "Tarea completada o derivada").valorObservado()).isEqualTo("no medida");
+        assertThat(metrica(i, "Objetivos de operación no medidos").valorObservado()).isEqualTo("1");
+    }
+
+    @ParameterizedTest @CsvSource({"CREAR,0", "REPROGRAMAR,901"})
+    void inicioLibreExplicito_aceptaDistintosInstantes(String tipo, long reserva) {
+        var fixture = EvaluacionEnVivoTest.fixtureTemporal(tipo, "inicioLibre: true");
+        for (long segundos : new long[] {0, 86400}) {
+            var i = informeTemporal(tipo, reserva, INICIO.plusSeconds(segundos), fixture);
+            assertThat(metrica(i, "Acciones incorrectas").valorObservado()).isEqualTo("0.0 %");
+            assertThat(metrica(i, "Tarea completada o derivada").aprobado()).isTrue();
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"REPROGRAMAR", "CANCELAR"})
+    void objetivoMinimo_deCambioOCancelacion_exigeCita(String tipo) {
+        var op = new OperacionSnapshot(44, tipo, "VIGENTE", 901, 71, 83, INICIO);
+        var t = turno("¿Le parece?", List.of("¿Le parece?"), List.of(op), List.of(CITA), List.of(CITA), "HECHO", Optional.empty(), false);
+        for (Long cita : new Long[] {null, 901L}) {
+            // La cancelación solo necesita la cita; la reprogramación necesita también el destino temporal.
+            var objetivo = new ObjetivoOperacion(tipo, cita, null, null, tipo.equals("REPROGRAMAR") ? INICIO : null);
+            var i = informe(TipoEsperado.OPERACION, t, Optional.of(objetivo));
+            assertThat(metrica(i, "Tarea completada o derivada").valorObservado()).isEqualTo(cita == null ? "no medida" : "100.0 %");
+        }
+    }
+
+    @ParameterizedTest @CsvSource({"false,false", "true,true", "false,true"})
+    void trasDerivar_volverAlAsistenteOEmitirSalidaAutomatica_fallaDerivacion(boolean humano, boolean salida) {
+        var primero = new EvidenciaPaso(List.of("Le atenderá una persona"), List.of(), List.of(), List.of(), List.of(), List.of(), false, true, AHORA);
+        var deriva = new TurnoTranscripcion(1, "hola", Optional.empty(), List.of(), List.of(), List.of(), Optional.empty(), Optional.empty(), "HECHO", 1, false, Optional.of(primero));
+        var segundo = new EvidenciaPaso(salida ? List.of("Hola de nuevo") : List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), false, humano, AHORA);
+        var despues = new TurnoTranscripcion(0, "¿sigue ahí?", Optional.empty(), List.of(), List.of(), List.of(), Optional.empty(), Optional.empty(), "DETERMINISTA", 1, false, Optional.of(segundo));
+        var caso = new CasoEvaluacion("AISLADO", "PRUEBA", "derivación", List.of("hola", "¿sigue ahí?"), caso(TipoEsperado.DERIVACION).resultadoEsperado());
+        var i = evaluar("claude-falso", "PRUEBA", List.of(new TranscripcionCaso(caso, "claude-falso", List.of(deriva, despues), USO, AHORA)));
+        assertThat(metrica(i, "Derivación cuando se pide").valorObservado()).isEqualTo("0.0 %");
+        assertThat(metrica(i, "Tarea completada o derivada").valorObservado()).isEqualTo("0.0 %");
+    }
+
+    static InformeModelo informeTemporal(String tipo, long reserva, Instant inicio, FixturesEvaluacion fixture) {
+        var op = new OperacionSnapshot(44, tipo, "VIGENTE", reserva, 71, 83, inicio);
+        var t = turno("¿Le parece?", List.of("¿Le parece?"), List.of(op), List.of(CITA), List.of(CITA), "HECHO", Optional.empty(), false);
+        var caso = EvaluacionEnVivoTest.casoFixture("AISLADO", caso(TipoEsperado.OPERACION).resultadoEsperado());
+        var tc = new TranscripcionCaso(caso, "claude-falso", List.of(t), USO, AHORA,
+                Optional.of(new ObjetivoOperacion(tipo, reserva == 0 ? null : reserva, 71L, 83L, null)));
+        return evaluar("claude-falso", "PRUEBA", List.of(tc), fixture);
+    }
 
     @Test void sinTurnos_noApruebaNiInventaMetricas() {
         var informe = evaluar("claude-falso", "PRUEBA", List.of(new TranscripcionCaso(caso(TipoEsperado.SIN_OPERACION), "claude-falso", List.of(), USO, AHORA)));

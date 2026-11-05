@@ -551,3 +551,27 @@
   5. **Bandeja:** solo la primera página (50); la paginación de conversaciones antiguas queda como *Could* fuera del MVP.
   6. **E2E de la bandeja (CB-14):** cubre la interfaz con estado sembrado; la ruta de servidor (evento firmado → derivación → outbox) la cubren `DerivacionConversacionIT` y `BandejaWhatsAppIT`.
 - **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida`, `SaneadorTexto`, `InstruccionesAsistente`; encargos 131 (Codex) y g097 (Gemini).
+
+### V2-DA-85 · El texto del modelo no menciona fechas ni horas (05/11/2026, V2-12; revisión g098 de Gemini Argon sobre el encargo 131)
+- **Contexto:** tras dos rondas de correcciones, la validación «combinación completa» de fechas y horas mencionadas por el modelo seguía teniendo falsos negativos (`18h`, `5 a.m.`, «próximo viernes», varias fechas coordinadas) y falsos positivos («de las 2 opciones»). Cada formato nuevo exigía otra expresión regular.
+- **Decisión (sustituye V2-DA-84.2):**
+  1. El texto del modelo **no contiene ninguna referencia a fechas ni horas** (días de la semana, meses, «hoy», «mañana», fechas numéricas, horas en cualquier formato). Si las guardas detectan una → `HORARIO_NO_OFRECIDO` y se envía la composición del servidor, que ya muestra las franjas con su fecha completa. Ya no se valida la combinación con las franjas ofrecidas.
+  2. **Preferir ocultar de más:** ante la duda se sustituye; un falso positivo solo cambia el texto por el neutro con la lista del servidor, un falso negativo puede prometer un horario.
+  3. **Afirmaciones:** se rechazan las afirmaciones de operación en cualquier persona y tiempo (incluidas «se reservó», «reservamos», «quedó agendada»), pero **no** las preguntas («¿Te reservo…?») ni las negaciones («No tienes citas agendadas»).
+  4. **Teléfonos y correos:** las guardas usan `SaneadorTexto.contieneDatoPersonal` (un solo patrón para entrada y salida).
+  5. Importes: también «sol» en singular y «lucas».
+- **Riesgo residual (05/11/2026, tras g099):** las guardas son patrones; tras la última ronda (encargo 135, sesgada a sustituir, incluidas las frases de estado completado), las paráfrasis libres que no cubran se aceptan como riesgo medido por la métrica «Confirmaciones falsas» de la evaluación en vivo (08 §4, objetivo 0). La garantía de integridad no depende de las guardas: ninguna operación se ejecuta sin el botón de confirmar del servidor (V2-RN-10).
+- **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida` (encargo 132, Codex), `SaneadorTexto`, `InstruccionesAsistente` (Claude); guiones que esperen texto con horas.
+
+### V2-DA-86 · El texto libre del proveedor de IA no llega al cliente: salida estructurada y respuestas deterministas (05/11/2026, V2-12; petición del responsable)
+- **Contexto:** V2-DA-85 dejaba un riesgo residual: una paráfrasis de confirmación («Carlos ya te tiene un hueco») podía pasar las guardas, que son patrones, y llegar al cliente en el cuerpo de la lista de franjas o en un mensaje de texto. El responsable pide cerrar ese camino sin añadir más frases a los filtros.
+- **Decisión:**
+  1. El modelo solo produce herramientas y una herramienta terminal `responder_al_cliente` con **intención, dato faltante y alias** de listas cerradas; ningún campo de texto libre. Su texto se descarta para la salida, la persistencia y los registros.
+  2. El servidor valida la decisión contra el contexto, la ficha revalidada y los datos bajo RLS, y la degrada de forma determinista (`17-…` §13.2).
+  3. El mensaje visible lo compone `RespuestasAsistente` con los menús y textos de V2-10; las franjas, con `ComposicionTurnoIA` y un texto fijo.
+  4. El turno de IA solo **propone** con el protocolo de V2-10 (operación `VIGENTE`, *nonce*, confirmación explícita). La única afirmación de una reserva es `TextosConversacion.resultado`, tras ejecutar, con el código real.
+  5. `GuardasSalida` sale del camino de salida y queda como indicador heurístico de la evaluación.
+  6. Contexto mínimo: dejan de enviarse el nombre de pila y el historial textual; se envía `ultimaRespuesta` (lista cerrada).
+- **Sustituye** el riesgo residual de V2-DA-85, que deja de aplicarse a la salida (su punto 1–5 sigue describiendo el detector de la evaluación).
+- **Acordado** con Codex (consulta 138, 8 propuestas aceptadas) y Gemini (g102, 3 aceptadas) antes de modificar código.
+- **Afecta:** `17-…` §5 y §13, CI-5 (retirado como garantía), CI-14…CI-17; `15-decisiones-pendientes-p2-05-p2-06.md` §1.4; `HerramientaIA`, `TurnosIAService`, `ConstructorContextoModelo`, `InstruccionesAsistente` (Codex); `RespuestasAsistente`, `ComposicionTurnoIA` y pruebas de canal (Gemini); `Correctores` (Claude).

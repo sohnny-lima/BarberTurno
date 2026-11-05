@@ -448,7 +448,9 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
                 llamada(HerramientaIA.BUSCAR_DISPONIBILIDAD,
                         "vacia".equals(caso) ? primera.replace("10:00", "23:00")
                                 : "ultima".equals(caso) ? primera.replace("10:00", "15:00") : primera)));
-        String texto = "recorte".equals(caso) ? "Hay opciones a las 17:00." : "Hay opciones a las 10:00.";
+        // V2-DA-85: el texto del modelo no puede citar horas; en "vacia" se comprueba que un texto sin horas se acepta.
+        String texto = "recorte".equals(caso) ? "Hay opciones a las 17:00."
+                : "vacia".equals(caso) ? "Revisa las opciones disponibles." : "Hay opciones a las 10:00.";
         modelo.programarTexto(texto);
         turnos.procesarPendientes();
         assertThat(estado(a, t)).isEqualTo("HECHO");

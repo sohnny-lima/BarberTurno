@@ -104,6 +104,12 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     hayAnteriores: true,
   };
 
+  const DETALLE_2: DetalleConversacionDto = {
+    conversacion: { ...CONVERSACION_BLOQUEADA, puedeResponder: true, motivoNoResponder: null },
+    mensajes: [],
+    hayAnteriores: false,
+  };
+
   beforeEach(() => {
     paramsSubject = new BehaviorSubject(convertToParamMap({}));
     movilSubject = new BehaviorSubject<{ matches: boolean }>({ matches: false });
@@ -352,7 +358,10 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     fixture.detectChanges();
 
     const router = TestBed.inject(Router);
-    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockImplementation(async () => {
+      paramsSubject.next(convertToParamMap({}));
+      return true;
+    });
 
     const btnDevolver = fixture.nativeElement.querySelector('.btn-devolver') as HTMLButtonElement;
     btnDevolver.click();
@@ -378,6 +387,11 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     expect(reqLista.request.method).toBe('GET');
     reqLista.flush({ contenido: [], totalElementos: 0, pagina: 0, tamano: 50, totalPaginas: 0 });
     fixture.detectChanges();
+    expect(fixture.componentInstance.seleccionadaId()).toBeNull();
+    expect(fixture.componentInstance.mensajeAccion()).toBe('Conversación devuelta al asistente');
+    expect(fixture.nativeElement.querySelector('[aria-live="polite"]').textContent).toContain(
+      'Conversación devuelta al asistente',
+    );
   });
 
   it('maneja errores 404 y 422 adecuadamente', () => {
@@ -441,4 +455,208 @@ describe('Bandeja de WhatsApp (V2-11)', () => {
     reqDetalle.flush(DETALLE_1);
     fixture.detectChanges();
   });
+
+  it.each([true, false])(
+    'descarta el detalle tardío de A al cambiar a B (A llega antes: %s)',
+    (antes) => {
+      paramsSubject.next(convertToParamMap({ id: '10' }));
+      const fixture = inicializar();
+      const solicitudA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+      paramsSubject.next(convertToParamMap({ id: '20' }));
+      const solicitudB = http.expectOne('/api/n/prueba/whatsapp/conversaciones/20');
+      if (antes) {
+        solicitudA.flush(DETALLE_1);
+        expect(fixture.componentInstance.detalle()).toBeNull();
+        expect(fixture.componentInstance.cargandoDetalle()).toBe(true);
+      }
+      solicitudB.flush(DETALLE_2);
+      if (!antes) solicitudA.flush(DETALLE_1);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+      expect(fixture.nativeElement.textContent).toContain('María García');
+      expect(fixture.nativeElement.textContent).not.toContain('Hola Juan');
+    },
+  );
+
+  it.each([404, 500])('ignora errores tardíos de la consulta de A (%s)', (status) => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    const solicitudA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+    paramsSubject.next(convertToParamMap({ id: '20' }));
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
+    solicitudA.flush(null, { status, statusText: 'Error de prueba' });
+    expect(fixture.componentInstance.errorDetalle()).toBe('');
+    expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+  });
+
+  it('descarta una respuesta de la primera visita a A después de A → B → A', () => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    const primeraA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+    paramsSubject.next(convertToParamMap({ id: '20' }));
+    const solicitudB = http.expectOne('/api/n/prueba/whatsapp/conversaciones/20');
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const segundaA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+    segundaA.flush({ ...DETALLE_1, mensajes: [] });
+    primeraA.flush(DETALLE_1);
+    solicitudB.flush(DETALLE_2);
+    expect(fixture.componentInstance.detalle()?.mensajes).toEqual([]);
+  });
+
+  it('conserva la consulta más reciente del mismo detalle si llegan fuera de orden', () => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    const antigua = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+    fixture.componentInstance.cargarDetalle(10);
+    http
+      .expectOne('/api/n/prueba/whatsapp/conversaciones/10')
+      .flush({ ...DETALLE_1, mensajes: [] });
+    antigua.flush(DETALLE_1);
+    expect(fixture.componentInstance.detalle()?.mensajes).toEqual([]);
+  });
+
+  it.each([true, false])('descarta la paginación tardía de A (éxito: %s)', (exito) => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+    fixture.componentInstance.verAnteriores();
+    const anterioresA = http.expectOne((r) => r.params.get('antesDe') === '1');
+    fixture.componentInstance.textoRespuesta.set('Borrador de A');
+    paramsSubject.next(convertToParamMap({ id: '20' }));
+    expect(fixture.componentInstance.textoRespuesta()).toBe('');
+    expect(fixture.componentInstance.detalle()).toBeNull();
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
+    if (exito) anterioresA.flush({ ...DETALLE_1, mensajes: [MENSAJE_RETIRADO] });
+    else anterioresA.flush(null, { status: 500, statusText: 'Error de prueba' });
+    expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+    expect(fixture.componentInstance.errorDetalle()).toBe('');
+    expect(fixture.componentInstance.cargandoAnteriores()).toBe(false);
+  });
+
+  it('vincula cada POST a su conversación y conserva el envío y borrador de B al terminar A', () => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+    fixture.componentInstance.textoRespuesta.set('Respuesta para A');
+    fixture.componentInstance.enviarRespuesta();
+    const envioA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10/respuestas');
+    expect(envioA.request.body).toEqual({ texto: 'Respuesta para A' });
+    paramsSubject.next(convertToParamMap({ id: '20' }));
+    expect(fixture.componentInstance.textoRespuesta()).toBe('');
+    expect(fixture.componentInstance.enviando()).toBe(false);
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
+    fixture.componentInstance.textoRespuesta.set('Respuesta para B');
+    fixture.componentInstance.enviarRespuesta();
+    const envioB = http.expectOne('/api/n/prueba/whatsapp/conversaciones/20/respuestas');
+    expect(envioB.request.body).toEqual({ texto: 'Respuesta para B' });
+    envioA.flush({ ...MENSAJE_PERSONAL, texto: 'Respuesta para A' });
+    http.expectOne((r) => r.url.endsWith('/conversaciones')).flush({ contenido: [CONVERSACION_1] });
+    expect(fixture.componentInstance.enviando()).toBe(true);
+    expect(fixture.componentInstance.textoRespuesta()).toBe('Respuesta para B');
+    expect(fixture.componentInstance.mensajeEnvio()).toBe('');
+    expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+    envioB.flush({ ...MENSAJE_PERSONAL, texto: 'Respuesta para B' });
+    http.expectOne((r) => r.url.endsWith('/conversaciones')).flush({ contenido: [] });
+    expect(fixture.componentInstance.enviando()).toBe(false);
+    expect(fixture.componentInstance.textoRespuesta()).toBe('');
+    expect(fixture.componentInstance.detalle()?.mensajes.map((m) => m.texto)).toEqual([
+      'Respuesta para B',
+    ]);
+  });
+
+  it.each([404, 422, 500])(
+    'descarta errores de un POST pendiente de A tras cambiar a B (%s)',
+    (status) => {
+      paramsSubject.next(convertToParamMap({ id: '10' }));
+      const fixture = inicializar();
+      http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+      fixture.componentInstance.textoRespuesta.set('Respuesta para A');
+      fixture.componentInstance.enviarRespuesta();
+      const envioA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10/respuestas');
+      paramsSubject.next(convertToParamMap({ id: '20' }));
+      http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
+      fixture.componentInstance.textoRespuesta.set('Borrador de B');
+      envioA.flush(null, { status, statusText: 'Error de prueba' });
+      expect(fixture.componentInstance.errorDetalle()).toBe('');
+      expect(fixture.componentInstance.textoRespuesta()).toBe('Borrador de B');
+      expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+    },
+  );
+
+  it('ignora la confirmación de devolución si ya cambió la conversación seleccionada', () => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+    fixture.componentInstance.devolver();
+    paramsSubject.next(convertToParamMap({ id: '20' }));
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
+    dialogResult.next(true);
+    http.expectNone((r) => r.method === 'POST');
+    expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+  });
+
+  it('ignora la devolución tardía de A y mantiene la navegación y el borrador de B', () => {
+    paramsSubject.next(convertToParamMap({ id: '10' }));
+    const fixture = inicializar();
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+    const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fixture.componentInstance.devolver();
+    dialogResult.next(true);
+    const devolverA = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10/devolver');
+    paramsSubject.next(convertToParamMap({ id: '20' }));
+    http.expectOne('/api/n/prueba/whatsapp/conversaciones/20').flush(DETALLE_2);
+    fixture.componentInstance.textoRespuesta.set('Borrador de B');
+    devolverA.flush(null, { status: 204, statusText: 'No Content' });
+    http
+      .expectOne((r) => r.url.endsWith('/conversaciones'))
+      .flush({ contenido: [DETALLE_2.conversacion] });
+    expect(navegar).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.textoRespuesta()).toBe('Borrador de B');
+    expect(fixture.componentInstance.detalle()).toEqual(DETALLE_2);
+  });
+
+  it.each([true, false])(
+    'solo aplica la última consulta de lista (respuesta anterior correcta: %s)',
+    (exito) => {
+      const fixture = inicializar();
+      fixture.componentInstance.cargarLista();
+      const antigua = http.expectOne((r) => r.url.endsWith('/conversaciones'));
+      fixture.componentInstance.cargarLista();
+      const reciente = http.expectOne((r) => r.url.endsWith('/conversaciones'));
+      reciente.flush({ contenido: [CONVERSACION_BLOQUEADA] });
+      if (exito) antigua.flush({ contenido: [CONVERSACION_1] });
+      else antigua.flush(null, { status: 500, statusText: 'Error de prueba' });
+      expect(fixture.componentInstance.conversaciones()).toEqual([CONVERSACION_BLOQUEADA]);
+      expect(fixture.componentInstance.errorLista()).toBe('');
+      expect(fixture.componentInstance.cargandoLista()).toBe(false);
+    },
+  );
+
+  it.each([true, false])(
+    'conserva el mensaje del POST frente al sondeo iniciado antes (éxito: %s)',
+    (exito) => {
+      paramsSubject.next(convertToParamMap({ id: '10' }));
+      const fixture = inicializar();
+      http.expectOne('/api/n/prueba/whatsapp/conversaciones/10').flush(DETALLE_1);
+      fixture.componentInstance.cargarDetalle(10, false);
+      const sondeo = http.expectOne('/api/n/prueba/whatsapp/conversaciones/10');
+      fixture.componentInstance.textoRespuesta.set('Mensaje confirmado por el servidor');
+      fixture.componentInstance.enviarRespuesta();
+      const mensaje = { ...MENSAJE_PERSONAL, id: 5, texto: 'Mensaje confirmado por el servidor' };
+      http.expectOne('/api/n/prueba/whatsapp/conversaciones/10/respuestas').flush(mensaje);
+      http
+        .expectOne((r) => r.url.endsWith('/conversaciones'))
+        .flush({ contenido: [CONVERSACION_1] });
+      if (exito) sondeo.flush(DETALLE_1);
+      else sondeo.flush(null, { status: 404, statusText: 'Not Found' });
+      fixture.detectChanges();
+      expect(fixture.componentInstance.detalle()?.mensajes).toEqual([
+        ...DETALLE_1.mensajes,
+        mensaje,
+      ]);
+      expect(fixture.componentInstance.errorDetalle()).toBe('');
+      expect(fixture.componentInstance.cargandoDetalle()).toBe(false);
+      expect(fixture.nativeElement.textContent).toContain('Mensaje confirmado por el servidor');
+    },
+  );
 });
