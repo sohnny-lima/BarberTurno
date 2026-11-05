@@ -130,6 +130,30 @@ public class RegistroEntradaWhatsApp {
                 .setParameter("ahora", ahora).getSingleResult()).longValue();
     }
 
+    /**
+     * Guarda como primer mensaje visible de la bandeja el texto que llevó a un turno de IA a derivar
+     * (V2-DA-83, H-XI-06). Con {@code entrantes = SOLO_HUMANO} ese texto llegó en modo asistente y no se
+     * guardó en la entrega; el turno solo conserva su versión saneada ({@code SaneadorTexto}, hasta 2000
+     * caracteres), que es la que se guarda. Sin {@code wamid}: no se inventa la identidad de Meta.
+     * Debe llamarse con la conversación ya bloqueada y antes de la derivación, para que preceda al acuse.
+     * @param conversacionId conversación bloqueada del negocio actual
+     * @param texto texto saneado del turno; no vacío
+     * @return id del mensaje guardado
+     * @throws IllegalArgumentException si el texto está vacío
+     */
+    public long guardarTextoDerivado(long conversacionId, String texto) {
+        if (texto == null || texto.isBlank()) throw new IllegalArgumentException("El texto derivado no puede estar vacío.");
+        var contenido = JsonNodeFactory.instance.objectNode().put("texto", recortar(texto, MAX_TEXTO));
+        var ahora = reloj.instant();
+        return ((Number) entidades.createNativeQuery("""
+                INSERT INTO mensaje_whatsapp(conversacion_id, direccion, origen, tipo, contenido, estado,
+                    creado_en, actualizado_en)
+                VALUES (:conversacion, 'ENTRANTE', 'CLIENTE', 'TEXTO', cast(:contenido as jsonb), 'RECIBIDO',
+                    :ahora, :ahora) RETURNING id
+                """).setParameter("conversacion", conversacionId).setParameter("contenido", contenido.toString())
+                .setParameter("ahora", ahora).getSingleResult()).longValue();
+    }
+
     /** Recorta por puntos de código, sin partir un par sustituto (como los textos salientes de V2-10). */
     private static String recortar(String texto, int maximo) {
         return texto.codePointCount(0, texto.length()) <= maximo ? texto

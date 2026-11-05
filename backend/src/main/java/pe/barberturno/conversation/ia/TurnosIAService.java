@@ -41,6 +41,7 @@ public class TurnosIAService implements TurnosIA {
     private final MenusConversacion menus;
     private final TextosConversacion textos;
     private final ConversacionPropiedades conversacionPropiedades;
+    private final BandejaPropiedades bandeja;
     private final IaPropiedades propiedades;
     private final ConstructorContextoModelo constructor;
     private final HerramientasReserva herramientas;
@@ -56,14 +57,16 @@ public class TurnosIAService implements TurnosIA {
             CanalWhatsAppRepository canales, ConversacionesWhatsApp conversaciones, RegistroEntradaWhatsApp entradas,
             OperacionesConversacion operaciones, ConsultasConversacion consultas, DerivacionConversacion derivacion,
             SalidaWhatsApp salida, MenusConversacion menus, TextosConversacion textos,
-            ConversacionPropiedades conversacionPropiedades, IaPropiedades propiedades, ConstructorContextoModelo constructor,
+            ConversacionPropiedades conversacionPropiedades, BandejaPropiedades bandeja, IaPropiedades propiedades,
+            ConstructorContextoModelo constructor,
             HerramientasReserva herramientas, LimitesIAService limites, ModeloConversacional modelo,
             GuardasSalida guardas, ComposicionTurnoIA composicion, InstruccionesAsistente instrucciones,
             ObservadorEvaluacion observador, Clock reloj) {
         this.em = em; this.tx = new TransactionTemplate(gestor); this.ejecutor = ejecutor; this.canales = canales;
         this.conversaciones = conversaciones; this.entradas = entradas; this.operaciones = operaciones;
         this.consultas = consultas; this.derivacion = derivacion; this.salida = salida; this.menus = menus;
-        this.textos = textos; this.conversacionPropiedades = conversacionPropiedades; this.propiedades = propiedades;
+        this.textos = textos; this.conversacionPropiedades = conversacionPropiedades; this.bandeja = bandeja;
+        this.propiedades = propiedades;
         this.constructor = constructor; this.herramientas = herramientas; this.limites = limites; this.modelo = modelo;
         this.guardas = guardas; this.composicion = composicion; this.instrucciones = instrucciones;
         this.observador = observador; this.reloj = reloj;
@@ -265,7 +268,13 @@ public class TurnosIAService implements TurnosIA {
             String seguro = resultadoGuardas instanceof ResultadoGuardas.Aceptado aceptado ? aceptado.texto() : composicion.neutro();
             var distintos = efectos.stream().filter(this::esPropuesta).distinct().toList();
             EfectoTurno efecto = elegir(efectos);
-            if (efecto instanceof EfectoTurno.Derivar d) derivacion.derivar(r.conversacion(), d.motivo());
+            if (efecto instanceof EfectoTurno.Derivar d) {
+                // V2-DA-83: con SOLO_HUMANO el texto que provoca la derivación no se guardó al entrar; se guarda
+                // aquí (conversación ya bloqueada por validar) antes del acuse. Con TODOS ya está en el historial.
+                if (bandeja.entrantes() == BandejaPropiedades.Entrantes.SOLO_HUMANO && r.texto() != null && !r.texto().isBlank())
+                    entradas.guardarTextoDerivado(r.conversacion(), r.texto());
+                derivacion.derivar(r.conversacion(), d.motivo());
+            }
             else if (efecto instanceof EfectoTurno.SolicitarConsentimientoDerivacion d)
                 consentimiento(r, new CodigoSeleccion.Menu(OpcionMenu.PERSONA).codificar(), d.motivo());
             else if (distintos.size() > 1) menu(r, composicion.aclararPropuestas());
