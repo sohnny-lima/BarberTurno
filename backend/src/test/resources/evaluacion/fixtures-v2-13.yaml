@@ -61,6 +61,8 @@
   operacion: "CREAR"
   citasPrevias: []
 - id: "REL-06"
+  # «Tarde» provisional 12:00–19:00 Lima (el negocio cierra a las 18:00): pendiente de decisión del responsable,
+  # ver docs/v2/pruebas/v2-13-conjunto-convenciones.md.
   reloj: "2026-11-02T15:00:00Z"
   operacion: "CREAR"
   ventanas:
