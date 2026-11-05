@@ -523,14 +523,14 @@ public final class Correctores {
                 && (obj.barberoId() == null || obj.barberoId() == o.barberoId())
                 && (obj.inicio() == null || obj.inicio().equals(o.inicio()))
                 && ("CANCELAR".equals(obj.tipo()) || obj.inicio() != null || fixture
-                        .map(f -> f.inicioLibre() || f.ventana().filter(v -> v.contiene(o.inicio())).isPresent()).orElse(false));
+                        .map(f -> f.inicioLibre() || f.intervalos().stream().anyMatch(v -> v.contiene(o.inicio()))).orElse(false));
     }
 
     private static boolean objetivoCompleto(ObjetivoOperacion o, Optional<FixturesEvaluacion.Fixture> fixture) {
-        boolean temporal = o.inicio() != null || fixture.map(f -> f.inicioLibre() || f.ventana().isPresent()).orElse(false);
+        boolean temporal = o.inicio() != null || fixture.map(f -> f.inicioLibre() || !f.intervalos().isEmpty()).orElse(false);
         return switch (o.tipo()) {
             case "CREAR" -> temporal && (o.servicioId() != null || o.barberoId() != null || o.inicio() != null
-                    || fixture.map(f -> f.ventana().isPresent()).orElse(false));
+                    || fixture.map(f -> !f.intervalos().isEmpty()).orElse(false));
             case "REPROGRAMAR" -> o.reservaId() != null && temporal;
             case "CANCELAR" -> o.reservaId() != null;
             default -> false;

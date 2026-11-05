@@ -57,9 +57,48 @@ class EvaluacionEnVivoTest {
             "{desde: '2026-11-03T10:00:00-05:00', hasta: '2026-11-03T15:00:00Z'}",
             "{desde: '2026-11-03T12:00:00-05:00', hasta: '2026-11-03T11:00:00-05:00'}"})
     void exigir_ventanaSinDesfaseMalFormadaVaciaOInvertida_rechaza(String ventana) {
-        var fixtures = fixtureTemporal("CREAR", "ventana: " + ventana);
+        for (String anotacion : List.of("ventana: " + ventana, "ventanas: [" + ventana + "]")) {
+            var fixtures = fixtureTemporal("CREAR", anotacion);
+            assertThatThrownBy(() -> fixtures.exigir(casoFixture("AISLADO", CorrectoresTest.caso(Correctores.TipoEsperado.OPERACION).resultadoEsperado())))
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("intervalo inválido");
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"ventana: {desde: '2026-11-03T10:00:00-05:00', hasta: '2026-11-03T11:00:00-05:00'}", "inicioLibre: true"})
+    void exigir_ventanasConVentanaOInicioLibre_rechaza(String otraAnotacion) {
+        var fixtures = fixtureTemporal("CREAR", "ventanas: [{desde: '2026-11-03T10:00:00-05:00', hasta: '2026-11-03T11:00:00-05:00'}]\n  " + otraAnotacion);
         assertThatThrownBy(() -> fixtures.exigir(casoFixture("AISLADO", CorrectoresTest.caso(Correctores.TipoEsperado.OPERACION).resultadoEsperado())))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("intervalo inválido");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("ambiguo");
+    }
+
+    @Test void exigir_ventanasConInicioExacto_rechaza() {
+        var esperado = new Correctores.ResultadoEsperado(Correctores.TipoEsperado.OPERACION,
+                Optional.empty(), Optional.empty(), Optional.of("2026-11-03 10:00"), Optional.empty());
+        var fixtures = fixtureTemporal("CREAR", "ventanas: [{desde: '2026-11-03T10:00:00-05:00', hasta: '2026-11-03T11:00:00-05:00'}]");
+        assertThatThrownBy(() -> fixtures.exigir(casoFixture("AISLADO", esperado)))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("ambiguo");
+    }
+
+    @ParameterizedTest @ValueSource(strings = {
+            "{desde: '2026-11-03T10:30:00-05:00', hasta: '2026-11-03T11:30:00-05:00'}",
+            "{desde: '2026-11-03T15:00:00Z', hasta: '2026-11-03T16:00:00Z'}",
+            "{desde: '2026-11-03T09:00:00-05:00', hasta: '2026-11-03T12:00:00-05:00'}"})
+    void exigir_ventanasSolapadasDuplicadasOContenidas_rechaza(String intervalo) {
+        var fixtures = fixtureTemporal("CREAR", "ventanas: [{desde: '2026-11-03T10:00:00-05:00', hasta: '2026-11-03T11:00:00-05:00'}, " + intervalo + "]");
+        assertThatThrownBy(() -> fixtures.exigir(casoFixture("AISLADO", CorrectoresTest.caso(Correctores.TipoEsperado.OPERACION).resultadoEsperado())))
+                .isInstanceOf(IllegalStateException.class).hasRootCauseMessage("Las ventanas no admiten solapes.");
+    }
+
+    @Test void exigir_ventanasVacias_rechaza() {
+        var fixtures = fixtureTemporal("CREAR", "ventanas: []");
+        assertThatThrownBy(() -> fixtures.exigir(casoFixture("AISLADO", CorrectoresTest.caso(Correctores.TipoEsperado.OPERACION).resultadoEsperado())))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("al menos un intervalo");
+    }
+
+    @Test void exigir_ventanasAdyacentesYDesordenadas_acepta() {
+        var fixtures = fixtureTemporal("CREAR", "ventanas: [{desde: '2026-11-03T11:00:00-05:00', hasta: '2026-11-03T12:00:00-05:00'}, {desde: '2026-11-03T15:00:00Z', hasta: '2026-11-03T16:00:00Z'}]");
+        assertThat(fixtures.exigir(casoFixture("AISLADO", CorrectoresTest.caso(Correctores.TipoEsperado.OPERACION).resultadoEsperado()))
+                .intervalos()).hasSize(2);
     }
 
     @Test void exigir_inicioYVentanaOComodinSimultaneos_rechaza() {

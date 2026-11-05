@@ -63,8 +63,9 @@
 - id: "REL-06"
   reloj: "2026-11-02T15:00:00Z"
   operacion: "CREAR"
-  # Bloqueada (revisión 136): dos tardes separadas no caben en una ventana continua.
-  # Sin anotación temporal hasta que el arquitecto resuelva el formato: objetivo no medible.
+  ventanas:
+    - {desde: "2026-11-07T12:00:00-05:00", hasta: "2026-11-07T19:00:00-05:00"}
+    - {desde: "2026-11-08T12:00:00-05:00", hasta: "2026-11-08T19:00:00-05:00"}
   citasPrevias: []
 - id: "REL-07"
   reloj: "2026-11-02T15:00:00Z"

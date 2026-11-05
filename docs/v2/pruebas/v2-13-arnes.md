@@ -39,26 +39,26 @@ Llamadas reales al proveedor, tokens y costes reales, latencias, la calidad de l
 
 ## Correcciones de la revisión 136
 
-Encargo 137, Codex · 05/11/2026 · rama `tarea/V2-12-correcciones-136`, base `bfce0d6`. Estado de cierre: **Bloqueada (solo la anotación temporal de REL-06: una ventana continua no representa dos tardes separadas)**. Resto de las correcciones implementadas y verificadas. Sin uniones ni push; las reglas de cierre de v1 y la edición de `docs/tareas.md` no aplican a este encargo.
+Encargo 137, Codex · 05/11/2026 · rama `tarea/V2-12-correcciones-136`, base `bfce0d6`. Estado de las correcciones locales: **Hecha, incluida la continuación de REL-06**, con `ventanas` y la convención de «tarde» autorizadas por el coordinador. Sin bloqueos de implementación pendientes; el conjunto sigue en BORRADOR. Sin uniones ni push; las reglas de cierre de v1 y la edición de `docs/tareas.md` no aplican a este encargo.
 
 ### Cambios
 
 - `SaneadorTexto.TELEFONO`: separadores sin límite (`*`). El Javadoc del patrón explica que su clase no incluye dígitos y no admite particiones ambiguas entre repeticiones ni retroceso catastrófico; versión de clase 1.2. Regresiones con 4, 6 y 10 separadores mixtos ASCII/Unicode tanto en `sanear` como en `contieneDatoPersonal`. Las pruebas existentes de fechas/precios y las 355 guardas se conservan sin cambios.
-- `FixturesEvaluacion`: `ventana: {desde, hasta}` e `inicioLibre: true` en el complemento YAML, excluyentes entre sí y con `esperado.inicio`. `exigir` valida instantes con desfase, orden estricto, catálogo y fechas reales (incluidos 30/02 y 24:00). No anotar ninguna opción temporal deja un objetivo `CREAR`/`REPROGRAMAR` sin inicio **no medible**, sin inventar un comodín. `CANCELAR` sigue necesitando solo la cita objetivo.
+- `FixturesEvaluacion`: `ventana: {desde, hasta}`, `ventanas: [{desde, hasta}, …]` e `inicioLibre: true` en el complemento YAML, excluyentes entre sí y con `esperado.inicio`. `ventanas` exige uno o más intervalos, sin solapes; se permiten intervalos adyacentes y anotaciones desordenadas. `exigir` valida instantes con desfase, orden estricto, catálogo y fechas reales (incluidos 30/02 y 24:00). No anotar ninguna opción temporal deja un objetivo `CREAR`/`REPROGRAMAR` sin inicio **no medible**, sin inventar un comodín. `CANCELAR` sigue necesitando solo la cita objetivo.
 - `Correctores`: resuelve las restricciones por el id explícito del fixture (no por categoría ni texto), mantiene `ObjetivoOperacion` y `EscenarioEvaluacion` sin cambios y compara `desde <= inicio < hasta`. Los campos servicio/profesional omitidos siguen siendo comodines; `CREAR` mantiene al menos un dato fijado (una ventana cuenta). Un objetivo no medible incrementa «Objetivos de operación no medidos»; las métricas de acciones y tarea del lote quedan «no medida», sin aprobación. El overload de paquete permite inyectar fixtures aislados en las pruebas.
 - Tras una derivación, el silencio solo acredita un paso si este termina con `humano=true`. Volver al asistente o emitir salientes automáticos falla tanto «Derivación cuando se pide» como «Tarea completada o derivada».
 - `CorrectoresTest`/`EvaluacionEnVivoTest`: negativas aisladas para g100-1 (truncado, entrada desalineada, modelo del caso y del uso incorrectos), validación del catálogo y del inicio, comodines explícitos, objetivos mínimos de cambio/cancelación, ventanas dentro/fuera y límites inclusivo/exclusivo, objetivo no medible y las negativas de derivación. `ConversacionGuionesIT`: contenido prohibido exclusivamente en encabezado, pie, botón o fila; cada negativa exige el mensaje concreto de la aserción de contenido.
 
-### Casos anotados y bloqueo para el arquitecto
+### Casos anotados y convención del conjunto
 
 | Caso | Anotación / resultado |
 |---|---|
 | REL-04 «hoy, lo antes posible» | `ventana: {desde: "2026-11-02T10:00:00-05:00", hasta: "2026-11-03T00:00:00-05:00"}`. Desde el reloj del caso (lunes 02/11, 10:00 en Lima) hasta el fin de ese día exclusivo; el resto del dominio sigue exigiendo disponibilidad real. |
-| REL-06 «este fin de semana en la tarde» | **Bloqueada (formato temporal insuficiente)**. Las jornadas sembradas incluyen sábado y domingo, ambos 09:00–18:00. Las tardes de 07/11 y 08/11 no forman un intervalo continuo: una ventana que incluya ambas admitiría también el domingo por la mañana. Se conserva sin `inicio`, `ventana` ni `inicioLibre`, con comentario explícito y regresión que exige «no medida». El arquitecto debe autorizar cómo representar la unión antes de cerrar este punto. |
+| REL-06 «este fin de semana en la tarde» | `ventanas` del sábado 07/11/2026 y domingo 08/11/2026, cada una desde `T12:00:00-05:00` hasta `T19:00:00-05:00` exclusivo. Bloqueo resuelto por la decisión del coordinador en la continuación de 137; se retira su comentario del fixture. Las jornadas siguen limitando la disponibilidad real a 09:00–18:00. |
 | Resto de `CREAR`/`REPROGRAMAR` con resultado `OPERACION` | Todos tienen `esperado.inicio`; no requieren anotación complementaria. |
 | `inicioLibre` | Ningún caso del conjunto lo necesita: los únicos dos sin inicio tienen restricción temporal. La opción se verifica con fixtures sintéticos, sin atribuirla a REL-04/06. |
 
-No se estrecha REL-06 a un sábado ni se amplía a un intervalo que permita otra hora; tampoco se cambia su texto/criterio. El conjunto y su complemento siguen en **BORRADOR**, sin revisión del responsable ni ensayo contra proveedores.
+**Convención autorizada para el conjunto BORRADOR:** «tarde» = 12:00 a 19:00 exclusivo, hora de Lima. `coincide` acepta el inicio dentro de cualquiera de las ventanas (`desde <= inicio < hasta`), sin incluir el hueco entre ellas. El formato singular se normaliza a una lista de un intervalo para la comparación; se conserva la presencia de ambas claves para que `exigir` pueda rechazar su combinación. Se revisaron los 120 casos: no hay otro objetivo `CREAR`/`REPROGRAMAR` sin `inicio` que necesite intervalos separados; los otros casos de tarde ya tienen `esperado.inicio`. El conjunto y su complemento siguen en **BORRADOR**, sin revisión del responsable ni ensayo contra proveedores.
 
 ### Verificación e incidencias
 
@@ -94,6 +94,16 @@ Comprobación estática: `git diff --check` correcto y los 10 archivos del diff 
 
 - `049d6c41c2ed7b49396cd183c588ff4e44ad39f1`: `fix(ia): sanear teléfonos con separadores sin límite [V2-12]`.
 - `32d6775af56dadcbb7475b52acc27d30e88080d3`: `fix(evaluacion): exigir ventanas y conservar la derivación [V2-13]`.
-- Cierre documental identificable por el asunto `docs(evaluacion): registrar correcciones y bloqueo temporal [V2-13]`; hash propio en el informe final. Sin merge por instrucción del encargo.
+- `899b3284597d48e55a0c2491763356522835df94`: cierre documental inicial, `docs(evaluacion): registrar correcciones y bloqueo temporal [V2-13]`.
+- Continuación identificable por el asunto solicitado `fix(evaluacion): ventanas separadas para restricciones temporales [V2-13]`; hash propio en el informe final. Sin merge por instrucción del encargo.
 - Solo archivos del alcance; sin cambios a API, DDL, permisos, protocolo de concurrencia, tecnología, dependencias ni arranque. README sin cambios. Sin modificaciones de documentos protegidos, v1, APF2, Azure, remotos o etiquetas; sin lectura de `.local/` (solo invocación autorizada del ejecutor), servicios externos, secretos ni datos personales reales. No se crearon servidores ni worktrees.
-- Cierre comprobado tras ambas órdenes Maven: ningún proceso Java de este worktree y los procesos del ejecutor serializado terminados; los dos pools de las IT se cerraron. Sin procesos propios ni worktrees adicionales pendientes. Única deuda nueva: resolver el formato de REL-06; se conservan los bloqueos externos P2-03, presupuesto y revisión del conjunto.
+- Cierre inicial comprobado tras ambas órdenes Maven: ningún proceso Java de este worktree y los procesos del ejecutor serializado terminados; los dos pools de las IT se cerraron. Sin worktrees adicionales. La continuación resuelve el formato de REL-06; se conservan los bloqueos externos P2-03, presupuesto y revisión del conjunto.
+
+### Continuación de 137 · ventanas separadas
+
+Decisión del coordinador: lista de intervalos excluyentes, sin solapes; «tarde» = [12:00, 19:00) en Lima. Regresiones con el fixture real de REL-06: primera y segunda tarde, sus inicios inclusivos, ambos límites superiores exclusivos, sábado antes de mediodía y domingo por la mañana. Validación negativa de `ventana` + `ventanas`, `ventanas` + `inicioLibre`/inicio exacto, lista vacía, miembros mal formados/invertidos y solapes (también duplicados con distinto desfase e intervalos contenidos); positiva de intervalos adyacentes/desordenados.
+
+- `pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-12-r136 -Registro target\r137-rel06-pruebas.log '-Dtest=CorrectoresTest,EvaluacionEnVivoTest' test`: **112 pruebas, 0 fallos/errores/omisiones; BUILD SUCCESS; `mvnw rc=0`**, 27,270 s. `CorrectoresTest`: 60; `EvaluacionEnVivoTest`: 52 (incluye `exigir`). Registro real `backend/target/r137-rel06-pruebas.log`; salida del ejecutor `backend/target/r137-rel06-ejecutor.log`.
+- Desde `backend`, retirada de `target/jacoco.exec` y `.\mvnw.cmd -DskipTests verify`: **BUILD SUCCESS**, 7,572 s, empaquetado y Javadoc correctos, cero avisos Maven/Javadoc. Registro `backend/target/r137-rel06-verify.log`. JaCoCo omite informe/umbral al retirar los datos obsoletos; esta orden no mide cobertura.
+- No se modificó `backend/src/main/java`: no hay Javadoc de producción nuevo o modificado en esta continuación.
+- Sin incidencias de pruebas ni deuda nueva. `git diff --check`, UTF-8 sin BOM y LF comprobados en los siete archivos de esta continuación. Verificación final de procesos: ningún Java de este worktree ni ejecutor de pruebas propio pendiente. Se mantienen todos los límites del encargo; sin push, uniones, servidores o worktrees adicionales.
