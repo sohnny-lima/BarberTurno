@@ -61,9 +61,14 @@ public record IaPropiedades(@DefaultValue("true") boolean habilitada,
      * @param limites límites por defecto
      * @param precios precios por modelo
      * @param trabajador trabajador de turnos
+     * @throws IllegalArgumentException si el plazo del turno no supera el tiempo de una llamada: el trabajador
+     *     no inicia una llamada sin un {@code tiempoLlamada} completo por delante, así que ningún turno llamaría
+     *     al modelo (g095-3)
      */
     public IaPropiedades {
         precios = precios == null ? Map.of() : Map.copyOf(precios);
+        if (tiempoLlamada != null && plazoTurno != null && plazoTurno.compareTo(tiempoLlamada) <= 0)
+            throw new IllegalArgumentException("barberturno.ia.plazo-turno debe ser mayor que barberturno.ia.tiempo-llamada.");
     }
 
     /**
