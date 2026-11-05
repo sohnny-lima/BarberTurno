@@ -276,6 +276,27 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
     }
 
+    /** V2-DA-83 (H-XI-06): con SOLO_HUMANO, la bandeja ve el texto saneado que provocó la derivación, antes del acuse. */
+    @Test void derivacionPorIA_guardaElTextoSaneadoDelCliente_antesDelAcuse() {
+        long c = conversacion(a, true), t = encolar(a, c, "Quiero poner una queja, llámenme al 966 123 456");
+        modelo.programarLlamadas(List.of(llamada(HerramientaIA.DERIVAR_A_PERSONA, "{\"motivo\":\"QUEJA\"}")));
+        turnos.procesarPendientes();
+        assertThat(estado(a, t)).isEqualTo("HECHO");
+        ejecutor.ejecutar(a, () -> {
+            var filas = sql.queryForList("""
+                    SELECT direccion, origen, estado, wamid, CAST(contenido AS text) AS contenido
+                    FROM mensaje_whatsapp WHERE conversacion_id=? ORDER BY id""", c);
+            assertThat(filas).hasSize(2);
+            assertThat(filas.get(0)).containsEntry("direccion", "ENTRANTE").containsEntry("origen", "CLIENTE")
+                    .containsEntry("estado", "RECIBIDO");
+            assertThat(filas.get(0).get("wamid")).isNull();
+            assertThat((String) filas.get(0).get("contenido")).contains("Quiero poner una queja").doesNotContain("966 123 456");
+            assertThat(filas.get(1)).containsEntry("direccion", "SALIENTE").containsEntry("origen", "SISTEMA");
+            assertThat(sql.queryForObject("SELECT modo FROM conversacion WHERE id=?", String.class, c)).isEqualTo("HUMANO");
+            return null;
+        });
+    }
+
     @ParameterizedTest @EnumSource(value = MotivoFalloModelo.class, names = {"TIEMPO_AGOTADO", "PROVEEDOR", "LIMITE_PROVEEDOR", "RECHAZO", "SALIDA_INVALIDA"})
     void falloModelo_terminaConMenu_yConservaReservaDesconocida(MotivoFalloModelo motivo) {
         long c = conversacion(a, true), t = encolar(a, c, "Consulta");
