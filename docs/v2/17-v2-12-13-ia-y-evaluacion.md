@@ -252,6 +252,7 @@ sealed interface MensajeAsistente { record Texto(String texto); record Interacti
 }
 // ObservadorEvaluacion, método nuevo con implementación vacía:
 default void decision(long turnoId, Optional<DecisionRespuesta> decision, Optional<String> textoDescartado) { }
+default void salida(long turnoId, MensajeAsistente mensaje) { }   // revisión 140: cada mensaje encolado, tras el commit
 ```
 
 ### 13.5 Guardas

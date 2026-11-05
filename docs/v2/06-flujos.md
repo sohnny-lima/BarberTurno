@@ -94,9 +94,9 @@ sequenceDiagram
   O->>D: consultarFranjas(...) dentro del negocio
   D-->>O: 17:30, 18:00, 19:10
   O->>L: resultado de la herramienta
-  L-->>O: «Carlos tiene libre mañana. ¿Cuál de estas opciones prefieres?»
-  O->>O: Guardas: sin fechas ni horas en el texto ✔, sin confirmaciones ✔ (V2-DA-85)
-  O-->>C: texto + lista interactiva (generada por el servidor) con las 3 franjas
+  L-->>O: (texto libre, si lo hay: se descarta, V2-DA-86) + responder_al_cliente o fin del turno
+  O->>O: Respuesta determinista: efecto «franjas» → RespuestasAsistente.franjas
+  O-->>C: «Estos son los horarios disponibles. Elige uno:» + lista interactiva (servidor) con las 3 franjas
   C->>O: «la de las 6»
   O->>L: ... → proponer_reserva(Corte, Carlos, 2026-10-23T18:00-05:00)
   O->>D: validarFranja → libre

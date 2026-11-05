@@ -20,7 +20,7 @@ flowchart LR
     DOM[Dominio v1: catalog · scheduling · reservations<br/>audit · notifications · reporting]
     PLAT[platform: negocios · membresías · invitaciones]
     WHK[whatsapp: webhook · cola entrante · outbox]
-    CONV[conversation: estado · herramientas · guardas]
+    CONV[conversation: estado · herramientas · respuestas deterministas]
     JOBS[Trabajos @Scheduled por negocio]
   end
   DB[(PostgreSQL 18<br/>RLS FORCE + EXCLUDE)]
@@ -42,7 +42,7 @@ flowchart LR
 | `platform` (nuevo) | `Negocio`, `Membresia`, `Invitacion`, `RolNegocio`, `RolPlataforma`, servicios y controladores `/api/plataforma/**` y `/api/n/{slug}/equipo/**` | Alta de negocios, equipo, invitaciones, último propietario. |
 | `customers` (nuevo, extraído de `users`) | `Cliente` (ficha por negocio) | Fichas, búsqueda, alta por el personal, vínculo con cuenta y con `wa_id`. |
 | `whatsapp` (nuevo) | `CanalWhatsApp`, `EventoEntrante`, `MensajeSaliente`, `WebhookController`, `ClienteGraphApi`, `CifradorCredenciales` | *Webhook*, idempotencia, colas, envío, estados, plantillas. |
-| `conversation` (nuevo) | `Conversacion`, `OperacionPendiente`, `Orquestador`, `HerramientasReserva`, `ModeloConversacional` (puerto) + `ModeloAnthropic` (adaptador), `GuardasSalida`, `MenusGuiados` | Máquina de estados del diálogo, herramientas, confirmaciones, derivación, límites. |
+| `conversation` (nuevo) | `Conversacion`, `OperacionPendiente`, `Orquestador`, `HerramientasReserva`, `ModeloConversacional` (puerto) + `ModeloAnthropic` (adaptador), `RespuestasAsistente` (salida, V2-DA-86), `GuardasSalida` (solo indicador de la evaluación), `MenusGuiados` | Máquina de estados del diálogo, herramientas, confirmaciones, derivación, límites. |
 | `users`, `auth` | `usuario` pierde `rol` y gana `rol_plataforma`; JWT sin cambios de formato | Cuentas globales. |
 | `catalog`, `scheduling`, `reservations`, `audit`, `notifications`, `reporting` | `negocio_id` en sus tablas; reglas y protocolo **sin cambios** | Igual que v1, siempre dentro de un negocio. |
 
@@ -306,13 +306,14 @@ El modelo **interpreta y redacta**; el servidor **consulta, valida, propone y ej
 
 No existe ninguna herramienta que escriba reservas directamente, que lea datos de otros clientes o de otro negocio, ni que acepte un `negocioId` o `clienteId` como argumento: esos valores salen del contexto del servidor.
 
-### 7.3 Guardas
-- **Horarios (V2-RN-12, V2-DA-85):** el texto del modelo no menciona fechas ni horas. Si `GuardasSalida` detecta cualquier referencia temporal, descarta el texto y envía el texto neutro con la lista de franjas compuesta por el servidor (sustitución preventiva; no valida combinaciones). Las franjas se ofrecen además como lista interactiva generada por el servidor.
-- **Confirmaciones falsas (V2-RN-11):** el texto del modelo no puede afirmar que algo se reservó, canceló o reprogramó (se rechazan formas como «reservé», «confirmada», «cancelé» fuera de las plantillas). Las confirmaciones solo salen de `EjecutorOperaciones`.
+### 7.3 Salida al cliente (V2-DA-86; sustituye las guardas de V2-DA-84/85 como protección)
+- **El texto libre del modelo no llega nunca al cliente** (ni a la *outbox*, la bandeja o los registros). El modelo solo elige herramientas y la terminal `responder_al_cliente` (intención y alias de listas cerradas); el servidor la valida, la degrada contra sus datos y compone el mensaje con `RespuestasAsistente` y los menús de V2-10 (`17-v2-12-13-ia-y-evaluacion.md` §13).
+- **Horarios (V2-RN-12):** solo los muestra la lista interactiva que compone el servidor con las franjas del turno y la fecha completa.
+- **Confirmaciones (V2-RN-11):** el turno de IA solo **propone** (operación con *nonce*); la única afirmación de una operación es `TextosConversacion.resultado`, tras ejecutarla con la confirmación del cliente y con el código real. `GuardasSalida` queda solo como indicador de la evaluación sobre el texto descartado.
 - **Fechas completas:** el resumen de la propuesta lo compone el servidor con `TiempoNegocio` («jueves 23 de octubre de 2026, 17:30–18:00, Corte con Carlos, S/ 25,00»).
 - **Ambigüedad:** las instrucciones obligan a preguntar si faltan servicio, profesional o día, o si «mañana», «el viernes» o «después de las 5» admiten varias lecturas; en caso de duda se ofrece una opción concreta para elegir.
 - **Inyección de instrucciones:** el texto del cliente es dato; las herramientas solo pueden hacer lo que el cliente podría hacer en la web; los resultados de herramientas no incluyen texto libre de otras personas.
-- **Datos mínimos al proveedor (V2-RNF-05):** nombre de pila del cliente, nombres de servicios y profesionales, franjas; nunca teléfonos, correos, `wa_id` ni identificadores internos legibles.
+- **Datos mínimos al proveedor (V2-RNF-05, V2-DA-86):** nombres de servicios y profesionales, franjas y, con ficha, las citas del propio cliente sin código; ya no el nombre de pila ni el historial de textos; nunca teléfonos, correos, `wa_id` ni identificadores internos legibles (detalle en `15-…` §1.4).
 - **Límites (V2-RN-14):** contador en `uso_ia`; al alcanzarlos, menús guiados o persona.
 - **Derivación automática:** dos turnos seguidos sin avance, petición explícita («hablar con alguien»), queja o tema fuera de las reservas.
 
