@@ -130,7 +130,7 @@ export function sembrarConversacionDerivada(
 
       INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
       VALUES (v_negocio_id, 'Cliente WhatsApp E2E', '51999111222', '999111222', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (negocio_id, wa_id) DO UPDATE SET activo = true, nombre = 'Cliente WhatsApp E2E'
+      ON CONFLICT (negocio_id, wa_id) WHERE wa_id IS NOT NULL DO UPDATE SET nombre = EXCLUDED.nombre
       RETURNING id INTO v_cliente_id;
 
       INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)

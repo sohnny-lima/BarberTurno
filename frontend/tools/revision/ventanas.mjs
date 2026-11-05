@@ -1,4 +1,4 @@
-// Revisión conjunta (V2-07…V2-10): dos ventanas visibles con sesiones independientes.
+// Revisión conjunta (V2-07…V2-11, rama de revisión del MVP): dos ventanas visibles con sesiones independientes.
 // - Escritorio: ventana real maximizada (viewport: null). La página usa el tamaño real de la
 //   ventana, así que todo el contenido se alcanza desplazando, también con la escala de Windows
 //   al 125 % (una ventana emulada de 900 px de alto no cabía y ocultaba la parte inferior).
@@ -27,7 +27,10 @@ console.log(
   `Ventanas abiertas: escritorio maximizada (${real} px) y móvil 360 x 640. Ciérrelas para terminar la revisión.`,
 );
 console.log(
-  'Recorridos a mano: cambio de barbería (multirol/encargado), cambio de papel (personal-cliente) y avisos de cliente, profesional, encargado y propietario (ver frontend/tools/revision/LEEME.md).',
+  'Recorridos a mano: cambio de barbería (multirol/encargado), cambio de papel (personal-cliente), avisos y bandeja de WhatsApp V2-11 (ver frontend/tools/revision/LEEME.md).',
+);
+console.log(
+  'Bandeja de WhatsApp (V2-11): revise en /n/barberturno/whatsapp con encargado@ejemplo.test o multirol@ejemplo.test (entrada «WhatsApp», responder dentro de la ventana de 24 h, botón deshabilitado fuera de ventana, «Devolver al asistente», aviso de derivación en la campana). Sin conexión real con Meta: las respuestas quedan en la outbox (PENDIENTE) y no salen a ningún teléfono. Profesional: sin la entrada «WhatsApp».',
 );
 await Promise.all(paginas.map((pagina) => pagina.waitForEvent('close', { timeout: 0 })));
 await navegador.close();

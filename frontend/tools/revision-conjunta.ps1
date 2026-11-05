@@ -1,7 +1,7 @@
-# Revisión conjunta (V2-07…V2-10) con backend real sobre la base desechable barberturno_v2_test.
+# Revisión conjunta (V2-07…V2-11, rama de revisión del MVP) con backend real sobre la base desechable barberturno_v2_test.
 # Uso (PowerShell 7, desde cualquier carpeta):
 #   pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1              # pide clave demo (oculta) y abre ventanas
-#   pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Verificar   # clave aleatoria; comprueba cuentas, avisos y sondas
+#   pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Verificar   # clave aleatoria; comprueba cuentas, avisos, bandeja WhatsApp y sondas
 #   pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Recuperar   # recupera una sesión interrumpida y sale
 #   pwsh -NoProfile -File frontend/tools/revision-conjunta.ps1 -Mantener    # solo pruebas: mantiene el backend hasta matar la consola
 #
@@ -250,7 +250,7 @@ JOIN usuario u ON u.correo = d.correo
 CROSS JOIN (SELECT min(id) AS id FROM reserva) res
 WHERE res.id IS NOT NULL
   AND NOT EXISTS (
-    SELECT 1 FROM notificacion n WHERE n.usuario_id = u.id AND n.negocio_id = app_negocio_actual()
+    SELECT 1 FROM notificacion n WHERE n.usuario_id = u.id AND n.negocio_id = app_negocio_actual() AND n.tipo = d.tipo
   );
 COMMIT;`);
 if (r.status !== 0) {
@@ -271,6 +271,254 @@ if (r.status !== 0) {
         "No se pudieron preparar los avisos de demostración: $detalle"
       } else {
         'No se pudieron preparar los avisos de demostración.'
+      }
+      throw $mensaje
+    }
+  } finally { Pop-Location }
+}
+
+function Preparar-BandejaRevision {
+  # Garantiza que en barberturno_v2_test existan conversaciones derivadas en modo HUMANO
+  # (una reciente dentro de la ventana de 24 h y otra fuera de ella hace 30 h) con sus mensajes y
+  # avisos no leídos de derivación para el encargado y el propietario (V2-11), usando únicamente
+  # el rol barberturno_v2_app y app.negocio_id de barberturno de forma idempotente.
+  Push-Location $frontend
+  try {
+    $codigo = @'
+const { sql } = await import('./e2e/base-datos.ts');
+const r = sql(`BEGIN;
+DO $$
+DECLARE
+  v_negocio_id bigint;
+  v_encargado_id bigint;
+  v_propietario_id bigint;
+  v_cliente_rosa_id bigint;
+  v_conv_rosa_id bigint;
+  v_cliente_fuera_id bigint;
+  v_conv_fuera_id bigint;
+BEGIN
+  SELECT id INTO v_negocio_id FROM negocio WHERE slug = 'barberturno';
+  IF v_negocio_id IS NULL THEN
+    RAISE EXCEPTION 'Negocio barberturno no encontrado';
+  END IF;
+
+  PERFORM set_config('app.negocio_id', v_negocio_id::text, true);
+
+  -- Canal de WhatsApp activo para barberturno si no existe o esta inactivo (operatividad V2-DA-56)
+  INSERT INTO canal_whatsapp (negocio_id, waba_id, phone_number_id, numero_visible, estado, creado_en, actualizado_en)
+  VALUES (v_negocio_id, '100000000000001', '100000000000002', '+51900000000', 'ACTIVO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  ON CONFLICT (negocio_id) DO UPDATE SET estado = 'ACTIVO', actualizado_en = CURRENT_TIMESTAMP;
+
+  SELECT id INTO v_encargado_id FROM usuario WHERE correo = 'encargado@ejemplo.test';
+  SELECT id INTO v_propietario_id FROM usuario WHERE correo = 'multirol@ejemplo.test';
+  IF v_encargado_id IS NULL OR v_propietario_id IS NULL THEN
+    RAISE EXCEPTION 'Usuarios de gestion no encontrados para los avisos de derivacion';
+  END IF;
+
+  -- 1. Ficha ficticia sin cuenta web: Rosa Revision (wa_id ficticio 51900000999)
+  INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
+  VALUES (v_negocio_id, U&'Rosa Revisi\\00F3n', '51900000999', '900000999', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  ON CONFLICT (negocio_id, wa_id) WHERE wa_id IS NOT NULL DO UPDATE SET nombre = EXCLUDED.nombre
+  RETURNING id INTO v_cliente_rosa_id;
+
+  -- Conversacion en modo HUMANO dentro de la ventana de 24 h (ultima entrada reciente)
+  INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)
+  VALUES (
+    v_negocio_id,
+    '51900000999',
+    v_cliente_rosa_id,
+    'HUMANO',
+    CURRENT_TIMESTAMP - interval '14 minutes',
+    'PETICION',
+    CURRENT_TIMESTAMP - interval '15 minutes',
+    CURRENT_TIMESTAMP - interval '15 minutes',
+    CURRENT_TIMESTAMP - interval '14 minutes'
+  )
+  ON CONFLICT (negocio_id, wa_id) DO UPDATE SET
+    cliente_id = v_cliente_rosa_id,
+    modo = 'HUMANO',
+    derivada_en = CURRENT_TIMESTAMP - interval '14 minutes',
+    motivo_derivacion = 'PETICION',
+    ultima_entrada_en = CURRENT_TIMESTAMP - interval '15 minutes',
+    ultima_respuesta_personal_en = NULL,
+    actualizado_en = CURRENT_TIMESTAMP
+  RETURNING id INTO v_conv_rosa_id;
+
+  -- Mensaje ENTRANTE / CLIENTE / RECIBIDO con texto ficticio
+  IF NOT EXISTS (
+    SELECT 1 FROM mensaje_whatsapp
+    WHERE negocio_id = v_negocio_id AND conversacion_id = v_conv_rosa_id AND direccion = 'ENTRANTE'
+  ) THEN
+    INSERT INTO mensaje_whatsapp (
+      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, creado_en, actualizado_en
+    ) VALUES (
+      v_negocio_id,
+      v_conv_rosa_id,
+      'ENTRANTE',
+      'CLIENTE',
+      'TEXTO',
+      U&'{"texto": "Hola, quisiera consultar si tienen disponibilidad para una atenci\\00F3n hoy."}'::jsonb,
+      'wamid.rev.entrante.' || floor(random() * 1000000)::text,
+      'RECIBIDO',
+      CURRENT_TIMESTAMP - interval '15 minutes',
+      CURRENT_TIMESTAMP - interval '15 minutes'
+    );
+  END IF;
+
+  -- Mensaje SALIENTE / SISTEMA (acuse de derivacion)
+  IF NOT EXISTS (
+    SELECT 1 FROM mensaje_whatsapp
+    WHERE negocio_id = v_negocio_id AND conversacion_id = v_conv_rosa_id AND direccion = 'SALIENTE' AND origen = 'SISTEMA'
+  ) THEN
+    INSERT INTO mensaje_whatsapp (
+      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, enviado_como, creado_en, actualizado_en
+    ) VALUES (
+      v_negocio_id,
+      v_conv_rosa_id,
+      'SALIENTE',
+      'SISTEMA',
+      'TEXTO',
+      U&'{"texto": "Te paso con el equipo de BarberTurno. Te responder\\00E1n por aqu\\00ED en cuanto puedan."}'::jsonb,
+      'wamid.rev.acuse.' || floor(random() * 1000000)::text,
+      'ENVIADO',
+      'TEXTO',
+      CURRENT_TIMESTAMP - interval '14 minutes',
+      CURRENT_TIMESTAMP - interval '14 minutes'
+    );
+  END IF;
+
+  -- Avisos DERIVACION (conversacion_id no nulo, reserva_id nulo) no leidos para encargado y propietario
+  IF NOT EXISTS (
+    SELECT 1 FROM notificacion
+    WHERE negocio_id = v_negocio_id AND usuario_id = v_encargado_id AND conversacion_id = v_conv_rosa_id AND tipo = 'DERIVACION'
+  ) THEN
+    INSERT INTO notificacion (negocio_id, usuario_id, conversacion_id, reserva_id, tipo, mensaje, leida, creado_en)
+    VALUES (
+      v_negocio_id,
+      v_encargado_id,
+      v_conv_rosa_id,
+      NULL,
+      'DERIVACION',
+      U&'Rosa Revisi\\00F3n solicita atenci\\00F3n por WhatsApp.',
+      false,
+      CURRENT_TIMESTAMP - interval '14 minutes'
+    );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM notificacion
+    WHERE negocio_id = v_negocio_id AND usuario_id = v_propietario_id AND conversacion_id = v_conv_rosa_id AND tipo = 'DERIVACION'
+  ) THEN
+    INSERT INTO notificacion (negocio_id, usuario_id, conversacion_id, reserva_id, tipo, mensaje, leida, creado_en)
+    VALUES (
+      v_negocio_id,
+      v_propietario_id,
+      v_conv_rosa_id,
+      NULL,
+      'DERIVACION',
+      U&'Rosa Revisi\\00F3n solicita atenci\\00F3n por WhatsApp.',
+      false,
+      CURRENT_TIMESTAMP - interval '14 minutes'
+    );
+  END IF;
+
+  -- 2. Segunda conversacion derivada FUERA DE LA VENTANA (ultima entrada hace 30 h)
+  INSERT INTO cliente (negocio_id, nombre, wa_id, telefono, activo, privacidad_aceptada_en, creado_en, actualizado_en)
+  VALUES (
+    v_negocio_id,
+    'Mateo Demora',
+    '51900000888',
+    '900000888',
+    true,
+    CURRENT_TIMESTAMP - interval '30 hours',
+    CURRENT_TIMESTAMP - interval '30 hours',
+    CURRENT_TIMESTAMP - interval '30 hours'
+  )
+  ON CONFLICT (negocio_id, wa_id) WHERE wa_id IS NOT NULL DO UPDATE SET nombre = EXCLUDED.nombre
+  RETURNING id INTO v_cliente_fuera_id;
+
+  INSERT INTO conversacion (negocio_id, wa_id, cliente_id, modo, derivada_en, motivo_derivacion, ultima_entrada_en, creado_en, actualizado_en)
+  VALUES (
+    v_negocio_id,
+    '51900000888',
+    v_cliente_fuera_id,
+    'HUMANO',
+    CURRENT_TIMESTAMP - interval '29 hours',
+    'SIN_PROGRESO',
+    CURRENT_TIMESTAMP - interval '30 hours',
+    CURRENT_TIMESTAMP - interval '30 hours',
+    CURRENT_TIMESTAMP - interval '29 hours'
+  )
+  ON CONFLICT (negocio_id, wa_id) DO UPDATE SET
+    cliente_id = v_cliente_fuera_id,
+    modo = 'HUMANO',
+    derivada_en = CURRENT_TIMESTAMP - interval '29 hours',
+    motivo_derivacion = 'SIN_PROGRESO',
+    ultima_entrada_en = CURRENT_TIMESTAMP - interval '30 hours',
+    ultima_respuesta_personal_en = NULL,
+    actualizado_en = CURRENT_TIMESTAMP
+  RETURNING id INTO v_conv_fuera_id;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM mensaje_whatsapp
+    WHERE negocio_id = v_negocio_id AND conversacion_id = v_conv_fuera_id AND direccion = 'ENTRANTE'
+  ) THEN
+    INSERT INTO mensaje_whatsapp (
+      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, creado_en, actualizado_en
+    ) VALUES (
+      v_negocio_id,
+      v_conv_fuera_id,
+      'ENTRANTE',
+      'CLIENTE',
+      'TEXTO',
+      U&'{"texto": "\\00BFHay turnos libres para esta semana?"}'::jsonb,
+      'wamid.rev.entrante2.' || floor(random() * 1000000)::text,
+      'RECIBIDO',
+      CURRENT_TIMESTAMP - interval '30 hours',
+      CURRENT_TIMESTAMP - interval '30 hours'
+    );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM mensaje_whatsapp
+    WHERE negocio_id = v_negocio_id AND conversacion_id = v_conv_fuera_id AND direccion = 'SALIENTE' AND origen = 'SISTEMA'
+  ) THEN
+    INSERT INTO mensaje_whatsapp (
+      negocio_id, conversacion_id, direccion, origen, tipo, contenido, wamid, estado, enviado_como, creado_en, actualizado_en
+    ) VALUES (
+      v_negocio_id,
+      v_conv_fuera_id,
+      'SALIENTE',
+      'SISTEMA',
+      'TEXTO',
+      U&'{"texto": "Te paso con el equipo de BarberTurno. Te responder\\00E1n por aqu\\00ED en cuanto puedan."}'::jsonb,
+      'wamid.rev.acuse2.' || floor(random() * 1000000)::text,
+      'ENVIADO',
+      'TEXTO',
+      CURRENT_TIMESTAMP - interval '29 hours',
+      CURRENT_TIMESTAMP - interval '29 hours'
+    );
+  END IF;
+END $$;
+COMMIT;`);
+if (r.status !== 0) {
+  let err = (r.stderr || (r.error && r.error.message) || r.stdout || '').trim();
+  err = err.replace(/(password|secret|token|clave|contrase\u00f1a|contrasena)\s*[:=]\s*\S+/gi, '$1=***');
+  if (err) process.stderr.write(err);
+  process.exit(r.status ?? 1);
+}
+'@
+    $salidaNode = try {
+      & node --input-type=module -e $codigo 2>&1
+    } catch {
+      $_
+    }
+    if ($LASTEXITCODE -ne 0) {
+      $detalle = ($salidaNode | Out-String).Trim()
+      $mensaje = if ($detalle) {
+        "No se pudo preparar la bandeja de WhatsApp de demostración: $detalle"
+      } else {
+        'No se pudo preparar la bandeja de WhatsApp de demostración.'
       }
       throw $mensaje
     }
@@ -657,7 +905,8 @@ try {
   }
   if (!$listo) { throw 'El backend no estuvo listo en 90 s.' }
   Preparar-AvisosRevision
-  Write-Output 'Backend listo con los datos ficticios de las dos barberías y los avisos de revisión.'
+  Preparar-BandejaRevision
+  Write-Output 'Backend listo con los datos ficticios de las dos barberías, los avisos de revisión y la bandeja de WhatsApp.'
 
   if ($Mantener) {
     # 7a. Modo de prueba de cierre abrupto: espera indefinidamente sin abrir ventanas.
@@ -666,7 +915,8 @@ try {
       Start-Sleep -Seconds 1
     }
   } elseif ($Verificar) {
-    # 7b. Comprobación automática de cuentas, papeles, avisos y sondas (dentro del trabajo y registradas en la sesión).
+    # 7b. Comprobación automática de cuentas, papeles, avisos, bandeja de WhatsApp y sondas (dentro del trabajo y registradas en la sesión).
+    $sesionesPorCuenta = @{}
     foreach ($cuenta in 'multirol', 'personal-cliente', 'encargado', 'cliente', 'plataforma') {
       $web = New-Object Microsoft.PowerShell.Commands.WebRequestSession
       Invoke-WebRequest -Uri "http://localhost:$puerto/api/auth/sesion" -WebSession $web -SkipHttpErrorCheck | Out-Null
@@ -675,6 +925,7 @@ try {
       $r = Invoke-WebRequest -Uri "http://localhost:$puerto/api/auth/login" -Method Post -Body $cuerpo `
         -ContentType 'application/json' -Headers @{ 'X-XSRF-TOKEN' = $xsrf } -WebSession $web -SkipHttpErrorCheck
       if ($r.StatusCode -ne 200) { throw "Ingreso de $cuenta rechazado: $($r.StatusCode)" }
+      $sesionesPorCuenta[$cuenta] = $web
       $negocios = Invoke-RestMethod -Uri "http://localhost:$puerto/api/mis-negocios" -WebSession $web
       $detalleAvisos = ''
       if ($cuenta -ne 'plataforma') {
@@ -689,6 +940,33 @@ try {
       }
       Write-Output ("$cuenta@ejemplo.test: ingreso 200; barberías: " + ((@($negocios) | ForEach-Object { $_.slug + ' (' + ($_.papeles -join '+') + ')' }) -join ', ') + $detalleAvisos)
     }
+
+    # Comprobación de la bandeja de WhatsApp (V2-11):
+    # - Encargado: consulta las conversaciones en modo HUMANO (>= 2: una respondiendo y otra fuera de ventana).
+    # - Profesional: recibe 403 Prohibido.
+    $sesionEncargado = $sesionesPorCuenta['encargado']
+    $respBandeja = Invoke-RestMethod -Uri "http://localhost:$puerto/api/n/barberturno/whatsapp/conversaciones" -WebSession $sesionEncargado
+    $conversaciones = @($respBandeja.contenido)
+    if ($conversaciones.Count -lt 2) {
+      throw "La bandeja de WhatsApp esperaba al menos 2 conversaciones pero devolvió $($conversaciones.Count)."
+    }
+    $conRespuesta = $conversaciones | Where-Object { $_.puedeResponder -eq $true }
+    if (!$conRespuesta) {
+      throw 'No se encontró ninguna conversación humana con puedeResponder = true en la bandeja de WhatsApp.'
+    }
+    $fueraDeVentana = $conversaciones | Where-Object { $_.puedeResponder -eq $false -and $_.motivoNoResponder -eq 'FUERA_DE_VENTANA' }
+    if (!$fueraDeVentana) {
+      throw 'No se encontró ninguna conversación humana con puedeResponder = false y motivoNoResponder = FUERA_DE_VENTANA en la bandeja de WhatsApp.'
+    }
+    Write-Output ("Bandeja WhatsApp (encargado): $($conversaciones.Count) conversaciones humanas (1 dentro de ventana y 1 fuera de ventana verificadas).")
+
+    $sesionProfesional = $sesionesPorCuenta['personal-cliente']
+    $respProf = Invoke-WebRequest -Uri "http://localhost:$puerto/api/n/barberturno/whatsapp/conversaciones" `
+      -WebSession $sesionProfesional -SkipHttpErrorCheck
+    if ($respProf.StatusCode -ne 403) {
+      throw "El profesional esperaba 403 en /api/n/barberturno/whatsapp/conversaciones pero recibió $($respProf.StatusCode)."
+    }
+    Write-Output 'Bandeja WhatsApp (profesional): 403 Prohibido verificado.'
 
     $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $frontend 'tmp\navegadores'
     $ejecutableNode = [IO.Path]::GetFullPath((Get-Command node -ErrorAction Stop).Source)
@@ -717,6 +995,9 @@ try {
     }
   } else {
     # 7c. Ventanas interactivas dentro del Job Object; la revisión termina al cerrarlas.
+    Write-Output 'Iniciando ventanas de revisión interactiva...'
+    Write-Output 'V2-11: revise la bandeja de WhatsApp (/n/barberturno/whatsapp) con encargado@ejemplo.test o multirol@ejemplo.test.'
+    Write-Output 'Nota: no hay conexión real con Meta; las respuestas quedan en la outbox (PENDIENTE) y no salen a ningún teléfono.'
     $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $frontend 'tmp\navegadores'
     $ejecutableNode = [IO.Path]::GetFullPath((Get-Command node -ErrorAction Stop).Source)
     $scriptVentanas = [IO.Path]::GetFullPath((Join-Path $herramientas 'revision\ventanas.mjs'))

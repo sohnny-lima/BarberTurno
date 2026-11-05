@@ -1,6 +1,6 @@
-# Entorno de revisión conjunta (V2-07…V2-10)
+# Entorno de revisión conjunta (V2-07…V2-11, rama de revisión del MVP)
 
-Script y sondas versionados para revisar en local la rama conjunta de BarberTurno v2 con el _backend_ real (`dev,demo`) y el _frontend_ empaquetado sobre la base desechable **`barberturno_v2_test`** en el puerto **`8081`**. Nunca usa `barberturno_v2` ni las bases de v1, y nunca imprime valores de `.local/barberturno.env`.
+Script y sondas versionados para revisar en local la rama conjunta de BarberTurno v2 con el _backend_ real (`dev,demo`) y el _frontend_ empaquetado sobre la base desechable **`barberturno_v2_test`** en el puerto **`8081`** (incluye V2-07…V2-11: derivación a una persona, bandeja web y avisos de derivación). Nunca usa `barberturno_v2` ni las bases de v1, y nunca imprime valores de `.local/barberturno.env`.
 
 ## 1. Uso
 
@@ -59,6 +59,20 @@ Todas las cuentas comparten la contraseña introducida al iniciar el script:
    - **Profesional (`personal-cliente@ejemplo.test` como Barbero, o `carlos@ejemplo.test`):** en `/n/barberturno/agenda` pulse la campana (`Ver avisos: … sin leer`), revise el aviso de reserva asignada y marque su lectura.
    - **Encargado (`encargado@ejemplo.test` en `BarberTurno`):** en `/n/barberturno/agenda` (o _Equipo_ / _Invitaciones_) pulse la campana (`Avisos: 1 sin leer`) y revise el aviso interno de fallo de entrega por WhatsApp (V2-DA-61, con el código de reserva y sin datos personales del cliente).
    - **Propietario (`multirol@ejemplo.test` en `BarberTurno`):** en `/n/barberturno/agenda` (o _Configuración_) pulse la campana (`Avisos: 1 sin leer`), revise el aviso interno de fallo de WhatsApp, cambie a **Barbería Sur** (`0 sin leer`) y regrese a **BarberTurno** para comprobar que el contador se actualiza por barbería.
+4. **Bandeja de WhatsApp y derivación a una persona (V2-11):**
+   - **Encargado (`encargado@ejemplo.test`) y Propietario (`multirol@ejemplo.test` en `BarberTurno`):**
+     - Ingrese con `encargado@ejemplo.test` (o con `multirol@ejemplo.test` eligiendo `BarberTurno`).
+     - En el menú de navegación (lateral en escritorio, o menú `☰` en móvil), compruebe la presencia del enlace **«WhatsApp»** y púlselo para acceder a la bandeja (`/n/barberturno/whatsapp`).
+     - **Avisos de derivación:** en la cabecera, pulse la campana de avisos (`Avisos: … sin leer`). Verá el aviso de derivación (`«Rosa Revisión solicita atención por WhatsApp.»`). Al pulsar sobre él, la aplicación navega directamente a esa conversación en la bandeja (`/n/barberturno/whatsapp/{id}`).
+     - **Responder dentro de la ventana de 24 h:** en la conversación de `Rosa Revisión` (con entrada reciente dentro de la ventana de 24 h), examine el historial con el mensaje del cliente y el acuse inicial de sistema (`SISTEMA`). Compruebe que el área de texto y el botón de responder están habilitados (`puedeResponder = true`). Escriba una respuesta de prueba y pulse «Enviar».
+     - **Aviso sobre Meta:** **no hay conexión real con Meta**. Las respuestas enviadas desde la bandeja web quedan en la outbox transaccional de la base de datos (`mensaje_whatsapp`) en estado `PENDIENTE` y no salen a ningún teléfono.
+     - **Botón deshabilitado fuera de la ventana:** seleccione la segunda conversación de la lista (`Mateo Demora`, con última entrada hace 30 h). Compruebe que el botón de respuesta aparece deshabilitado y se muestra la advertencia de ventana cerrada (`FUERA_DE_VENTANA`).
+     - **Devolver al asistente:** en la cabecera de la conversación, pulse **«Devolver al asistente»**, confirme en el diálogo emergente y verifique que la conversación pasa al modo asistente (concluyendo la atención humana).
+   - **Profesional (`personal-cliente@ejemplo.test` como Barbero):**
+     - Compruebe que la entrada **«WhatsApp» no aparece en el menú**.
+     - Si intenta acceder directamente a `/n/barberturno/whatsapp`, el sistema deniega el acceso con error HTTP `403` Prohibido.
+   - **Cliente (`cliente@ejemplo.test`):**
+     - Compruebe que la entrada **«WhatsApp» tampoco aparece en el menú**.
 
 ## 3. Por qué no se promete que el `finally` se ejecute siempre
 
