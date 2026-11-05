@@ -26,6 +26,27 @@ class SaneadorTextoTest {
         assertThat(SaneadorTexto.sanear(entrada, 2000)).isEqualTo(esperado);
     }
 
+    /** Revisión 129 (defecto 5): separadores Unicode que {@code \s} sin modo Unicode no reconocía. */
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "cel 987 654 321|cel [dato]",
+        "cel 987 654 321|cel [dato]",
+        "cel 987‑654‑321|cel [dato]",
+        "cel 987–654–321|cel [dato]",
+        "cel 987.654.321|cel [dato]",
+    })
+    void sanear_telefonosConSeparadoresUnicodeOPuntos_seSustituyen(String entrada, String esperado) {
+        assertThat(SaneadorTexto.sanear(entrada, 2000)).isEqualTo(esperado);
+    }
+
+    @Test
+    void contieneDatoPersonal_coincideConLoQueSeSanea() {
+        assertThat(SaneadorTexto.contieneDatoPersonal("llámame al 987‑654‑321")).isTrue();
+        assertThat(SaneadorTexto.contieneDatoPersonal("escribe a ana@ejemplo.test")).isTrue();
+        assertThat(SaneadorTexto.contieneDatoPersonal("corte a las 17:30, S/ 25,00")).isFalse();
+        assertThat(SaneadorTexto.contieneDatoPersonal(null)).isFalse();
+    }
+
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
         "corte mañana a las 17:30",

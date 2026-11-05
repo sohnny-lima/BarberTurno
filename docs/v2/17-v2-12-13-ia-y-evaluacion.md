@@ -98,9 +98,9 @@ Los escribe Claude en el commit de contrato. **Nadie cambia una firma sin pedirl
 
 ## 5. Guardas y composición (V2-RN-11/12)
 - **Las franjas que ve el cliente las compone siempre el servidor** (`ComposicionTurnoIA`), con fecha completa. El texto del modelo **no** debe contener horas ni fechas; las guardas son la red de seguridad:
-  - **horarios**: cualquier hora o fecha (incluidas «5», «5 y media», «mañana», «el viernes», «23/10», `2027-01-01`) que no corresponda **como combinación completa** a una franja ofrecida en ese turno → `HORARIO_NO_OFRECIDO`; una hora digital (`05:00`) es exactamente esa hora y, con varias opciones, cada hora se valida con su fecha (V2-DA-84);
-  - **afirmaciones de operación** («reservé», «quedó confirmada», «agendada», «cancelé», «reprogramé», «te esperamos el…») → `AFIRMA_OPERACION`;
-  - **datos prohibidos**: teléfonos, correos, `wa_id`, códigos `BT-…`, alias internos (`s1`, `f3`…), **cualquier enlace** y **cualquier importe** (`S/`, «soles», `PEN`, `$`): los precios y el aviso de privacidad solo los envía el servidor → `DATOS_PROHIBIDOS`; los teléfonos se reconocen con los mismos separadores que el saneador (V2-DA-84);
+  - **horarios**: **cualquier** referencia a una fecha o una hora (días, meses, «hoy», «mañana», «el viernes», «23/10», `2027-01-01`, «5», «5 y media», `17h`, `5 p. m.`) → `HORARIO_NO_OFRECIDO`, sin validar combinaciones: las franjas solo las muestra la composición del servidor (V2-DA-85);
+  - **afirmaciones de operación** en cualquier persona y tiempo («reservé», «reservamos», «se reservó», «quedó confirmada», «agendada», «cancelé», «reprogramé», «te esperamos el…») → `AFIRMA_OPERACION`; no las preguntas ni las negaciones (V2-DA-85);
+  - **datos prohibidos**: teléfonos, correos, `wa_id`, códigos `BT-…`, alias internos (`s1`, `f3`…), **cualquier enlace** y **cualquier importe** (`S/`, «soles», `PEN`, `$`): los precios y el aviso de privacidad solo los envía el servidor → `DATOS_PROHIBIDOS`; teléfonos y correos con `SaneadorTexto.contieneDatoPersonal` (V2-DA-85);
   - vacío o más de 1024 caracteres → `VACIO` / `DEMASIADO_LARGO`.
 - Si se sustituye: se envía la composición del servidor (franjas del turno o menú) con un texto neutro.
 - La medición de la evaluación cuenta las sustituciones **antes** de enviar (indicador de calidad).

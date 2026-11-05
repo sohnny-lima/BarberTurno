@@ -551,3 +551,13 @@
   5. **Bandeja:** solo la primera página (50); la paginación de conversaciones antiguas queda como *Could* fuera del MVP.
   6. **E2E de la bandeja (CB-14):** cubre la interfaz con estado sembrado; la ruta de servidor (evento firmado → derivación → outbox) la cubren `DerivacionConversacionIT` y `BandejaWhatsAppIT`.
 - **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida`, `SaneadorTexto`, `InstruccionesAsistente`; encargos 131 (Codex) y g097 (Gemini).
+
+### V2-DA-85 · El texto del modelo no menciona fechas ni horas (05/11/2026, V2-12; revisión g098 de Gemini Argon sobre el encargo 131)
+- **Contexto:** tras dos rondas de correcciones, la validación «combinación completa» de fechas y horas mencionadas por el modelo seguía teniendo falsos negativos (`18h`, `5 a.m.`, «próximo viernes», varias fechas coordinadas) y falsos positivos («de las 2 opciones»). Cada formato nuevo exigía otra expresión regular.
+- **Decisión (sustituye V2-DA-84.2):**
+  1. El texto del modelo **no contiene ninguna referencia a fechas ni horas** (días de la semana, meses, «hoy», «mañana», fechas numéricas, horas en cualquier formato). Si las guardas detectan una → `HORARIO_NO_OFRECIDO` y se envía la composición del servidor, que ya muestra las franjas con su fecha completa. Ya no se valida la combinación con las franjas ofrecidas.
+  2. **Preferir ocultar de más:** ante la duda se sustituye; un falso positivo solo cambia el texto por el neutro con la lista del servidor, un falso negativo puede prometer un horario.
+  3. **Afirmaciones:** se rechazan las afirmaciones de operación en cualquier persona y tiempo (incluidas «se reservó», «reservamos», «quedó agendada»), pero **no** las preguntas («¿Te reservo…?») ni las negaciones («No tienes citas agendadas»).
+  4. **Teléfonos y correos:** las guardas usan `SaneadorTexto.contieneDatoPersonal` (un solo patrón para entrada y salida).
+  5. Importes: también «sol» en singular y «lucas».
+- **Afecta:** `17-v2-12-13-ia-y-evaluacion.md` §5; `GuardasSalida` (encargo 132, Codex), `SaneadorTexto`, `InstruccionesAsistente` (Claude); guiones que esperen texto con horas.
