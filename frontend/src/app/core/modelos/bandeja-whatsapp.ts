@@ -7,7 +7,8 @@ export type MotivoNoResponder = 'FUERA_DE_VENTANA' | 'NEGOCIO_NO_OPERATIVO';
 
 export type OrigenMensaje = 'CLIENTE' | 'ASISTENTE' | 'SISTEMA' | 'PERSONA';
 
-export type EstadoMensaje = 'RECIBIDO' | 'PENDIENTE' | 'ENVIADO' | 'ENTREGADO' | 'LEIDO' | 'FALLIDO';
+export type EstadoMensaje =
+  'RECIBIDO' | 'PENDIENTE' | 'ENVIADO' | 'ENTREGADO' | 'LEIDO' | 'FALLIDO';
 
 export interface ConversacionBandejaDto {
   id: number;

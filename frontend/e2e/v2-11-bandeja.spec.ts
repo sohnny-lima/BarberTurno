@@ -95,8 +95,6 @@ test.describe('V2-11 · Bandeja de WhatsApp (CB-14)', () => {
     await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
 
     const menuPrincipal = page.locator('nav[aria-label="Navegación principal"]');
-    await expect(
-      menuPrincipal.getByRole('link', { name: 'WhatsApp', exact: true }),
-    ).toHaveCount(0);
+    await expect(menuPrincipal.getByRole('link', { name: 'WhatsApp', exact: true })).toHaveCount(0);
   });
 });

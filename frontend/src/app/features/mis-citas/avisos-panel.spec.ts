@@ -182,6 +182,8 @@ describe('Panel de avisos', () => {
 
     const botonLectura = li.querySelector('button') as HTMLButtonElement;
     expect(botonLectura.getAttribute('aria-label')).not.toContain('BT-null');
-    expect(botonLectura.getAttribute('aria-label')).toBe('Marcar como leído el aviso de derivación');
+    expect(botonLectura.getAttribute('aria-label')).toBe(
+      'Marcar como leído el aviso de derivación',
+    );
   });
 });
