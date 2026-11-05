@@ -20,15 +20,35 @@
       >
         <mat-form-field appearance="outline">
           <mat-label>Nombre</mat-label>
-          <input matInput formControlName="nombre" type="text" autocomplete="name" />
+          <input
+            matInput
+            formControlName="nombre"
+            type="text"
+            autocomplete="name"
+            enterkeyhint="next"
+          />
           <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error> </mat-form-field
         ><mat-form-field appearance="outline">
           <mat-label>Correo</mat-label>
-          <input matInput formControlName="correo" type="email" autocomplete="username" />
+          <input
+            matInput
+            formControlName="correo"
+            type="email"
+            autocomplete="username"
+            inputmode="email"
+            enterkeyhint="next"
+          />
           <mat-error>{{ errorCampo(formulario.controls.correo) }}</mat-error> </mat-form-field
         ><mat-form-field appearance="outline">
           <mat-label>Teléfono</mat-label>
-          <input matInput formControlName="telefono" type="tel" autocomplete="tel" />
+          <input
+            matInput
+            formControlName="telefono"
+            type="tel"
+            autocomplete="tel"
+            inputmode="tel"
+            enterkeyhint="next"
+          />
           <mat-error>{{ errorCampo(formulario.controls.telefono) }}</mat-error> </mat-form-field
         ><mat-form-field appearance="outline">
           <mat-label>Contraseña</mat-label>
@@ -38,6 +58,7 @@
             aria-describedby="ayuda-password"
             type="password"
             autocomplete="new-password"
+            enterkeyhint="next"
           />
           <mat-error>{{ errorCampo(formulario.controls.password) }}</mat-error>
         </mat-form-field>
@@ -52,6 +73,7 @@
             aria-describedby="error-confirmacion"
             type="password"
             autocomplete="new-password"
+            enterkeyhint="done"
           />
           <mat-error>{{ errorCampo(formulario.controls.confirmacion) }}</mat-error>
         </mat-form-field>

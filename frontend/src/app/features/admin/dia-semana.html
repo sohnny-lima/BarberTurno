@@ -8,7 +8,7 @@
             {{ i + 1 }}</span
           ></mat-label
         >
-        <input matInput type="time" formControlName="horaInicio" step="60" />
+        <input matInput type="time" formControlName="horaInicio" step="60" enterkeyhint="next" />
         @if (fila.controls.horaInicio.invalid && fila.controls.horaInicio.touched) {
           <mat-error>{{ errorCampo(fila.controls.horaInicio) }}</mat-error>
         }
@@ -19,7 +19,7 @@
             {{ i + 1 }}</span
           ></mat-label
         >
-        <input matInput type="time" formControlName="horaFin" step="60" />
+        <input matInput type="time" formControlName="horaFin" step="60" enterkeyhint="next" />
         @if (fila.controls.horaFin.invalid && fila.controls.horaFin.touched) {
           <mat-error>{{ errorCampo(fila.controls.horaFin) }}</mat-error>
         }

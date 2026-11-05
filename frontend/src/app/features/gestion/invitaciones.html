@@ -9,9 +9,14 @@
     <div class="campos">
       <mat-form-field
         ><mat-label>Correo</mat-label
-        ><input matInput type="email" formControlName="correo" autocomplete="email" /><mat-error>{{
-          errorCampo(formulario.controls.correo)
-        }}</mat-error></mat-form-field
+        ><input
+          matInput
+          type="email"
+          formControlName="correo"
+          autocomplete="off"
+          inputmode="email"
+          enterkeyhint="next"
+        /><mat-error>{{ errorCampo(formulario.controls.correo) }}</mat-error></mat-form-field
       ><mat-form-field
         ><mat-label>Rol</mat-label
         ><mat-select formControlName="rol">

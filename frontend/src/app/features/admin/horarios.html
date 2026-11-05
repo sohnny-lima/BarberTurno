@@ -81,7 +81,12 @@
             @for (campo of ['desde', 'hasta']; track campo) {
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>{{ campo === 'desde' ? 'Desde' : 'Hasta' }}</mat-label>
-                <input matInput type="date" [formControlName]="campo" />
+                <input
+                  matInput
+                  type="date"
+                  [formControlName]="campo"
+                  [attr.enterkeyhint]="campo === 'desde' ? 'next' : 'done'"
+                />
                 @if (rango.get(campo)!.invalid && rango.get(campo)!.touched) {
                   <mat-error>{{ errorCampo(rango.get(campo)!) }}</mat-error>
                 }
@@ -117,6 +122,7 @@
                     matInput
                     [type]="campo === 'fecha' ? 'date' : campo === 'motivo' ? 'text' : 'time'"
                     [formControlName]="campo"
+                    [attr.enterkeyhint]="campo === 'motivo' ? 'done' : 'next'"
                   />
                   @if (alta.get(campo)!.invalid && alta.get(campo)!.touched) {
                     <mat-error>{{ errorCampo(alta.get(campo)!) }}</mat-error>

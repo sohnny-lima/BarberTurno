@@ -16,12 +16,24 @@
   <div class="filtros">
     <mat-form-field appearance="outline">
       <mat-label>Desde</mat-label>
-      <input matInput type="date" formControlName="desde" aria-describedby="error-periodo" />
+      <input
+        matInput
+        type="date"
+        formControlName="desde"
+        aria-describedby="error-periodo"
+        enterkeyhint="next"
+      />
       <mat-error>Ingrese una fecha válida.</mat-error>
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>Hasta</mat-label>
-      <input matInput type="date" formControlName="hasta" aria-describedby="error-periodo" />
+      <input
+        matInput
+        type="date"
+        formControlName="hasta"
+        aria-describedby="error-periodo"
+        enterkeyhint="done"
+      />
       <mat-error>Ingrese una fecha válida.</mat-error>
     </mat-form-field>
     <mat-form-field appearance="outline">

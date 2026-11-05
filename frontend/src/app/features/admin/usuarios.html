@@ -1,7 +1,13 @@
 <app-cabecera-pagina titulo="Usuarios" />
 <form (submit)="$event.preventDefault(); buscar()" class="tarjeta filtros">
   <mat-form-field appearance="outline" subscriptSizing="dynamic"
-    ><mat-label>Nombre o correo</mat-label><input matInput [formControl]="busqueda"
+    ><mat-label>Nombre o correo</mat-label
+    ><input
+      matInput
+      type="search"
+      [formControl]="busqueda"
+      autocomplete="off"
+      enterkeyhint="search"
   /></mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic"
     ><mat-label>Rol</mat-label

@@ -133,6 +133,7 @@
                 [min]="limites.min"
                 [max]="limites.max"
                 (dateChange)="cambiarFecha()"
+                enterkeyhint="done"
               />
               <mat-datepicker-toggle matIconSuffix [for]="calendario" />
               <mat-datepicker #calendario />
@@ -305,6 +306,7 @@
                   [value]="store.motivo()"
                   [disabled]="store.enviando()"
                   (input)="store.motivo.set($any($event.target).value)"
+                  enterkeyhint="done"
                 ></textarea
                 ><mat-hint>Obligatorio para el administrador.</mat-hint></mat-form-field
               >

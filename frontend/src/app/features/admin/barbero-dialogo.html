@@ -13,7 +13,15 @@
     @if (!barbero && formulario.controls.modo.value === 'vincular') {
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>ID del usuario administrador</mat-label>
-        <input matInput type="number" formControlName="usuarioId" min="1" step="1" />
+        <input
+          matInput
+          type="number"
+          inputmode="numeric"
+          formControlName="usuarioId"
+          min="1"
+          step="1"
+          enterkeyhint="next"
+        />
         <mat-error>{{ errorCampo(formulario.controls.usuarioId) }}</mat-error>
       </mat-form-field>
       <p class="ayuda">
@@ -22,7 +30,14 @@
     } @else {
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Nombre</mat-label>
-        <input matInput formControlName="nombre" maxlength="100" autocomplete="name" />
+        <input
+          matInput
+          type="text"
+          formControlName="nombre"
+          maxlength="100"
+          autocomplete="off"
+          enterkeyhint="next"
+        />
         <mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error>
       </mat-form-field>
       @if (!barbero) {
@@ -34,6 +49,8 @@
             formControlName="correo"
             maxlength="254"
             autocomplete="off"
+            inputmode="email"
+            enterkeyhint="next"
           />
           <mat-error>{{ errorCampo(formulario.controls.correo) }}</mat-error>
         </mat-form-field>
@@ -45,17 +62,24 @@
         <input
           matInput
           type="tel"
-          inputmode="numeric"
+          inputmode="tel"
           formControlName="telefono"
           maxlength="9"
-          autocomplete="tel"
+          autocomplete="off"
+          enterkeyhint="next"
         />
         <mat-error>{{ errorCampo(formulario.controls.telefono) }}</mat-error>
       </mat-form-field>
     }
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Especialidad</mat-label>
-      <input matInput formControlName="especialidad" maxlength="100" />
+      <input
+        matInput
+        type="text"
+        formControlName="especialidad"
+        maxlength="100"
+        enterkeyhint="next"
+      />
       <mat-error>{{ errorCampo(formulario.controls.especialidad) }}</mat-error>
     </mat-form-field>
     @if (!barbero && formulario.controls.modo.value === 'nueva') {
@@ -67,7 +91,8 @@
             type="password"
             formControlName="passwordTemporal"
             aria-describedby="aviso-password-temporal"
-            autocomplete="new-password"
+            autocomplete="off"
+            enterkeyhint="done"
           />
           <mat-hint>De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</mat-hint>
           <mat-error>{{ errorCampo(formulario.controls.passwordTemporal) }}</mat-error>

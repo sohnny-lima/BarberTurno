@@ -17,9 +17,14 @@
     <app-seccion-formulario titulo="Barbería"
       ><mat-form-field
         ><mat-label>Nombre</mat-label
-        ><input matInput formControlName="nombre" maxlength="100" /><mat-error>{{
-          errorCampo(formulario.controls.nombre)
-        }}</mat-error></mat-form-field
+        ><input
+          matInput
+          type="text"
+          formControlName="nombre"
+          maxlength="100"
+          autocomplete="off"
+          enterkeyhint="next"
+        /><mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error></mat-form-field
       >
       <p class="ayuda">Dirección web: /n/{{ negocio.slug() }}</p>
       <p class="ayuda">Zona horaria: América/Lima</p>
@@ -32,10 +37,12 @@
             ><input
               matInput
               type="number"
+              inputmode="numeric"
               [formControlName]="campo.clave"
               [min]="campo.min"
               max="32767"
               step="1"
+              enterkeyhint="next"
             /><mat-hint>{{ campo.ayuda }} Límite técnico: Entre {{ campo.min }} y 32767.</mat-hint
             ><mat-error>{{
               errorCampo(formulario.controls[campo.clave])

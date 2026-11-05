@@ -42,9 +42,13 @@
           >
             <mat-form-field
               ><mat-label>Nombre</mat-label
-              ><input matInput formControlName="nombre" autocomplete="name" /><mat-error>{{
-                errorCampo(formulario.controls.nombre)
-              }}</mat-error></mat-form-field
+              ><input
+                matInput
+                type="text"
+                formControlName="nombre"
+                autocomplete="name"
+                enterkeyhint="next"
+              /><mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error></mat-form-field
             >
             <mat-form-field
               ><mat-label>Teléfono</mat-label
@@ -53,6 +57,8 @@
                 formControlName="telefono"
                 type="tel"
                 autocomplete="tel"
+                inputmode="tel"
+                enterkeyhint="next"
               /><mat-error>{{
                 errorCampo(formulario.controls.telefono)
               }}</mat-error></mat-form-field
@@ -64,6 +70,7 @@
                 formControlName="password"
                 type="password"
                 autocomplete="new-password"
+                enterkeyhint="next"
               /><mat-hint>De 8 a 72 caracteres, máximo 72 bytes, con letra y dígito.</mat-hint
               ><mat-error>{{ errorCampo(formulario.controls.password) }}</mat-error></mat-form-field
             >
@@ -74,6 +81,7 @@
                 formControlName="confirmacion"
                 type="password"
                 autocomplete="new-password"
+                enterkeyhint="done"
               /><mat-error>{{
                 errorCampo(formulario.controls.confirmacion)
               }}</mat-error></mat-form-field
