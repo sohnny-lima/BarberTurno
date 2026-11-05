@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,10 +23,11 @@ import pe.barberturno.common.time.TiempoNegocio;
 /**
  * Red de seguridad determinista y sin estado sobre el texto del modelo de lenguaje antes de enviarlo
  * (17-v2-12 §5; V2-RN-11 y V2-RN-12). Aplica las reglas en orden estricto: vacío, longitud máxima,
- * datos prohibidos, afirmaciones de operación y horarios no ofrecidos.
+ * datos prohibidos (incluidos importes y enlaces), afirmaciones de operación y horarios no ofrecidos.
+ * Las horas digitales son exactas y cada opción se valida con su fecha (V2-DA-84).
  *
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Component
 public class GuardasSalida {
@@ -33,27 +35,26 @@ public class GuardasSalida {
     private static final Locale LOCALE_PE = Locale.forLanguageTag("es-PE");
     private static final int LONGITUD_MAXIMA_CODEPOINTS = 1024;
 
-    private static final Pattern PATRON_URL = Pattern.compile("(?i)(https?://|www\\.)");
+    private static final Pattern PATRON_URL = Pattern.compile(
+            "(?i)(?:\\b[a-z][a-z0-9+.-]*://|www\\.|\\b(?:[a-z0-9-]+\\.)+[a-z]{2,}\\b|\\bmailto:)");
     private static final Pattern PATRON_CORREO =
             Pattern.compile("(?i)\\b[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}\\b");
     private static final Pattern PATRON_CODIGO_BT = Pattern.compile("(?i)\\bBT-\\d+\\b");
     private static final Pattern PATRON_ALIAS_INTERNO = Pattern.compile("(?i)\\b[spcf]\\d+\\b");
 
     private static final Pattern PATRON_CANDIDATO_TELEFONO =
-            Pattern.compile("(?<![\\w+])\\+?[0-9][0-9\\s\\-+]{5,}[0-9](?![\\w])");
+            Pattern.compile("\\+?\\(?\\d(?:[\\s().-]{0,2}\\d){6,}", Pattern.UNICODE_CHARACTER_CLASS);
     private static final Pattern PATRON_FECHA_GUIONES =
-            Pattern.compile("^(?:\\d{4}-\\d{2}-\\d{2}|\\d{2}-\\d{2}-\\d{4})$");
+            Pattern.compile("(?<!\\d)(?:\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}-\\d{4})(?!\\d)");
 
     private static final Pattern PATRON_PRECIO =
-            Pattern.compile("(?i)(?:\\bS/\\.?\\s*\\d+(?:[.,]\\d+)?\\b|\\b\\d+(?:[.,]\\d+)?\\s*soles\\b)");
+            Pattern.compile("(?i)(?:\\bS/|\\b(?:soles|PEN)\\b|\\$)");
     private static final Pattern PATRON_DURACION =
             Pattern.compile("(?i)\\b\\d+\\s*(?:min|minutos|hora|horas)\\b");
 
     private static final Pattern PATRON_AFIRMACION_EXPLICITA = Pattern.compile(
-            "\\b(?:listo[^a-z0-9]+tu\\s+cita|te\\s+esperamos\\s+el|(?:he|hemos)\\s+reservado|"
-            + "(?:qued[ao]|est[ao])\\s+reservad[ao]s?|confirmada[s]?|"
-            + "(?:qued[ao]|est[ao])\\s+confirmad[ao]s?|(?:qued[ao]|est[ao]|he|hemos)?\\s*agendad[ao]s?|"
-            + "(?:qued[ao]|est[ao])\\s+cancelad[ao]s?|(?:qued[ao]|est[ao])\\s+reprogramad[ao]s?)\\b"
+            "\\b(?:listo[^a-z0-9]+tu\\s+cita|te\\s+esperamos\\s+el|"
+            + "(?:reserv|confirm|cancel|reprogram|agend)ad[ao]s?)\\b"
     );
 
     private static final Pattern PATRON_HORA_CONJUNCION = Pattern.compile(
@@ -61,7 +62,10 @@ public class GuardasSalida {
     );
 
     private static final Pattern PATRON_VERBO_OPERACION =
-            Pattern.compile("\\b(reserve|cancele|reprograme|agende)\\b");
+            Pattern.compile("\\b(reserve|confirme|cancele|reprograme|agende|reservo|confirmo|cancelo|reprogramo|agendo)\\b");
+    private static final Pattern PATRON_PRETERITO = Pattern.compile(
+            "\\b(?:reservé|confirmé|cancelé|reprogramé|agendé)\\b",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS);
 
     private static final Pattern PATRON_SUBJUNTIVO_PREFIJO = Pattern.compile(
             ".*\\b(?:que|para|deseas\\s+que|quieres\\s+que|gustaria\\s+que)(\\s+(?:lo|la|te|se|me|nos|le|les))*$"
@@ -74,15 +78,15 @@ public class GuardasSalida {
     private static final Pattern PATRON_FECHA_DIA_SEMANA =
             Pattern.compile("\\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\\b");
     private static final Pattern PATRON_FECHA_NUMERICA =
-            Pattern.compile("\\b(\\d{1,2})/(\\d{1,2})(?:/(\\d{4}))?\\b");
+            Pattern.compile("\\b(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?\\b");
     private static final Pattern PATRON_FECHA_TEXTO = Pattern.compile(
-            "\\b(\\d{1,2})\\s+de\\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|setiembre|septiembre|octubre|noviembre|diciembre)(?:\\s+de\\s+(\\d{4}))?\\b"
+            "\\b(\\d{1,2})\\s+de\\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|setiembre|septiembre|octubre|noviembre|diciembre)(?:\\s+de\\s+(\\d{2,4}))?\\b"
     );
 
     private static final Pattern PATRON_HORA_MEDIODIA = Pattern.compile("\\bmediodia\\b");
     private static final Pattern PATRON_HORA_MEDIANOCHE = Pattern.compile("\\bmedianoche\\b");
     private static final Pattern PATRON_HORA_DIGITAL =
-            Pattern.compile("(?<!\\d)(\\d{1,2}):(\\d{2})(?:\\s*(am|pm))?(?!\\d)");
+            Pattern.compile("(?<!\\d)(\\d+):(\\d+)(?:\\s*(am|pm))?(?!\\d)");
     private static final Pattern PATRON_HORA_AM_PM =
             Pattern.compile("(?<!\\d)(\\d{1,2})\\s*(am|pm)\\b");
     private static final Pattern PATRON_HORA_FRACCION = Pattern.compile(
@@ -101,11 +105,13 @@ public class GuardasSalida {
     /**
      * Revisa el texto del modelo aplicando las guardas de seguridad en el orden definido por 17-v2-12 §5:
      * vacío, demasiado largo, datos prohibidos, afirmación de operación y horario no ofrecido.
+     * Conserva el texto aceptado y rechaza referencias temporales reconocidas pero imposibles.
      *
      * @param texto texto generado por el modelo; puede ser nulo o vacío
      * @param franjas franjas ofrecidas en este turno en Lima; no nula (lista vacía si no hay)
-     * @param ahora fecha y hora actuales en Lima para anclar referencias relativas; no nula
+     * @param ahora fecha y hora actuales para anclar referencias relativas tras convertirlas a Lima; no nula
      * @return resultado aceptado con el texto intacto o sustituido con el motivo de rechazo
+     * @throws NullPointerException si {@code ahora} es nulo y el texto supera las guardas previas al horario
      */
     public ResultadoGuardas revisar(String texto, List<FranjaOfrecida> franjas, ZonedDateTime ahora) {
         if (texto == null || texto.isBlank()) {
@@ -136,6 +142,9 @@ public class GuardasSalida {
     }
 
     private boolean contieneDatosProhibidos(String texto) {
+        if (PATRON_PRECIO.matcher(texto).find()) {
+            return true;
+        }
         if (PATRON_URL.matcher(texto).find()) {
             return true;
         }
@@ -152,19 +161,11 @@ public class GuardasSalida {
     }
 
     private boolean contieneTelefono(String texto) {
-        Matcher m = PATRON_CANDIDATO_TELEFONO.matcher(texto);
+        // Las fechas se validan después como referencias temporales, nunca como teléfonos.
+        Matcher m = PATRON_CANDIDATO_TELEFONO.matcher(PATRON_FECHA_GUIONES.matcher(texto).replaceAll(" "));
         while (m.find()) {
             String match = m.group();
-            if (PATRON_FECHA_GUIONES.matcher(match).matches()) {
-                continue;
-            }
-            int digitos = 0;
-            for (int i = 0; i < match.length(); i++) {
-                char c = match.charAt(i);
-                if (c >= '0' && c <= '9') {
-                    digitos++;
-                }
-            }
+            long digitos = match.codePoints().filter(Character::isDigit).count();
             if (digitos >= 7) {
                 return true;
             }
@@ -173,6 +174,10 @@ public class GuardasSalida {
     }
 
     private boolean contieneAfirmacionOperacion(String texto) {
+        // La tilde distingue «la cita que reservé» del subjuntivo «que reserve».
+        if (PATRON_PRETERITO.matcher(Normalizer.normalize(texto, Normalizer.Form.NFC)).find()) {
+            return true;
+        }
         String norm = normalizar(texto);
         if (PATRON_AFIRMACION_EXPLICITA.matcher(norm).find()) {
             return true;
@@ -238,14 +243,10 @@ public class GuardasSalida {
 
         List<MencionHora> horas = extraerHoras(norm, exclusiones);
 
-        return new ResultadoAnalisisOracion(fechas, horas);
+        return new ResultadoAnalisisOracion(norm, fechas, horas);
     }
 
     private void marcarExclusiones(String norm, List<Intervalo> exclusiones) {
-        Matcher mPrecio = PATRON_PRECIO.matcher(norm);
-        while (mPrecio.find()) {
-            exclusiones.add(new Intervalo(mPrecio.start(), mPrecio.end()));
-        }
         Matcher mDuracion = PATRON_DURACION.matcher(norm);
         while (mDuracion.find()) {
             exclusiones.add(new Intervalo(mDuracion.start(), mDuracion.end()));
@@ -254,6 +255,16 @@ public class GuardasSalida {
 
     private List<MencionFecha> extraerFechas(String norm, ZonedDateTime ahoraLima, List<Intervalo> exclusiones) {
         List<MencionFecha> fechas = new ArrayList<>();
+
+        Matcher mGuiones = PATRON_FECHA_GUIONES.matcher(norm);
+        while (mGuiones.find()) {
+            String[] partes = mGuiones.group().split("-");
+            boolean iso = partes[0].length() == 4;
+            LocalDate fecha = parsearFechaNumerica(iso ? partes[2] : partes[0], partes[1],
+                    iso ? partes[0] : partes[2], ahoraLima.getYear());
+            fechas.add(new MencionFecha(mGuiones.start(), mGuiones.end(), fecha == null ? List.of() : List.of(fecha)));
+            exclusiones.add(new Intervalo(mGuiones.start(), mGuiones.end()));
+        }
 
         Matcher mPasadoManana = PATRON_FECHA_PASADO_MANANA.matcher(norm);
         while (mPasadoManana.find()) {
@@ -293,9 +304,7 @@ public class GuardasSalida {
         while (mNum.find()) {
             if (!solapa(mNum.start(), mNum.end(), exclusiones)) {
                 LocalDate d = parsearFechaNumerica(mNum.group(1), mNum.group(2), mNum.group(3), ahoraLima.getYear());
-                if (d != null) {
-                    fechas.add(new MencionFecha(mNum.start(), mNum.end(), List.of(d)));
-                }
+                fechas.add(new MencionFecha(mNum.start(), mNum.end(), d == null ? List.of() : List.of(d)));
             }
         }
 
@@ -303,9 +312,7 @@ public class GuardasSalida {
         while (mTexto.find()) {
             if (!solapa(mTexto.start(), mTexto.end(), exclusiones)) {
                 LocalDate d = parsearFechaTexto(mTexto.group(1), mTexto.group(2), mTexto.group(3), ahoraLima.getYear());
-                if (d != null) {
-                    fechas.add(new MencionFecha(mTexto.start(), mTexto.end(), List.of(d)));
-                }
+                fechas.add(new MencionFecha(mTexto.start(), mTexto.end(), d == null ? List.of() : List.of(d)));
             }
         }
 
@@ -342,6 +349,9 @@ public class GuardasSalida {
                     List<LocalTime> c = resolverHoras(h, min, periodo);
                     horas.add(new MencionHora(mFraccion.start(), mFraccion.end(), c));
                     usadas.add(new Intervalo(mFraccion.start(), mFraccion.end()));
+                } else {
+                    horas.add(new MencionHora(mFraccion.start(), mFraccion.end(), List.of()));
+                    usadas.add(new Intervalo(mFraccion.start(), mFraccion.end()));
                 }
             }
         }
@@ -355,6 +365,9 @@ public class GuardasSalida {
                     List<LocalTime> c = resolverHoras(h, 0, periodo);
                     horas.add(new MencionHora(mMomento.start(), mMomento.end(), c));
                     usadas.add(new Intervalo(mMomento.start(), mMomento.end()));
+                } else {
+                    horas.add(new MencionHora(mMomento.start(), mMomento.end(), List.of()));
+                    usadas.add(new Intervalo(mMomento.start(), mMomento.end()));
                 }
             }
         }
@@ -362,14 +375,18 @@ public class GuardasSalida {
         Matcher mDigital = PATRON_HORA_DIGITAL.matcher(norm);
         while (mDigital.find()) {
             if (!solapa(mDigital.start(), mDigital.end(), usadas)) {
-                int h = Integer.parseInt(mDigital.group(1));
-                int min = Integer.parseInt(mDigital.group(2));
-                if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+                Integer h = parsearNumeroPalabra(mDigital.group(1));
+                Integer min = parsearNumeroPalabra(mDigital.group(2));
+                if (h != null && min != null && h >= 0 && h <= 23 && min >= 0 && min <= 59
+                        && mDigital.group(2).length() == 2) {
                     String ampm = mDigital.group(3);
-                    List<LocalTime> c = resolverHoras(h, min, ampm);
+                    List<LocalTime> c = ampm == null ? List.of(LocalTime.of(h, min))
+                            : h >= 1 && h <= 12 ? resolverHoras(h, min, ampm) : List.of();
                     horas.add(new MencionHora(mDigital.start(), mDigital.end(), c));
-                    usadas.add(new Intervalo(mDigital.start(), mDigital.end()));
+                } else {
+                    horas.add(new MencionHora(mDigital.start(), mDigital.end(), List.of()));
                 }
+                usadas.add(new Intervalo(mDigital.start(), mDigital.end()));
             }
         }
 
@@ -381,8 +398,10 @@ public class GuardasSalida {
                     String ampm = mAmPm.group(2);
                     List<LocalTime> c = resolverHoras(h, 0, ampm);
                     horas.add(new MencionHora(mAmPm.start(), mAmPm.end(), c));
-                    usadas.add(new Intervalo(mAmPm.start(), mAmPm.end()));
+                } else {
+                    horas.add(new MencionHora(mAmPm.start(), mAmPm.end(), List.of()));
                 }
+                usadas.add(new Intervalo(mAmPm.start(), mAmPm.end()));
             }
         }
 
@@ -407,6 +426,8 @@ public class GuardasSalida {
                             }
                         }
                     }
+                } else {
+                    horas.add(new MencionHora(mALas.start(), mALas.end(), List.of()));
                 }
             }
         }
@@ -528,6 +549,7 @@ public class GuardasSalida {
             return "";
         }
         String nfd = Normalizer.normalize(s.toLowerCase(LOCALE_PE), Normalizer.Form.NFD);
+        nfd = nfd.replaceAll("(?U)\\s", " ");
         return nfd.replaceAll("\\p{M}", "");
     }
 
@@ -538,11 +560,13 @@ public class GuardasSalida {
     private record MencionHora(int inicio, int fin, List<LocalTime> candidatas) { }
 
     private static class ResultadoAnalisisOracion {
+        private final String texto;
         private final List<MencionFecha> fechas;
         private final List<MencionHora> horas;
 
-        ResultadoAnalisisOracion(List<MencionFecha> fechas, List<MencionHora> horas) {
-            this.fechas = fechas != null ? fechas : Collections.emptyList();
+        ResultadoAnalisisOracion(String texto, List<MencionFecha> fechas, List<MencionHora> horas) {
+            this.texto = texto;
+            this.fechas = fechas.stream().sorted(Comparator.comparingInt(MencionFecha::inicio)).toList();
             this.horas = horas != null ? horas : Collections.emptyList();
         }
 
@@ -551,56 +575,46 @@ public class GuardasSalida {
         }
 
         boolean esValido(Set<LocalDate> diasOfrecidos, Map<LocalDate, Set<LocalTime>> iniciosPorDia, LocalDate hoy) {
-            if (!horas.isEmpty()) {
-                List<List<LocalDate>> fechasAsociadas = new ArrayList<>();
-                if (!fechas.isEmpty()) {
-                    for (MencionFecha mf : fechas) {
-                        fechasAsociadas.add(mf.candidatas());
-                    }
-                } else {
-                    fechasAsociadas.add(List.of(hoy));
+            // También se rechazan fechas reconocibles pero imposibles, aunque haya otra fecha válida.
+            for (MencionFecha fecha : fechas) {
+                if (fecha.candidatas().stream().noneMatch(diasOfrecidos::contains)) {
+                    return false;
                 }
-
-                for (MencionHora mh : horas) {
-                    for (List<LocalDate> grupoFechas : fechasAsociadas) {
-                        boolean coincideCombinacion = false;
-                        for (LocalDate d : grupoFechas) {
-                            Set<LocalTime> inicios = iniciosPorDia.getOrDefault(d, Collections.emptySet());
-                            for (LocalTime t : mh.candidatas()) {
-                                if (inicios.contains(t)) {
-                                    coincideCombinacion = true;
-                                    break;
-                                }
-                            }
-                            if (coincideCombinacion) {
-                                break;
-                            }
-                        }
-                        if (!coincideCombinacion) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
             }
-
-            if (!fechas.isEmpty()) {
-                for (MencionFecha mf : fechas) {
-                    boolean coincideDia = false;
-                    for (LocalDate d : mf.candidatas()) {
-                        if (diasOfrecidos.contains(d)) {
-                            coincideDia = true;
-                            break;
-                        }
-                    }
-                    if (!coincideDia) {
+            if (!horas.isEmpty()) {
+                for (MencionHora mh : horas) {
+                    boolean coincide = fechasPara(mh, hoy).stream().anyMatch(d ->
+                            mh.candidatas().stream().anyMatch(iniciosPorDia.getOrDefault(d, Set.of())::contains));
+                    if (!coincide) {
                         return false;
                     }
                 }
                 return true;
             }
-
             return true;
+        }
+
+        private List<LocalDate> fechasPara(MencionHora hora, LocalDate hoy) {
+            MencionFecha anterior = null;
+            MencionFecha siguiente = null;
+            for (MencionFecha fecha : fechas) {
+                if (fecha.fin() <= hora.inicio()) {
+                    anterior = fecha;
+                } else if (fecha.inicio() >= hora.fin()) {
+                    siguiente = fecha;
+                    break;
+                }
+            }
+            if (anterior == null) {
+                return siguiente == null ? List.of(hoy) : siguiente.candidatas();
+            }
+            // «17:00 el viernes o 17:30 el sábado»: la conjunción abre otra opción.
+            if (siguiente != null
+                    && texto.substring(anterior.fin(), hora.inicio()).matches("(?s).*\\b(?:o|u|y)\\b.*")
+                    && !texto.substring(hora.fin(), siguiente.inicio()).matches("(?s).*\\b(?:o|u|y)\\b.*")) {
+                return siguiente.candidatas();
+            }
+            return anterior.candidatas();
         }
     }
 }

@@ -94,7 +94,21 @@ class GuardasSalidaTest {
             "Teléfono de contacto: 987-654-321.",
             "Llámanos al +51-987-654-321.",
             "Comunícate al 4567890 para coordinar.",
-            "El número fijo es 01-4567890."
+            "El número fijo es 01-4567890.",
+            "Llama al 987.654.321.",
+            "Llama al (987) 654-321.",
+            "Llama al +51 (987) 654 321.",
+            "Llama al 987\u00a0654\u00a0321.",
+            "Llama al 987\u202f654\u202f321.",
+            "Llama al 987\u2003654\u2003321.",
+            "El corte cuesta S/ 25.",
+            "El corte cuesta 25 soles.",
+            "El corte cuesta PEN 25.",
+            "El corte cuesta 25 PEN.",
+            "El corte cuesta $25.",
+            "Aviso de privacidad: https://ejemplo.test/privacidad.",
+            "Consulte ejemplo.test/privacidad.",
+            "Descargue ftp://ejemplo.test/archivo."
     })
     @DisplayName("revisar: texto con datos prohibidos retorna DATOS_PROHIBIDOS")
     void revisar_datosProhibidos_retornaDatosProhibidos(String texto) {
@@ -111,9 +125,9 @@ class GuardasSalidaTest {
     }
 
     @Test
-    @DisplayName("revisar: precios y duraciones no son datos prohibidos")
-    void revisar_preciosYDuraciones_noSonDatosProhibidos() {
-        String texto = "El corte cuesta S/ 25,00 y dura 30 min. ¿Te gustaría agendar?";
+    @DisplayName("revisar: duraciones sin precios no son datos prohibidos")
+    void revisar_duracionesSinPrecios_noSonDatosProhibidos() {
+        String texto = "El corte dura 30 min. ¿Te gustaría agendar?";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
         assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
     }
@@ -145,7 +159,30 @@ class GuardasSalidaTest {
             "Tu cita quedó reprogramada.",
             "Te esperamos el viernes en la barbería.",
             "Listo, tu cita ya está en agenda.",
-            "¡Listo! Tu cita con Mateo está programada."
+            "¡Listo! Tu cita con Mateo está programada.",
+            "He cancelado tu cita.",
+            "Ya confirmé.",
+            "Quedó agendada.",
+            "He confirmado tu cita.",
+            "Hemos cancelado tu cita.",
+            "He reprogramado tu cita.",
+            "He agendado tu cita.",
+            "Ya confirmo tu cita.",
+            "Reservo tu cita.",
+            "Cancelo tu cita.",
+            "Reprogramo tu cita.",
+            "Agendo tu cita.",
+            "Reservada.",
+            "Confirmado.",
+            "Cancelada.",
+            "Reprogramado.",
+            "Agendada.",
+            "La cita que reservé ya está lista.",
+            "La cita que confirmé ya está lista.",
+            "Después de que cancelé tu cita, no hay nada pendiente.",
+            "La cita que reprogramé ya está lista.",
+            "La cita que agendé ya está lista.",
+            "La cita que confirme\u0301 ya está lista."
     })
     @DisplayName("revisar: afirmaciones de operación retornan AFIRMA_OPERACION (>= 15 casos)")
     void revisar_afirmaOperacion_retornaAfirmaOperacion(String texto) {
@@ -169,7 +206,12 @@ class GuardasSalidaTest {
             "¿Confirmas esta opción para proceder?",
             "Puedes pulsar el botón para confirmar tu solicitud.",
             "¿Prefieres que reserve con Carlos o con Mateo?",
-            "¿Quieres que reserve el corte clásico?"
+            "¿Quieres que reserve el corte clásico?",
+            "¿Quieres que te reserve un turno?",
+            "¿Quieres que confirme esta opción?",
+            "¿Quieres que te cancele la cita?",
+            "¿Quieres que te reprograme la cita?",
+            "¿Quieres que te agende un turno?"
     })
     @DisplayName("revisar: propuestas y solicitudes de confirmación son aceptadas (verdaderos negativos de afirmación)")
     void revisar_propuestasSubjuntivas_noSonAfirmacionOperacion(String texto) {
@@ -195,7 +237,26 @@ class GuardasSalidaTest {
             "Podemos al mediodía el viernes.",
             "Tenemos disponibilidad para el domingo.",
             "Tenemos disponibilidad el 28/10.",
-            "Hay espacio el 30 de octubre."
+            "Hay espacio el 30 de octubre.",
+            "Hay un turno el 2027-01-01.",
+            "Hay un turno el 2027-01-01 a las 17:00.",
+            "Hay un turno el 2026-02-30.",
+            "Hay un turno el 32/10.",
+            "Hay un turno el 31 de febrero.",
+            "Hay un turno el 23/10/27.",
+            "Hay un turno el 23 de octubre de 27.",
+            "Hay un turno hoy a las 05:00.",
+            "Hay un turno hoy a las 05:30.",
+            "Hay un turno hoy a las 25:00.",
+            "Hay un turno hoy a las 17:99.",
+            "Hay un turno hoy a las 17:000.",
+            "Hay un turno hoy a las 17:0.",
+            "Hay un turno hoy a las 25 pm.",
+            "Hay un turno hoy a las 25.",
+            "Hay un turno hoy a las 13 y media.",
+            "Hay un turno hoy a las 15 de la mañana.",
+            "El viernes a las 17:30 o sábado a las 17:00.",
+            "A las 17:30 el viernes o a las 17:00 el sábado."
     })
     @DisplayName("revisar: horarios no ofrecidos retornan HORARIO_NO_OFRECIDO (>= 15 casos)")
     void revisar_horarioNoOfrecido_retornaHorarioNoOfrecido(String texto) {
@@ -293,5 +354,33 @@ class GuardasSalidaTest {
         String texto = "¿Te viene bien el viernes a las cinco de la tarde?";
         ResultadoGuardas res = guardas.revisar(texto, franjasPrueba, ahoraViernes);
         assertThat(res).isEqualTo(new ResultadoGuardas.Aceptado(texto));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "El viernes a las 17:00 o sábado a las 17:30.",
+            "El viernes a las 17:00 y sábado a las 17:30.",
+            "A las 17:00 el viernes o a las 17:30 el sábado.",
+            "Tenemos un turno el 2026-10-23 a las 17:00.",
+            "Tenemos un turno el 24-10-2026 a las 17:30.",
+            "¿Quieres el viernes a las 5?",
+            "¿Quieres el viernes a las cinco?",
+            "El sábado a las cinco y media de la tarde.",
+            "El corte dura 30 minutos.",
+            "Te envío el resumen para que lo confirmes."
+    })
+    void revisar_combinacionesYTextosPermitidos_conservaTexto(String texto) {
+        assertThat(guardas.revisar(texto, franjasPrueba, ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Aceptado(texto));
+    }
+
+    @Test
+    void revisar_horaDigitalMatinal_conFranjaMatinal_acepta() {
+        Instant cinco = ahoraViernes.withHour(5).toInstant();
+        var franja = new FranjaOfrecida("f1", cinco, cinco.plusSeconds(1800), "Carlos",
+                new CodigoSeleccion.Franja(1L, 2L, cinco.getEpochSecond()));
+        String texto = "Hoy a las 05:00.";
+        assertThat(guardas.revisar(texto, List.of(franja), ahoraViernes))
+                .isEqualTo(new ResultadoGuardas.Aceptado(texto));
     }
 }
