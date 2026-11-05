@@ -1,7 +1,7 @@
 import { NegocioActual } from '../negocio/negocio-actual';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { catchError, EMPTY, filter, of, switchMap, tap, throwError } from 'rxjs';
+import { catchError, filter, of, switchMap, tap, throwError } from 'rxjs';
 import { AuthApi } from '../api/auth-api';
 import {
   CambiarPasswordDto,
@@ -28,19 +28,14 @@ export class SesionService {
       filter(() => generacion === this.generacion),
       tap((usuario) => this.aceptar(usuario)),
       catchError((error: HttpErrorResponse) => {
-        if (generacion !== this.generacion) return EMPTY;
+        if (generacion !== this.generacion) return of(null);
         this.limpiar();
         return error.status === 401 ? of(null) : throwError(() => error);
       }),
     );
   }
   login(datos: LoginDto) {
-    return this.api.login(datos).pipe(
-      tap((usuario) => {
-        this.limpiar();
-        this.identidad.set(usuario);
-      }),
-    );
+    return this.api.login(datos).pipe(tap((usuario) => this.aceptar(usuario)));
   }
   registrar(datos: RegistroDto) {
     return this.api.registrar(datos).pipe(tap((usuario) => this.aceptar(usuario)));
@@ -54,8 +49,14 @@ export class SesionService {
   actualizarPerfil(perfil: PerfilDto) {
     this.identidad.update((usuario) => (usuario ? { ...usuario, nombre: perfil.nombre } : null));
   }
+  generacionActual() {
+    return this.generacion;
+  }
   private aceptar(usuario: UsuarioSesionDto) {
-    if (this.usuario() && this.usuario()!.id !== usuario.id) this.limpiar();
+    if (this.usuario()?.id !== usuario.id) {
+      if (this.usuario()) this.limpiar();
+      else this.generacion++;
+    }
     this.identidad.set(usuario);
   }
   limpiar() {

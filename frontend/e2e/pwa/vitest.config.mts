@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitest/config';
 
-// En este equipo los forks tardan más que el límite de arranque de Vitest.
-// Se conserva el aislamiento y todas las pruebas; solo cambia el transporte del worker.
-export default defineConfig({ test: { pool: 'threads', maxWorkers: 1 } });
+// Un worker mantiene el aislamiento y reduce la contención al arrancar en Windows.
+export default defineConfig({ test: { pool: 'forks', maxWorkers: 1 } });

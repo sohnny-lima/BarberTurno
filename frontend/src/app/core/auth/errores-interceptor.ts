@@ -1,4 +1,4 @@
-import { ERROR_ESCRITURA_RED } from '../pwa/red';
+import { ERROR_ESCRITURA_RED } from '../pwa/error-red';
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -17,28 +17,30 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
   const snackbar = inject(MatSnackBar);
   const negocio = inject(NegocioActual);
   const http = inject(HttpClient);
+  const generacion = sesion.generacionActual();
   return siguiente(peticion).pipe(
     catchError((error: HttpErrorResponse) => {
+      if (generacion !== sesion.generacionActual()) return throwError(() => error);
       const problema = error.error as Partial<ProblemDetail> | null;
       const ruta = peticion.url.split('?')[0];
       const origen = peticion.context.get(ORIGEN_NEGOCIO);
       if (origen && !negocio.vigente(origen)) return throwError(() => error);
-      if (peticion.context.get(CONSULTA_CONTEXTO)) {
-        if (error.status === 401 && sesion.autenticado()) sesion.limpiar();
+      if (
+        peticion.context.get(CONSULTA_CONTEXTO) &&
+        !(error.status === 401 && sesion.autenticado())
+      )
         return throwError(() => error);
-      }
-      if (error.status === 401 && ruta === '/api/auth/login') sesion.limpiar();
-      if (error.status === 401 && ruta === '/api/auth/sesion' && peticion.method === 'GET') {
+      if (error.status === 401) {
         sesion.limpiar();
-        return throwError(() => error);
+        if (ruta !== '/api/auth/login' && ruta !== '/api/auth/sesion') {
+          void router.navigate(['/ingresar'], {
+            queryParams: { returnUrl: router.url },
+            replaceUrl: true,
+          });
+        }
+        if (ruta !== '/api/auth/login') return throwError(() => error);
       }
-      if (error.status === 401 && ruta !== '/api/auth/login') {
-        sesion.limpiar();
-        void router.navigate(['/ingresar'], {
-          queryParams: { returnUrl: router.url },
-          replaceUrl: true,
-        });
-      } else if (error.status === 403 && problema?.codigo === 'CAMBIO_PASSWORD_REQUERIDO') {
+      if (error.status === 403 && problema?.codigo === 'CAMBIO_PASSWORD_REQUERIDO') {
         void router.navigate(['/cambiar-password']);
       } else if (error.status === 403 && origen) {
         // Un 403 por permisos de sección no implica revocación: se revalida el rol efectivo.
@@ -63,16 +65,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
                 void router.navigate(['/negocios']);
               } else snackbar.open('No tiene acceso a esta sección.', 'Cerrar', { duration: 6000 });
             },
-            error: (consulta: HttpErrorResponse) => {
-              if (consulta.status === 401 && negocio.vigente(origen)) {
-                const retorno = router.url;
-                sesion.limpiar();
-                void router.navigate(['/ingresar'], {
-                  queryParams: { returnUrl: retorno },
-                  replaceUrl: true,
-                });
-              }
-            },
+            error: () => undefined,
           });
       } else if (error.status === 409 && problema?.codigo === 'NEGOCIO_SUSPENDIDO') {
         // La vista conserva el rechazo junto a la acción; si la suspensión llegó con la
@@ -82,12 +75,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
         const escrituraSinRed =
           error.status === 0 && !['GET', 'HEAD', 'OPTIONS'].includes(peticion.method);
         if (escrituraSinRed) {
-          error = new HttpErrorResponse({
-            error: { detail: ERROR_ESCRITURA_RED },
-            status: 0,
-            statusText: error.statusText,
-            url: error.url ?? undefined,
-          });
+          error = new HttpErrorResponse({ ...error, error: { detail: ERROR_ESCRITURA_RED } });
         }
         const mensaje = escrituraSinRed
           ? ERROR_ESCRITURA_RED

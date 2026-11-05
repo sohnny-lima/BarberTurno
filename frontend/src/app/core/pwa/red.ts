@@ -1,9 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 
-export const ERROR_ESCRITURA_RED =
-  'No se pudo confirmar el cambio por falta de conexión. Compruebe el resultado y vuelva a intentarlo cuando tenga conexión. No se reintentará automáticamente.';
-
 /** Solo presenta conectividad; no promete que el servidor esté disponible. */
 @Injectable({ providedIn: 'root' })
 export class Red {

@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { test, expect } from '../fixture';
+import { test, expect } from './fixture';
 
 async function ingresar(page: Page, correo: string) {
   await page.goto('/ingresar');
@@ -20,7 +20,11 @@ async function salir(page: Page) {
   const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
   if (await cuenta.isVisible()) await cuenta.click();
   else if (await menu.isVisible()) await menu.click();
-  await page.getByRole('button', { name: 'Salir', exact: true }).filter({ visible: true }).click();
+  await page
+    .getByRole('button', { name: 'Salir', exact: true })
+    .or(page.getByRole('menuitem', { name: 'Salir', exact: true }))
+    .filter({ visible: true })
+    .click();
   await expect(page).toHaveURL(/\/ingresar/);
 }
 
@@ -58,15 +62,21 @@ async function cachePublica(page: Page, privados: string[]) {
 test('CP-1: caché pública con cliente, profesional y encargado', async ({ page, request }) => {
   const manifiesto = await (await request.get('/ngsw.json')).json();
   expect(manifiesto.dataGroups ?? []).toEqual([]);
+  for (const grupo of manifiesto.assetGroups) {
+    expect(grupo.patterns).toEqual([]);
+    expect(grupo.urls.some((url: string) => /^\/api(?:\/|$)/.test(url))).toBe(false);
+  }
   const privados: string[] = [];
   for (const correo of ['cliente@ejemplo.test', 'carlos@ejemplo.test', 'encargado@ejemplo.test']) {
     await ingresar(page, correo);
     await instalar(page);
     const sesion = await (await page.request.get('/api/auth/sesion')).json();
+    expect(sesion.correo).toBe(correo);
     privados.push(correo, sesion.nombre);
     const ruta = correo.startsWith('cliente') ? 'mis-citas' : 'agenda';
     await page.goto('/n/barberturno/' + ruta);
     await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
     await cachePublica(page, privados);
     await salir(page);
   }

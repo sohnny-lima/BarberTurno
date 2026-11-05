@@ -45,6 +45,19 @@ describe('Interceptor de errores', () => {
       duration: 6000,
     });
   });
+  it('un 401 tardío de la cuenta anterior no cierra la nueva sesión', () => {
+    const sesion = TestBed.inject(SesionService);
+    sesion.cargar().subscribe();
+    peticiones.expectOne('/api/auth/sesion').flush({ id: 1, nombre: 'Anterior ficticio' });
+    http.get('/api/perfil').subscribe({ error: () => undefined });
+    const anterior = peticiones.expectOne('/api/perfil');
+    sesion.limpiar();
+    sesion.login({ correo: 'otra@ejemplo.test', password: 'Ficticia12345' }).subscribe();
+    peticiones.expectOne('/api/auth/login').flush({ id: 2, nombre: 'Otra ficticia' });
+    anterior.flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(sesion.usuario()?.id).toBe(2);
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
   it('401 protegida limpia la sesión y navega a ingresar', () => {
     const sesion = TestBed.inject(SesionService);
     sesion.cargar().subscribe();

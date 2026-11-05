@@ -126,6 +126,13 @@ describe('SesionService', () => {
     pendiente.flush(cliente);
     expect(sesion.usuario()).toBeNull();
   });
+  it('el primer ingreso conserva la selección pública, sin reutilizar otra identidad', () => {
+    sessionStorage.setItem('barberturno.reserva', 'selección pública');
+    sesion.login({ correo: cliente.correo, password: 'Ficticia12345' }).subscribe();
+    http.expectOne('/api/auth/login').flush(cliente);
+    expect(sessionStorage.getItem('barberturno.reserva')).toBe('selección pública');
+    sesion.limpiar();
+  });
   it('logout borra las señales al completar el servidor', () => {
     cargar();
     sesion.logout().subscribe();
