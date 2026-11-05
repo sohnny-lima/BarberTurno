@@ -75,7 +75,11 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
         const escrituraSinRed =
           error.status === 0 && !['GET', 'HEAD', 'OPTIONS'].includes(peticion.method);
         if (escrituraSinRed) {
-          error = new HttpErrorResponse({ ...error, error: { detail: ERROR_ESCRITURA_RED } });
+          error = new HttpErrorResponse({
+            ...error,
+            url: error.url ?? undefined,
+            error: { detail: ERROR_ESCRITURA_RED },
+          });
         }
         const mensaje = escrituraSinRed
           ? ERROR_ESCRITURA_RED
