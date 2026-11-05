@@ -35,6 +35,9 @@ export const test = base.extend<object, { servidor: string }>({
       });
       try {
         const limite = Date.now() + 180_000;
+        let salud = 0,
+          estadoCatalogo = 0,
+          cantidad = -1;
         while (true) {
           if (terminado) throw new Error('El jar E2E terminó antes de estar listo.');
           try {
@@ -42,17 +45,23 @@ export const test = base.extend<object, { servidor: string }>({
               headers: { Accept: 'application/json' },
               signal: AbortSignal.timeout(5000),
             });
+            salud = respuesta.status;
             if (respuesta.ok) {
               const catalogo = await fetch('http://localhost:8081/api/n/sur/barberos', {
                 signal: AbortSignal.timeout(5000),
               });
               // health responde mientras los ApplicationRunner siguen cargando.
-              if (catalogo.ok && (await catalogo.json()).length === 1) break;
+              estadoCatalogo = catalogo.status;
+              cantidad = catalogo.ok ? (await catalogo.json()).length : -1;
+              if (cantidad === 1) break;
             }
           } catch {
             /* El puerto aún no está listo. */
           }
-          if (Date.now() > limite) throw new Error('El jar E2E no estuvo listo en 180 s.');
+          if (Date.now() > limite)
+            throw new Error(
+              `El jar E2E no estuvo listo en 180 s (salud=${salud}, catálogo=${estadoCatalogo}, cantidad=${cantidad}).`,
+            );
           await new Promise((continuar) => setTimeout(continuar, 300));
         }
         await use('http://localhost:8081');

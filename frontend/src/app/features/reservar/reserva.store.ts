@@ -304,7 +304,8 @@ export class ReservaStore {
     this.paso.set(0);
     this.fecha.set(fechaHoyLima());
     this.limpiarFranja();
-    this.borrarSeleccion();
+    // Salir a ingresar conserva la selección pública; limpiar identidad borra todas las claves.
+    if (this.negocio.slug()) this.borrarSeleccion();
   }
   private limpiarFranja() {
     this.duracionDisponibilidad.set(null);

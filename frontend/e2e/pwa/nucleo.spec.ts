@@ -10,9 +10,13 @@ async function ingresar(page: Page, correo: string) {
   }, process.env['BT_DEMO_PASSWORD']!);
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page).not.toHaveURL(/\/ingresar/);
-  if (await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
-  }
+  const entrar = page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true });
+  await expect
+    .poll(async () => (await entrar.isVisible()) || /\/n\/barberturno\//.test(page.url()))
+    .toBe(true);
+  if (await entrar.isVisible()) await entrar.click();
+  await expect(page).toHaveURL(/\/n\/barberturno\//);
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 }
 
 async function salir(page: Page) {

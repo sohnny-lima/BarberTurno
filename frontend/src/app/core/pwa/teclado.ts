@@ -13,11 +13,15 @@ export class Teclado {
     let cuadro = 0;
     let altoInicial = viewport.height;
     let anchoInicial = viewport.width;
-    const actualizar = () => {
+    const actualizar = (evento: Event) => {
       const campo = documento.activeElement;
       const editable =
         campo instanceof HTMLElement && campo.matches('input, textarea, [contenteditable="true"]');
-      if (viewport.scale === 1 && (!editable || Math.abs(viewport.width - anchoInicial) > 50)) {
+      if (
+        viewport.scale === 1 &&
+        ((evento.type === 'resize' && !editable && !this.abierto()) ||
+          Math.abs(viewport.width - anchoInicial) > 50)
+      ) {
         altoInicial = viewport.height;
         anchoInicial = viewport.width;
       }

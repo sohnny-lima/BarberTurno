@@ -6,6 +6,38 @@ import { Actualizaciones, RECARGAR_PWA } from './actualizaciones';
 import { Red } from './red';
 import { Teclado } from './teclado';
 import { HistorialSuperposiciones } from './historial-superposiciones';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+import { prepararNegocio } from '../negocio/negocio-prueba';
+import { SesionService } from '../auth/sesion-service';
+import { ReservaStore } from '../../features/reservar/reserva.store';
+
+describe('Selección pública e identidad', () => {
+  it('ir a ingresar conserva la selección pública; limpiar identidad la borra y vacía el store', () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), ReservaStore],
+    });
+    const negocio = prepararNegocio();
+    const reserva = TestBed.inject(ReservaStore);
+    reserva.cliente.set({
+      id: 71,
+      nombre: 'Cliente ficticio',
+      correo: 'cliente-pwa@ejemplo.test',
+      telefono: null,
+      rol: 'CLIENTE',
+      activo: true,
+      debeCambiarPassword: false,
+    });
+    sessionStorage.setItem('barberturno.reserva', 'selección pública');
+    negocio.seleccionar(null);
+    expect(sessionStorage.getItem('barberturno.reserva')).toBe('selección pública');
+    expect(reserva.cliente()).toBeNull();
+    TestBed.inject(SesionService).limpiar();
+    expect(sessionStorage.getItem('barberturno.reserva')).toBeNull();
+    TestBed.inject(HttpTestingController).verify();
+  });
+});
 
 describe('Caché pública PWA', () => {
   it('solo declara grupos de assets públicos, sin API ni grupos de datos', () => {
@@ -233,7 +265,7 @@ describe('Historial de superposiciones', () => {
 
 describe('Teclado visual', () => {
   afterEach(() => {
-    document.querySelector('input')?.remove();
+    document.querySelectorAll('input, mat-dialog-container').forEach((nodo) => nodo.remove());
     vi.unstubAllGlobals();
   });
   it('oculta la barra al reducir el viewport con foco y desplaza campos también de diálogos', async () => {
@@ -251,6 +283,12 @@ describe('Teclado visual', () => {
     expect(teclado.abierto()).toBe(true);
     await new Promise((resolver) => requestAnimationFrame(resolver));
     expect(desplazar).toHaveBeenCalled();
+    const dialogo = document.createElement('mat-dialog-container');
+    const otro = document.createElement('input');
+    dialogo.append(otro);
+    document.body.append(dialogo);
+    otro.focus();
+    expect(teclado.abierto()).toBe(true);
     Object.assign(viewport, { height: 800 });
     viewport.dispatchEvent(new Event('resize'));
     expect(teclado.abierto()).toBe(false);
