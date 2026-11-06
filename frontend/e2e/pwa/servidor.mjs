@@ -35,6 +35,8 @@ const servidor = createServer(async (entrada, salida) => {
         headers: { ...entrada.headers, host: 'localhost:8081' },
       },
       (respuesta) => {
+        // Un cuerpo cortado por el backend emite «error» en la respuesta, no en la petición del proxy.
+        respuesta.on('error', () => salida.destroy());
         salida.writeHead(respuesta.statusCode, respuesta.headers);
         respuesta.pipe(salida);
       },
