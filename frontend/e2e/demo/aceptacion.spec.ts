@@ -305,6 +305,19 @@ test.describe('Aceptación Demo v2 en Azure', () => {
       // Debe navegar a Mis citas y mostrar la reserva creada
       await expect(page).toHaveURL(/\/n\/barberturno\/mis-citas/);
       const tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: reservaCreada!.codigo });
+      // Recorrer las páginas de la UI evita depender de cuántas canceladas dejaron otros pases.
+      // Se conservan todos los estados para comprobar «Cancelada» en la misma tarjeta después.
+      const listaCitas = page.locator('app-mis-citas .lista-citas');
+      await expect(listaCitas).toHaveAttribute('aria-busy', 'false');
+      while (!(await tarjeta.isVisible())) {
+        const siguiente = listaCitas.getByRole('button', { name: 'Página siguiente', exact: true });
+        await expect(
+          siguiente,
+          `La reserva ${reservaCreada!.codigo} debe aparecer antes de agotar las páginas de Mis citas`,
+        ).toBeEnabled();
+        await siguiente.click();
+        await expect(listaCitas).toHaveAttribute('aria-busy', 'false');
+      }
       await expect(tarjeta).toBeVisible();
 
       // Cancelar la reserva creada para dejar la demo en su estado original
