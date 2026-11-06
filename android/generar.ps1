@@ -10,12 +10,15 @@
 #   2. Copia twa-manifest.json a <Salida> y regenera el proyecto Gradle con `bubblewrap update` (fuera de Git).
 #   3. Crea, si falta, la clave de PRUEBA en D:\Proyectos\BarberTurno\.local\android\ (fuera de Git) con una
 #      contraseña aleatoria guardada allí mismo; nunca la muestra.
-#   4. Compila y firma con `bubblewrap build --skipPwaValidation` e imprime la huella SHA-256 del certificado
-#      (dato público, necesario para BT_TWA_HUELLAS).
+#   4. Compila SIN firmar con `bubblewrap build --skipPwaValidation --skipSigning`, alinea con zipalign y firma
+#      con apksigner leyendo la contraseña de una variable de entorno (nunca como argumento: un fallo de
+#      Bubblewrap al firmar podía imprimir la orden con la contraseña; hallazgo T1 de Codex 145).
+#      Imprime la huella SHA-256 del certificado (dato público, necesario para BT_TWA_HUELLAS).
 # No publica nada, no usa cuentas ni dominios: el host del manifiesto es «localhost» (valor de prueba).
+# El puerto del servidor temporal es fijo (8790) porque así figura en twa-manifest.json (hallazgo T2).
 param([string]$Salida = 'D:\Android\barberturno-twa',
-      [string]$Publico = (Join-Path $PSScriptRoot '..\frontend\public'),
-      [int]$Puerto = 8790)
+      [string]$Publico = (Join-Path $PSScriptRoot '..\frontend\public'))
+$Puerto = 8790
 $ErrorActionPreference = 'Stop'
 $claves = 'D:\Proyectos\BarberTurno\.local\android'
 $almacen = Join-Path $claves 'barberturno-prueba.keystore'
@@ -88,11 +91,23 @@ try {
     # 4. Compilación y firma. Bubblewrap llama a `gradlew.bat` sin ruta: cmd debe buscar en la carpeta actual
     #    (solo en este proceso; algunos entornos fijan NoDefaultCurrentDirectoryInExePath).
     Remove-Item Env:NoDefaultCurrentDirectoryInExePath -ErrorAction SilentlyContinue
-    $env:BUBBLEWRAP_KEYSTORE_PASSWORD = $clave; $env:BUBBLEWRAP_KEY_PASSWORD = $clave
-    & npx --prefix $bubblewrap bubblewrap build --skipPwaValidation --manifest="$Salida\twa-manifest.json"
+    & npx --prefix $bubblewrap bubblewrap build --skipPwaValidation --skipSigning --manifest="$Salida\twa-manifest.json"
     if ($LASTEXITCODE -ne 0) { throw "bubblewrap build falló ($LASTEXITCODE)" }
+    $herramientas = Join-Path $sdkBubblewrap 'build-tools\36.1.0'
+    $sinFirma = Join-Path $Salida 'app\build\outputs\apk\release\app-release-unsigned.apk'
+    $alineada = Join-Path $Salida 'app-release-alineada.apk'
+    $firmada = Join-Path $Salida 'app-release-signed.apk'
+    Remove-Item $alineada, $firmada -ErrorAction SilentlyContinue
+    & (Join-Path $herramientas 'zipalign.exe') -p -f 4 $sinFirma $alineada
+    if ($LASTEXITCODE -ne 0) { throw "zipalign falló ($LASTEXITCODE)" }
+    $env:JAVA_HOME = $jdk17
+    # apksigner lee la contraseña de BT_CLAVE: no aparece en la línea de órdenes ni en los mensajes de error.
+    & (Join-Path $herramientas 'apksigner.bat') sign --ks $almacen --ks-key-alias $alias `
+      --ks-pass env:BT_CLAVE --key-pass env:BT_CLAVE --out $firmada $alineada
+    if ($LASTEXITCODE -ne 0) { throw "apksigner falló ($LASTEXITCODE)" }
+    & (Join-Path $herramientas 'apksigner.bat') verify $firmada
+    if ($LASTEXITCODE -ne 0) { throw "La firma de la APK no se verifica ($LASTEXITCODE)" }
   } finally {
-    Remove-Item Env:BUBBLEWRAP_KEYSTORE_PASSWORD, Env:BUBBLEWRAP_KEY_PASSWORD -ErrorAction SilentlyContinue
     Pop-Location
   }
   $huella = (& $keytool -list -v -keystore $almacen -alias $alias -storepass:env BT_CLAVE | Select-String 'SHA256:').Line.Split('SHA256:')[1].Trim()
