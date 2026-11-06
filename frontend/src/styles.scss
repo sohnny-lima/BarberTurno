@@ -333,17 +333,3 @@ html {
     margin-bottom: calc(212px + env(safe-area-inset-bottom));
   }
 }
-
-// Ocultación de barra inferior y cancelación de reserva de espacio con teclado abierto
-body.teclado-abierto {
-  .barra-inferior {
-    display: none;
-  }
-  .con-barra-inferior {
-    --espacio-navegacion-inferior: 0;
-    padding-bottom: 0;
-  }
-  mat-sidenav-content {
-    scroll-padding-bottom: 0;
-  }
-}

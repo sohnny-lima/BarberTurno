@@ -14,7 +14,8 @@ async function ingresar(page: Page, correo: string) {
   await expect
     .poll(async () => (await entrar.isVisible()) || /\/n\/barberturno\//.test(page.url()))
     .toBe(true);
-  if (await entrar.isVisible()) await entrar.click();
+  // La página puede entrar sola mientras se pulsa: lo exigible es la URL final, no el clic.
+  if (await entrar.isVisible()) await entrar.click({ timeout: 10_000 }).catch(() => undefined);
   await expect(page).toHaveURL(/\/n\/barberturno\//);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 }

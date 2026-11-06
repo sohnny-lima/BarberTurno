@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { type Page } from '@playwright/test';
 import { Buffer } from 'node:buffer';
-import { test, expect } from '../fixture';
+import { test, expect } from './fixture';
 import { sembrarConversacionDerivada } from '../base-datos';
 
 /** Viewports estándar para pruebas móviles y horizontal de acuerdo con CP-8 */
@@ -250,28 +250,23 @@ test.describe('CP-7 · Instalabilidad y Manifest PWA', () => {
 // CP-6: Visual ante Teclado Abierto
 // ============================================================================
 test.describe('CP-6 · Teclado abierto y barra inferior', () => {
-  test('con la clase teclado-abierto la barra inferior se oculta y no reserva espacio', async ({
+  // Integración (Claude): el núcleo oculta la barra con la señal Teclado.abierto; se simula el teclado
+  // como lo ve el navegador: campo enfocado y visualViewport más bajo.
+  test('con un campo enfocado y el teclado abierto la barra inferior se retira y el campo sigue visible', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 800 });
-    await page.goto('/n/barberturno/reservar');
+    await iniciarSesion(page, 'cliente@ejemplo.test');
+    await page.goto('/perfil');
+    const nombre = page.getByLabel('Nombre', { exact: true });
+    await expect(nombre).toBeVisible();
     await expect(page.locator('.barra-inferior')).toBeVisible();
-
-    // Activar clase teclado-abierto en el elemento body
-    await page.evaluate(() => document.body.classList.add('teclado-abierto'));
-
-    // La barra inferior no debe ocupar espacio ni mostrarse
-    await expect(page.locator('.barra-inferior')).toBeHidden();
-
-    // La reserva de espacio de padding queda anulada
-    const paddingBottom = await page.evaluate(() => {
-      const el = document.querySelector('.con-barra-inferior');
-      return el ? parseFloat(getComputedStyle(el).paddingBottom) : 0;
-    });
-    expect(paddingBottom).toBe(0);
-
-    // Retirar la clase y comprobar restauración
-    await page.evaluate(() => document.body.classList.remove('teclado-abierto'));
+    await nombre.focus();
+    await page.setViewportSize({ width: 360, height: 480 });
+    await expect(page.locator('.barra-inferior')).toHaveCount(0);
+    await expect(nombre).toBeInViewport();
+    await nombre.blur();
+    await page.setViewportSize({ width: 360, height: 800 });
     await expect(page.locator('.barra-inferior')).toBeVisible();
   });
 });
