@@ -102,8 +102,25 @@ function New-ProcesoDemo {
 
 function Get-MotivoSeguroDemo {
     param([string]$ErrorTexto)
-    $propio = [regex]::Match($ErrorTexto, "(?m)ERROR:\s+((?:Se requiere PostgreSQL 18|Rol demo con atributos|Un rol demo|Membresía inesperada|La base demo|Los roles demo|El rol de ejecución|Hay dependencias|Quedan conexiones|Verificadores SCRAM)[^\r\n]{0,120})")
-    if ($propio.Success) { return $propio.Groups[1].Value }
+    # Solo se devuelven textos constantes: los RAISE propios se reconocen completos (los nombres variables,
+    # únicamente los dos roles demo) y nunca se reenvía un fragmento de stderr.
+    $propios = @(
+        'Verificadores SCRAM inválidos.', 'Hay dependencias fuera de la base demo; no se retirará.',
+        'Quedan conexiones a la base demo. Espere al cierre de la app y reintente.',
+        'Se requiere PostgreSQL 18 y btadmin no superusuario con CREATEDB/CREATEROLE en postgres.',
+        'La base demo tiene otro propietario.', 'La base demo tiene concesiones adicionales inesperadas.',
+        'Los roles demo son dueños de bases no autorizadas.', 'El rol de ejecución tiene objetos en propiedad.',
+        'Un rol demo es dueño de objetos fuera de la base demo.')
+    foreach ($mensaje in $propios) {
+        if ($ErrorTexto -match ('(?m)ERROR:\s+' + [regex]::Escape($mensaje) + '\s*$')) { return $mensaje }
+    }
+    foreach ($plantilla in 'Rol demo con atributos inesperados: {0}.', 'Un rol demo pertenece a otros roles: {0}.',
+        'Membresía inesperada sobre un rol demo: {0}.') {
+        foreach ($rol in 'bt_v2_demo', 'bt_v2_demo_app') {
+            $mensaje = $plantilla -f $rol
+            if ($ErrorTexto -match ('(?m)ERROR:\s+' + [regex]::Escape($mensaje) + '\s*$')) { return $mensaje }
+        }
+    }
     if ($ErrorTexto -match '(?i)password authentication failed|autentificaci.n password fall|autenticaci.n.*fall') { return 'contraseña rechazada por el servidor' }
     if ($ErrorTexto -match '(?i)no password supplied|no se entreg. contrase') { return 'falta la contraseña' }
     if ($ErrorTexto -match '(?i)pg_hba\.conf|timeout expired|timed out|tiempo de espera|could not connect|no se pudo conectar|could not translate host|refused|rehus|en ejecuci') { return 'sin conexión con el servidor (red o cortafuegos)' }

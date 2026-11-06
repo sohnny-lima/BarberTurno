@@ -108,7 +108,7 @@ try {
     $nombreRegistro = 'siembra-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fffffff') + '.log'
     [IO.File]::WriteAllText((Join-Path $Secretos $nombreRegistro), $texto, [Text.UTF8Encoding]::new($false))
     # preparar-base.ps1 ya crea btree_gist: el aviso de Flyway «already exists… Error Code: 0» es esperado.
-    $revisable = ($texto -split "`n" | Where-Object { $_ -notmatch 'WARN .*extension "btree_gist" already exists, skipping' }) -join "`n"
+    $revisable = ($texto -split "`n" | Where-Object { $_ -notmatch '^\S+\s+WARN \d+ --- \[[^\]]*\] \[[^\]]*\] o\.f\.c\.i\.s\.DefaultSqlScriptExecutor\s+: DB: extension "btree_gist" already exists, skipping \(SQL State: 42710 - Error Code: 0\)\r?$' }) -join "`n"
     if (-not $completo -or -not $detenido -or $revisable -match '(?im)\bERROR\b|\b[A-Za-z0-9_.]*Exception\b|APPLICATION FAILED TO START') {
         throw 'La siembra no terminó correctamente. Revise el registro privado; no se creó el marcador.'
     }
