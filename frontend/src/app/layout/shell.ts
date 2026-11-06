@@ -1,14 +1,19 @@
+import { AvisosPwa } from '../core/pwa/avisos-pwa';
+import { HistorialSuperposiciones } from '../core/pwa/historial-superposiciones';
+import { Teclado } from '../core/pwa/teclado';
 import { RutasNegocio } from '../core/negocio/rutas-negocio';
 import { NegocioActual } from '../core/negocio/negocio-actual';
 import { NOMBRES_PAPEL } from '../core/modelos/negocios';
 import { BarberiaActual } from './barberia-actual';
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
   ElementRef,
+  ErrorHandler,
   inject,
   Injector,
   signal,
@@ -19,6 +24,7 @@ import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 
@@ -46,6 +52,7 @@ const ADMIN = [
 @Component({
   selector: 'app-shell',
   imports: [
+    AvisosPwa,
     BarberiaActual,
     MatButtonModule,
     MatMenuModule,
@@ -61,7 +68,11 @@ const ADMIN = [
     MatDialog,
     {
       provide: MAT_DIALOG_DEFAULT_OPTIONS,
-      useFactory: () => ({ ...new MatDialogConfig(), injector: inject(Injector) }),
+      useFactory: () => ({
+        ...new MatDialogConfig(),
+        closeOnNavigation: false,
+        injector: inject(Injector),
+      }),
     },
   ],
   templateUrl: './shell.html',
@@ -69,12 +80,16 @@ const ADMIN = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Shell {
+  readonly teclado = inject(Teclado);
+  private readonly historial = inject(HistorialSuperposiciones);
+  private retirarCajon?: () => void;
   readonly sesion = inject(SesionService);
   readonly negocio = inject(NegocioActual);
   readonly avisos = inject(AvisosService);
   private readonly dialogos = inject(MatDialog);
   private dialogoAvisosActivo = false;
   private readonly router = inject(Router);
+  private readonly errores = inject(ErrorHandler);
   private readonly destroyRef = inject(DestroyRef);
   private readonly menu = viewChild(MatSidenav);
   private readonly contenido = viewChild<ElementRef<HTMLElement>>('contenido');
@@ -92,6 +107,7 @@ export class Shell {
   readonly tieneBarraInferior = computed(
     () =>
       this.movil() &&
+      !this.teclado.abierto() &&
       this.navegacionCompleta() &&
       this.negocio.rol() !== 'ADMIN' &&
       !this.zonaPlataforma(),
@@ -180,6 +196,21 @@ export class Shell {
   }
   constructor() {
     inject(RutasNegocio);
+    this.historial.vigilarMenus(this.destroyRef);
+    const mensajes = inject(MatSnackBar);
+    this.destroyRef.onDestroy(
+      this.sesion.registrarLimpieza(() => {
+        mensajes.dismiss();
+        this.tituloVista.texto.set(null);
+        this.tituloVista.actualizarAgenda.set(null);
+        return this.historial.cerrarTodas();
+      }),
+    );
+    this.destroyRef.onDestroy(() => this.retirarCajon?.());
+    this.dialogos.afterOpened.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((dialogo) => {
+      const retirar = this.historial.abrir(() => dialogo.close());
+      dialogo.beforeClosed().subscribe(() => retirar());
+    });
     this.negocio.cambios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.dialogos.closeAll();
       this.dialogoAvisosActivo = false;
@@ -190,6 +221,7 @@ export class Shell {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
+        this.historial.navegacionTerminada();
         const menu = this.menu();
         if (!this.movil() || !menu?.opened) {
           this.contenido()?.nativeElement.focus();
@@ -214,6 +246,15 @@ export class Shell {
     const menu = this.menu();
     if (this.movil() && menu?.opened) void menu.close().then(enfocar);
     else enfocar();
+  }
+  cambioCajon(abierto: boolean) {
+    this.retirarCajon?.();
+    this.retirarCajon = undefined;
+    if (abierto && this.movil()) {
+      this.retirarCajon = this.historial.abrir(() => {
+        void this.menu()?.close();
+      });
+    }
   }
   async abrirAvisos() {
     if (this.dialogoAvisosActivo) return;
@@ -273,10 +314,11 @@ export class Shell {
       )
       .subscribe({
         next: () => {
-          void this.router.navigate(['/ingresar']);
+          void this.router.navigate(['/ingresar'], { replaceUrl: true });
         },
-        error: () => {
-          /* El interceptor muestra el error y permite reintentar. */
+        error: (error: unknown) => {
+          // El interceptor presenta errores HTTP; un fallo de limpieza no debe quedar oculto.
+          if (!(error instanceof HttpErrorResponse)) this.errores.handleError(error);
         },
       });
   }

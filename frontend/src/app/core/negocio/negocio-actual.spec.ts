@@ -125,7 +125,7 @@ describe('Contexto multinegocio y transporte', () => {
       expect(recibido).not.toHaveBeenCalled();
     },
   );
-  it('un 401 de una operación limpia el negocio y conserva la URL completa para reingresar', () => {
+  it('un 401 de una operación limpia el negocio y conserva la URL completa para reingresar', async () => {
     const sesion = TestBed.inject(SesionService);
     sesion.cargar().subscribe();
     http.expectOne('/api/auth/sesion').flush(usuarioNegocio('CLIENTE'));
@@ -139,8 +139,10 @@ describe('Contexto multinegocio y transporte', () => {
     expect(sesion.autenticado()).toBe(false);
     expect(negocio.slug()).toBeNull();
     expect(negocio.estado()).toBeNull();
+    await sesion.esperarLimpieza();
     expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
       queryParams: { returnUrl: '/n/a/mis-citas?papel=cliente' },
+      replaceUrl: true,
     });
   });
   it.each([

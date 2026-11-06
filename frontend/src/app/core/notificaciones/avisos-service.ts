@@ -15,6 +15,7 @@ import {
   Subject,
   switchMap,
   tap,
+  takeUntil,
   timer,
 } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
@@ -77,6 +78,7 @@ export class AvisosService {
                                 { context: api.contexto() },
                               ),
                             ).pipe(
+                              takeUntil(this.negocio.cambios$),
                               tap((dato) => this.contador.set(dato.noLeidas)),
                               catchError(() => EMPTY),
                             ),

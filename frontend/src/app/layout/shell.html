@@ -1,7 +1,10 @@
+<app-avisos-pwa />
 <a class="saltar" href="#contenido" (click)="saltarAlContenido($event)">Saltar al contenido</a>
 <mat-sidenav-container [class.con-barra-inferior]="tieneBarraInferior()">
   <mat-sidenav
     #menu
+    (openedStart)="cambioCajon(true)"
+    (closedStart)="cambioCajon(false)"
     id="menu-principal"
     role="complementary"
     aria-label="Navegación y cuenta"

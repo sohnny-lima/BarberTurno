@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { catchError, EMPTY, finalize, forkJoin, of, Subject, switchMap } from 'rxjs';
+import { catchError, EMPTY, finalize, forkJoin, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { BarberosApi } from '../../core/api/barberos-api';
 import { DisponibilidadApi } from '../../core/api/disponibilidad-api';
 import { ReservasApi } from '../../core/api/reservas-api';
@@ -114,6 +114,7 @@ export class ReservaStore {
             finalize(() => this.cargando.set(false)),
           );
         }),
+        takeUntil(this.negocio.cambios$),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(({ servicios, barberos, reserva }) => {
@@ -156,6 +157,7 @@ export class ReservaStore {
               switchMap((datos) => of({ datos, guardada })),
             );
         }),
+        takeUntil(this.negocio.cambios$),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(({ datos, guardada }) => {
@@ -256,6 +258,7 @@ export class ReservaStore {
         });
     peticion
       .pipe(
+        takeUntil(this.negocio.cambios$),
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.enviando.set(false)),
       )
@@ -284,7 +287,6 @@ export class ReservaStore {
             this.cargarFranjas();
           }
           this.limiteReservas.set(codigo === 'LIMITE_RESERVAS_ACTIVAS');
-          if (error.status === 401 && !reserva) this.guardarSeleccion();
         },
       });
   }
@@ -302,6 +304,7 @@ export class ReservaStore {
     this.paso.set(0);
     this.fecha.set(fechaHoyLima());
     this.limpiarFranja();
+    // Salir a ingresar conserva la selección pública; limpiar identidad borra todas las claves.
     if (this.negocio.slug()) this.borrarSeleccion();
   }
   private limpiarFranja() {

@@ -11,6 +11,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { By } from '@angular/platform-browser';
 import { NavigationEnd, provideRouter, Router } from '@angular/router';
@@ -65,6 +66,21 @@ describe('Shell adaptable', () => {
     });
     TestBed.inject(NegocioActual).actualizarSesion(TestBed.inject(SesionService).usuario());
   }
+  it('limpiar la cuenta retira también los mensajes transitorios anteriores', async () => {
+    entrar('CLIENTE');
+    const vista = TestBed.createComponent(Shell);
+    vista.detectChanges();
+    const cerrar = vi.spyOn(vista.debugElement.injector.get(MatSnackBar), 'dismiss');
+    const titulo = TestBed.inject(TituloPagina);
+    titulo.texto.set('Título anterior ficticio');
+    titulo.actualizarAgenda.set({ ejecutar: vi.fn(), desactivada: () => false });
+    const sesion = TestBed.inject(SesionService);
+    sesion.limpiar();
+    await sesion.esperarLimpieza();
+    expect(cerrar).toHaveBeenCalledTimes(1);
+    expect(titulo.texto()).toBeNull();
+    expect(titulo.actualizarAgenda()).toBeNull();
+  });
   it('los menús obedecen la sesión del negocio aunque el rol global sea ADMIN', () => {
     entrar('ADMIN');
     const negocio = TestBed.inject(NegocioActual);

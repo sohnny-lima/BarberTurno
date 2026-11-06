@@ -99,6 +99,40 @@ describe('SesionService', () => {
     peticion.flush(cliente, { status: 201, statusText: 'Created' });
     expect(sesion.usuario()).toEqual(cliente);
   });
+  it('otra identidad limpia barbería y todas las claves propias de ambos almacenes', () => {
+    cargar();
+    prepararNegocio();
+    for (const almacen of [sessionStorage, localStorage]) {
+      almacen.setItem('barberturno.reserva', 'anterior');
+      almacen.setItem('barberturno.futura', 'anterior');
+      almacen.setItem('otra-app', 'conservar');
+    }
+    sesion.login({ correo: 'otra@ejemplo.test', password: 'Ficticia12345' }).subscribe();
+    http.expectOne('/api/auth/login').flush({ ...cliente, id: 99, correo: 'otra@ejemplo.test' });
+    expect(sesion.usuario()?.id).toBe(99);
+    for (const almacen of [sessionStorage, localStorage]) {
+      expect(almacen.getItem('barberturno.reserva')).toBeNull();
+      expect(almacen.getItem('barberturno.futura')).toBeNull();
+      expect(almacen.getItem('otra-app')).toBe('conservar');
+      almacen.removeItem('otra-app');
+    }
+  });
+  it('una carga anterior a la salida no puede repoblar la identidad', () => {
+    cargar();
+    sesion.cargar().subscribe();
+    const pendiente = http.expectOne('/api/auth/sesion');
+    sesion.logout().subscribe();
+    http.expectOne('/api/auth/logout').flush(null);
+    pendiente.flush(cliente);
+    expect(sesion.usuario()).toBeNull();
+  });
+  it('el primer ingreso conserva la selección pública, sin reutilizar otra identidad', () => {
+    sessionStorage.setItem('barberturno.reserva', 'selección pública');
+    sesion.login({ correo: cliente.correo, password: 'Ficticia12345' }).subscribe();
+    http.expectOne('/api/auth/login').flush(cliente);
+    expect(sessionStorage.getItem('barberturno.reserva')).toBe('selección pública');
+    sesion.limpiar();
+  });
   it('logout borra las señales al completar el servidor', () => {
     cargar();
     sesion.logout().subscribe();
@@ -107,6 +141,23 @@ describe('SesionService', () => {
     peticion.flush(null, { status: 204, statusText: 'No Content' });
     expect(sesion.usuario()).toBeNull();
     expect(sesion.debeCambiarPassword()).toBe(false);
+  });
+  it('logout entrega el resultado después de cerrar el historial de la cuenta', async () => {
+    cargar();
+    let terminar!: () => void;
+    const cierre = new Promise<void>((resolver) => {
+      terminar = resolver;
+    });
+    const retirar = sesion.registrarLimpieza(() => cierre);
+    const siguiente = vi.fn();
+    sesion.logout().subscribe(siguiente);
+    http.expectOne('/api/auth/logout').flush(null);
+    expect(sesion.usuario()).toBeNull();
+    expect(siguiente).not.toHaveBeenCalled();
+    terminar();
+    await sesion.esperarLimpieza();
+    expect(siguiente).toHaveBeenCalledTimes(1);
+    retirar();
   });
   it('logout fallido permite reintentar con la sesión conservada', () => {
     cargar();

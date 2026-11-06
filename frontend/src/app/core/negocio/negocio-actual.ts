@@ -138,11 +138,15 @@ export class NegocioActual {
     this.nombreRelacion.set(null);
     this.avisoSelector.set('');
     this.cambios.next();
-    try {
-      sessionStorage.removeItem('barberturno.reserva');
-      localStorage.removeItem('barberturno.ultima-barberia');
-    } catch {
-      /* Almacenamiento opcional. */
+    for (const nombre of ['sessionStorage', 'localStorage'] as const) {
+      try {
+        const almacen = window[nombre];
+        for (const clave of Object.keys(almacen)) {
+          if (clave.startsWith('barberturno.')) almacen.removeItem(clave);
+        }
+      } catch {
+        /* Un almacén restringido no impide limpiar el otro. */
+      }
     }
   }
 }

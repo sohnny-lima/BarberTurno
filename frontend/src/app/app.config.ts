@@ -1,8 +1,11 @@
-import { registerLocaleData } from '@angular/common';
+import { provideServiceWorker } from '@angular/service-worker';
+import { LocationStrategy, registerLocaleData } from '@angular/common';
+import { UbicacionSuperposiciones } from './core/pwa/ubicacion-superposiciones';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
 import {
   ApplicationConfig,
   inject,
+  isDevMode,
   LOCALE_ID,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
@@ -19,7 +22,12 @@ import { ReutilizacionNegocio } from './core/negocio/reutilizacion-negocio';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
     provideRouter(routes),
+    { provide: LocationStrategy, useClass: UbicacionSuperposiciones },
     { provide: RouteReuseStrategy, useClass: ReutilizacionNegocio },
     provideHttpClient(
       withInterceptors([negocioInterceptor, erroresInterceptor]),

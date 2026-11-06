@@ -33,7 +33,32 @@ describe('Interceptor de errores', () => {
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
   afterEach(() => peticiones.verify());
-  it('401 protegida limpia la sesión y navega a ingresar', () => {
+  it('una escritura sin red devuelve un mensaje claro y nunca se reintenta al volver', async () => {
+    const error = vi.fn();
+    http.post('/api/reservas', {}).subscribe({ error });
+    peticiones.expectOne('/api/reservas').error(new ProgressEvent('error'));
+    expect(error.mock.calls[0][0].error.detail).toContain('No se reintentará automáticamente');
+    window.dispatchEvent(new Event('online'));
+    peticiones.expectNone('/api/reservas');
+    await microtareas();
+    expect(abrir).toHaveBeenCalledWith(expect.stringContaining('falta de conexión'), 'Cerrar', {
+      duration: 6000,
+    });
+  });
+  it('un 401 tardío de la cuenta anterior no cierra la nueva sesión', () => {
+    const sesion = TestBed.inject(SesionService);
+    sesion.cargar().subscribe();
+    peticiones.expectOne('/api/auth/sesion').flush({ id: 1, nombre: 'Anterior ficticio' });
+    http.get('/api/perfil').subscribe({ error: () => undefined });
+    const anterior = peticiones.expectOne('/api/perfil');
+    sesion.limpiar();
+    sesion.login({ correo: 'otra@ejemplo.test', password: 'Ficticia12345' }).subscribe();
+    peticiones.expectOne('/api/auth/login').flush({ id: 2, nombre: 'Otra ficticia' });
+    anterior.flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(sesion.usuario()?.id).toBe(2);
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+  it('401 protegida limpia la sesión y navega a ingresar', async () => {
     const sesion = TestBed.inject(SesionService);
     sesion.cargar().subscribe();
     peticiones
@@ -42,9 +67,29 @@ describe('Interceptor de errores', () => {
     http.get('/api/perfil').subscribe({ error: () => undefined });
     peticiones.expectOne('/api/perfil').flush({}, { status: 401, statusText: 'Unauthorized' });
     expect(sesion.autenticado()).toBe(false);
+    await sesion.esperarLimpieza();
     expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
       queryParams: { returnUrl: '/' },
+      replaceUrl: true,
     });
+  });
+  it('401 espera a retirar el historial antes de reemplazar la ruta privada', async () => {
+    const sesion = TestBed.inject(SesionService);
+    let terminar!: () => void;
+    const cierre = new Promise<void>((resolver) => {
+      terminar = resolver;
+    });
+    const retirar = sesion.registrarLimpieza(() => cierre);
+    http.get('/api/perfil').subscribe({ error: () => undefined });
+    peticiones.expectOne('/api/perfil').flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(router.navigate).not.toHaveBeenCalled();
+    terminar();
+    await sesion.esperarLimpieza();
+    expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
+      queryParams: { returnUrl: '/' },
+      replaceUrl: true,
+    });
+    retirar();
   });
   it('401 de sesión inicial no navega ni muestra error', async () => {
     http.get('/api/auth/sesion').subscribe({ error: () => undefined });
