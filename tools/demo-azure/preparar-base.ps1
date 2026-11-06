@@ -7,7 +7,9 @@ param(
     [string]$Secretos = 'D:\Proyectos\BarberTurno\.local\demo-azure',
     [string]$Base = 'barberturno_v2_demo', [string]$RolMigraciones = 'bt_v2_demo',
     [string]$RolAplicacion = 'bt_v2_demo_app',
-    [string]$Psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe', [switch]$Simular
+    [string]$Psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe', [switch]$Simular,
+    # Clave de btadmin ya escrita (oculta) por quien ejecuta; si falta, se pide en la consola.
+    [securestring]$ClaveAdmin
 )
 . "$PSScriptRoot/comun.ps1"
 Assert-DestinoDemo $Base $RolMigraciones $RolAplicacion
@@ -18,7 +20,7 @@ if ($Simular) {
 }
 $Secretos = Initialize-DirectorioSecretos $Secretos
 [void](Get-RaicesAzureDemo $Secretos -Descargar)
-$entorno = Get-EntornoPgDemo $Secretos $Psql
+$entorno = Get-EntornoPgDemo $Secretos $Psql $ClaveAdmin
 $version = Invoke-ProcesoDemo $Psql @('--version')
 if ($version -notmatch ' 18\.') { throw 'Se requiere psql 18.' }
 [void](Invoke-PsqlDemo $Psql $entorno '' @('-f', (Join-Path $PSScriptRoot 'validar-base.sql')))

@@ -177,7 +177,8 @@ function Get-ClaveAdminPgDemo {
 }
 
 function Get-EntornoPgDemo {
-    param([string]$Secretos, [string]$Psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe')
+    param([string]$Secretos, [string]$Psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe',
+        [securestring]$ClaveAdmin)
     $entorno = @{
         PGHOST = 'pg-barberturno-202610.postgres.database.azure.com'; PGPORT = '5432'
         PGUSER = 'btadmin'; PGDATABASE = 'postgres'; PGSSLMODE = 'verify-full'
@@ -185,6 +186,17 @@ function Get-EntornoPgDemo {
         PGCONNECT_TIMEOUT = '20'; PGCLIENTENCODING = 'UTF8'
         PGOPTIONS = '-c statement_timeout=60000 -c lock_timeout=5000'
         PGAPPNAME = 'barberturno-v2-demo-provision'
+    }
+    if ($ClaveAdmin) {
+        # Clave recibida en memoria (p. ej., recién restablecida): se reintenta sin pedirla mientras Azure la propaga.
+        $entorno.PGPASSWORD = [Net.NetworkCredential]::new('', $ClaveAdmin).Password
+        for ($i = 1; $i -le 6; $i++) {
+            try { [void](Invoke-PsqlDemo $Psql $entorno 'SELECT 1;'); return $entorno }
+            catch {
+                if ($i -eq 6 -or $_.Exception.Message -notmatch 'contraseña rechazada') { throw }
+                Start-Sleep -Seconds 20
+            }
+        }
     }
     # Hasta tres intentos si la clave se escribe en la consola: se prueba con un SELECT 1 antes de seguir.
     $intentos = if ([IO.File]::Exists((Join-Path $Secretos 'pg-admin.secreto'))) { 1 } else { 3 }
