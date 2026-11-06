@@ -49,6 +49,10 @@ Autor: Gemini (g114 → g115 → g116). Ejecutor: Claude. Revisor: Codex.
 - Revisión de Codex (149): 9 hallazgos sobre las pruebas (2 altos: la 05 podía dejar una reserva si fallaba una aserción y la 11 no veía peticiones del *service worker*; 7 medios: comprobaciones débiles en 04, 06, 08, 09 y 10, y una bifurcación en CP-8). Corregidos por Gemini (g120).
 - Pase 5 (g120): la 04 reescrita falla. Para el propietario, `/reservar` es la «Reserva asistida», y en 360 el menú lateral tapaba el selector. Defecto de la prueba, corregido en g121.
 - **Pase 6 (g121): 22/22 correctas** (3,9 min) con las pruebas reforzadas. `movil.spec.ts` (local, con la base de pruebas y su cerrojo): 20/20.
+- Verificaciones de Codex:
+  - 150b: 6 de 9 hallazgos resueltos; pendientes la limpieza de la 05 y de la 11 y un dato propio de Sur en la 04, corregidos en g122.
+  - 151: 04 y 05 subsanadas; la 11 aún podía dejar una reserva sin cancelar en una ruta de error, corregido en g123 y revisado por Claude.
+- **Pase 7 (g122) y pase 8 (g123): 22/22 correctas** (3,8 min cada uno).
 - Ninguno de los fallos de los pases 1–5 fue de la aplicación.
 
 ## 5. Probar la TWA en un teléfono Android
