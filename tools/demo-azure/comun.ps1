@@ -17,7 +17,7 @@ function Initialize-DirectorioSecretos {
     $local = [IO.Path]::Combine($repo, '.local') + [IO.Path]::DirectorySeparatorChar
     if (($ruta.Equals($repo, [StringComparison]::OrdinalIgnoreCase) -or
         $ruta.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) -and
-        -not $ruta.StartsWith($local, [StringComparison]::OrdinalIgnoreCase)) {
+        -not ($ruta + [IO.Path]::DirectorySeparatorChar).StartsWith($local, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'El directorio de secretos debe quedar fuera de este repositorio.'
     }
     [void][IO.Directory]::CreateDirectory($ruta)
