@@ -32,6 +32,8 @@ $ajustes = [ordered]@{
     BT_FLYWAY_USER = $RolMigraciones; BT_FLYWAY_PASSWORD = Get-SecretoDemo $Secretos 'migraciones.secreto'
     BT_JWT_SECRET = Get-SecretoDemo $Secretos 'jwt.secreto' -Crear -Jwt; BT_COOKIE_SECURE = 'true'
     BT_ADMIN_CORREO = 'plataforma-demo@ejemplo.test'; BT_ADMIN_NOMBRE = 'Administración demo'
+    # Barbería donde AdminInicialRunner crea la cuenta inicial; sin ella prod no arranca (solo dev/test la definen).
+    BARBERTURNO_TENANCY_NEGOCIOINICIALSLUG = 'barberturno'
     BT_ADMIN_PASSWORD = Get-SecretoDemo $Secretos 'admin-plataforma.secreto' -Crear
     BARBERTURNO_WHATSAPP_CONVERSACION_PRIVACIDAD_TEXTO = 'BORRADOR (demo; pendiente de P2-06): para reservar en {negocio} guardaremos tu nombre de WhatsApp y tu número. Aviso de privacidad: {enlace}. ¿Aceptas?'
     BARBERTURNO_WHATSAPP_CONVERSACION_PRIVACIDAD_ENLACE = 'https://barberturno.ejemplo.test/privacidad'

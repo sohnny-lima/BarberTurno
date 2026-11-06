@@ -31,7 +31,7 @@ if ($grupoExiste) {
     }
 }
 $reglas = @((Invoke-AzDemo $Az @('postgres', 'flexible-server', 'firewall-rule', 'list',
-    '-g', 'rg-barberturno-prod', '-n', 'pg-barberturno-202610', '-o', 'json')) | ConvertFrom-Json)
+    '-g', 'rg-barberturno-prod', '-s', 'pg-barberturno-202610', '-o', 'json')) | ConvertFrom-Json)
 $demoReglas = @($reglas | Where-Object { $_.name -clike 'demo-v2-*' })
 foreach ($regla in $demoReglas) {
     # Nombre y rango exactos del creador: un nombre extraño no permite borrar un rango ajeno.
@@ -54,7 +54,7 @@ finally {
 }
 foreach ($regla in $demoReglas) {
     [void](Invoke-AzDemo $Az @('postgres', 'flexible-server', 'firewall-rule', 'delete',
-        '-g', 'rg-barberturno-prod', '-n', 'pg-barberturno-202610', '--rule-name', $regla.name, '--yes', '-o', 'none'))
+        '-g', 'rg-barberturno-prod', '-s', 'pg-barberturno-202610', '-n', $regla.name, '--yes', '-o', 'none'))
 }
 if ($grupoExiste) {
     [void](Invoke-AzDemo $Az @('group', 'delete', '-n', 'rg-barberturno-v2-demo', '--yes', '-o', 'none'))

@@ -22,14 +22,14 @@ if ($Simular) {
     $app = Assert-AppDemo $Az $Suscripcion
     $ips = @(([string]$app.outboundIpAddresses).Split(',', [StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() })
     $reglas = @((Invoke-AzDemo $Az @('postgres', 'flexible-server', 'firewall-rule', 'list',
-        '-g', 'rg-barberturno-prod', '-n', 'pg-barberturno-202610', '-o', 'json')) | ConvertFrom-Json)
+        '-g', 'rg-barberturno-prod', '-s', 'pg-barberturno-202610', '-o', 'json')) | ConvertFrom-Json)
 }
 if ($ips.Count -eq 0) { throw 'La web app no devolvió IP salientes; no se modifica el cortafuegos.' }
 $faltantes = @(Get-ReglasFaltantesDemo $ips $reglas)
 foreach ($regla in $faltantes) {
     if ($Simular) { Write-Output "SIMULAR: crear $($regla.name) [$($regla.startIpAddress)]."; continue }
     [void](Invoke-AzDemo $Az @('postgres', 'flexible-server', 'firewall-rule', 'create',
-        '-g', 'rg-barberturno-prod', '-n', 'pg-barberturno-202610', '--rule-name', $regla.name,
+        '-g', 'rg-barberturno-prod', '-s', 'pg-barberturno-202610', '-n', $regla.name,
         '--start-ip-address', $regla.startIpAddress, '--end-ip-address', $regla.endIpAddress, '-o', 'none'))
     Write-Output "Creada $($regla.name)."
 }
