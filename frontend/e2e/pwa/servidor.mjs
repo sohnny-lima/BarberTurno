@@ -40,8 +40,13 @@ const servidor = createServer(async (entrada, salida) => {
       },
     );
     proxy.on('error', () => {
-      salida.writeHead(503);
-      salida.end();
+      // Al parar el jar entre proyectos puede cortarse una respuesta ya empezada: sin cabeceras se
+      // responde 503; con ellas se corta la conexión. Nunca debe caerse el servidor de pruebas.
+      if (salida.headersSent) salida.destroy();
+      else {
+        salida.writeHead(503);
+        salida.end();
+      }
     });
     entrada.pipe(proxy);
     return;
