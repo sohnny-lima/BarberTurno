@@ -244,6 +244,8 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     let reservaCreada: { id: number; codigo: string; version: number } | null = null;
     let cancelada = false;
     let errorCuerpo: unknown = null;
+    let falloCuerpo = false;
+    const erroresLimpieza: Error[] = [];
 
     try {
       await iniciarSesion(page, 'cliente@ejemplo.test', 'barberturno');
@@ -328,9 +330,8 @@ test.describe('Aceptación Demo v2 en Azure', () => {
       await expect(tarjeta).toContainText('Cancelada');
     } catch (err) {
       errorCuerpo = err;
+      falloCuerpo = true;
     } finally {
-      const erroresLimpieza: Error[] = [];
-
       // 1. Cancelación garantizada si no se completó por UI
       if (reservaCreada && !cancelada) {
         try {
@@ -342,27 +343,33 @@ test.describe('Aceptación Demo v2 en Azure', () => {
             cookieXsrf = cookies.find((c) => c.name === 'XSRF-TOKEN');
           }
           if (!cookieXsrf) {
-            throw new Error('No se pudo obtener la cookie XSRF-TOKEN para cancelar la reserva');
-          }
-          const resCancel = await page.request.post(
-            `/api/n/barberturno/reservas/${reservaCreada.id}/cancelacion`,
-            {
-              headers: {
-                'X-XSRF-TOKEN': cookieXsrf.value,
-                'Content-Type': 'application/json',
-              },
-              data: {
-                version: reservaCreada.version ?? 0,
-                motivo: 'Limpieza de reserva tras fallo en prueba',
-              },
-            },
-          );
-          if (resCancel.status() !== 200) {
-            throw new Error(
-              `La cancelación de la reserva ${reservaCreada.id} en limpieza devolvió ${resCancel.status()} (se esperaba 200)`,
+            erroresLimpieza.push(
+              new Error('No se pudo obtener la cookie XSRF-TOKEN para cancelar la reserva'),
             );
+          } else {
+            const resCancel = await page.request.post(
+              `/api/n/barberturno/reservas/${reservaCreada.id}/cancelacion`,
+              {
+                headers: {
+                  'X-XSRF-TOKEN': cookieXsrf.value,
+                  'Content-Type': 'application/json',
+                },
+                data: {
+                  version: reservaCreada.version ?? 0,
+                  motivo: 'Limpieza de reserva tras fallo en prueba',
+                },
+              },
+            );
+            if (resCancel.status() !== 200) {
+              erroresLimpieza.push(
+                new Error(
+                  `La cancelación de la reserva ${reservaCreada.id} en limpieza devolvió ${resCancel.status()} (se esperaba 200)`,
+                ),
+              );
+            } else {
+              cancelada = true;
+            }
           }
-          cancelada = true;
         } catch (errCancel) {
           erroresLimpieza.push(
             errCancel instanceof Error ? errCancel : new Error(String(errCancel)),
@@ -382,28 +389,28 @@ test.describe('Aceptación Demo v2 en Azure', () => {
           errLogout instanceof Error ? errLogout : new Error(String(errLogout)),
         );
       }
+    }
 
-      // Registrar fallos de limpieza sin ocultar el error original de la prueba
-      if (erroresLimpieza.length > 0) {
-        for (const errLimpieza of erroresLimpieza) {
-          test.info().errors.push({
-            message: `Fallo en limpieza: ${errLimpieza.message}`,
-          });
-        }
+    // Registrar fallos de limpieza sin ocultar el error original de la prueba
+    if (erroresLimpieza.length > 0) {
+      for (const errLimpieza of erroresLimpieza) {
+        test.info().errors.push({
+          message: `Fallo en limpieza: ${errLimpieza.message}`,
+        });
       }
+    }
 
-      if (errorCuerpo) {
-        if (erroresLimpieza.length > 0 && errorCuerpo instanceof Error) {
-          errorCuerpo.message += `\n\nAdicionalmente falló la limpieza:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`;
-        }
-        throw errorCuerpo;
+    if (falloCuerpo) {
+      if (erroresLimpieza.length > 0 && errorCuerpo instanceof Error) {
+        errorCuerpo.message += `\n\nAdicionalmente falló la limpieza:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`;
       }
+      throw errorCuerpo;
+    }
 
-      if (erroresLimpieza.length > 0) {
-        throw new Error(
-          `Fallos durante la limpieza de la prueba 05:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`,
-        );
-      }
+    if (erroresLimpieza.length > 0) {
+      throw new Error(
+        `Fallos durante la limpieza de la prueba 05:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`,
+      );
     }
   });
 
@@ -692,6 +699,8 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     };
 
     let errorCuerpo: unknown = null;
+    let falloCuerpo = false;
+    const erroresLimpieza: Error[] = [];
 
     try {
       await iniciarSesion(page, 'cliente@ejemplo.test', 'barberturno');
@@ -857,10 +866,15 @@ test.describe('Aceptación Demo v2 en Azure', () => {
       ).toEqual([]);
     } catch (err) {
       errorCuerpo = err;
+      falloCuerpo = true;
     } finally {
-      await context.setOffline(false);
-
-      const erroresLimpieza: Error[] = [];
+      try {
+        await context.setOffline(false);
+      } catch (errConexion) {
+        erroresLimpieza.push(
+          errConexion instanceof Error ? errConexion : new Error(String(errConexion)),
+        );
+      }
 
       // 1. Recolección de las escrituras detectadas: esperar su respuesta con un plazo mayor (30 s)
       // Manteniendo los listeners activos para capturar cualquier 201 en vuelo
@@ -909,23 +923,26 @@ test.describe('Aceptación Demo v2 en Azure', () => {
             '/api/n/barberturno/reservas/mias?tamano=100',
           );
           if (!respMias.ok()) {
-            throw new Error(
-              `La consulta de reservas en limpieza devolvió ${respMias.status()} (se esperaba 200)`,
+            erroresLimpieza.push(
+              new Error(
+                `La consulta de reservas en limpieza devolvió ${respMias.status()} (se esperaba 200)`,
+              ),
             );
-          }
-          const cuerpoMias = await respMias.json();
-          const contenido = Array.isArray(cuerpoMias?.contenido) ? cuerpoMias.contenido : [];
-          for (const r of contenido) {
-            if (
-              typeof r?.id === 'number' &&
-              !idsReservasPrevias.has(r.id) &&
-              r.estado !== 'CANCELADA' &&
-              !reservasInesperadas.some((item) => item.id === r.id)
-            ) {
-              reservasInesperadas.push({
-                id: r.id,
-                version: typeof r.version === 'number' ? r.version : 0,
-              });
+          } else {
+            const cuerpoMias = await respMias.json();
+            const contenido = Array.isArray(cuerpoMias?.contenido) ? cuerpoMias.contenido : [];
+            for (const r of contenido) {
+              if (
+                typeof r?.id === 'number' &&
+                !idsReservasPrevias.has(r.id) &&
+                r.estado !== 'CANCELADA' &&
+                !reservasInesperadas.some((item) => item.id === r.id)
+              ) {
+                reservasInesperadas.push({
+                  id: r.id,
+                  version: typeof r.version === 'number' ? r.version : 0,
+                });
+              }
             }
           }
         } catch (errMias) {
@@ -948,27 +965,32 @@ test.describe('Aceptación Demo v2 en Azure', () => {
             cookieXsrf = cookies.find((c) => c.name === 'XSRF-TOKEN');
           }
           if (!cookieXsrf) {
-            throw new Error(
-              `No se pudo obtener la cookie XSRF-TOKEN para cancelar la reserva inesperada ${reserva.id}`,
+            erroresLimpieza.push(
+              new Error(
+                `No se pudo obtener la cookie XSRF-TOKEN para cancelar la reserva inesperada ${reserva.id}`,
+              ),
             );
-          }
-          const resCancel = await page.request.post(
-            `/api/n/barberturno/reservas/${reserva.id}/cancelacion`,
-            {
-              headers: {
-                'X-XSRF-TOKEN': cookieXsrf.value,
-                'Content-Type': 'application/json',
+          } else {
+            const resCancel = await page.request.post(
+              `/api/n/barberturno/reservas/${reserva.id}/cancelacion`,
+              {
+                headers: {
+                  'X-XSRF-TOKEN': cookieXsrf.value,
+                  'Content-Type': 'application/json',
+                },
+                data: {
+                  version: reserva.version,
+                  motivo: 'Limpieza de reserva inesperada en prueba offline',
+                },
               },
-              data: {
-                version: reserva.version,
-                motivo: 'Limpieza de reserva inesperada en prueba offline',
-              },
-            },
-          );
-          if (resCancel.status() !== 200) {
-            throw new Error(
-              `La cancelación de la reserva inesperada ${reserva.id} devolvió ${resCancel.status()} (se esperaba 200)`,
             );
+            if (resCancel.status() !== 200) {
+              erroresLimpieza.push(
+                new Error(
+                  `La cancelación de la reserva inesperada ${reserva.id} devolvió ${resCancel.status()} (se esperaba 200)`,
+                ),
+              );
+            }
           }
         } catch (errCancel) {
           erroresLimpieza.push(
@@ -995,28 +1017,28 @@ test.describe('Aceptación Demo v2 en Azure', () => {
           errLogout instanceof Error ? errLogout : new Error(String(errLogout)),
         );
       }
+    }
 
-      // Reportar errores de limpieza sin ocultar el error del cuerpo de la prueba
-      if (erroresLimpieza.length > 0) {
-        for (const errLimpieza of erroresLimpieza) {
-          test.info().errors.push({
-            message: `Fallo en limpieza: ${errLimpieza.message}`,
-          });
-        }
+    // Reportar errores de limpieza sin ocultar el error del cuerpo de la prueba
+    if (erroresLimpieza.length > 0) {
+      for (const errLimpieza of erroresLimpieza) {
+        test.info().errors.push({
+          message: `Fallo en limpieza: ${errLimpieza.message}`,
+        });
       }
+    }
 
-      if (errorCuerpo) {
-        if (erroresLimpieza.length > 0 && errorCuerpo instanceof Error) {
-          errorCuerpo.message += `\n\nAdicionalmente falló la limpieza:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`;
-        }
-        throw errorCuerpo;
+    if (falloCuerpo) {
+      if (erroresLimpieza.length > 0 && errorCuerpo instanceof Error) {
+        errorCuerpo.message += `\n\nAdicionalmente falló la limpieza:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`;
       }
+      throw errorCuerpo;
+    }
 
-      if (erroresLimpieza.length > 0) {
-        throw new Error(
-          `Fallos durante la limpieza de la prueba 11:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`,
-        );
-      }
+    if (erroresLimpieza.length > 0) {
+      throw new Error(
+        `Fallos durante la limpieza de la prueba 11:\n${erroresLimpieza.map((e) => `- ${e.message}`).join('\n')}`,
+      );
     }
   });
 });
