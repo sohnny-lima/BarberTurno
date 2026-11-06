@@ -32,6 +32,10 @@ RESET ROLE;
 -- La conexión vuelve como btadmin, no como el dueño que ejecuta Flyway.
 \connect barberturno_v2_demo
 CREATE EXTENSION IF NOT EXISTS btree_gist;
+-- En Azure el esquema public de una base nueva pertenece a azure_pg_admin (no a pg_database_owner):
+-- sin esto el rol de migraciones no puede crear tablas ni conceder USAGE al rol de ejecución.
+SELECT 'ALTER SCHEMA public OWNER TO bt_v2_demo'
+FROM pg_namespace WHERE nspname = 'public' AND pg_get_userbyid(nspowner) <> 'bt_v2_demo' \gexec
 \endif
 
 \if :limpiar
