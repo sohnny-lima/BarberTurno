@@ -20,7 +20,8 @@ if ($Simular) {
     $reglas = @($datos.reglas)
 } else {
     $app = Assert-AppDemo $Az $Suscripcion
-    $ips = @(([string]$app.outboundIpAddresses).Split(',', [StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() })
+    # possibleOutboundIpAddresses (superconjunto): la app puede salir por cualquiera de ellas, no solo por las actuales.
+    $ips = @(([string]$app.possibleOutboundIpAddresses).Split(',', [StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() })
     $reglas = @((Invoke-AzDemo $Az @('postgres', 'flexible-server', 'firewall-rule', 'list',
         '-g', 'rg-barberturno-prod', '-s', 'pg-barberturno-202610', '-o', 'json')) | ConvertFrom-Json)
 }
