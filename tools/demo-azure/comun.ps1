@@ -102,8 +102,14 @@ function New-ProcesoDemo {
 
 function Invoke-ProcesoDemo {
     param([string]$Ejecutable, [string[]]$Argumentos, [hashtable]$Entorno = @{},
-        [string]$Entrada = '', [int]$Segundos = 120)
+        [string]$Entrada = '', [int]$Segundos = 120, [string]$LineaCmd = '')
     $proceso = New-ProcesoDemo $Ejecutable $Argumentos $Entorno
+    # cmd.exe no interpreta los escapes de comillas de CommandLineToArgvW que usa ArgumentList.
+    # Su línea /s /c ya viene validada y entrecomillada por Invoke-AzDemo.
+    if ($LineaCmd) {
+        if ($Argumentos.Count -gt 0 -or $Ejecutable -ne $env:ComSpec) { throw 'La línea cmd requiere cmd.exe y Argumentos vacío.' }
+        $proceso.StartInfo.Arguments = '/d /s /c ' + $LineaCmd
+    }
     try {
         [void]$proceso.Start()
         $salida = $proceso.StandardOutput.ReadToEndAsync()
@@ -130,7 +136,7 @@ function Invoke-AzDemo {
     $todos = @($Az) + $Argumentos + @('--only-show-errors')
     if ($todos | Where-Object { $_ -match '["%!^&|<>\r\n]' }) { throw 'Argumento no seguro para az.cmd.' }
     $linea = '"' + (($todos | ForEach-Object { '"' + $_ + '"' }) -join ' ') + '"'
-    return Invoke-ProcesoDemo $env:ComSpec @('/d', '/s', '/c', $linea) -Segundos 600
+    return Invoke-ProcesoDemo $env:ComSpec @() -LineaCmd $linea -Segundos 600
 }
 
 function Get-JdbcDemo {
