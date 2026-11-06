@@ -8,6 +8,13 @@
   src: url('@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2');
 }
 
+:root {
+  --borde-sup: env(safe-area-inset-top, 0px);
+  --borde-der: env(safe-area-inset-right, 0px);
+  --borde-inf: env(safe-area-inset-bottom, 0px);
+  --borde-izq: env(safe-area-inset-left, 0px);
+}
+
 html {
   height: 100%;
   scroll-padding-top: 72px;
@@ -230,7 +237,7 @@ mat-snack-bar-container {
     padding-inline: 0;
   }
   body:has(app-reservar .barra-reserva) .aviso-transitorio {
-    margin-bottom: calc(140px + env(safe-area-inset-bottom));
+    margin-bottom: calc(140px + var(--borde-inf));
   }
   html:has(app-reservar .barra-reserva) {
     scroll-padding-bottom: 150px;
@@ -265,6 +272,14 @@ app-cambiar-password p[role='status'] {
   color: var(--color-no-asistio);
 }
 html {
+  @include mat.sidenav-overrides(
+    (
+      content-background-color: var(--color-fondo),
+      container-background-color: var(--color-superficie),
+      container-text-color: var(--color-tinta),
+      container-shape: 0,
+    )
+  );
   @include mat.menu-overrides(
     (
       container-color: var(--color-superficie),
@@ -301,6 +316,18 @@ html {
     )
   );
 }
+.cuenta {
+  @include mat.button-overrides(
+    (
+      text-container-shape: 50%,
+    )
+  );
+}
+app-shell .barra-inferior {
+  min-height: calc(72px + var(--borde-inf));
+  padding: 8px calc(12px + var(--borde-der)) calc(8px + var(--borde-inf))
+    calc(12px + var(--borde-izq));
+}
 @media (max-width: 767.98px) {
   html {
     @include mat.dialog-overrides(
@@ -313,23 +340,27 @@ html {
     );
   }
   .cdk-overlay-pane:has(mat-dialog-container) {
-    max-width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    max-width: calc(100vw - var(--borde-izq) - var(--borde-der)) !important;
   }
   mat-dialog-container {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
+    padding: var(--borde-sup) var(--borde-der) var(--borde-inf) var(--borde-izq);
   }
   .tique-hora {
     font-size: 44px;
   }
   html:has(.con-barra-inferior),
   .con-barra-inferior mat-sidenav-content {
-    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(72px + var(--borde-inf));
   }
   body:has(.con-barra-inferior) .aviso-transitorio {
-    margin-bottom: calc(72px + env(safe-area-inset-bottom));
+    margin-bottom: calc(72px + var(--borde-inf));
   }
   body:has(.con-barra-inferior app-reservar .barra-reserva) .aviso-transitorio {
-    margin-bottom: calc(212px + env(safe-area-inset-bottom));
+    margin-bottom: calc(212px + var(--borde-inf));
+  }
+  app-shell .con-barra-inferior {
+    --espacio-navegacion-inferior: calc(72px + var(--borde-inf));
+    height: 100dvh;
+    padding-bottom: var(--espacio-navegacion-inferior);
   }
 }

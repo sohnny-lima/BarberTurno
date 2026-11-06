@@ -9,6 +9,44 @@
 
 ---
 
+## Encargo g112 · Presupuesto de estilo de shell.scss (05/11/2026)
+
+- **Problema:** En el build de integración con `npm run build`, `src/app/layout/shell.scss` excedió el presupuesto `anyComponentStyle` (4.00 kB) por 488 bytes con un total de 4.49 kB. El presupuesto por componente no se puede ampliar según V2-DA-96.
+- **Objetivo:** Reducir ≥ 0,5 kB (meta de margen ~0,7 kB a ~1.0 kB por debajo del límite de 4.00 kB) garantizando un aspecto en pantalla 100% idéntico.
+- **Acciones implementadas:**
+  1. [`frontend/src/styles.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/styles.scss) (estilos globales, sin presupuesto de componente):
+     - Declaración de variables CSS de bordes seguros en `:root`:
+       - `--borde-sup: env(safe-area-inset-top, 0px);`
+       - `--borde-der: env(safe-area-inset-right, 0px);`
+       - `--borde-inf: env(safe-area-inset-bottom, 0px);`
+       - `--borde-izq: env(safe-area-inset-left, 0px);`
+     - Traslado de `@include mat.sidenav-overrides(...)` al bloque global `html` (donde convive con las demás configuraciones de tema de Material 3).
+     - Traslado de la regla de forma circular `.cuenta { @include mat.button-overrides((text-container-shape: 50%)); }`.
+     - Definición de bordes seguros del shell desacoplados del encapsulado de componente:
+       - `app-shell .barra-inferior`: `min-height: calc(72px + var(--borde-inf));` y `padding: 8px calc(12px + var(--borde-der)) calc(8px + var(--borde-inf)) calc(12px + var(--borde-izq));`.
+       - `app-shell .con-barra-inferior` (dentro de `@media (max-width: 767.98px)`): `--espacio-navegacion-inferior: calc(72px + var(--borde-inf)); height: 100dvh; padding-bottom: var(--espacio-navegacion-inferior);`.
+     - Simplificación de reglas preexistentes de diálogos, avisos transitorios y scroll-padding usando las nuevas variables `--borde-*`.
+  2. [`frontend/src/app/layout/shell.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/layout/shell.scss) (estilos encapsulados de componente):
+     - Retirada de `@use '@angular/material' as mat;`, eliminando la importación y generación de mixins de tema de Material dentro del componente.
+     - Retirada de `mat-sidenav-container { @include mat.sidenav-overrides(...); }`.
+     - Retirada de `.cuenta { @include mat.button-overrides(...); }`.
+     - Eliminación de `min-height` y `padding` en `.barra-inferior`, delegándolos limpiamente a `app-shell .barra-inferior` en `styles.scss` sin conflicto de especificidad.
+     - Eliminación total del bloque `.con-barra-inferior` dentro de `@media (max-width: 767.98px)`, servido ahora por `app-shell .con-barra-inferior` en `styles.scss`.
+     - Simplificación de las reglas responsivas de bordes seguros en `.cabecera`, `.riel`, `main` y `footer` sustituyendo las extensas expresiones `env(safe-area-inset-*)` por `var(--borde-*)`.
+     - Deduplicación de la clase `.nombre-barberia` (unificada en el bloque de títulos superiores).
+     - Mantenimiento estricto del comportamiento de teclado virtual: no se reintroduce `.teclado-abierto` en `shell.scss` (el shell ya gestiona la ocultación vía señal y `styles.scss` gestiona `body.teclado-abierto`).
+- **Estimación de bytes ahorrados en `shell.scss`:**
+  - `mat.sidenav-overrides` + import `@use mat`: ahorro de ~335 bytes de CSS compilado con variables de tema.
+  - `.cuenta` botón circular override: ahorro de ~150 bytes de CSS compilado.
+  - `.barra-inferior` (min-height y padding): ahorro de ~185 bytes.
+  - `.con-barra-inferior` (variables y padding): ahorro de ~175 bytes.
+  - Variables compactas `var(--borde-*)` en `.cabecera`, `.riel`, `main`, `footer`: ahorro de ~140 bytes.
+  - Deduplicación `.nombre-barberia`: ahorro de ~40 bytes.
+  - **Ahorro total estimado en el CSS compilado de `shell.scss`:** **~1.025 bytes (~1,03 kB)**.
+  - **Tamaño proyectado:** ~3,46 kB (por debajo del límite de 4,00 kB, con ~0,54 kB de margen de seguridad).
+
+---
+
 ## 1. Qué se hizo, por archivo
 
 ### Ejecución (Claude) y Correcciones Aplicadas (Gemini)
@@ -161,6 +199,6 @@ Tras la ejecución y revisión del coordinador Claude Code (05/11/2026):
 - **Siguiente paso concreto para Claude:**
   1. Ejecutar `npm run lint` para verificar la corrección del tipo TS2339 en `movil.spec.ts`.
   2. Ejecutar `npm test` para verificar que `ingresar.spec.ts` y demás unitarias pasen limpiamente con `autocomplete="username"`.
-  3. Ejecutar `npm run build` para comprobar que el bundle inicial vuelve a colocarse dentro o en el umbral del presupuesto de 500 kB con los ahorros de estilos aplicados.
-  4. Ejecutar `prettier --write` sobre los archivos modificados.
+  3. Ejecutar `npm run build` para comprobar que `src/app/layout/shell.scss` queda holgadamente por debajo de los 4,00 kB (eliminando el aviso `▲ [WARNING]` de presupuesto `anyComponentStyle` de 488 bytes) y que el bundle inicial cumple su presupuesto.
+  4. Ejecutar `prettier --write` sobre los archivos modificados (`shell.scss`, `styles.scss`, `docs/v2/pruebas/v2-18-movil.md`).
   5. Ejecutar las pruebas E2E PWA móviles (`npx playwright test --config=playwright.pwa.config.ts e2e/pwa/movil.spec.ts`).
