@@ -41,6 +41,8 @@ $ajustes = [ordered]@{
     BARBERTURNO_WHATSAPP_SALIDA_HABILITADO = 'false'
     SERVER_PORT = '80'; WEBSITES_PORT = '80'
     JAVA_OPTS = '-Xmx320m -XX:MaxMetaspaceSize=192m -XX:+UseSerialGC -Xss512k -Dfile.encoding=UTF-8'
+    # F1: el arranque en frío puede superar los 230 s por defecto de App Service.
+    WEBSITES_CONTAINER_START_TIME_LIMIT = '600'
 }
 if ($TwaPaquete) { $ajustes.BT_TWA_PAQUETE = $TwaPaquete; $ajustes.BT_TWA_HUELLAS = $TwaHuellas }
 $temporal = Join-Path $Secretos ('appsettings-' + [guid]::NewGuid().ToString('N') + '.json')

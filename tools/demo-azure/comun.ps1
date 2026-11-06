@@ -13,8 +13,11 @@ function Initialize-DirectorioSecretos {
     param([string]$Secretos)
     $ruta = [IO.Path]::GetFullPath($Secretos)
     $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-    if ($ruta.Equals($repo, [StringComparison]::OrdinalIgnoreCase) -or
-        $ruta.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    # .local/ está ignorada por Git: es el sitio habitual de los secretos cuando se ejecuta desde la copia principal.
+    $local = [IO.Path]::Combine($repo, '.local') + [IO.Path]::DirectorySeparatorChar
+    if (($ruta.Equals($repo, [StringComparison]::OrdinalIgnoreCase) -or
+        $ruta.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) -and
+        -not $ruta.StartsWith($local, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'El directorio de secretos debe quedar fuera de este repositorio.'
     }
     [void][IO.Directory]::CreateDirectory($ruta)
@@ -110,7 +113,7 @@ function Get-MotivoSeguroDemo {
         'Se requiere PostgreSQL 18 y btadmin no superusuario con CREATEDB/CREATEROLE en postgres.',
         'La base demo tiene otro propietario.', 'La base demo tiene concesiones adicionales inesperadas.',
         'Los roles demo son dueños de bases no autorizadas.', 'El rol de ejecución tiene objetos en propiedad.',
-        'Un rol demo es dueño de objetos fuera de la base demo.')
+        'Un rol demo es dueño de objetos fuera de la base demo.', 'PUBLIC conserva permisos sobre la base demo.')
     foreach ($mensaje in $propios) {
         if ($ErrorTexto -match ('(?m)ERROR:\s+' + [regex]::Escape($mensaje) + '\s*$')) { return $mensaje }
     }
@@ -139,8 +142,9 @@ function Invoke-ProcesoDemo {
         if ($Argumentos.Count -gt 0 -or $Ejecutable -ne $env:ComSpec) { throw 'La línea cmd requiere cmd.exe y Argumentos vacío.' }
         $proceso.StartInfo.Arguments = '/d /s /c ' + $LineaCmd
     }
+    $iniciado = $false
     try {
-        [void]$proceso.Start()
+        [void]$proceso.Start(); $iniciado = $true
         $salida = $proceso.StandardOutput.ReadToEndAsync()
         $errorSalida = $proceso.StandardError.ReadToEndAsync()
         $proceso.StandardInput.Write($Entrada)
@@ -157,7 +161,8 @@ function Invoke-ProcesoDemo {
         }
         return $texto
     } finally {
-        if ($proceso.Id -and -not $proceso.HasExited) { $proceso.Kill($true); $proceso.WaitForExit() }
+        # Solo si llegó a arrancar: leer Id de un proceso no iniciado lanzaría y ocultaría el error original.
+        if ($iniciado -and -not $proceso.HasExited) { $proceso.Kill($true); $proceso.WaitForExit() }
         $proceso.Dispose()
     }
 }

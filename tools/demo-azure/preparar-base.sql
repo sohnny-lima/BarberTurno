@@ -53,6 +53,11 @@ WHERE EXISTS (SELECT FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid
 
 \if :informe
 \ir validar-base.sql
+-- Tras preparar, PUBLIC no debe conservar ningún permiso sobre la base (la validación previa lo tolera
+-- para poder repetir una preparación interrumpida tras CREATE DATABASE).
+DO $$ BEGIN IF EXISTS (SELECT FROM pg_database d CROSS JOIN LATERAL aclexplode(coalesce(d.datacl, acldefault('d', d.datdba))) a
+    WHERE d.datname = 'barberturno_v2_demo' AND a.grantee = 0)
+THEN RAISE EXCEPTION 'PUBLIC conserva permisos sobre la base demo.'; END IF; END $$;
 \set QUIET off
 SELECT r.rolname AS rol, r.rolcanlogin AS login,
        r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR r.rolbypassrls AS privilegios_especiales,
