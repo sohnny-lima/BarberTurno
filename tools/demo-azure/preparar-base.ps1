@@ -18,7 +18,7 @@ if ($Simular) {
 }
 $Secretos = Initialize-DirectorioSecretos $Secretos
 [void](Get-RaicesAzureDemo $Secretos -Descargar)
-$entorno = Get-EntornoPgDemo $Secretos
+$entorno = Get-EntornoPgDemo $Secretos $Psql
 $version = Invoke-ProcesoDemo $Psql @('--version')
 if ($version -notmatch ' 18\.') { throw 'Se requiere psql 18.' }
 [void](Invoke-PsqlDemo $Psql $entorno '' @('-f', (Join-Path $PSScriptRoot 'validar-base.sql')))

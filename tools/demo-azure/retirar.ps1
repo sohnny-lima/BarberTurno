@@ -42,7 +42,7 @@ foreach ($regla in $demoReglas) {
 }
 $Secretos = Initialize-DirectorioSecretos $Secretos
 [void](Get-RaicesAzureDemo $Secretos)
-$entorno = Get-EntornoPgDemo $Secretos
+$entorno = Get-EntornoPgDemo $Secretos $Psql
 $sql = Join-Path $PSScriptRoot 'retirar.sql'
 [void](Invoke-PsqlDemo $Psql $entorno '' @('-v', 'accion=comprobar', '-f', $sql))
 if ($appExiste) {

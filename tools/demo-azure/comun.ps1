@@ -100,6 +100,18 @@ function New-ProcesoDemo {
     return [Diagnostics.Process]::new() | ForEach-Object { $_.StartInfo = $info; $_ }
 }
 
+function Get-MotivoSeguroDemo {
+    param([string]$ErrorTexto)
+    $propio = [regex]::Match($ErrorTexto, "(?m)ERROR:\s+((?:Se requiere PostgreSQL 18|Rol demo con atributos|Un rol demo|Membresía inesperada|La base demo|Los roles demo|El rol de ejecución|Hay dependencias|Quedan conexiones|Verificadores SCRAM)[^\r\n]{0,120})")
+    if ($propio.Success) { return $propio.Groups[1].Value }
+    if ($ErrorTexto -match '(?i)password authentication failed|autentificaci.n password fall|autenticaci.n.*fall') { return 'contraseña rechazada por el servidor' }
+    if ($ErrorTexto -match '(?i)no password supplied|no se entreg. contrase') { return 'falta la contraseña' }
+    if ($ErrorTexto -match '(?i)pg_hba\.conf|timeout expired|timed out|tiempo de espera|could not connect|no se pudo conectar|could not translate host|refused|rehus|en ejecuci') { return 'sin conexión con el servidor (red o cortafuegos)' }
+    if ($ErrorTexto -match '(?i)certificate|certificado|SSL') { return 'error de TLS o de certificado' }
+    if ($ErrorTexto -match '(?i)permission denied|permiso denegado|must be owner|debe ser due') { return 'permiso insuficiente en el servidor' }
+    return 'motivo no clasificado'
+}
+
 function Invoke-ProcesoDemo {
     param([string]$Ejecutable, [string[]]$Argumentos, [hashtable]$Entorno = @{},
         [string]$Entrada = '', [int]$Segundos = 120, [string]$LineaCmd = '')
@@ -119,10 +131,13 @@ function Invoke-ProcesoDemo {
         if (-not $proceso.WaitForExit($Segundos * 1000)) {
             $proceso.Kill($true); $proceso.WaitForExit(); throw 'El proceso excedió el tiempo permitido.'
         }
-        # No reenviar stderr: psql/CLI podrían incluir configuración o valores SQL.
+        # No reenviar stderr: psql/CLI podrían incluir configuración o valores SQL. Solo se informa una
+        # categoría fija o uno de los mensajes RAISE propios de estos scripts.
         $texto = $salida.GetAwaiter().GetResult()
-        [void]$errorSalida.GetAwaiter().GetResult()
-        if ($proceso.ExitCode -ne 0) { throw "El proceso falló (código $($proceso.ExitCode)); salida suprimida por seguridad." }
+        $errorTexto = $errorSalida.GetAwaiter().GetResult()
+        if ($proceso.ExitCode -ne 0) {
+            throw "El proceso falló (código $($proceso.ExitCode)): $(Get-MotivoSeguroDemo $errorTexto). Salida suprimida por seguridad."
+        }
         return $texto
     } finally {
         if ($proceso.Id -and -not $proceso.HasExited) { $proceso.Kill($true); $proceso.WaitForExit() }
@@ -162,15 +177,24 @@ function Get-ClaveAdminPgDemo {
 }
 
 function Get-EntornoPgDemo {
-    param([string]$Secretos)
-    return @{
+    param([string]$Secretos, [string]$Psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe')
+    $entorno = @{
         PGHOST = 'pg-barberturno-202610.postgres.database.azure.com'; PGPORT = '5432'
         PGUSER = 'btadmin'; PGDATABASE = 'postgres'; PGSSLMODE = 'verify-full'
         PGSSLROOTCERT = Join-Path $Secretos 'azure-postgresql-raices.pem'
-        PGPASSWORD = Get-ClaveAdminPgDemo $Secretos
         PGCONNECT_TIMEOUT = '20'; PGCLIENTENCODING = 'UTF8'
         PGOPTIONS = '-c statement_timeout=60000 -c lock_timeout=5000'
         PGAPPNAME = 'barberturno-v2-demo-provision'
+    }
+    # Hasta tres intentos si la clave se escribe en la consola: se prueba con un SELECT 1 antes de seguir.
+    $intentos = if ([IO.File]::Exists((Join-Path $Secretos 'pg-admin.secreto'))) { 1 } else { 3 }
+    for ($i = 1; $i -le $intentos; $i++) {
+        $entorno.PGPASSWORD = Get-ClaveAdminPgDemo $Secretos
+        try { [void](Invoke-PsqlDemo $Psql $entorno 'SELECT 1;'); return $entorno }
+        catch {
+            if ($i -eq $intentos -or $_.Exception.Message -notmatch 'contraseña rechazada') { throw }
+            Write-Host "Contraseña rechazada (intento $i de $intentos). Vuelva a escribirla." -ForegroundColor Yellow
+        }
     }
 }
 
