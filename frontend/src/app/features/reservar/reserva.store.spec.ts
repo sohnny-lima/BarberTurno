@@ -174,6 +174,17 @@ describe('Store de reserva guiada', () => {
     expect(store.paso()).toBe(0);
     franjas();
   });
+  it('tras cambiar de barbería y volver, el store sigue cargando y consultando franjas', () => {
+    // Regresión de V2-18: cancelar al cambiar de barbería no debe completar los flujos del store.
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.seleccionar('sur', 'PERSONAL');
+    negocio.seleccionar('prueba', 'PERSONAL');
+    store.inicializar();
+    catalogos();
+    store.elegirServicio(1);
+    franjas();
+    expect(store.franjas()).toHaveLength(1);
+  });
   it('cancela consultas antiguas para evitar publicar franjas de otra fecha', () => {
     store.inicializar();
     catalogos();

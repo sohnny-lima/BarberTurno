@@ -107,6 +107,8 @@ export class ReservaStore {
             barberos: this.barberosApi.listar(),
             reserva: id === undefined ? of(null) : this.reservasApi.obtener(id),
           }).pipe(
+            // Cancela solo la carga en curso si cambia la barbería; el flujo sigue vivo (V2-DA-93).
+            takeUntil(this.negocio.cambios$),
             catchError((error: HttpErrorResponse) => {
               this.mostrarError(error);
               return EMPTY;
@@ -114,7 +116,6 @@ export class ReservaStore {
             finalize(() => this.cargando.set(false)),
           );
         }),
-        takeUntil(this.negocio.cambios$),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(({ servicios, barberos, reserva }) => {
@@ -149,6 +150,7 @@ export class ReservaStore {
               ...(this.reserva() ? { excluirReservaId: this.reserva()!.id } : {}),
             })
             .pipe(
+              takeUntil(this.negocio.cambios$),
               catchError((error: HttpErrorResponse) => {
                 this.mostrarError(error);
                 return EMPTY;
@@ -157,7 +159,6 @@ export class ReservaStore {
               switchMap((datos) => of({ datos, guardada })),
             );
         }),
-        takeUntil(this.negocio.cambios$),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(({ datos, guardada }) => {
