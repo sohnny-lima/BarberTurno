@@ -99,8 +99,9 @@ try {
         }
     }
     $texto = $registro.ToString()
-    # Incluye el secreto admin PostgreSQL aunque nunca se entrega a Java.
-    $valores = @($claves.Values) + @(Get-SecretoDemo $Secretos 'pg-admin.secreto')
+    # Incluye el secreto admin PostgreSQL (si se dejó en archivo) aunque nunca se entrega a Java.
+    $valores = @($claves.Values)
+    if ([IO.File]::Exists((Join-Path $Secretos 'pg-admin.secreto'))) { $valores += Get-SecretoDemo $Secretos 'pg-admin.secreto' }
     foreach ($valor in $valores) {
         if ($texto.Contains($valor, [StringComparison]::Ordinal)) { throw 'El registro contiene un secreto: no se guardó ni se marcó la siembra.' }
     }

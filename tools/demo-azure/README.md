@@ -16,7 +16,7 @@ Scripts para que **Claude, con la sesión del responsable**, prepare y retire la
 
 PowerShell **7.2 o superior** (validado con 7.6.9), psql 18 y JDK 21. Los ejecutables tienen los valores predeterminados del encargo; pueden sustituirse con `-Psql`, `-Java` y `-Az`. Los parámetros `-Base`, `-RolMigraciones` y `-RolAplicacion` solo aceptan los valores de la tabla: fallan antes de leer secretos si se intenta cambiar de destino.
 
-El responsable deja `pg-admin.secreto` (una línea) en `D:\Proyectos\BarberTurno\.local\demo-azure`. `-Secretos` permite otro directorio privado **fuera de este repositorio**. Los scripts no importan archivos `.env`, no leen `.local/coordinacion/` ni cambian permisos del sistema. Mantener el directorio privado y no activar transcripciones, depuración de CLI ni volcados de variables mientras se ejecutan.
+La contraseña de `btadmin` (solo para `preparar-base.ps1` y `retirar.ps1`) se escribe **oculta** en la consola interactiva que ejecuta el script (`Read-Host -AsSecureString`): no se guarda en disco y solo llega al `psql` hijo por `PGPASSWORD`. Alternativa: un archivo `pg-admin.secreto` (una línea) en `D:\Proyectos\BarberTurno\.local\demo-azure`. `-Secretos` permite otro directorio privado **fuera de este repositorio**. Los scripts no importan archivos `.env`, no leen `.local/coordinacion/` ni cambian permisos del sistema. Mantener el directorio privado y no activar transcripciones, depuración de CLI ni volcados de variables mientras se ejecutan.
 
 Los comandos Azure exigen `-Suscripcion <UUID>` y verifican que coincide con la suscripción activa. Configurar app/cortafuegos comprueban además HTTPS y el plan F1 propio antes de escribir. No hay cambio de sesión ni de suscripción automático.
 
@@ -74,7 +74,7 @@ psql usa `verify-full` y ese PEM como `sslrootcert`. JDBC usa `verify-full` y `D
 
 | Archivo en `-Secretos` | Uso |
 |---|---|
-| `pg-admin.secreto` | Aportado por el responsable; nunca se genera ni sobrescribe |
+| `pg-admin.secreto` | Opcional (si falta, la clave se pide oculta en la consola); nunca se genera ni sobrescribe |
 | `migraciones.secreto` / `aplicacion.secreto` | Contraseñas distintas de 32 letras/dígitos; se crean solo si faltan |
 | `demo-cuentas.secreto` | Contraseña de las identidades ficticias de los runners |
 | `admin-plataforma.secreto` | Contraseña de `plataforma-demo@ejemplo.test`, compartida por siembra/configuración |

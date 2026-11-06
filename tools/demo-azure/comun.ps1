@@ -144,13 +144,30 @@ function Get-JdbcDemo {
     return "jdbc:postgresql://pg-barberturno-202610.postgres.database.azure.com:5432/${Base}?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory"
 }
 
+function Get-ClaveAdminPgDemo {
+    param([string]$Secretos)
+    # Preferencia: escribirla oculta en una consola interactiva. Así no queda en disco y solo vive en la
+    # memoria de este proceso y en PGPASSWORD del psql hijo. El archivo queda como alternativa.
+    if ([IO.File]::Exists((Join-Path $Secretos 'pg-admin.secreto'))) { return Get-SecretoDemo $Secretos 'pg-admin.secreto' }
+    if (-not [Environment]::UserInteractive -or [Console]::IsInputRedirected) {
+        throw 'Falta la contraseña de btadmin: ejecute el script en una consola interactiva.'
+    }
+    $segura = Read-Host 'Contraseña de btadmin (no se muestra)' -AsSecureString
+    $clave = [Net.NetworkCredential]::new('', $segura).Password
+    $segura.Dispose()
+    if ([string]::IsNullOrWhiteSpace($clave) -or $clave.Contains("`n") -or $clave.Contains("`r")) {
+        throw 'La contraseña de btadmin no puede estar vacía.'
+    }
+    return $clave
+}
+
 function Get-EntornoPgDemo {
     param([string]$Secretos)
     return @{
         PGHOST = 'pg-barberturno-202610.postgres.database.azure.com'; PGPORT = '5432'
         PGUSER = 'btadmin'; PGDATABASE = 'postgres'; PGSSLMODE = 'verify-full'
         PGSSLROOTCERT = Join-Path $Secretos 'azure-postgresql-raices.pem'
-        PGPASSWORD = Get-SecretoDemo $Secretos 'pg-admin.secreto'
+        PGPASSWORD = Get-ClaveAdminPgDemo $Secretos
         PGCONNECT_TIMEOUT = '20'; PGCLIENTENCODING = 'UTF8'
         PGOPTIONS = '-c statement_timeout=60000 -c lock_timeout=5000'
         PGAPPNAME = 'barberturno-v2-demo-provision'
