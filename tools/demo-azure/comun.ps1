@@ -210,7 +210,10 @@ function Assert-AppDemo {
     Assert-SuscripcionDemo $Az $Suscripcion
     $app = (Invoke-AzDemo $Az @('webapp', 'show', '-g', 'rg-barberturno-v2-demo', '-n', 'barberturno-v2-demo-202611', '-o', 'json')) | ConvertFrom-Json
     $plan = (Invoke-AzDemo $Az @('appservice', 'plan', 'show', '-g', 'rg-barberturno-v2-demo', '-n', 'plan-barberturno-v2-demo', '-o', 'json')) | ConvertFrom-Json
-    if ($plan.sku.name -ne 'F1' -or -not $plan.reserved -or $app.serverFarmId -ne $plan.id -or -not $app.httpsOnly) {
+    # La CLI 2.92 anida «reserved» en properties y expone appServicePlanId (con otra capitalización que plan.id).
+    $linux = $plan.kind -eq 'linux' -and $plan.properties.reserved -eq $true
+    $mismoPlan = [string]::Equals([string]$app.appServicePlanId, [string]$plan.id, [StringComparison]::OrdinalIgnoreCase)
+    if ($plan.sku.name -ne 'F1' -or -not $linux -or -not $mismoPlan -or -not $app.httpsOnly) {
         throw 'La demo debe usar su plan Linux F1 aislado y HTTPS obligatorio.'
     }
     return $app
