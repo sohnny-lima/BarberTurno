@@ -107,7 +107,9 @@ try {
     }
     $nombreRegistro = 'siembra-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fffffff') + '.log'
     [IO.File]::WriteAllText((Join-Path $Secretos $nombreRegistro), $texto, [Text.UTF8Encoding]::new($false))
-    if (-not $completo -or -not $detenido -or $texto -match '(?im)\bERROR\b|\b[A-Za-z0-9_.]*Exception\b|APPLICATION FAILED TO START') {
+    # preparar-base.ps1 ya crea btree_gist: el aviso de Flyway «already exists… Error Code: 0» es esperado.
+    $revisable = ($texto -split "`n" | Where-Object { $_ -notmatch 'WARN .*extension "btree_gist" already exists, skipping' }) -join "`n"
+    if (-not $completo -or -not $detenido -or $revisable -match '(?im)\bERROR\b|\b[A-Za-z0-9_.]*Exception\b|APPLICATION FAILED TO START') {
         throw 'La siembra no terminó correctamente. Revise el registro privado; no se creó el marcador.'
     }
     $evidencia = @{ jarSha256 = (Get-FileHash -LiteralPath $Jar -Algorithm SHA256).Hash
