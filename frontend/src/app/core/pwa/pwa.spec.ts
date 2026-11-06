@@ -8,7 +8,10 @@ import { Teclado } from './teclado';
 import { HistorialSuperposiciones } from './historial-superposiciones';
 import { PlatformLocation } from '@angular/common';
 import { UbicacionSuperposiciones } from './ubicacion-superposiciones';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { FormControl, FormGroup } from '@angular/forms';
+import { ERROR_ESCRITURA_RED, esFalloDeRed } from './error-red';
+import { mostrarErrores } from '../../shared/formulario';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { prepararNegocio } from '../negocio/negocio-prueba';
@@ -390,5 +393,28 @@ describe('Teclado visual', () => {
     Object.assign(viewport, { height: 400, scale: 2 });
     viewport.dispatchEvent(new Event('resize'));
     expect(teclado.abierto()).toBe(false);
+  });
+});
+
+describe('Fallo de red con service worker', () => {
+  it('el 504 que devuelve el worker sin conexión cuenta como falta de red; con red, no', () => {
+    const sinRespuesta = new HttpErrorResponse({ status: 0 });
+    const delWorker = new HttpErrorResponse({ status: 504, statusText: 'Gateway Timeout' });
+    expect(esFalloDeRed(sinRespuesta, true)).toBe(true);
+    expect(esFalloDeRed(delWorker, false)).toBe(true);
+    expect(esFalloDeRed(delWorker, true)).toBe(false);
+    expect(esFalloDeRed(new HttpErrorResponse({ status: 503 }), false)).toBe(false);
+  });
+
+  it('el formulario muestra el mensaje de escritura sin red, no el genérico', () => {
+    const formulario = new FormGroup({ nombre: new FormControl('') });
+    const traducido = new HttpErrorResponse({
+      status: 504,
+      error: { detail: ERROR_ESCRITURA_RED },
+    });
+    expect(mostrarErrores(formulario, traducido)).toBe(ERROR_ESCRITURA_RED);
+    expect(mostrarErrores(formulario, new HttpErrorResponse({ status: 504 }))).toBe(
+      'No pudimos completar la solicitud. Intente nuevamente.',
+    );
   });
 });

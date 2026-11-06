@@ -131,7 +131,8 @@ test('CP-2: arranque sin conexión y escritura sin reenvío al recuperar red', a
   await page.goto('/perfil');
   await expect(page.getByLabel('Nombre', { exact: true })).toBeVisible();
   await context.setOffline(true);
-  await expect(page.getByText(/^Sin conexión\./)).toBeVisible();
+  // El texto renderizado empieza con un espacio: una expresión anclada con ^ no lo encontraría.
+  await expect(page.locator('app-avisos-pwa').getByText(/Sin conexión\./)).toBeVisible();
   await page.getByLabel('Nombre', { exact: true }).fill('Cambio ficticio sin conexión');
   const escrituras: string[] = [];
   page.on('request', (peticion) => {
@@ -148,7 +149,7 @@ test('CP-2: arranque sin conexión y escritura sin reenvío al recuperar red', a
   expect(escrituras).toHaveLength(1);
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByText(/^Sin conexión\./)).toBeVisible();
+  await expect(page.locator('app-avisos-pwa').getByText(/Sin conexión\./)).toBeVisible();
   await context.setOffline(false);
 });
 
@@ -207,6 +208,7 @@ test('CP-5: Atrás cierra diálogo, cajón y menú sin cambiar de ruta', async (
   // Tras cerrar por botón no debe quedar una parada artificial antes de la ruta anterior.
   await page.goto('/perfil');
   await page.goto('/n/barberturno/agenda');
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
   await campana.click();
   await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

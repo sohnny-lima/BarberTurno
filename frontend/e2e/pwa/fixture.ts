@@ -5,11 +5,24 @@ import { once } from 'node:events';
 import { resolve } from 'node:path';
 import { vaciar } from '../base-datos';
 
+/** Tras un fallo, el jar del worker anterior puede tardar en soltar sus conexiones: se reintenta el vaciado. */
+async function vaciarConEspera() {
+  for (let intento = 1; ; intento++) {
+    try {
+      vaciar();
+      return;
+    } catch (error) {
+      if (intento >= 20) throw error;
+      await new Promise((continuar) => setTimeout(continuar, 500));
+    }
+  }
+}
+
 export const test = base.extend<object, { servidor: string }>({
   servidor: [
     async ({ browserName }, use) => {
       expect(['chromium', 'firefox']).toContain(browserName);
-      vaciar();
+      await vaciarConEspera();
       const java = resolve(process.env['JAVA_HOME']!, 'bin/java.exe');
       const jar = resolve('../backend/target/barberturno-0.0.1-SNAPSHOT.jar');
       const proceso = spawn(

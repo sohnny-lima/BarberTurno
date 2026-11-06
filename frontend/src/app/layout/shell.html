@@ -3,7 +3,8 @@
 <mat-sidenav-container [class.con-barra-inferior]="tieneBarraInferior()">
   <mat-sidenav
     #menu
-    (openedChange)="cambioCajon($event)"
+    (openedStart)="cambioCajon(true)"
+    (closedStart)="cambioCajon(false)"
     id="menu-principal"
     role="complementary"
     aria-label="Navegación y cuenta"

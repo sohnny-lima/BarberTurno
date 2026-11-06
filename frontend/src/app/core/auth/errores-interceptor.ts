@@ -1,4 +1,4 @@
-import { ERROR_ESCRITURA_RED } from '../pwa/error-red';
+import { ERROR_ESCRITURA_RED, esFalloDeRed } from '../pwa/error-red';
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -76,7 +76,7 @@ export const erroresInterceptor: HttpInterceptorFn = (peticion, siguiente) => {
         if (origen) negocio.marcarSuspendido();
       } else {
         const escrituraSinRed =
-          error.status === 0 && !['GET', 'HEAD', 'OPTIONS'].includes(peticion.method);
+          esFalloDeRed(error) && !['GET', 'HEAD', 'OPTIONS'].includes(peticion.method);
         if (escrituraSinRed) {
           error = new HttpErrorResponse({
             ...error,

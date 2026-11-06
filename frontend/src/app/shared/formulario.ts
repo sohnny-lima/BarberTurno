@@ -4,6 +4,7 @@ import { AbstractControl, FormGroup, ValidationErrors, ValidatorFn } from '@angu
 import { ProblemDetail } from '../core/modelos/identidad';
 import { marcarPresentado } from '../core/notificaciones/errores-presentados';
 import { NegocioActual } from '../core/negocio/negocio-actual';
+import { ERROR_ESCRITURA_RED } from '../core/pwa/error-red';
 
 export const confirmarPassword: ValidatorFn = (grupo: AbstractControl): ValidationErrors | null =>
   grupo.get('password')?.value === grupo.get('confirmacion')?.value ? null : { confirmacion: true };
@@ -12,6 +13,8 @@ export const confirmarPassword: ValidatorFn = (grupo: AbstractControl): Validati
 export function mostrarErrores(formulario: FormGroup, error: HttpErrorResponse): string {
   marcarPresentado(error);
   const problema = error.error as Partial<ProblemDetail> | null;
+  // El interceptor ya tradujo una escritura sin red (V2-DA-89): la vista muestra ese mensaje, no el genérico.
+  if (problema?.detail === ERROR_ESCRITURA_RED) return ERROR_ESCRITURA_RED;
   if (error.status === 400) {
     for (const detalle of problema?.errores ?? []) {
       const control = formulario.get(detalle.campo);
