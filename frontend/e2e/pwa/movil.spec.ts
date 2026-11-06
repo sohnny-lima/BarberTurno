@@ -47,20 +47,76 @@ async function comprobarSinScrollHorizontal(page: Page, contexto: string) {
   expect(sinDesplazamiento, `Desplazamiento horizontal detectado en ${contexto}`).toBe(true);
 }
 
-/** Comprueba escalado de texto al 200% sin pérdida ni desbordamiento */
+/**
+ * Comprueba el escalado de la interfaz con zum al 200% según CP-8.
+ *
+ * Simula el zum al 200% mediante {@code document.documentElement.style.zoom = '2'},
+ * comprueba que se haya aplicado efectivamente, valida la ausencia de desplazamiento
+ * horizontal del documento, comprueba que el encabezado {@code h1} sea visible y
+ * quede dentro de los límites del ancho de pantalla, y verifica que la acción principal
+ * de la vista sea alcanzable mediante desplazamiento y visible en el viewport.
+ * Restaura el zum original al finalizar dentro de un bloque {@code finally}.
+ *
+ * @param page - Página activa de Playwright
+ * @param contexto - Descripción de la pantalla y resolución evaluada
+ */
 async function comprobarZoom200(page: Page, contexto: string) {
   await page.evaluate(() => {
-    document.documentElement.style.fontSize = '200%';
+    document.documentElement.style.zoom = '2';
   });
   await esperarEstable(page);
-  const sinDesbordamiento = await page.evaluate(() => {
-    return document.documentElement.scrollWidth <= window.innerWidth + 1;
-  });
-  expect(sinDesbordamiento, `Desbordamiento al 200% de texto en ${contexto}`).toBe(true);
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = '';
-  });
-  await esperarEstable(page);
+
+  try {
+    const medidas = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+      zoom: getComputedStyle(document.documentElement).zoom,
+    }));
+
+    const zoomAplicado = medidas.zoom === '2' || Number(medidas.zoom) === 2;
+    expect(zoomAplicado, `El zum al 200% debe aplicarse en ${contexto}`).toBe(true);
+
+    expect(
+      medidas.scrollWidth <= medidas.innerWidth + 1,
+      `Desplazamiento horizontal al 200% de zum en ${contexto} (scrollWidth=${medidas.scrollWidth}, innerWidth=${medidas.innerWidth})`,
+    ).toBe(true);
+
+    const h1 = page.locator('h1').first();
+    await expect(h1, `Encabezado h1 debe ser visible en ${contexto}`).toBeVisible();
+    const boxH1 = await h1.boundingBox();
+    expect(boxH1, `Encabezado h1 debe tener boundingBox en ${contexto}`).not.toBeNull();
+    if (boxH1) {
+      expect(
+        boxH1.x >= 0 || Math.abs(boxH1.x) < 0.5,
+        `Encabezado h1 en ${contexto} debe comenzar dentro del ancho (x=${boxH1.x})`,
+      ).toBe(true);
+      expect(
+        boxH1.x + boxH1.width <= medidas.innerWidth + 1,
+        `Encabezado h1 en ${contexto} no debe desbordar el ancho (x+width=${boxH1.x + boxH1.width}, innerWidth=${medidas.innerWidth})`,
+      ).toBe(true);
+    }
+
+    const botonIngresar = page.getByRole('button', { name: 'Ingresar', exact: true });
+    const esAcceso =
+      contexto.includes('/ingresar') ||
+      ((await botonIngresar.count()) > 0 && (await botonIngresar.first().isVisible()));
+    const accionPrincipal = esAcceso ? botonIngresar : page.locator('main button:visible').first();
+
+    await accionPrincipal.scrollIntoViewIfNeeded();
+    await expect(
+      accionPrincipal,
+      `Acción principal en ${contexto} debe ser visible tras scrollIntoViewIfNeeded`,
+    ).toBeVisible();
+    await expect(
+      accionPrincipal,
+      `Acción principal en ${contexto} debe estar en el viewport tras scrollIntoViewIfNeeded`,
+    ).toBeInViewport();
+  } finally {
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = '';
+    });
+    await esperarEstable(page);
+  }
 }
 
 /** Comprueba dimensiones mínimas de 44x44 px en controles interactivos principales */
@@ -229,20 +285,21 @@ test.describe('CP-7 · Instalabilidad y Manifest PWA', () => {
     await expect(appleTouchIcon).toHaveAttribute('href', 'iconos/apple-touch-icon.png');
   });
 
-  test('instalabilidad Chromium vía CDP sin errores', async ({ page }, testInfo) => {
+  test('instalabilidad Chromium vía CDP sin errores', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
+    let installabilityErrors: unknown[] | undefined;
     try {
       const cdp = await page.context().newCDPSession(page);
-      const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
-      expect(installabilityErrors).toEqual([]);
+      const resultado = await cdp.send('Page.getInstallabilityErrors');
+      installabilityErrors = resultado.installabilityErrors;
     } catch (error) {
-      testInfo.annotations.push({
-        type: 'cdp-installability',
-        description: `Page.getInstallabilityErrors no disponible en este entorno: ${error}`,
-      });
+      test.skip(true, `Page.getInstallabilityErrors no disponible en este entorno: ${error}`);
+      return;
     }
+
+    expect(installabilityErrors).toEqual([]);
   });
 });
 
