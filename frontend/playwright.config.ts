@@ -16,6 +16,9 @@ export default defineConfig({
   reporter: [['list'], ['html', { outputFolder: 'tmp/e2e/informe', open: 'never' }]],
   use: {
     baseURL: 'http://localhost:8081',
+    // V2-18: el build de producción registra un service worker y page.route no intercepta lo que pasa
+    // por él. Esta batería prueba la aplicación, no la PWA (cubierta por playwright.pwa.config.ts).
+    serviceWorkers: 'block',
     timezoneId: 'Europe/Madrid',
     locale: 'es-PE',
     trace: 'off',
