@@ -657,6 +657,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     const peticionesNoGet: string[] = [];
     const promesasRespuestas: Promise<void>[] = [];
     const idsReservasPrevias = new Set<number>();
+    let instantaneaInicialValida = false;
     let listenersRegistrados = false;
 
     const interceptor = (req: Request) => {
@@ -700,17 +701,25 @@ test.describe('Aceptación Demo v2 en Azure', () => {
         const respMiasInicial = await page.request.get(
           '/api/n/barberturno/reservas/mias?tamano=100',
         );
-        if (respMiasInicial.ok()) {
-          const cuerpoMias = await respMiasInicial.json();
-          const contenido = Array.isArray(cuerpoMias?.contenido) ? cuerpoMias.contenido : [];
-          for (const r of contenido) {
-            if (typeof r?.id === 'number') {
-              idsReservasPrevias.add(r.id);
-            }
-          }
+        if (!respMiasInicial.ok()) {
+          throw new Error(`La consulta inicial de reservas devolvió HTTP ${respMiasInicial.status()}`);
         }
-      } catch {
-        // Si la consulta previa no responde, continúa con el conjunto vacío
+        const cuerpoMias = await respMiasInicial.json();
+        if (!Array.isArray(cuerpoMias?.contenido)) {
+          throw new Error('La consulta inicial de reservas no devolvió una lista válida');
+        }
+        for (const r of cuerpoMias.contenido) {
+          if (typeof r?.id !== 'number') {
+            throw new Error('La consulta inicial de reservas devolvió un identificador inválido');
+          }
+          idsReservasPrevias.add(r.id);
+        }
+        instantaneaInicialValida = true;
+      } catch (error) {
+        throw new Error(
+          'No se pudo obtener una instantánea inicial válida de las reservas; se aborta la prueba antes de desconectar.',
+          { cause: error },
+        );
       }
 
       await page.goto('/n/barberturno/reservar');
@@ -894,7 +903,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
 
       // 2. Si venció el plazo sin respuesta para alguna escritura, consultar reservas activas por API
       // y cancelar cualquiera creada durante la prueba comparando con las que había antes de desconectar
-      if (huboEscrituraSinRespuesta) {
+      if (instantaneaInicialValida && huboEscrituraSinRespuesta) {
         try {
           const respMias = await page.request.get(
             '/api/n/barberturno/reservas/mias?tamano=100',
