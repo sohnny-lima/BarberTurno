@@ -53,7 +53,17 @@ Autor: Gemini (g114 → g115 → g116). Ejecutor: Claude. Revisor: Codex.
   - 150b: 6 de 9 hallazgos resueltos; pendientes la limpieza de la 05 y de la 11 y un dato propio de Sur en la 04, corregidos en g122.
   - 151: 04 y 05 subsanadas; la 11 aún podía dejar una reserva sin cancelar en una ruta de error, corregido en g123 y revisado por Claude.
 - **Pase 7 (g122) y pase 8 (g123): 22/22 correctas** (3,8 min cada uno).
-- Ninguno de los fallos de los pases 1–5 fue de la aplicación.
+- Codex (prioridad del responsable desde aquí):
+  - **152:** instantánea inicial obligatoria en la prueba 11 (`4e1e87e`) y revisión final de contrato, evidencia y manifiesto TWA: **APROBADO**.
+  - **153:** los 9 errores `no-unsafe-finally` rompían `npm run lint` (incluye `e2e/`); los `throw` salen del `finally` sin relajar nada (`edb9c0d`).
+  - **154:** la 05 recorre las páginas de «Mis citas» (`492efe9`).
+- Pase 9 (desde la rama integrada): 21/22. La 05 en 1440 no encontró BT-115 porque «Mis citas» pagina de 10 en 10 y la primera página tenía BT-105…BT-114, todas «Cancelada». Defecto de la prueba; la limpieza funcionó.
+- **Pase 10 (rama integrada, `492efe9`): 22/22 correctas** (3,7 min). `npm run lint`: sin errores.
+- Ninguno de los fallos de los pases 1–5 y 9 fue de la aplicación.
+- **Efecto en los datos de la demo:** cada pase deja en el historial de `cliente@` dos reservas **canceladas** (05 en 360 y 1440) y sus avisos. No quedan reservas activas, pero el historial y el contador de avisos crecen.
+- **Observaciones menores, sin corregir:**
+  - el bucle de páginas de la 05 espera `aria-busy="false"` tras cada clic; si la carga tardara en empezar podría saltarse una página, y en ese caso la prueba **fallaría**, no aprobaría;
+  - el ayudante de acceso de `movil.spec.ts` (local, de g113) conserva un `isVisible()` sin espera ante el selector de barberías.
 
 ## 5. Probar la TWA en un teléfono Android
 1. En el equipo, el archivo es `D:\Android\barberturno-twa-demo\app-release-signed.apk`, firmado con la clave **de prueba**. Pásalo al teléfono por USB, Drive o correo propio.
