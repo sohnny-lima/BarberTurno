@@ -5,7 +5,30 @@
 - **Worktree:** `D:\Proyectos\BarberTurno-v2-pwa-movil`
 - **Rama:** `tarea/V2-PWA-movil`
 - **Coordinador:** Claude Code
-- **Estado general:** Completado para revisión y ejecución de pruebas por el coordinador
+- **Estado general:** Completado para revisión y ejecución de pruebas por el coordinador (incluye correcciones M1 y M2 del encargo g113)
+
+---
+
+## Encargo g113 · Correcciones de la revisión de Codex (145) en movil.spec.ts (05/11/2026)
+
+- **Objetivo:** Subsanar los dos hallazgos de severidad media (M1 y M2) señalados por Codex y validados por Claude Code sobre la suite de pruebas PWA móvil [`frontend/e2e/pwa/movil.spec.ts`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/e2e/pwa/movil.spec.ts).
+
+### M1 (media) · Instalabilidad Chromium vía CDP sin errores
+- **Problema detectado:** El bloque `try/catch` envolvía tanto la comunicación CDP como la aserción `expect(installabilityErrors).toEqual([])`. En caso de que Chromium reportara errores reales de instalabilidad, la prueba no fallaba y terminaba en verde registrando una anotación.
+- **Corrección aplicada:**
+  1. Se aísla el bloque `try/catch` para capturar exclusivamente la creación de la sesión CDP (`page.context().newCDPSession(page)`) y la llamada al método `Page.getInstallabilityErrors`.
+  2. Si CDP no está disponible en el entorno o la llamada arroja error, se invoca `test.skip(true, 'Page.getInstallabilityErrors no disponible en este entorno: ...')`, dejando la prueba como **omitida** (skipped), no aprobada.
+  3. La aserción `expect(installabilityErrors).toEqual([])` se traslada **fuera** del bloque `try/catch`. De esta forma, si Chromium retorna errores reales de instalabilidad PWA, la prueba fallará de manera estricta y visible.
+
+### M2 (media) · Zum del navegador al 200% (`comprobarZoom200`)
+- **Problema detectado:** `comprobarZoom200` aplicaba únicamente `document.documentElement.style.fontSize = '200%'` y verificaba `scrollWidth <= window.innerWidth + 1`. Esto no ampliaba textos con tamaños fijados en píxeles (p. ej. cabeceras de 28 px o 16 px) ni controles interactivos, ni detectaba contenido recortado o acciones principales inaccesibles.
+- **Corrección aplicada:**
+  1. **Simulación real de zum:** Se aplica `document.documentElement.style.zoom = '2'` (equivalente a zum del 200% en el navegador, reduciendo a la mitad el área visible efectiva y escalando texto y controles). Se verifica que el estilo se aplicó mediante `getComputedStyle(document.documentElement).zoom === '2'`.
+  2. **Ausencia de desbordamiento horizontal:** Con el zum activo, se comprueba que `document.documentElement.scrollWidth <= window.innerWidth + 1`.
+  3. **Encabezado `h1` visible y contenido:** Se localiza el encabezado `h1` de la pantalla, se verifica `toBeVisible()`, y se valida que su caja delimitadora (`boundingBox()`) comience dentro de la pantalla (`boxH1.x >= 0`, admitiendo tolerancia a subpíxel) y no exceda el ancho disponible (`boxH1.x + boxH1.width <= innerWidth + 1`).
+  4. **Acción principal alcanzable y visible en viewport:** Se identifica la acción principal de la pantalla (el botón «Ingresar» en `/ingresar`, o el primer botón visible dentro de `main` en las demás pantallas). Se ejecuta `scrollIntoViewIfNeeded()` y se aserta `toBeVisible()` y `toBeInViewport()`.
+  5. **Restauración garantizada:** Todo el proceso se ejecuta dentro de una estructura `try ... finally` para asegurar que `document.documentElement.style.zoom = ''` se restablezca siempre, incluso ante cualquier fallo en las aserciones.
+  6. **Sin relajación de pruebas:** Se mantienen las 5 pantallas (`/ingresar`, `reservar`, `mis-citas`, `agenda`, `bandeja`) y los 4 viewports (`320x640`, `360x800`, `412x915`, `800x360-horizontal`). Se deja constancia de posibles consideraciones en `bandeja.html` por `.titulo-movil h1` en vista móvil para validación por el coordinador.
 
 ---
 
@@ -137,9 +160,9 @@ Tras la ejecución y revisión del coordinador Claude Code (05/11/2026):
 | **CP-7** | Manifest válido y completo | `GET /manifest.webmanifest responde 200 con campos completos según V2-DA-94` comprueba status 200, Content-Type manifest/json, campos obligatorios y lista de 3 iconos. |
 | **CP-7** | Iconos servidos con dimensiones reales exactas | `cada icono PNG responde 200 y sus dimensiones IHDR son exactas` verifica HTTP 200, Content-Type `image/png`, y decodifica el chunk IHDR para validar exactamente 192x192, 512x512, 512x512 y 180x180 px. |
 | **CP-7** | Metadatos y enlaces en HTML | `HTML principal enlaza el manifest y contiene viewport-fit=cover y theme-color` comprueba `link[rel="manifest"]`, `meta[name="theme-color"]`, `meta[name="viewport"]` y `link[rel="apple-touch-icon"]`. |
-| **CP-7** | Instalabilidad Chromium | `instalabilidad Chromium vía CDP sin errores` consulta `Page.getInstallabilityErrors` vía CDP. |
+| **CP-7** | Instalabilidad Chromium | `instalabilidad Chromium vía CDP sin errores` consulta `Page.getInstallabilityErrors` vía CDP. Si CDP no está disponible se omite con `test.skip(true, ...)`; la aserción `expect(installabilityErrors).toEqual([])` queda fuera del bloque `try/catch` para fallar ante errores reales (corrección M1 g113). |
 | **CP-8** | Reflujo sin scroll horizontal a 320, 360, 412 y horizontal 800×360 px | Pruebas de reflujo en `/ingresar`, `/n/barberturno/reservar`, `/n/barberturno/mis-citas`, `/n/barberturno/agenda` y `/n/barberturno/whatsapp` validando `document.documentElement.scrollWidth <= window.innerWidth + 1`. |
-| **CP-8** | Escalado de texto al 200% sin pérdida de contenido | Pruebas de zoom al 200% (`style.fontSize = '200%'`) en las 5 pantallas clave comprobando ausencia de desbordamiento horizontal. |
+| **CP-8** | Escalado con zum al 200% sin pérdida de contenido | Pruebas con `document.documentElement.style.zoom = '2'` en las 5 pantallas clave comprobando ausencia de scroll horizontal (`scrollWidth <= innerWidth + 1`), encabezado `h1` visible y contenido en el ancho de pantalla (`x >= 0` y `x + width <= innerWidth + 1`), y acción principal alcanzable (`scrollIntoViewIfNeeded()`, `toBeVisible()`, `toBeInViewport()`) (corrección M2 g113). |
 | **CP-8** | Objetivos táctiles interactivos ≥ 44×44 px | Pruebas de objetivos táctiles en las 5 pantallas comprobando boundingBox ≥ 44×44 px en botones principales y enlaces de navegación inferior. |
 | **CP-8** | Formularios optimizados para teclado móvil | Pruebas en `/ingresar` comprobando `autocomplete="username"`, `inputmode="email"`, `enterkeyhint="next"` y `autocomplete="current-password"`, `enterkeyhint="done"`. |
 | **CP-8** | Auditoría axe en móvil a 360 px | Análisis con AxeBuilder a 360×800 px en las 5 pantallas clave comprobando 0 infracciones de impacto `serious` o `critical`. |
@@ -154,51 +177,28 @@ Tras la ejecución y revisión del coordinador Claude Code (05/11/2026):
 ---
 
 ## 4. Peticiones a Codex / Claude
-- **Para Claude:** Ejecutar `node tools/generar-iconos.mjs` dentro de `frontend/` para generar los PNG en `public/iconos/`.
+- **Para Claude (coordinador):**
+  1. Ejecutar las pruebas E2E PWA móviles con Playwright: `npx playwright test --config=playwright.pwa.config.ts e2e/pwa/movil.spec.ts`.
+  2. En caso de que Chromium lance alguna incompatibilidad con CDP, la prueba de instalabilidad se registrará como omitida (`skipped`), y si hay errores reales en el manifest fallará fuera del `try`.
+  3. En la prueba `comprobarZoom200`, si alguna pantalla en resoluciones muy compactas (p. ej. `800x360` apaisado o `320x640` con zum al 200%) o `bandeja.html` (por la clase `.titulo-movil h1`) presenta alguna discrepancia visual real, el coordinador evaluará si ajustar los estilos del componente o el alcance según lo acordado en g113.
 - **Para Codex:** Asegurar que cuando su detector JS de teclado virtual detecte la apertura del teclado, añada la clase `teclado-abierto` a `document.body` (o al contenedor host del shell). Con ello, las reglas CSS implementadas ocultarán la barra y anularán el padding inferior automáticamente sin necesidad de manipulación de estilos en línea.
 
 ---
 
 ## 5. Lo que no se pudo cubrir
-- No se ejecutaron órdenes de consola (`npm run lint`, `node tools/generar-iconos.mjs`, `npx playwright test`) en cumplimiento estricto de las directrices no interactivas del encargo. La ejecución, generación de PNGs y verificación E2E quedan delegadas al coordinador Claude.
+- No se ejecutaron órdenes de consola (`npm run lint`, `npx playwright test`) en cumplimiento estricto de las directrices no interactivas del encargo. La ejecución y verificación E2E quedan delegadas al coordinador Claude.
 
 ---
 
 ## 6. Traspaso: archivos completos y siguiente paso concreto
-- **Archivos implementados (completos):**
-  1. `frontend/src/index.html`
-  2. `frontend/public/manifest.webmanifest`
-  3. `frontend/public/iconos/icono.svg`
-  4. `frontend/public/iconos/icono-maskable.svg`
-  5. `frontend/tools/generar-iconos.mjs`
-  6. `frontend/src/app/layout/shell.scss`
-  7. `frontend/src/styles.scss`
-  8. `frontend/src/app/shared/_dialogo.scss`
-  9. `frontend/src/app/features/auth/ingresar.html`
-  10. `frontend/src/app/features/auth/registro.html`
-  11. `frontend/src/app/features/auth/cambiar-password.html`
-  12. `frontend/src/app/features/perfil/perfil.html`
-  13. `frontend/src/app/features/reservar/reservar.html`
-  14. `frontend/src/app/features/agenda/agenda.html`
-  15. `frontend/src/app/features/agenda/reprogramar-dialogo.html`
-  16. `frontend/src/app/features/mis-citas/mis-citas.html`
-  17. `frontend/src/app/features/mis-citas/cancelar-dialogo.html`
-  18. `frontend/src/app/features/bandeja-whatsapp/bandeja.html`
-  19. `frontend/src/app/features/admin/barbero-dialogo.html`
-  20. `frontend/src/app/features/admin/servicio-dialogo.html`
-  21. `frontend/src/app/features/admin/dia-semana.html`
-  22. `frontend/src/app/features/admin/horarios.html`
-  23. `frontend/src/app/features/admin/reportes.html`
-  24. `frontend/src/app/features/admin/usuarios.html`
-  25. `frontend/src/app/features/gestion/configuracion.html`
-  26. `frontend/src/app/features/gestion/invitaciones.html`
-  27. `frontend/src/app/features/gestion/aceptacion.html`
-  28. `frontend/src/app/shared/selector-cliente.html`
-  29. `frontend/e2e/pwa/movil.spec.ts`
-  30. `docs/v2/pruebas/v2-18-movil.md`
+- **Archivos implementados / modificados en g113 (completos):**
+  1. [`frontend/e2e/pwa/movil.spec.ts`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/e2e/pwa/movil.spec.ts):
+     - M1: `try/catch` acotado a la apertura de sesión CDP y `send`. Aserción `expect(installabilityErrors).toEqual([])` fuera del `try`. Salida con `test.skip(true, ...)` si CDP no está disponible.
+     - M2: `comprobarZoom200` simula zum real con `document.documentElement.style.zoom = '2'`, verifica aplicación del zum (`getComputedStyle().zoom === '2'`), comprueba `scrollWidth <= innerWidth + 1`, visibilidad y contención de `h1` (`boxH1.x >= 0` y `boxH1.x + boxH1.width <= innerWidth + 1`), y alcanzabilidad de la acción principal («Ingresar» en acceso; primer botón visible de `main` en las demás) con `scrollIntoViewIfNeeded()`, `toBeVisible()` y `toBeInViewport()`. Estructura con `try ... finally` para restauración garantizada del zum.
+     - CP-6 intacto según la integración de Claude (`30a1533`).
+  2. [`docs/v2/pruebas/v2-18-movil.md`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/docs/v2/pruebas/v2-18-movil.md):
+     - Registro detallado de g113, correspondencias de prueba y notas técnicas de traspaso.
 - **Siguiente paso concreto para Claude:**
-  1. Ejecutar `npm run lint` para verificar la corrección del tipo TS2339 en `movil.spec.ts`.
-  2. Ejecutar `npm test` para verificar que `ingresar.spec.ts` y demás unitarias pasen limpiamente con `autocomplete="username"`.
-  3. Ejecutar `npm run build` para comprobar que `src/app/layout/shell.scss` queda holgadamente por debajo de los 4,00 kB (eliminando el aviso `▲ [WARNING]` de presupuesto `anyComponentStyle` de 488 bytes) y que el bundle inicial cumple su presupuesto.
-  4. Ejecutar `prettier --write` sobre los archivos modificados (`shell.scss`, `styles.scss`, `docs/v2/pruebas/v2-18-movil.md`).
-  5. Ejecutar las pruebas E2E PWA móviles (`npx playwright test --config=playwright.pwa.config.ts e2e/pwa/movil.spec.ts`).
+  1. Ejecutar `npm run lint` para verificar la corrección estática en `movil.spec.ts`.
+  2. Ejecutar `npx playwright test --config=playwright.pwa.config.ts e2e/pwa/movil.spec.ts` para verificar la suite completa de PWA móvil (CP-6, CP-7 y CP-8 con las correcciones M1 y M2).
+  3. Ejecutar `prettier --write frontend/e2e/pwa/movil.spec.ts docs/v2/pruebas/v2-18-movil.md`.
