@@ -71,3 +71,6 @@ Las pruebas web no sustituyen al emulador ni al teléfono: la evidencia separa *
 |---|---|---|---|
 | 05/11 18:33 | Cierre del bloque N (verificación final y ajustes) desde `f6e32e9` + evidencia `23679a3` | Codex → Claude | Codex agotó la cuota de 5 h a mitad de la pasada final (protocolo de `CLAUDE.md`: lo pendiente era pequeño). Codex sigue como revisor (encargo 145). |
 | 05/11 | Prettier y ejecución de iconos/pruebas del bloque M | Gemini (autor) → Claude (ejecutor) | Gemini no puede ejecutar órdenes en modo desatendido. |
+| 05/11 | `shared/formulario.ts` (sin dueño en §3) | — → Claude | D2: el mensaje de escritura sin red se perdía en los formularios. |
+| 05/11 | `frontend/playwright.config.ts` y `e2e/pwa/servidor.mjs` | — / Codex → Claude | D8 y D9 (`v2-18.md` §2). |
+| 05/11 | Revisión de las correcciones posteriores a 145 (g113, `3541587`) | Codex → responsable | Cuota semanal de Codex al 19 %: no se gasta en una segunda ronda. |

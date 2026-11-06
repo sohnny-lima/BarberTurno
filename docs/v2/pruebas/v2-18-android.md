@@ -46,3 +46,23 @@ Incidencias resueltas por orden (todas reflejadas en el guion):
 4. `androidbrowserhelper` 2.7.4 exige `minSdkVersion` 24 → corregido en `twa-manifest.json` (Android 7.0 o posterior).
 
 **Emulador:** `adb install -r` correcto; paquete `pe.barberturno.prueba.twa`, `minSdk=24`, `targetSdk=36`, actividad de entrada `.LauncherActivity`.
+
+### 3.2 Firma sin contraseñas en la línea de órdenes (hallazgos T1/T2 de Codex 145, `3541587`)
+`bubblewrap build --skipSigning` + `zipalign -p 4` + `apksigner sign --ks-pass env:BT_CLAVE --key-pass env:BT_CLAVE` + `apksigner verify`. Regenerada desde la integración (iconos de M ya integrados): APK firmada y verificada, misma huella; la contraseña de prueba **no** aparece en el registro (comprobación por contenido, sin mostrarla). El parámetro `-Puerto` se retira (8790 fijo, como en `twa-manifest.json`).
+
+## 4. Emulador (CP-10) · 05/11/2026 20:5x–21:0x · ejecutor Claude
+Entorno: AVD `Medium_Phone_API_36.0` desde `D:\Android` (Android 16, Chrome 141.0.7390.111), arrancado con `-no-window -gpu guest` (con `swiftshader_indirect` sin ventana las capturas salían en blanco). Backend: jar de la integración (`50342dc`, frontend idéntico al final) con `dev,demo` sobre `barberturno_v2_test` (cerrojo común; base vaciada al terminar, rc=0), `BT_TWA_PAQUETE=pe.barberturno.prueba.twa` y la huella de prueba; `adb reverse tcp:8081 tcp:8081`. Chrome con `set-debug-app` y `/data/local/tmp/chrome-command-line` (`--disable-fre … --disable-digital-asset-link-verification-for-url="http://localhost:8081"`, guía de pruebas de Chromium). El lanzador del sistema daba avisos de «no responde» por el renderizado por software; se cerraban sin cambiar configuración.
+
+| Comprobación | Resultado | Tipo |
+|---|---|---|
+| `GET /.well-known/assetlinks.json` del jar real | 200 `application/json`, sentencia oficial con paquete y huella de prueba; `manifest.webmanifest` → `application/manifest+json`; `ngsw-worker.js` → 200 | web (Tomcat real) |
+| Instalación de la APK de prueba | `adb install -r` correcto (`minSdk 24`, `targetSdk 36`) | emulador |
+| Arranque de la app TWA | Abre Chrome como **pestaña personalizada con barra de dirección** sobre `https://localhost/` → «localhost refused to connect»; el lanzador ignora la URL `http://` pasada por *intent*; `digital_asset_links_handler: endpoint responded with code -1` ([captura](v2-18-android/01-twa-sin-dominio.png)) | emulador · **TWA no validada** |
+| Acceso, navegación y rutas (`/ingresar` → `/negocios` → `/n/barberturno/reservar?papel=cliente`) | correcto en Chrome del emulador | emulador (Chrome, no TWA) |
+| Botón Atrás físico con el diálogo de avisos abierto | cierra el diálogo, la ruta no cambia | emulador (Chrome) |
+| Wi-Fi y datos apagados | aviso «Sin conexión…» visible; desaparece al recuperar la red ([captura](v2-18-android/02-sin-conexion.png)) | emulador (Chrome) |
+| Salir y Atrás | vuelve a «Iniciar sesión» (`/ingresar?returnUrl=%2Fnegocios`), sin datos de la cuenta | emulador (Chrome) |
+| Exportación Excel (encargado, Reportes) | Chrome pide confirmar y guarda `reporte-barberturno-2026-11-01_2026-11-30.xlsx` (3 743 B, ZIP con `xl/worksheets/sheet1.xml`) en `Download/` ([captura](v2-18-android/03-excel-descargado.png)) | emulador (Chrome) |
+| Enlace de invitación | «Copiar» → «Enlace copiado.»; tras salir, el *intent* `VIEW` del enlace `http://localhost:8081/invitacion/…` lo atiende Chrome y muestra «BarberTurno le invita como Barbero» ([captura](v2-18-android/04-enlace-invitacion.png)); un enlace `https://localhost/…` abre el **selector** (Chrome o la app), porque sin dominio verificado Android no asocia los enlaces a la app | emulador |
+
+**Queda bloqueado (depende del responsable: dominio, HTTPS y alojamiento):** verificación real de Digital Asset Links, apertura de la app **sin barra de dirección** (modo TWA verificado), apertura directa de enlaces `https://<dominio>/…` en la app (App Links verificados), huella de la clave de publicación y Google Play. Sin dominio, el modo TWA no puede comprobarse en el emulador de forma honesta: la bandera de Chrome solo omite la verificación y además la plantilla de Bubblewrap fuerza `https://` + host. **No se ha probado en un teléfono real ni con TalkBack.**
