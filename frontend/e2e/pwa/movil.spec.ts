@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
 import { Buffer } from 'node:buffer';
 import { test, expect } from './fixture';
 import { sembrarConversacionDerivada } from '../base-datos';
@@ -54,13 +54,15 @@ async function comprobarSinScrollHorizontal(page: Page, contexto: string) {
  * comprueba que se haya aplicado efectivamente, valida la ausencia de desplazamiento
  * horizontal del documento, comprueba que el encabezado {@code h1} sea visible y
  * quede dentro de los límites del ancho de pantalla, y verifica que la acción principal
- * de la vista sea alcanzable mediante desplazamiento y visible en el viewport.
+ * de la vista sea alcanzable mediante desplazamiento, quede completamente en el viewport
+ * (ratio 1) y reciba eventos mediante {@code click({ trial: true })}.
  * Restaura el zum original al finalizar dentro de un bloque {@code finally}.
  *
  * @param page - Página activa de Playwright
  * @param contexto - Descripción de la pantalla y resolución evaluada
+ * @param accionPrincipal - Localizador explícito de la acción principal (botón o enlace)
  */
-async function comprobarZoom200(page: Page, contexto: string) {
+async function comprobarZoom200(page: Page, contexto: string, accionPrincipal: Locator) {
   await page.evaluate(() => {
     document.documentElement.style.zoom = '2';
   });
@@ -96,12 +98,6 @@ async function comprobarZoom200(page: Page, contexto: string) {
       ).toBe(true);
     }
 
-    const botonIngresar = page.getByRole('button', { name: 'Ingresar', exact: true });
-    const esAcceso =
-      contexto.includes('/ingresar') ||
-      ((await botonIngresar.count()) > 0 && (await botonIngresar.first().isVisible()));
-    const accionPrincipal = esAcceso ? botonIngresar : page.locator('main button:visible').first();
-
     await accionPrincipal.scrollIntoViewIfNeeded();
     await expect(
       accionPrincipal,
@@ -110,7 +106,8 @@ async function comprobarZoom200(page: Page, contexto: string) {
     await expect(
       accionPrincipal,
       `Acción principal en ${contexto} debe estar en el viewport tras scrollIntoViewIfNeeded`,
-    ).toBeInViewport();
+    ).toBeInViewport({ ratio: 1 });
+    await accionPrincipal.click({ trial: true });
   } finally {
     await page.evaluate(() => {
       document.documentElement.style.zoom = '';
@@ -201,7 +198,7 @@ test.describe('CP-7 · Instalabilidad y Manifest PWA', () => {
     expect(respuesta.status()).toBe(200);
 
     const contentType = respuesta.headers()['content-type'] ?? '';
-    expect(contentType).toMatch(/(?:application\/(?:manifest\+)?json|text\/plain)/);
+    expect(contentType.startsWith('application/manifest+json')).toBe(true);
 
     const manifest = await respuesta.json();
     expect(manifest.id).toBe('/');
@@ -287,7 +284,12 @@ test.describe('CP-7 · Instalabilidad y Manifest PWA', () => {
 
   test('instalabilidad Chromium vía CDP sin errores', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('main')).toBeVisible();
+    await page.evaluate(async () => {
+      if ('serviceWorker' in navigator) {
+        await navigator.serviceWorker.ready;
+      }
+    });
 
     let installabilityErrors: unknown[] | undefined;
     try {
@@ -349,12 +351,14 @@ test.describe('CP-8 · Reflujo, formularios y accesibilidad móvil', () => {
     await expect(password).toHaveAttribute('autocomplete', 'current-password');
     await expect(password).toHaveAttribute('enterkeyhint', 'done');
 
+    const accionPrincipal = page.getByRole('button', { name: 'Ingresar', exact: true });
+
     // Reflujo en los viewports exigidos
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await esperarEstable(page);
       await comprobarSinScrollHorizontal(page, `/ingresar a ${vp.nombre}`);
-      await comprobarZoom200(page, `/ingresar a ${vp.nombre}`);
+      await comprobarZoom200(page, `/ingresar a ${vp.nombre}`, accionPrincipal);
       await comprobarObjetivosTactiles(page, `/ingresar a ${vp.nombre}`);
     }
 
@@ -370,11 +374,19 @@ test.describe('CP-8 · Reflujo, formularios y accesibilidad móvil', () => {
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 
+    // Esperar y marcar directamente el radio «Corte clásico» sin fallback
+    const radioServicio = page.getByRole('radio', { name: 'Corte clásico', exact: true });
+    await expect(radioServicio).toBeVisible();
+    await radioServicio.check();
+
+    const accionPrincipal = page.getByRole('button', { name: 'Elegir fecha y hora', exact: true });
+    await expect(accionPrincipal).toBeEnabled();
+
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await esperarEstable(page);
       await comprobarSinScrollHorizontal(page, `reservar a ${vp.nombre}`);
-      await comprobarZoom200(page, `reservar a ${vp.nombre}`);
+      await comprobarZoom200(page, `reservar a ${vp.nombre}`, accionPrincipal);
       await comprobarObjetivosTactiles(page, `reservar a ${vp.nombre}`);
     }
 
@@ -390,11 +402,13 @@ test.describe('CP-8 · Reflujo, formularios y accesibilidad móvil', () => {
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 
+    const accionPrincipal = page.getByRole('link', { name: 'Reprogramar', exact: true }).first();
+
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await esperarEstable(page);
       await comprobarSinScrollHorizontal(page, `mis-citas a ${vp.nombre}`);
-      await comprobarZoom200(page, `mis-citas a ${vp.nombre}`);
+      await comprobarZoom200(page, `mis-citas a ${vp.nombre}`, accionPrincipal);
       await comprobarObjetivosTactiles(page, `mis-citas a ${vp.nombre}`);
     }
 
@@ -410,11 +424,13 @@ test.describe('CP-8 · Reflujo, formularios y accesibilidad móvil', () => {
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 
+    const accionPrincipal = page.getByRole('button', { name: 'Actualizar agenda', exact: true });
+
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await esperarEstable(page);
       await comprobarSinScrollHorizontal(page, `agenda a ${vp.nombre}`);
-      await comprobarZoom200(page, `agenda a ${vp.nombre}`);
+      await comprobarZoom200(page, `agenda a ${vp.nombre}`, accionPrincipal);
       await comprobarObjetivosTactiles(page, `agenda a ${vp.nombre}`);
     }
 
@@ -431,11 +447,13 @@ test.describe('CP-8 · Reflujo, formularios y accesibilidad móvil', () => {
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 
+    const accionPrincipal = page.getByRole('button', { name: 'Actualizar conversaciones', exact: true });
+
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await esperarEstable(page);
       await comprobarSinScrollHorizontal(page, `bandeja a ${vp.nombre}`);
-      await comprobarZoom200(page, `bandeja a ${vp.nombre}`);
+      await comprobarZoom200(page, `bandeja a ${vp.nombre}`, accionPrincipal);
       await comprobarObjetivosTactiles(page, `bandeja a ${vp.nombre}`);
     }
 
