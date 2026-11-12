@@ -67,10 +67,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Comprueba que la reserva se crea en la base de datos para el negocio {@code barberturno} con la ficha
  * asociada al {@code wa_id}, que aparece en la agenda administrativa ({@code GET /api/n/barberturno/reservas}),
  * y que el texto final confirma la reserva.
- * A continuación realiza el flujo de cancelación: Mis citas → la cita → Cancelar → Confirmar → la reserva queda {@code CANCELADA}.
- * Comprueba además (CT-5) que los avisos firmados de {@code delivered} y {@code failed} actualicen el estado en {@code mensaje_whatsapp}.
+ * A continuación realiza el flujo de cancelación: Mis citas → la cita → Cancelar → confirmación → Confirmar → la reserva queda {@code CANCELADA}.
+ * Comprueba además (CT-5) que los avisos firmados de {@code delivered}, {@code read} y {@code failed} actualicen el estado en {@code mensaje_whatsapp},
+ * y (CT-2) la idempotencia de recepción de eventos por {@code MessageSid}.
  * @author Sohnny Walter Lima Infanzón
- * @version 2.0
+ * @version 2.1
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.datasource.hikari.maximum-pool-size=4",
@@ -135,6 +136,7 @@ class RecorridoTwilioIT {
     private HttpClient clienteHttp;
     private long negocioId;
     private Usuario titular;
+    private Map<String, Object> estadoOriginalNegocio;
 
     @BeforeEach
     void prepararDatos() {
@@ -149,9 +151,13 @@ class RecorridoTwilioIT {
 
         negocioId = directorio.buscar("barberturno").orElseThrow();
 
-        // 1. Configurar negocio activo con confirmación automática
+        // Guardar valores originales de negocio para restaurarlos fielmente en la limpieza
+        estadoOriginalNegocio = sql.queryForMap(
+                "SELECT estado, confirmacion_manual, limite_reservas_activas FROM negocio WHERE id = ?", negocioId);
+
+        // 1. Configurar negocio activo con confirmación automática (sin alterar limite_reservas_activas)
         sql.update("""
-                UPDATE negocio SET estado = 'ACTIVO', confirmacion_manual = false, limite_reservas_activas = 5
+                UPDATE negocio SET estado = 'ACTIVO', confirmacion_manual = false
                 WHERE id = ?""", negocioId);
 
         // 2. Propietario con rol ADMIN
@@ -184,6 +190,15 @@ class RecorridoTwilioIT {
 
     @AfterEach
     void limpiar() {
+        if (estadoOriginalNegocio != null) {
+            sql.update("""
+                    UPDATE negocio SET estado = ?, confirmacion_manual = ?, limite_reservas_activas = ?
+                    WHERE id = ?""",
+                    estadoOriginalNegocio.get("estado"),
+                    estadoOriginalNegocio.get("confirmacion_manual"),
+                    estadoOriginalNegocio.get("limite_reservas_activas"),
+                    negocioId);
+        }
         LimpiezaBaseDatos.limpiar(sql);
     }
 
@@ -280,23 +295,42 @@ class RecorridoTwilioIT {
         assertThat(respuestaAgenda.statusCode()).isEqualTo(200);
         assertThat(respuestaAgenda.body()).contains("\"id\":" + reservaCreada.getId());
 
-        // Cancelación: «hola» devuelve el menú principal; Mis citas → la cita → Cancelar → Confirmar.
+        // Cancelación: «hola» devuelve el menú principal; Mis citas → la cita → Cancelar → confirmación → Confirmar.
         simularMensajeEntrante("SM_IN_C00", "hola");
         paso = 1;
-        boolean cancelarElegido = false;
-        while (estadoDe(reservaCreada.getId()) != EstadoReserva.CANCELADA) {
-            assertThat(paso).as("pasos para cancelar").isLessThanOrEqualTo(10);
+        while (!tieneOpcion(ultimoTexto(), "Cancelar")) {
+            assertThat(paso).as("pasos para llegar a Cancelar").isLessThanOrEqualTo(8);
             String texto = ultimoTexto();
             String eleccion;
-            if (cancelarElegido && tieneOpcion(texto, "Confirmar")) eleccion = opcion(texto, "Confirmar");
-            else if (tieneOpcion(texto, "Cancelar")) { cancelarElegido = true; eleccion = opcion(texto, "Cancelar"); }
-            else if (tieneOpcion(texto, "Mis citas")) eleccion = opcion(texto, "Mis citas");
+            if (tieneOpcion(texto, "Mis citas")) eleccion = opcion(texto, "Mis citas");
             else if (tieneOpcion(texto, "Corte clásico")) eleccion = opcion(texto, "Corte clásico");
             else eleccion = opcion(texto, "");
             simularMensajeEntrante("SM_IN_C%02d".formatted(paso++), eleccion);
         }
-        assertThat(cancelarElegido).isTrue();
-        assertThat(estadoDe(reservaCreada.getId())).isEqualTo(EstadoReserva.CANCELADA);
+
+        // 1. Elegir opción «Cancelar»
+        String textoConCancelar = ultimoTexto();
+        assertThat(tieneOpcion(textoConCancelar, "Cancelar")).isTrue();
+        simularMensajeEntrante("SM_IN_C_CAN", opcion(textoConCancelar, "Cancelar"));
+
+        // 2. CT-6: Comprobar que sigue CONFIRMADA (V2-RN-10: no cancela inmediatamente sin confirmación explícita)
+        assertThat(estadoDe(reservaCreada.getId()))
+                .as("la reserva debe seguir CONFIRMADA antes de confirmar la cancelación")
+                .isEqualTo(EstadoReserva.CONFIRMADA);
+
+        // 3. Exigir que el mensaje recibido pida confirmación explícita con la opción Confirmar
+        String textoConfirmacion = ultimoTexto();
+        assertThat(textoConfirmacion).as("resumen o aviso de confirmación de cancelación").contains("Confirmar");
+        assertThat(tieneOpcion(textoConfirmacion, "Confirmar")).as("opción Confirmar presente").isTrue();
+
+        // 4. Enviar explícitamente Confirmar
+        simularMensajeEntrante("SM_IN_C_CONF", opcion(textoConfirmacion, "Confirmar"));
+
+        // 5. Ahora sí la reserva debe quedar CANCELADA
+        assertThat(estadoDe(reservaCreada.getId()))
+                .as("la reserva queda CANCELADA tras confirmar")
+                .isEqualTo(EstadoReserva.CANCELADA);
+        assertThat(ultimoTexto()).isNotBlank();
     }
 
     private String ultimoTexto() {
@@ -334,7 +368,56 @@ class RecorridoTwilioIT {
     }
 
     @Test
-    void estado_deliveredYFailedActualizanMensajeSalientePorSid() throws Exception {
+    void webhook_mismoMessageSidRepetido_dejaUnSoloEventoYNoDuplicaEfectos() throws Exception {
+        String sid = "SM_IDEMPOTENTE_001";
+        Map<String, String> datos = new LinkedHashMap<>();
+        datos.put("AccountSid", ACCOUNT_SID);
+        datos.put("MessageSid", sid);
+        datos.put("From", "whatsapp:+" + WA_CLIENTE);
+        datos.put("To", "whatsapp:" + NUMERO_SANDBOX);
+        datos.put("WaId", WA_CLIENTE);
+        datos.put("ProfileName", "Carlos Twilio");
+        datos.put("Body", "hola");
+
+        // 1. Primer POST firmado
+        var resp1 = postTwilio("/api/twilio/webhook", datos);
+        assertThat(resp1.statusCode()).isEqualTo(200);
+
+        // 2. Segundo POST firmado con idéntico MessageSid
+        var resp2 = postTwilio("/api/twilio/webhook", datos);
+        assertThat(resp2.statusCode()).isEqualTo(200);
+
+        // 3. Comprobar cantidad, clave y contenido del evento en la base de datos (CT-2)
+        String claveEsperada = "m:" + sid;
+        var filasEvento = sql.queryForList(
+                "SELECT id, clave_idempotencia AS clave, tipo, cuerpo::text AS cuerpo FROM evento_whatsapp_entrante WHERE clave_idempotencia = ?", claveEsperada);
+        assertThat(filasEvento).as("debe existir exactamente un evento persistido con esa clave").hasSize(1);
+
+        var evento = filasEvento.getFirst();
+        assertThat(evento.get("clave")).isEqualTo(claveEsperada);
+        assertThat(evento.get("tipo")).isEqualTo("MENSAJE");
+        String cuerpoGuardado = (String) evento.get("cuerpo");
+        assertThat(cuerpoGuardado).contains(sid).contains("hola");
+
+        // 4. Procesar el lote de la cola y verificar que no duplica efectos salientes
+        servidorTwilio.reiniciar();
+        procesador.procesarLote();
+        enviador.enviarLote();
+
+        // Debe haber enviado exactamente una sola respuesta saliente al proveedor
+        assertThat(servidorTwilio.peticiones()).as("solo se emite una respuesta por el evento único").hasSize(1);
+        assertThat(servidorTwilio.ultimaPeticion().parametros().get("Body")).contains("Responda con el número");
+
+        // En la base de datos solo se guardó un mensaje saliente
+        // mensaje_whatsapp no guarda el wa_id (va en la conversación) y ambas tablas tienen RLS: consulta en el negocio.
+        Integer mensajesSalientes = ejecutor.ejecutar(negocioId, () -> sql.queryForObject("""
+                SELECT count(*) FROM mensaje_whatsapp m JOIN conversacion c ON c.id = m.conversacion_id
+                WHERE c.wa_id = ? AND m.direccion = 'SALIENTE'""", Integer.class, WA_CLIENTE));
+        assertThat(mensajesSalientes).isEqualTo(1);
+    }
+
+    @Test
+    void estado_deliveredReadYFailedActualizanMensajeSalientePorSid() throws Exception {
         // Crear cliente con consentimiento y conversación mediante SQL para respetar las restricciones de RLS
         long conversacionId = ejecutor.ejecutar(negocioId, () -> {
             long clienteId = sql.queryForObject("""
@@ -370,6 +453,21 @@ class RecorridoTwilioIT {
         String estadoDelivered = ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
                 "SELECT estado FROM mensaje_whatsapp WHERE wamid = ?", String.class, "SM_OUT_DELIV_1"));
         assertThat(estadoDelivered).isEqualTo("ENTREGADO");
+
+        // Enviar callback firmado de read a /api/twilio/estado para el mismo SID (CT-5)
+        Map<String, String> datosRead = new LinkedHashMap<>();
+        datosRead.put("AccountSid", ACCOUNT_SID);
+        datosRead.put("MessageSid", "SM_OUT_DELIV_1");
+        datosRead.put("MessageStatus", "read");
+        datosRead.put("To", "whatsapp:+" + WA_CLIENTE);
+
+        var respRead = postTwilio("/api/twilio/estado", datosRead);
+        assertThat(respRead.statusCode()).isEqualTo(200);
+        procesador.procesarLote();
+
+        String estadoRead = ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
+                "SELECT estado FROM mensaje_whatsapp WHERE wamid = ?", String.class, "SM_OUT_DELIV_1"));
+        assertThat(estadoRead).isEqualTo("LEIDO");
 
         // 2. Encolar y enviar un segundo mensaje para probar failed
         servidorTwilio.encolarExito("SM_OUT_FAIL_2");

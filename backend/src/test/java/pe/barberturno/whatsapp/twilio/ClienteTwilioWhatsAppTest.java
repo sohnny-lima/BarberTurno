@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import pe.barberturno.conversation.FranjaOpcion;
 import pe.barberturno.conversation.MenusConversacion;
 import pe.barberturno.conversation.ServicioOpcion;
 import pe.barberturno.support.RelojAjustable;
@@ -181,6 +183,50 @@ class ClienteTwilioWhatsAppTest {
     }
 
     @Test
+    void enviar_interactivoFranjas_formatoConFechaCompletaLimaYGuardaCorrespondencia() {
+        servidor.encolarExito("SM_FRJ_001");
+        // Jueves 1 de octubre de 2026: 17:00 UTC = 12:00 en Lima (UTC-5), 17:30 UTC = 12:30 en Lima
+        Instant inicio1 = Instant.parse("2026-10-01T17:00:00Z");
+        Instant fin1 = Instant.parse("2026-10-01T17:30:00Z");
+        Instant inicio2 = Instant.parse("2026-10-01T17:30:00Z");
+        Instant fin2 = Instant.parse("2026-10-01T18:00:00Z");
+
+        List<FranjaOpcion> franjas = List.of(
+                new FranjaOpcion(2L, "Carlos", inicio1, fin1),
+                new FranjaOpcion(2L, "Carlos", inicio2, fin2)
+        );
+        LocalDate dia = LocalDate.of(2026, 10, 1);
+        ObjectNode interactivo = menusConversacion.franjas("Horarios disponibles:", 1L, 2L, dia, franjas, 0);
+        ObjectNode cuerpo = crearMensajeInteractivo(WA_ID, interactivo);
+
+        ResultadoEnvio resultado = cliente.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Aceptado.class);
+
+        ServidorTwilioFalso.PeticionRegistrada peticion = servidor.ultimaPeticion();
+        String bodyEnviado = peticion.parametros().get("Body");
+
+        // Verifica formato del texto numerado con fecha completa en español y hora de Lima (CT-4)
+        assertThat(bodyEnviado).contains("Horarios disponibles:");
+        assertThat(bodyEnviado).contains("1. 12:00 · Carlos — jueves 1 de octubre de 2026");
+        assertThat(bodyEnviado).contains("2. 12:30 · Carlos — jueves 1 de octubre de 2026");
+        assertThat(bodyEnviado).contains("Responda con el número.");
+
+        // Aserciones explícitas de componentes de fecha y hora
+        assertThat(bodyEnviado).contains("jueves");
+        assertThat(bodyEnviado).contains("1 de octubre de 2026");
+        assertThat(bodyEnviado).contains("12:00");
+        assertThat(bodyEnviado).contains("12:30");
+
+        // Verifica correspondencia numérica guardada en el menú
+        var seleccion1 = menus.consumir(WA_ID, "1", "SM_IN_FRJ_1");
+        assertThat(seleccion1).isPresent();
+        assertThat(seleccion1.get().tipo()).isEqualTo("list_reply");
+        assertThat(seleccion1.get().titulo()).isEqualTo("12:00 · Carlos");
+        assertThat(seleccion1.get().id()).isEqualTo("f:1:2:" + inicio1.getEpochSecond());
+    }
+
+    @Test
     void enviar_template_rechazoPermanenteLocalSinLlamadaHttp() {
         ObjectNode cuerpo = mapper.createObjectNode();
         cuerpo.put("messaging_product", "whatsapp");
@@ -265,12 +311,12 @@ class ClienteTwilioWhatsAppTest {
 
     @Test
     void enviar_falloProbado400_conservaMenuAnterior() {
-        // 1. Guardar menú previo
+        // 1. Guardar menú previo con identificador y título distintos a m:RESERVAR
         menus.guardar(WA_ID, List.of(
-                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar")
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:ANTERIOR_123", "Menú previo especial")
         ));
 
-        // 2. Enviar interactivo que resulta en 400
+        // 2. Enviar interactivo que resulta en 400 (su primera opción es m:RESERVAR)
         servidor.encolarError(400, 21614, "Error ficticio");
         ObjectNode interactivo = menusConversacion.menuPrincipal("Nuevo menú:");
         ObjectNode cuerpo = crearMensajeInteractivo(WA_ID, interactivo);
@@ -278,10 +324,12 @@ class ClienteTwilioWhatsAppTest {
         ResultadoEnvio resultado = cliente.enviar(PHONE_NUMBER_ID, cuerpo);
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
 
-        // 3. El menú anterior no se sobreescribió
+        // 3. El menú anterior no se sobreescribió: permanece m:ANTERIOR_123 y no m:RESERVAR
         var opcion = menus.consumir(WA_ID, "1", "SM_CHECK_PREVIO");
         assertThat(opcion).isPresent();
-        assertThat(opcion.get().id()).isEqualTo("m:RESERVAR");
+        assertThat(opcion.get().id()).isEqualTo("m:ANTERIOR_123");
+        assertThat(opcion.get().titulo()).isEqualTo("Menú previo especial");
+        assertThat(opcion.get().id()).isNotEqualTo("m:RESERVAR");
     }
 
     @Test
@@ -291,14 +339,27 @@ class ClienteTwilioWhatsAppTest {
         ObjectNode cuerpo1 = crearMensajeTexto(WA_ID, "Primer envío");
         ObjectNode cuerpo2 = crearMensajeTexto(WA_ID, "Segundo envío");
 
-        long t0 = System.nanoTime();
-        cliente.enviar(PHONE_NUMBER_ID, cuerpo1);
-        cliente.enviar(PHONE_NUMBER_ID, cuerpo2);
-        long duracionMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+        ResultadoEnvio res1 = cliente.enviar(PHONE_NUMBER_ID, cuerpo1);
+        ResultadoEnvio res2 = cliente.enviar(PHONE_NUMBER_ID, cuerpo2);
 
-        // TwilioPropiedades impone mínimo 3s; los dos envíos consecutivos deben tardar al menos ese intervalo
-        assertThat(duracionMs).isGreaterThanOrEqualTo(2900);
-        assertThat(servidor.peticiones()).hasSize(2);
+        // Exige ambos resultados aceptados por el proveedor
+        assertThat(res1).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) res1).wamid()).isEqualTo("SM_INT_001");
+        assertThat(res2).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) res2).wamid()).isEqualTo("SM_INT_002");
+
+        var peticiones = servidor.peticiones();
+        assertThat(peticiones).hasSize(2);
+
+        var peticion1 = peticiones.get(0);
+        var peticion2 = peticiones.get(1);
+
+        // Separación monotónica registrada en el servidor falso: desde el fin de la respuesta 1 hasta el inicio de la 2
+        long separacionNanos = peticion2.inicioNano() - peticion1.finNano();
+        long separacionMs = TimeUnit.NANOSECONDS.toMillis(separacionNanos);
+
+        // TwilioPropiedades impone mínimo 3 s; la siguiente petición debe iniciarse al menos 3000 ms tras responder la anterior
+        assertThat(separacionMs).isGreaterThanOrEqualTo(3000);
     }
 
     @Test

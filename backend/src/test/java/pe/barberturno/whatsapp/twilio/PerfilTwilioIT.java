@@ -1,7 +1,11 @@
 package pe.barberturno.whatsapp.twilio;
 
+import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -9,10 +13,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import pe.barberturno.auth.JwtService;
 import pe.barberturno.common.config.ConfiguracionProduccion;
+import pe.barberturno.common.security.SecurityConfig;
+import pe.barberturno.users.Rol;
+import pe.barberturno.users.Usuario;
+import pe.barberturno.users.UsuarioRepository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,6 +57,8 @@ class PerfilTwilioIT {
 
     @Autowired private ApplicationContext context;
     @Autowired private MockMvc mvc;
+    @Autowired private JwtService jwt;
+    @Autowired private UsuarioRepository usuarios;
 
     @Test
     void beansTwilio_existenEnContextoConPerfilActivo() {
@@ -85,6 +97,65 @@ class PerfilTwilioIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"correo\":\"cliente@ejemplo.test\",\"password\":\"x\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exencionCsrf_escrituraConSesionValidaSinCsrf_devuelve403Forbidden() throws Exception {
+        Usuario usuario = usuarios.saveAndFlush(new Usuario("Usuario CSRF", "usuario-csrf@ejemplo.test",
+                "999000004", "hash-ficticio", Rol.CLIENTE, Instant.now(), Instant.now()));
+        try {
+            String sesionJwt = jwt.emitir(usuario);
+
+            // Escritura protegida existente con sesión válida pero sin CSRF: debe dar 403 Forbidden
+            mvc.perform(post("/api/n/barberturno/reservas")
+                            .cookie(new jakarta.servlet.http.Cookie("BT_SESION", sesionJwt))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nombre\":\"Juan\"}"))
+                    .andExpect(status().isForbidden());
+        } finally {
+            usuarios.delete(usuario);
+        }
+    }
+
+    @Test
+    void exencionCsrf_escrituraConCsrfInvalido_devuelve403Forbidden() throws Exception {
+        // Con token CSRF no coincidente entre cookie y cabecera
+        mvc.perform(post("/api/auth/login")
+                        .cookie(new jakarta.servlet.http.Cookie("XSRF-TOKEN", "token-esperado"))
+                        .header("X-XSRF-TOKEN", "token-distinto")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"correo\":\"cliente@ejemplo.test\",\"password\":\"x\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @ParameterizedTest(name = "{0} {1} → exenta: {2}")
+    @CsvSource({
+            "POST, /api/twilio/webhook, true",
+            "POST, /api/twilio/estado, true",
+            "GET, /api/twilio/webhook, false",
+            "GET, /api/twilio/estado, false",
+            "PUT, /api/twilio/webhook, false",
+            "PATCH, /api/twilio/webhook, false",
+            "DELETE, /api/twilio/webhook, false",
+            "POST, /api/twilio/webhook/, false",
+            "POST, /api/twilio/webhook/otra, false",
+            "POST, /api/twilio/webhookx, false",
+            "POST, /api/twilio/estado/, false",
+            "POST, /api/twilio/estado/otra, false",
+            "POST, /api/twilio/estadox, false",
+            "POST, /api/twilio, false",
+            "POST, /api/n/barberturno/twilio/webhook, false",
+            "POST, /API/twilio/webhook, false",
+            "post, /api/twilio/webhook, false"
+    })
+    void esWebhookTwilio_soloLosPostExactos(String metodo, String ruta, boolean exenta) throws Exception {
+        var peticion = new MockHttpServletRequest(metodo, ruta);
+        peticion.setServletPath(ruta);
+        Method metodoEsWebhook = SecurityConfig.class.getDeclaredMethod(
+                "esWebhookTwilio", jakarta.servlet.http.HttpServletRequest.class);
+        metodoEsWebhook.setAccessible(true);
+        boolean resultado = (boolean) metodoEsWebhook.invoke(null, peticion);
+        assertThat(resultado).isEqualTo(exenta);
     }
 
     @Test
