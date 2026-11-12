@@ -39,8 +39,8 @@ class BuzonRespuestasTwilioTest {
         propiedades = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef", "token-ficticio",
                 "+14155238886", "https://pruebas.barberturno.test", "barberturno",
                 Duration.ofSeconds(3), "https://api.twilio.com", true,
-                Duration.ofSeconds(1), Duration.ofMillis(200));
-        buzon = new BuzonRespuestasTwilio(propiedades);
+                Duration.ofSeconds(1), Duration.ofMillis(200), java.util.List.of());
+        buzon = new BuzonRespuestasTwilio(propiedades, java.time.Clock.systemUTC());
         ejecutor = Executors.newCachedThreadPool();
     }
 
@@ -51,9 +51,9 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void abrir_unaSolaEsperaPorWaId_segundoAbrirDevuelveVacio() {
-        Optional<BuzonRespuestasTwilio.Espera> primera = buzon.abrir(WA_ID);
-        Optional<BuzonRespuestasTwilio.Espera> segunda = buzon.abrir(WA_ID);
-        Optional<BuzonRespuestasTwilio.Espera> otraPersona = buzon.abrir(WA_ID_OTRO);
+        Optional<BuzonRespuestasTwilio.Espera> primera = buzon.abrir("14155238886", WA_ID);
+        Optional<BuzonRespuestasTwilio.Espera> segunda = buzon.abrir("14155238886", WA_ID);
+        Optional<BuzonRespuestasTwilio.Espera> otraPersona = buzon.abrir("14155238886", WA_ID_OTRO);
 
         assertThat(primera).isPresent();
         assertThat(segunda).as("segundo abrir para la misma persona debe devolver vacío").isEmpty();
@@ -62,21 +62,21 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void entregar_sinEsperaAbierta_devuelveFalse() {
-        boolean entregado = buzon.entregar("wa_inexistente", "hola");
+        boolean entregado = buzon.entregar("14155238886", "wa_inexistente", "hola");
 
         assertThat(entregado).isFalse();
     }
 
     @Test
     void entregar_conservaOrdenYMaximoCincoMensajes_elSextoDevuelveFalse() {
-        var espera = buzon.abrir(WA_ID).orElseThrow();
+        var espera = buzon.abrir("14155238886", WA_ID).orElseThrow();
 
-        assertThat(buzon.entregar(WA_ID, "Mensaje 1")).isTrue();
-        assertThat(buzon.entregar(WA_ID, "Mensaje 2")).isTrue();
-        assertThat(buzon.entregar(WA_ID, "Mensaje 3")).isTrue();
-        assertThat(buzon.entregar(WA_ID, "Mensaje 4")).isTrue();
-        assertThat(buzon.entregar(WA_ID, "Mensaje 5")).isTrue();
-        assertThat(buzon.entregar(WA_ID, "Mensaje 6")).as("el sexto mensaje excede el tope de 5").isFalse();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje 1")).isTrue();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje 2")).isTrue();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje 3")).isTrue();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje 4")).isTrue();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje 5")).isTrue();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje 6")).as("el sexto mensaje excede el tope de 5").isFalse();
 
         List<String> mensajes = buzon.esperar(espera);
 
@@ -87,7 +87,7 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void esperar_respetaEsperaInicial_cuandoNoLleganMensajes() {
-        var espera = buzon.abrir(WA_ID).orElseThrow();
+        var espera = buzon.abrir("14155238886", WA_ID).orElseThrow();
 
         long inicioNano = System.nanoTime();
         List<String> mensajes = buzon.esperar(espera);
@@ -102,7 +102,7 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void esperar_respetaSilencio_cuandoLlegaMensajeAntesDelTope() throws Exception {
-        var espera = buzon.abrir(WA_ID).orElseThrow();
+        var espera = buzon.abrir("14155238886", WA_ID).orElseThrow();
 
         CountDownLatch mensajeEnviado = new CountDownLatch(1);
         long[] instanteEntrega = new long[1];
@@ -114,7 +114,7 @@ class BuzonRespuestasTwilioTest {
                     Thread.onSpinWait();
                 }
                 instanteEntrega[0] = System.nanoTime();
-                buzon.entregar(WA_ID, "Respuesta rápida");
+                buzon.entregar("14155238886", WA_ID, "Respuesta rápida");
                 mensajeEnviado.countDown();
             } catch (Exception e) {
                 Thread.currentThread().interrupt();
@@ -142,9 +142,9 @@ class BuzonRespuestasTwilioTest {
         TwilioPropiedades propLargas = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef", "token-ficticio",
                 "+14155238886", "https://pruebas.barberturno.test", "barberturno",
                 Duration.ofSeconds(3), "https://api.twilio.com", true,
-                Duration.ofSeconds(2), Duration.ofMillis(300));
-        BuzonRespuestasTwilio buzonLargo = new BuzonRespuestasTwilio(propLargas);
-        var espera = buzonLargo.abrir(WA_ID).orElseThrow();
+                Duration.ofSeconds(2), Duration.ofMillis(300), java.util.List.of());
+        BuzonRespuestasTwilio buzonLargo = new BuzonRespuestasTwilio(propLargas, java.time.Clock.systemUTC());
+        var espera = buzonLargo.abrir("14155238886", WA_ID).orElseThrow();
 
         CountDownLatch segundoEnviado = new CountDownLatch(1);
         long[] tiempos = new long[2]; // 0: entrega 1, 1: entrega 2
@@ -156,7 +156,7 @@ class BuzonRespuestasTwilioTest {
                     Thread.onSpinWait();
                 }
                 tiempos[0] = System.nanoTime();
-                buzonLargo.entregar(WA_ID, "Primer mensaje");
+                buzonLargo.entregar("14155238886", WA_ID, "Primer mensaje");
 
                 // Esperar a que el hilo vuelva a entrar en espera tras procesar el primer mensaje
                 while (hiloPrincipal.getState() != Thread.State.TIMED_WAITING) {
@@ -165,7 +165,7 @@ class BuzonRespuestasTwilioTest {
                 // Pausar 120 ms (dentro del silencio de 300 ms) antes de entregar el segundo mensaje
                 TimeUnit.MILLISECONDS.sleep(120);
                 tiempos[1] = System.nanoTime();
-                buzonLargo.entregar(WA_ID, "Segundo mensaje");
+                buzonLargo.entregar("14155238886", WA_ID, "Segundo mensaje");
                 segundoEnviado.countDown();
             } catch (Exception e) {
                 Thread.currentThread().interrupt();
@@ -192,19 +192,19 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void cerrar_deEsperaAntigua_noEliminaNuevaEsperaDelMismoWaId() {
-        var esperaAntigua = buzon.abrir(WA_ID).orElseThrow();
+        var esperaAntigua = buzon.abrir("14155238886", WA_ID).orElseThrow();
         buzon.cerrar(esperaAntigua);
 
-        var esperaNueva = buzon.abrir(WA_ID).orElseThrow();
+        var esperaNueva = buzon.abrir("14155238886", WA_ID).orElseThrow();
 
         // Cerrar nuevamente la espera antigua no debe retirar la nueva
         buzon.cerrar(esperaAntigua);
 
-        assertThat(buzon.entregar(WA_ID, "Mensaje para la nueva"))
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje para la nueva"))
                 .as("la nueva espera debe seguir abierta tras cerrar la antigua")
                 .isTrue();
 
-        assertThat(buzon.abrir(WA_ID))
+        assertThat(buzon.abrir("14155238886", WA_ID))
                 .as("no debe permitirse abrir otra mientras la nueva siga abierta")
                 .isEmpty();
 
@@ -213,9 +213,9 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void tomar_devuelveLoEntregadoSinEsperarYCierraEspera() {
-        var espera = buzon.abrir(WA_ID).orElseThrow();
-        buzon.entregar(WA_ID, "Mensaje 1");
-        buzon.entregar(WA_ID, "Mensaje 2");
+        var espera = buzon.abrir("14155238886", WA_ID).orElseThrow();
+        buzon.entregar("14155238886", WA_ID, "Mensaje 1");
+        buzon.entregar("14155238886", WA_ID, "Mensaje 2");
 
         long inicioNano = System.nanoTime();
         List<String> mensajes = buzon.tomar(espera);
@@ -225,15 +225,15 @@ class BuzonRespuestasTwilioTest {
         assertThat(duracionMs).as("tomar debe responder de inmediato sin esperar silencio").isLessThan(100L);
 
         // La espera queda cerrada
-        assertThat(buzon.entregar(WA_ID, "Mensaje tardío")).isFalse();
+        assertThat(buzon.entregar("14155238886", WA_ID, "Mensaje tardío")).isFalse();
     }
 
     @Test
     void entregar_trasCierreDeEspera_devuelveFalse() {
-        var espera = buzon.abrir(WA_ID).orElseThrow();
+        var espera = buzon.abrir("14155238886", WA_ID).orElseThrow();
         buzon.cerrar(espera);
 
-        boolean resultado = buzon.entregar(WA_ID, "Mensaje posterior al cierre");
+        boolean resultado = buzon.entregar("14155238886", WA_ID, "Mensaje posterior al cierre");
 
         assertThat(resultado).isFalse();
     }
@@ -242,7 +242,7 @@ class BuzonRespuestasTwilioTest {
     void carrera_entregarYTomar_mensajeAceptadoApareceEnInstantaneaOSeDesviaARest() throws Exception {
         for (int i = 0; i < 50; i++) {
             String idPersona = "51999" + String.format("%06d", i);
-            var espera = buzon.abrir(idPersona).orElseThrow();
+            var espera = buzon.abrir("14155238886", idPersona).orElseThrow();
             String texto = "Mensaje-Carrera-" + i;
 
             CyclicBarrier barrera = new CyclicBarrier(2);
@@ -251,7 +251,7 @@ class BuzonRespuestasTwilioTest {
 
             var futuroEntrega = ejecutor.submit(() -> {
                 barrera.await(2, TimeUnit.SECONDS);
-                boolean ok = buzon.entregar(idPersona, texto);
+                boolean ok = buzon.entregar("14155238886", idPersona, texto);
                 entregaAceptada.set(ok);
                 return ok;
             });
@@ -278,7 +278,7 @@ class BuzonRespuestasTwilioTest {
             }
 
             // Tras la toma y cierre, cualquier entrega posterior es rechazada
-            assertThat(buzon.entregar(idPersona, "Mensaje posterior")).isFalse();
+            assertThat(buzon.entregar("14155238886", idPersona, "Mensaje posterior")).isFalse();
         }
     }
 
@@ -286,7 +286,7 @@ class BuzonRespuestasTwilioTest {
     void carrera_entregarYEsperar_mensajeAceptadoApareceEnInstantanea() throws Exception {
         for (int i = 0; i < 30; i++) {
             String idPersona = "51998" + String.format("%06d", i);
-            var espera = buzon.abrir(idPersona).orElseThrow();
+            var espera = buzon.abrir("14155238886", idPersona).orElseThrow();
             String texto = "Mensaje-Esperar-" + i;
 
             CyclicBarrier barrera = new CyclicBarrier(2);
@@ -294,7 +294,7 @@ class BuzonRespuestasTwilioTest {
 
             var futuroEntrega = ejecutor.submit(() -> {
                 barrera.await(2, TimeUnit.SECONDS);
-                boolean ok = buzon.entregar(idPersona, texto);
+                boolean ok = buzon.entregar("14155238886", idPersona, texto);
                 entregaAceptada.set(ok);
                 return ok;
             });
@@ -319,8 +319,8 @@ class BuzonRespuestasTwilioTest {
 
     @Test
     void esperar_interrumpido_devuelveMensajesAceptadosYConservaMarcaDeInterrupcion() throws Exception {
-        var espera = buzon.abrir(WA_ID).orElseThrow();
-        buzon.entregar(WA_ID, "Mensaje antes de interrupción");
+        var espera = buzon.abrir("14155238886", WA_ID).orElseThrow();
+        buzon.entregar("14155238886", WA_ID, "Mensaje antes de interrupción");
 
         AtomicBoolean interrupcionConservada = new AtomicBoolean(false);
         CountDownLatch hiloIniciado = new CountDownLatch(1);

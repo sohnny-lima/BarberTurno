@@ -46,12 +46,12 @@ public class TraductorEntradaTwilio {
      */
     public Optional<byte[]> mensaje(Map<String, String> datos) {
         String id = datos.getOrDefault("MessageSid", "");
-        if (!datos.getOrDefault("To", "").equals("whatsapp:" + propiedades.numero())
+        if (numeroEntrada(datos).isEmpty()
                 || !datos.getOrDefault("From", "").startsWith("whatsapp:") || id.isBlank()) return Optional.empty();
         var identidad = identidad(datos);
         if (identidad.isEmpty()) return Optional.empty();
         String waId = identidad.get();
-        ObjectNode raiz = sobre(propiedades.numero().substring(1));
+        ObjectNode raiz = sobre(numeroEntrada(datos).orElseThrow());
         ObjectNode valor = valor(raiz);
         valor.putArray("contacts").addObject().put("wa_id", waId).putObject("profile")
                 .put("name", datos.getOrDefault("ProfileName", ""));
@@ -63,7 +63,7 @@ public class TraductorEntradaTwilio {
             interactivo(mensaje, new CorrespondenciaMenusTwilio.Seleccion("button_reply", boton,
                     datos.getOrDefault("ButtonText", "")));
         } else {
-            var seleccion = menus.consumir(waId, cuerpo, id);
+            var seleccion = menus.consumir(numeroEntrada(datos).orElseThrow(), waId, cuerpo, id);
             if (seleccion.isPresent()) interactivo(mensaje, seleccion.get());
             else if (cuerpo.isBlank() && contieneMedia(datos.getOrDefault("NumMedia", "0"))) {
                 mensaje.put("type", "unsupported");
@@ -76,8 +76,9 @@ public class TraductorEntradaTwilio {
 
     /**
      * Convierte estados por sid, identificando el To E.164 o BSUID con la misma regla de entrada.
+     * From determina el canal; sin él solo se admite la configuración histórica de un canal.
      * @param datos formulario de estado firmado; To es ahora el destinatario del mensaje saliente
-     * @return JSON de Meta, o vacío para queued y estados no admitidos
+     * @return JSON de Meta, o vacío para queued, estados no admitidos o un canal ambiguo
      */
     public Optional<byte[]> estado(Map<String, String> datos) {
         String estado = switch (datos.getOrDefault("MessageStatus", "")) {
@@ -91,7 +92,15 @@ public class TraductorEntradaTwilio {
         String telefono = para.startsWith("whatsapp:+") ? para.substring("whatsapp:+".length()) : "";
         var identidad = direcciones.identificar(telefono, para);
         if (identidad.isEmpty()) return Optional.empty();
-        ObjectNode raiz = sobre(propiedades.numero().substring(1));
+        var canal = propiedades.canalesEfectivos().stream()
+                .filter(c -> ("whatsapp:" + c.numero()).equals(datos.getOrDefault("From", "")))
+                .map(c -> c.numero().substring(1)).findFirst();
+        if (canal.isEmpty() && propiedades.canalesEfectivos().size() == 1
+                && datos.getOrDefault("From", "").isBlank()) {
+            canal = Optional.of(propiedades.canalesEfectivos().getFirst().numero().substring(1));
+        }
+        if (canal.isEmpty()) return Optional.empty();
+        ObjectNode raiz = sobre(canal.get());
         ObjectNode aviso = valor(raiz).putArray("statuses").addObject().put("id", id).put("status", estado)
                 .put("timestamp", Long.toString(reloj.instant().getEpochSecond()))
                 .put("recipient_id", identidad.get());
@@ -113,6 +122,30 @@ public class TraductorEntradaTwilio {
      */
     public Optional<String> identidad(Map<String, String> datos) {
         return direcciones.identificar(datos.getOrDefault("WaId", ""), datos.getOrDefault("From", ""));
+    }
+
+    /**
+     * Identifica únicamente un destino configurado antes de consultar menús o abrir esperas.
+     * @param datos formulario firmado del webhook de entrada
+     * @return número del canal en dígitos, o vacío para destinos ajenos
+     */
+    public Optional<String> numeroEntrada(Map<String, String> datos) {
+        return propiedades.canalesEfectivos().stream()
+                .filter(c -> ("whatsapp:" + c.numero()).equals(datos.getOrDefault("To", "")))
+                .map(c -> c.numero().substring(1)).findFirst();
+    }
+
+    /**
+     * Valida la opción numérica local sin pasar un error de rango a la conversación.
+     * @param datos formulario firmado, con identidad y destino ya comprobados
+     * @return aviso idempotente del menú actual, si la opción no existe
+     */
+    public Optional<String> respuestaInvalida(Map<String, String> datos) {
+        if (!propiedades.respuestaTwiml() || datos.getOrDefault("MessageSid", "").isBlank()
+                || !datos.getOrDefault("From", "").startsWith("whatsapp:")
+                || !datos.getOrDefault("ButtonPayload", "").isEmpty()) return Optional.empty();
+        return numeroEntrada(datos).flatMap(numero -> identidad(datos).flatMap(wa ->
+                menus.respuestaInvalida(numero, wa, datos.getOrDefault("Body", ""), datos.get("MessageSid"))));
     }
 
     private ObjectNode sobre(String numero) {

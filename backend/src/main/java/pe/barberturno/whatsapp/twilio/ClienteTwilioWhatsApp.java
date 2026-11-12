@@ -73,16 +73,17 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
 
     /**
      * Convierte el cuerpo de Meta y ofrece el texto validado a la espera TwiML antes de cualquier HTTP.
-     * Sin espera disponible realiza como máximo un POST, respetando el intervalo del Sandbox.
+     * Sin espera disponible retiene los sintéticos diez minutos; un teléfono realiza como máximo un POST,
+     * respetando el intervalo del Sandbox y el emisor del canal del negocio.
      * Un interactivo aceptado o incierto sustituye el menú; un rechazo conserva el anterior.
-     * @param phoneNumberId dígitos del número del Sandbox registrado en el canal
+     * @param phoneNumberId dígitos de cualquiera de los números registrados en los canales
      * @param cuerpo mensaje de la outbox en formato de Graph, con destinatario wa_id
-     * @return aceptación por sid o twiml:UUID, rechazo clasificado o incertidumbre de red
+     * @return aceptación por sid, twiml:UUID o twiml-pendiente:UUID, rechazo clasificado o incertidumbre de red
      */
     @Override
     public ResultadoEnvio enviar(String phoneNumberId, ObjectNode cuerpo) {
         if (!configurado()) return permanente(MotivoFallo.CREDENCIAL_RECHAZADA);
-        if (!propiedades.numero().substring(1).equals(phoneNumberId)) return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
+        if (propiedades.canalesEfectivos().stream().noneMatch(c -> c.numero().substring(1).equals(phoneNumberId))) return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         if ("template".equals(cuerpo.path("type").asString(""))) return permanente(MotivoFallo.PLANTILLA_RECHAZADA);
         String waId = cuerpo.path("to").asString("");
         Mensaje mensaje;
@@ -92,15 +93,22 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
                 || mensaje.texto().isBlank() || mensaje.texto().length() > 1600) {
             return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         }
-        if (propiedades.respuestaTwiml() && buzon.entregar(waId, mensaje.texto())) {
-            if (!mensaje.opciones().isEmpty()) menus.guardar(waId, mensaje.opciones());
+        if (propiedades.respuestaTwiml() && buzon.entregar(phoneNumberId, waId, mensaje.texto())) {
+            if (!mensaje.opciones().isEmpty()) menus.guardar(phoneNumberId, waId, mensaje.opciones(), mensaje.texto());
             LOG.info("Twilio Sandbox: respuesta aceptada por TwiML.");
             return new ResultadoEnvio.Aceptado("twiml:" + UUID.randomUUID());
         }
-        return enviarRest(waId, mensaje);
+        if (waId.matches("9[0-9]{19}")) {
+            boolean retenida = buzon.retener(phoneNumberId, waId, mensaje.texto(), () -> {
+                if (!mensaje.opciones().isEmpty()) menus.guardar(phoneNumberId, waId, mensaje.opciones(), mensaje.texto());
+            });
+            LOG.info("Twilio Sandbox: respuesta diferida {}.", retenida ? "retenida" : "descartada");
+            return new ResultadoEnvio.Aceptado("twiml-pendiente:" + UUID.randomUUID());
+        }
+        return enviarRest(phoneNumberId, waId, mensaje);
     }
 
-    private synchronized ResultadoEnvio enviarRest(String waId, Mensaje mensaje) {
+    private synchronized ResultadoEnvio enviarRest(String phoneNumberId, String waId, Mensaje mensaje) {
         var destino = direcciones.destino(waId);
         if (destino.isEmpty()) return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         try { esperarIntervalo(); }
@@ -109,7 +117,7 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
             return new ResultadoEnvio.NoEnviado();
         }
         var formulario = new LinkedMultiValueMap<String, String>();
-        formulario.add("From", "whatsapp:" + propiedades.numero());
+        formulario.add("From", "whatsapp:+" + phoneNumberId);
         formulario.add("To", destino.get());
         formulario.add("Body", mensaje.texto());
         formulario.add("StatusCallback", propiedades.urlPublica() + "/api/twilio/estado");
@@ -142,7 +150,7 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
         }
         if (!mensaje.opciones().isEmpty()
                 && (resultado instanceof ResultadoEnvio.Aceptado || resultado instanceof ResultadoEnvio.Desconocido)) {
-            menus.guardar(waId, mensaje.opciones());
+            menus.guardar(phoneNumberId, waId, mensaje.opciones(), mensaje.texto());
         }
         LOG.info("Twilio Sandbox: resultado {}.", resultado.getClass().getSimpleName());
         return resultado;
@@ -183,7 +191,7 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
             default -> throw new IllegalArgumentException();
         }
         if (opciones.isEmpty()) throw new IllegalArgumentException();
-        texto.append("Responda con el número.");
+        texto.append("Responde con el número o escribe «menu» para volver al inicio.");
         return new Mensaje(texto.toString(), List.copyOf(opciones));
     }
 

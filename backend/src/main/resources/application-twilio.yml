@@ -16,3 +16,8 @@ barberturno:
       respuesta-twiml: true
       respuesta-espera: 10s
       respuesta-silencio: 1500ms
+      canales:
+        - numero: "+14155238886"
+          negocio-slug: barberturno
+        - numero: "+15005550006"
+          negocio-slug: sur

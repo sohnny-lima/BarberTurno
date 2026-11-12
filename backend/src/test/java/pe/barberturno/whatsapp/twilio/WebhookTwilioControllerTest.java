@@ -58,18 +58,18 @@ class WebhookTwilioControllerTest {
     void preparar() {
         recepcion = mock(RecepcionWebhookService.class);
         propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500));
+                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
         FirmaTwilio firma = new FirmaTwilio(propiedades);
         Clock reloj = Clock.fixed(AHORA, ZoneOffset.UTC);
         menus = new CorrespondenciaMenusTwilio(reloj);
         JsonMapper mapper = JsonMapper.builder().build();
         TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, new CorrespondenciaDireccionesTwilio());
-        controlador = new WebhookTwilioController(firma, traductor, recepcion, propiedades, new BuzonRespuestasTwilio(propiedades));
+        controlador = new WebhookTwilioController(firma, traductor, recepcion, propiedades, new BuzonRespuestasTwilio(propiedades, java.time.Clock.systemUTC()));
 
         TwilioPropiedades propiedadesTwiml = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", true, Duration.ofSeconds(1), Duration.ofMillis(200));
+                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", true, Duration.ofSeconds(1), Duration.ofMillis(200), java.util.List.of());
         FirmaTwilio firmaTwiml = new FirmaTwilio(propiedadesTwiml);
-        buzonTwiml = new BuzonRespuestasTwilio(propiedadesTwiml);
+        buzonTwiml = new BuzonRespuestasTwilio(propiedadesTwiml, java.time.Clock.systemUTC());
         TraductorEntradaTwilio traductorTwiml = new TraductorEntradaTwilio(mapper, reloj, menus, propiedadesTwiml, new CorrespondenciaDireccionesTwilio());
         controladorTwiml = new WebhookTwilioController(firmaTwiml, traductorTwiml, recepcion, propiedadesTwiml, buzonTwiml);
     }
@@ -377,7 +377,7 @@ class WebhookTwilioControllerTest {
 
         String textoConCaracteresXml = "Corte <Especial> & \"Barba\" 'VIP'";
         when(recepcion.recibir(any(byte[].class))).thenAnswer(inv -> {
-            buzonTwiml.entregar("51999000001", textoConCaracteresXml);
+            buzonTwiml.entregar("14155238886", "51999000001", textoConCaracteresXml);
             return 1;
         });
 
@@ -409,7 +409,7 @@ class WebhookTwilioControllerTest {
     @Test
     void recibir_otraEsperaAbierta_devuelveResponseVacioInmediato() throws Exception {
         // Simular que otra espera para la misma persona ya está abierta en paralelo
-        var esperaPrevia = buzonTwiml.abrir("51999000001");
+        var esperaPrevia = buzonTwiml.abrir("14155238886", "51999000001");
         assertThat(esperaPrevia).isPresent();
 
         Map<String, String> form = formularioMensajeValido();
@@ -487,7 +487,7 @@ class WebhookTwilioControllerTest {
         // Simula la corrección de Claude: recibir devuelve 0 (duplicado), pero el enviador
         // ya entregó respuestas a la espera abierta antes de finalizar la recepción
         when(recepcion.recibir(any(byte[].class))).thenAnswer(inv -> {
-            buzonTwiml.entregar("51999000001", "Respuesta previa ya aceptada");
+            buzonTwiml.entregar("14155238886", "51999000001", "Respuesta previa ya aceptada");
             return 0;
         });
 
@@ -511,7 +511,7 @@ class WebhookTwilioControllerTest {
                 .hasMessage("fallo simulado en BD");
 
         // Comprobar que la espera en el buzón fue liberada en el bloque finally
-        assertThat(buzonTwiml.abrir("51999000001"))
+        assertThat(buzonTwiml.abrir("14155238886", "51999000001"))
                 .as("la espera debe haber sido cerrada en finally permitiendo una nueva apertura posterior")
                 .isPresent();
     }
@@ -523,9 +523,9 @@ class WebhookTwilioControllerTest {
         var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
 
         when(recepcion.recibir(any(byte[].class))).thenAnswer(inv -> {
-            buzonTwiml.entregar("51999000001", "Primer texto: Servicios disponibles");
-            buzonTwiml.entregar("51999000001", "Segundo texto: Elija un barbero");
-            buzonTwiml.entregar("51999000001", "Tercer texto: Responda con el número");
+            buzonTwiml.entregar("14155238886", "51999000001", "Primer texto: Servicios disponibles");
+            buzonTwiml.entregar("14155238886", "51999000001", "Segundo texto: Elija un barbero");
+            buzonTwiml.entregar("14155238886", "51999000001", "Tercer texto: Responda con el número");
             return 1;
         });
 

@@ -46,7 +46,7 @@ class TraduccionTwilioTest {
         direcciones = new CorrespondenciaDireccionesTwilio();
         TwilioPropiedades propiedades = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef",
                 "token-ficticio", NUMERO_SANDBOX, "https://pruebas.barberturno.test",
-                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500));
+                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
         traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, direcciones);
     }
 
@@ -110,10 +110,10 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_numeroConMenuVigenteLista_traduceAInteractivoListReplyYConsumeMenu() throws Exception {
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("list_reply", "s:1", "Corte clásico"),
                 new CorrespondenciaMenusTwilio.Seleccion("list_reply", "s:2", "Barba y bigote")
-        ));
+        ), "Menú de prueba");
 
         Map<String, String> datos = baseMensaje("SM_NUM_LISTA", " 2 ");
         Optional<byte[]> resultado = traductor.mensaje(datos);
@@ -141,10 +141,10 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_numeroConMenuVigenteBotones_traduceAInteractivoButtonReplyYConsumeMenu() throws Exception {
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar"),
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:MIS_CITAS", "Mis citas")
-        ));
+        ), "Menú de prueba");
 
         Map<String, String> datos = baseMensaje("SM_NUM_BTN", "1");
         Optional<byte[]> resultado = traductor.mensaje(datos);
@@ -176,10 +176,10 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_numeroFueraDeRango_llegaComoTextoYMenuSigueVigente() throws Exception {
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar"),
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:MIS_CITAS", "Mis citas")
-        ));
+        ), "Menú de prueba");
 
         // Opción 5 está fuera de rango para un menú de 2 opciones
         Map<String, String> fueraDeRango = baseMensaje("SM_FUERA_1", "5");
@@ -203,10 +203,10 @@ class TraduccionTwilioTest {
     @Test
     void mensaje_mismoMessageSidRepetido_devuelveMismaTraduccionSinConsumirOtroMenu() throws Exception {
         // 1. Instalar menú inicial
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar"),
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:MIS_CITAS", "Mis citas")
-        ));
+        ), "Menú de prueba");
 
         // 2. Primera entrada con SID "SM_REINTENTO_1" elige la opción 1 -> m:RESERVAR
         Map<String, String> primera = baseMensaje("SM_REINTENTO_1", "1");
@@ -218,9 +218,9 @@ class TraduccionTwilioTest {
         assertThat(msg1.path("interactive").path("button_reply").path("id").asText()).isEqualTo("m:RESERVAR");
 
         // 3. Instalar un menú posterior distinto antes del reintento
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("list_reply", "s:99", "Servicio Posterior Especial")
-        ));
+        ), "Menú de prueba");
 
         // 4. Reintento de Twilio con el mismo MessageSid: devuelve la selección original sin consumir el menú nuevo
         Map<String, String> reintento = baseMensaje("SM_REINTENTO_1", "1");
@@ -244,9 +244,9 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_caducidad24Horas_menuVencidoDevuelveTextoPlano() throws Exception {
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar")
-        ));
+        ), "Menú de prueba");
 
         // Adelantar reloj 24 horas y 1 segundo
         reloj.adelantar(Duration.ofHours(24).plusSeconds(1));

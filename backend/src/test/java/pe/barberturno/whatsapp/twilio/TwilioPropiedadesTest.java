@@ -49,7 +49,7 @@ class TwilioPropiedadesTest {
         assertThatCode(() -> new TwilioPropiedades(
                 "AC0123456789abcdef0123456789abcdef", "token-ficticio", "+14155238886",
                 "https://pruebas.barberturno.test", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, Duration.ofSeconds(10), Duration.ofMillis(1500)))
+                "https://api.twilio.com", true, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of()))
                 .doesNotThrowAnyException();
     }
 
@@ -58,13 +58,13 @@ class TwilioPropiedadesTest {
         // Límite inferior de espera: 1 s; límite inferior de silencio: 100 ms
         assertThatCode(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, Duration.ofSeconds(1), Duration.ofMillis(100)))
+                "https://api.twilio.com", true, Duration.ofSeconds(1), Duration.ofMillis(100), java.util.List.of()))
                 .doesNotThrowAnyException();
 
         // Límite superior de espera: 12 s; silencio igual a la espera
         assertThatCode(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, Duration.ofSeconds(12), Duration.ofSeconds(12)))
+                "https://api.twilio.com", true, Duration.ofSeconds(12), Duration.ofSeconds(12), java.util.List.of()))
                 .doesNotThrowAnyException();
     }
 
@@ -75,7 +75,7 @@ class TwilioPropiedadesTest {
 
         assertThatThrownBy(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, esperaInvalida, Duration.ofMillis(100)))
+                "https://api.twilio.com", true, esperaInvalida, Duration.ofMillis(100), java.util.List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(MENSAJE_ERROR_ESPERADO)
                 .satisfies(e -> assertThat(e.getMessage()).doesNotContain(String.valueOf(millis)));
@@ -86,7 +86,7 @@ class TwilioPropiedadesTest {
     void constructor_respuestaEsperaNula_lanzaIllegalArgumentException(Duration esperaNula) {
         assertThatThrownBy(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, esperaNula, Duration.ofMillis(100)))
+                "https://api.twilio.com", true, esperaNula, Duration.ofMillis(100), java.util.List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(MENSAJE_ERROR_ESPERADO);
     }
@@ -98,7 +98,7 @@ class TwilioPropiedadesTest {
 
         assertThatThrownBy(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, Duration.ofSeconds(5), silencioInvalido))
+                "https://api.twilio.com", true, Duration.ofSeconds(5), silencioInvalido, java.util.List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(MENSAJE_ERROR_ESPERADO)
                 .satisfies(e -> assertThat(e.getMessage()).doesNotContain(String.valueOf(millis)));
@@ -111,7 +111,7 @@ class TwilioPropiedadesTest {
 
         assertThatThrownBy(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, espera, silencioMayor))
+                "https://api.twilio.com", true, espera, silencioMayor, java.util.List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(MENSAJE_ERROR_ESPERADO)
                 .satisfies(e -> assertThat(e.getMessage()).doesNotContain("6").doesNotContain("5"));
@@ -122,7 +122,7 @@ class TwilioPropiedadesTest {
     void constructor_respuestaSilencioNulo_lanzaIllegalArgumentException(Duration silencioNulo) {
         assertThatThrownBy(() -> new TwilioPropiedades(
                 "", "", "+14155238886", "", "barberturno", Duration.ofSeconds(3),
-                "https://api.twilio.com", true, Duration.ofSeconds(5), silencioNulo))
+                "https://api.twilio.com", true, Duration.ofSeconds(5), silencioNulo, java.util.List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(MENSAJE_ERROR_ESPERADO);
     }
@@ -133,7 +133,7 @@ class TwilioPropiedadesTest {
                 "AC0123456789abcdef0123456789abcdef", "secreto-super-confidencial",
                 "+14155238886", "https://pruebas.barberturno.test", "barberturno",
                 Duration.ofSeconds(3), "https://api.twilio.com", true,
-                Duration.ofSeconds(10), Duration.ofMillis(1500));
+                Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
 
         assertThat(propiedades.toString()).isEqualTo("TwilioPropiedades[configuración oculta]");
     }
@@ -162,9 +162,9 @@ class TwilioPropiedadesTest {
                     "AC0123456789abcdef0123456789abcdef", "secreto-token-webhook",
                     "+14155238886", "https://pruebas.barberturno.test", "barberturno",
                     Duration.ofSeconds(3), "https://api.twilio.com", true,
-                    Duration.ofSeconds(10), Duration.ofMillis(1500));
+                    Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
             FirmaTwilio firma = new FirmaTwilio(propControlador);
-            BuzonRespuestasTwilio buzonControlador = new BuzonRespuestasTwilio(propControlador);
+            BuzonRespuestasTwilio buzonControlador = new BuzonRespuestasTwilio(propControlador, java.time.Clock.systemUTC());
             TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propControlador, direcciones);
             RecepcionWebhookService recepcion = Mockito.mock(RecepcionWebhookService.class);
             Mockito.when(recepcion.recibir(Mockito.any(byte[].class))).thenReturn(1);
@@ -184,7 +184,7 @@ class TwilioPropiedadesTest {
 
             // 2. Aceptación por TwiML
             ClienteTwilioWhatsApp clienteTwiml = new ClienteTwilioWhatsApp(propControlador, menus, mapper, direcciones, buzonControlador);
-            var espera = buzonControlador.abrir(marcadorSintetico);
+            var espera = buzonControlador.abrir("14155238886", marcadorSintetico);
             assertThat(espera).isPresent();
 
             ObjectNode cuerpoTwiml = mapper.createObjectNode();
@@ -204,8 +204,8 @@ class TwilioPropiedadesTest {
                         "AC0123456789abcdef0123456789abcdef", "secreto-token-rest",
                         "+14155238886", "https://pruebas.barberturno.test", "barberturno",
                         Duration.ofSeconds(3), servidor.urlBase(), true,
-                        Duration.ofSeconds(10), Duration.ofMillis(1500));
-                BuzonRespuestasTwilio buzonRest = new BuzonRespuestasTwilio(propRest);
+                        Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
+                BuzonRespuestasTwilio buzonRest = new BuzonRespuestasTwilio(propRest, java.time.Clock.systemUTC());
                 ClienteTwilioWhatsApp clienteRest = new ClienteTwilioWhatsApp(propRest, menus, mapper, direcciones, buzonRest);
 
                 // 3. Envío por REST (201)

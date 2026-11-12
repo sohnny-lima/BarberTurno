@@ -70,13 +70,13 @@ class ClienteTwilioWhatsAppTest {
 
         direcciones = new CorrespondenciaDireccionesTwilio();
         propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofSeconds(3), servidor.urlBase(), false, Duration.ofSeconds(10), Duration.ofMillis(1500));
+                "barberturno", Duration.ofSeconds(3), servidor.urlBase(), false, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
         cliente = new ClienteTwilioWhatsApp(propiedades, menus, mapper,
-                direcciones, new BuzonRespuestasTwilio(propiedades));
+                direcciones, new BuzonRespuestasTwilio(propiedades, java.time.Clock.systemUTC()));
 
         TwilioPropiedades propiedadesTwiml = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofSeconds(3), servidor.urlBase(), true, Duration.ofSeconds(10), Duration.ofMillis(1500));
-        buzonConTwiml = new BuzonRespuestasTwilio(propiedadesTwiml);
+                "barberturno", Duration.ofSeconds(3), servidor.urlBase(), true, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
+        buzonConTwiml = new BuzonRespuestasTwilio(propiedadesTwiml, java.time.Clock.systemUTC());
         clienteTwiml = new ClienteTwilioWhatsApp(propiedadesTwiml, menus, mapper, direcciones, buzonConTwiml);
     }
 
@@ -156,7 +156,7 @@ class ClienteTwilioWhatsAppTest {
                 Responda con el número.""");
 
         // Verifica que se guardó la correspondencia en memoria
-        var seleccion1 = menus.consumir(WA_ID, "1", "SM_IN_1");
+        var seleccion1 = menus.consumir("14155238886", WA_ID, "1", "SM_IN_1");
         assertThat(seleccion1).isPresent();
         assertThat(seleccion1.get().tipo()).isEqualTo("button_reply");
         assertThat(seleccion1.get().id()).isEqualTo("m:RESERVAR");
@@ -187,7 +187,7 @@ class ClienteTwilioWhatsAppTest {
                 Responda con el número.""");
 
         // Verifica que la opción 2 se resuelve como list_reply con el identificador del servicio
-        var seleccion2 = menus.consumir(WA_ID, "2", "SM_IN_2");
+        var seleccion2 = menus.consumir("14155238886", WA_ID, "2", "SM_IN_2");
         assertThat(seleccion2).isPresent();
         assertThat(seleccion2.get().tipo()).isEqualTo("list_reply");
         assertThat(seleccion2.get().id()).isEqualTo("s:2");
@@ -231,7 +231,7 @@ class ClienteTwilioWhatsAppTest {
         assertThat(bodyEnviado).contains("12:30");
 
         // Verifica correspondencia numérica guardada en el menú
-        var seleccion1 = menus.consumir(WA_ID, "1", "SM_IN_FRJ_1");
+        var seleccion1 = menus.consumir("14155238886", WA_ID, "1", "SM_IN_FRJ_1");
         assertThat(seleccion1).isPresent();
         assertThat(seleccion1.get().tipo()).isEqualTo("list_reply");
         assertThat(seleccion1.get().titulo()).isEqualTo("12:00 · Carlos");
@@ -324,9 +324,9 @@ class ClienteTwilioWhatsAppTest {
     @Test
     void enviar_falloProbado400_conservaMenuAnterior() {
         // 1. Guardar menú previo con identificador y título distintos a m:RESERVAR
-        menus.guardar(WA_ID, List.of(
+        menus.guardar("14155238886", WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:ANTERIOR_123", "Menú previo especial")
-        ));
+        ), "Menú de prueba");
 
         // 2. Enviar interactivo que resulta en 400 (su primera opción es m:RESERVAR)
         servidor.encolarError(400, 21614, "Error ficticio");
@@ -337,7 +337,7 @@ class ClienteTwilioWhatsAppTest {
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
 
         // 3. El menú anterior no se sobreescribió: permanece m:ANTERIOR_123 y no m:RESERVAR
-        var opcion = menus.consumir(WA_ID, "1", "SM_CHECK_PREVIO");
+        var opcion = menus.consumir("14155238886", WA_ID, "1", "SM_CHECK_PREVIO");
         assertThat(opcion).isPresent();
         assertThat(opcion.get().id()).isEqualTo("m:ANTERIOR_123");
         assertThat(opcion.get().titulo()).isEqualTo("Menú previo especial");
@@ -377,14 +377,14 @@ class ClienteTwilioWhatsAppTest {
     @Test
     void propiedades_intervaloMenorDeTresSegundos_esRechazadoEnConstruccion() {
         assertThatThrownBy(() -> new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofMillis(200), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500)))
+                "barberturno", Duration.ofMillis(200), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Configuración de Twilio Sandbox fuera de rango.");
     }
 
     @Test
     void enviar_conSolicitudRestBloqueada_envioTwimlSimultaneoTerminaInmediatoSinEsperarRest() throws Exception {
-        var espera = buzonConTwiml.abrir(WA_ID);
+        var espera = buzonConTwiml.abrir("14155238886", WA_ID);
         assertThat(espera).isPresent();
 
         CountDownLatch restIniciado = new CountDownLatch(1);
@@ -432,7 +432,7 @@ class ClienteTwilioWhatsAppTest {
 
     @Test
     void enviar_conTwimlActivoYEsperaAbierta_template_rechazoPermanenteBuzonVacioSinHttp() {
-        var espera = buzonConTwiml.abrir(WA_ID);
+        var espera = buzonConTwiml.abrir("14155238886", WA_ID);
         assertThat(espera).isPresent();
 
         ObjectNode cuerpo = mapper.createObjectNode();
@@ -459,7 +459,7 @@ class ClienteTwilioWhatsAppTest {
 
     @Test
     void enviar_conTwimlActivoYEsperaAbierta_cuerpoMayorDe1600Caracteres_rechazoPermanenteBuzonVacioSinHttp() {
-        var espera = buzonConTwiml.abrir(WA_ID);
+        var espera = buzonConTwiml.abrir("14155238886", WA_ID);
         assertThat(espera).isPresent();
 
         String textoLargo = "B".repeat(1601);
@@ -480,7 +480,7 @@ class ClienteTwilioWhatsAppTest {
 
     @Test
     void enviar_conTwimlActivoYEsperaAbierta_interactivoMalFormado_rechazoPermanenteBuzonVacioSinHttp() {
-        var espera = buzonConTwiml.abrir(WA_ID);
+        var espera = buzonConTwiml.abrir("14155238886", WA_ID);
         assertThat(espera).isPresent();
 
         // Interactivo mal formado: tipo 'button' pero con lista de botones vacía
@@ -506,7 +506,7 @@ class ClienteTwilioWhatsAppTest {
 
     @Test
     void enviar_conEsperaAbierta_menuVaAEsperaGuardaMenuSinHttp() {
-        var espera = buzonConTwiml.abrir(WA_ID);
+        var espera = buzonConTwiml.abrir("14155238886", WA_ID);
         assertThat(espera).isPresent();
 
         ObjectNode interactivo = menusConversacion.menuPrincipal("Seleccione una opción:");
@@ -519,7 +519,7 @@ class ClienteTwilioWhatsAppTest {
         assertThat(servidor.peticiones()).isEmpty();
 
         // El menú queda guardado en la correspondencia
-        var seleccion1 = menus.consumir(WA_ID, "1", "SM_IN_1");
+        var seleccion1 = menus.consumir("14155238886", WA_ID, "1", "SM_IN_1");
         assertThat(seleccion1).isPresent();
         assertThat(seleccion1.get().titulo()).isEqualTo("Reservar");
 
@@ -566,7 +566,7 @@ class ClienteTwilioWhatsAppTest {
     void enviar_conEsperaAbierta_alSuperarCincoMensajes_elSextoVaPorRest() {
         String bsuid = "whatsapp:PE.1122334455667788";
         String sintetico = direcciones.identificar(null, bsuid).orElseThrow();
-        var espera = buzonConTwiml.abrir(sintetico);
+        var espera = buzonConTwiml.abrir("14155238886", sintetico);
         assertThat(espera).isPresent();
 
         // Enviar 5 mensajes: todos van a la espera TwiML sin HTTP

@@ -83,13 +83,34 @@ public class WebhookTwilioController {
         if (peticion.getQueryString() != null || !firma.valida(ruta, datos, cabecera)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        if (!estado) {
+            var aviso = traductor.respuestaInvalida(datos);
+            if (aviso.isPresent()) {
+                var propia = traductor.numeroEntrada(datos).flatMap(numero ->
+                        traductor.identidad(datos).flatMap(wa -> buzon.abrir(numero, wa)));
+                var mensajes = new java.util.ArrayList<String>();
+                propia.ifPresent(e -> mensajes.addAll(buzon.tomar(e)));
+                mensajes.add(aviso.get());
+                return respuesta(twiml(mensajes));
+            }
+        }
         var cuerpo = estado ? traductor.estado(datos) : traductor.mensaje(datos);
         if (cuerpo.isEmpty()) return respuesta("<Response/>");
-        if (estado || !propiedades.respuestaTwiml()) {
+        if (estado) {
             recepcion.recibir(cuerpo.get());
             return respuesta("<Response/>");
         }
-        var propia = traductor.identidad(datos).flatMap(buzon::abrir);
+        if (!propiedades.respuestaTwiml()) {
+            // V2-DA-108 también protege los sintéticos en modo REST: recoge solo lo ya retenido,
+            // cerrando antes de recibir, sin esperar ni recoger respuestas nuevas de esta entrada.
+            var retenida = traductor.numeroEntrada(datos).flatMap(numero -> traductor.identidad(datos)
+                    .filter(wa -> wa.matches("9[0-9]{19}")).flatMap(wa -> buzon.abrir(numero, wa)));
+            var anteriores = retenida.map(buzon::tomar).orElseGet(java.util.List::of);
+            recepcion.recibir(cuerpo.get());
+            return respuesta(twiml(anteriores));
+        }
+        var propia = traductor.numeroEntrada(datos).flatMap(numero ->
+                traductor.identidad(datos).flatMap(wa -> buzon.abrir(numero, wa)));
         try {
             int nuevos = recepcion.recibir(cuerpo.get());
             if (propia.isEmpty()) return respuesta("<Response/>");

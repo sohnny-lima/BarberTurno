@@ -46,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "barberturno.seguridad.cookie-secure=false",
         "barberturno.whatsapp.twilio.account-sid=AC0123456789abcdef0123456789abcdef",
         "barberturno.whatsapp.twilio.auth-token=token-ficticio-twilio-it",
+        "barberturno.whatsapp.twilio.canales[0].numero=+14155238886",
+        "barberturno.whatsapp.twilio.canales[0].negocio-slug=barberturno",
         "barberturno.whatsapp.twilio.numero=+14155238886",
         "barberturno.whatsapp.twilio.negocio-slug=barberturno",
         "barberturno.whatsapp.twilio.respuesta-twiml=false",

@@ -2,6 +2,7 @@ package pe.barberturno.whatsapp.twilio;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -18,6 +19,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param respuestaTwiml habilita la respuesta dentro del webhook en vez del envío REST cuando hay espera
  * @param respuestaEspera plazo para el primer mensaje, entre uno y doce segundos
  * @param respuestaSilencio plazo entre mensajes, desde cien milisegundos hasta la espera inicial
+ * @param canales pares de número y negocio; vacío conserva la configuración de un solo canal
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
@@ -27,7 +29,7 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
         @DefaultValue("barberturno") String negocioSlug, @DefaultValue("3s") Duration intervaloEnvio,
         @DefaultValue("https://api.twilio.com") String apiBase,
         @DefaultValue("true") boolean respuestaTwiml, @DefaultValue("10s") Duration respuestaEspera,
-        @DefaultValue("1500ms") Duration respuestaSilencio) {
+        @DefaultValue("1500ms") Duration respuestaSilencio, List<Canal> canales) {
 
     /**
      * Rechaza configuraciones ambiguas y evita filtrar secretos en errores de validación.
@@ -41,9 +43,15 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
      * @param respuestaTwiml true para recoger respuestas de la outbox en el webhook
      * @param respuestaEspera máximo para el primer mensaje desde la apertura
      * @param respuestaSilencio silencio máximo desde la última respuesta aceptada
+     * @param canales canales explícitos, sin números ni slugs repetidos
      * @throws IllegalArgumentException si un formato o intervalo no cumple el contrato
      */
     public TwilioPropiedades {
+        canales = canales == null ? List.of() : List.copyOf(canales);
+        if (canales.stream().map(Canal::numero).distinct().count() != canales.size()
+                || canales.stream().map(Canal::negocioSlug).distinct().count() != canales.size()) {
+            throw new IllegalArgumentException("Configuración de canales Twilio duplicada.");
+        }
         accountSid = accountSid == null ? "" : accountSid.strip();
         authToken = authToken == null ? "" : authToken;
         urlPublica = urlPublica == null ? "" : urlPublica;
@@ -60,6 +68,41 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
                 || respuestaSilencio.compareTo(respuestaEspera) > 0) {
             throw new IllegalArgumentException("Configuración de Twilio Sandbox fuera de rango.");
         }
+    }
+
+    /**
+     * Resuelve la lista explícita o el par histórico compatible.
+     * @return canales configurados e inmutables
+     */
+    public List<Canal> canalesEfectivos() {
+        return canales.isEmpty() ? List.of(new Canal(numero, negocioSlug)) : canales;
+    }
+
+    /**
+     * Canal aislado que relaciona un número E.164 con un negocio.
+     * @param numero número E.164 con signo más
+     * @param negocioSlug slug canónico del negocio
+     * @author Sohnny Walter Lima Infanzón
+     * @version 2.0
+     */
+    public record Canal(String numero, String negocioSlug) {
+        /**
+         * Impide formatos ambiguos sin incluir valores en el error.
+         * @param numero número E.164
+         * @param negocioSlug slug canónico, de hasta cuarenta caracteres
+         * @throws IllegalArgumentException si el par no cumple el formato
+         */
+        public Canal {
+            if (numero == null || !numero.matches("\\+[1-9][0-9]{1,14}")
+                    || negocioSlug == null || negocioSlug.length() > 40
+                    || !negocioSlug.matches("[a-z0-9](-?[a-z0-9])*")) {
+                throw new IllegalArgumentException("Configuración de canal Twilio no válida.");
+            }
+        }
+
+        /** @return descripción fija sin número ni negocio */
+        @Override
+        public String toString() { return "Canal[configuración oculta]"; }
     }
 
     private static boolean baseValida(String valor, boolean permitirLocal) {

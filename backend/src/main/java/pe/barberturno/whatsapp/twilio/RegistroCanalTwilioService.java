@@ -28,7 +28,7 @@ public class RegistroCanalTwilioService {
      * @param entidades bloqueo de la fila del negocio
      * @param canales repositorio existente de canales
      * @param reloj fecha del alta o reactivación
-     * @param propiedades número y slug del negocio de prueba
+     * @param propiedades pares configurados de número y negocio, con compatibilidad del par histórico
      */
     public RegistroCanalTwilioService(EntityManager entidades, CanalWhatsAppRepository canales,
             Clock reloj, TwilioPropiedades propiedades) {
@@ -37,19 +37,23 @@ public class RegistroCanalTwilioService {
     }
 
     /**
-     * Crea el canal si falta, reactiva el mismo o no escribe si ya está activo.
-     * Usa los dígitos del Sandbox como phone_number_id y como waba_id sintético, sin guardar AccountSid.
+     * Registra todos los pares configurados en una transacción: crea, reactiva o conserva cada canal activo.
+     * Usa los dígitos de cada número como phone_number_id y como waba_id sintético, sin guardar AccountSid.
      * La operatividad del negocio y el propietario se revalidan al procesar entradas y salidas;
      * este alta de metadatos no concede permisos ni crea propietarios.
      * @throws IllegalStateException si falta el negocio o existe un canal incompatible
      */
     @Transactional
     public void registrar() {
+        for (var canal : propiedades.canalesEfectivos()) registrar(canal);
+    }
+
+    private void registrar(TwilioPropiedades.Canal configuracion) {
         var negocios = entidades.createNativeQuery("select id from negocio where slug = :slug for update", Long.class)
-                .setParameter("slug", propiedades.negocioSlug()).getResultList();
+                .setParameter("slug", configuracion.negocioSlug()).getResultList();
         if (negocios.isEmpty()) throw new IllegalStateException("Falta el negocio de prueba para Twilio Sandbox.");
         long negocioId = ((Number) negocios.getFirst()).longValue();
-        String numero = propiedades.numero().substring(1);
+        String numero = configuracion.numero().substring(1);
         canales.findByPhoneNumberId(numero).filter(canal -> canal.negocioId() != negocioId).ifPresent(canal -> {
             throw new IllegalStateException("El canal de Twilio Sandbox ya pertenece a otro negocio.");
         });
@@ -59,9 +63,9 @@ public class RegistroCanalTwilioService {
         }
         if (canal != null && canal.activo()) return;
         if (canal == null) {
-            canal = new CanalWhatsApp(negocioId, numero, numero, propiedades.numero(), reloj.instant());
+            canal = new CanalWhatsApp(negocioId, numero, numero, configuracion.numero(), reloj.instant());
         } else {
-            canal.registrar(numero, numero, propiedades.numero(), reloj.instant());
+            canal.registrar(numero, numero, configuracion.numero(), reloj.instant());
         }
         canales.save(canal);
     }
