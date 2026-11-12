@@ -26,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,6 +118,11 @@ class RecorridoTwilioBsuidIT {
         Runtime.getRuntime().addShutdownHook(new Thread(servidorTwilio::close));
     }
 
+    @AfterAll
+    static void detenerServidorTwilio() {
+        servidorTwilio.close();
+    }
+
     @DynamicPropertySource
     static void registrarPropiedades(DynamicPropertyRegistry registry) {
         if (!servidorTwilio.estaIniciado()) {
@@ -151,6 +157,7 @@ class RecorridoTwilioBsuidIT {
     private Usuario titular;
     private Map<String, Object> estadoOriginalNegocio;
     private String ultimoTextoRecibido;
+    private List<String> ultimosNodosRecibidos = new ArrayList<>();
 
     @BeforeEach
     void prepararDatos() {
@@ -206,7 +213,15 @@ class RecorridoTwilioBsuidIT {
     @AfterEach
     void limpiar() {
         if (ejecutorHilos != null) {
-            ejecutorHilos.shutdownNow();
+            ejecutorHilos.shutdown();
+            try {
+                if (!ejecutorHilos.awaitTermination(5, TimeUnit.SECONDS)) {
+                    ejecutorHilos.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                ejecutorHilos.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
         if (estadoOriginalNegocio != null) {
             sql.update("""
@@ -290,6 +305,7 @@ class RecorridoTwilioBsuidIT {
         assertThat(respuesta.headers().firstValue("Content-Type").orElse(""))
                 .contains(MediaType.TEXT_XML_VALUE);
 
+        ultimosNodosRecibidos = extraerMensajesTwiml(respuesta.body());
         ultimoTextoRecibido = desescaparTwiml(respuesta.body());
         return respuesta;
     }
@@ -301,7 +317,14 @@ class RecorridoTwilioBsuidIT {
 
         // 1. Mensaje inicial: «hola»
         simularMensajeEntranteTwiml("SM_IN_000", "hola");
-        assertThat(ultimoTexto()).contains("Responda con el número.");
+        List<String> nodosInicial = ultimosNodos();
+        assertThat(nodosInicial)
+                .as("el mensaje inicial debe contener exactamente 1 nodo <Message>")
+                .hasSize(1);
+        assertThat(nodosInicial.getFirst())
+                .as("el primer <Message> debe contener la opción Reservar y pedir respuesta numérica")
+                .contains("Reservar")
+                .contains("Responda con el número.");
 
         // 2. Proceso guiado de reserva: servicio, profesional, día, hora, confirmar
         int paso = 1;
@@ -317,11 +340,25 @@ class RecorridoTwilioBsuidIT {
             else if (tieneOpcion(texto, "Barbero Carlos")) eleccion = opcion(texto, "Barbero Carlos");
             else eleccion = opcion(texto, "");
             simularMensajeEntranteTwiml("SM_IN_R%02d".formatted(paso++), eleccion);
+            List<String> nodosPaso = ultimosNodos();
+            assertThat(nodosPaso)
+                    .as("cada paso de la reserva debe devolver al menos un nodo <Message>")
+                    .isNotEmpty();
+            for (String nodo : nodosPaso) {
+                assertThat(nodo).as("los nodos <Message> no deben estar en blanco").isNotBlank();
+            }
         }
 
         // El resumen previo a confirmar lo compone el servidor con el servicio y el profesional elegidos
         assertThat(resumen).isNotNull().contains("Corte clásico").contains("Carlos");
-        assertThat(ultimoTexto()).isNotBlank();
+        List<String> nodosConfirmacion = ultimosNodos();
+        assertThat(nodosConfirmacion)
+                .as("tras confirmar, debe recibirse al menos 1 nodo <Message> en orden")
+                .hasSize(1);
+        assertThat(nodosConfirmacion.getFirst())
+                .as("el nodo <Message> posterior a confirmar debe contener la confirmación de la cita y el menú")
+                .contains("Listo:")
+                .contains("Reservar");
 
         // 3. Verificación en la base de datos: la reserva existe y tiene la ficha con el wa_id sintético
         var listaReservas = reservasDelNegocio();
@@ -346,6 +383,10 @@ class RecorridoTwilioBsuidIT {
 
         // 5. Cancelación: «hola» devuelve el menú principal; Mis citas → la cita → Cancelar → confirmación → Confirmar
         simularMensajeEntranteTwiml("SM_IN_C00", "hola");
+        List<String> nodosC0 = ultimosNodos();
+        assertThat(nodosC0).as("menú inicial de cancelación en <Message>").hasSize(1);
+        assertThat(nodosC0.getFirst()).contains("Mis citas").contains("Reservar");
+
         paso = 1;
         while (!tieneOpcion(ultimoTexto(), "Cancelar")) {
             assertThat(paso).as("pasos para llegar a Cancelar").isLessThanOrEqualTo(8);
@@ -355,6 +396,7 @@ class RecorridoTwilioBsuidIT {
             else if (tieneOpcion(texto, "Corte clásico")) eleccion = opcion(texto, "Corte clásico");
             else eleccion = opcion(texto, "");
             simularMensajeEntranteTwiml("SM_IN_C%02d".formatted(paso++), eleccion);
+            assertThat(ultimosNodos()).as("cada respuesta en camino a cancelación debe tener <Message>").isNotEmpty();
         }
 
         // Elegir opción «Cancelar»
@@ -367,8 +409,10 @@ class RecorridoTwilioBsuidIT {
                 .as("la reserva debe seguir CONFIRMADA antes de confirmar la cancelación")
                 .isEqualTo(EstadoReserva.CONFIRMADA);
 
-        // Exigir que el mensaje recibido pida confirmación explícita con la opción Confirmar
-        String textoConfirmacion = ultimoTexto();
+        // Exigir que el mensaje recibido pida confirmación explícita con la opción Confirmar en <Message>
+        List<String> nodosPideConfirmar = ultimosNodos();
+        assertThat(nodosPideConfirmar).hasSize(1);
+        String textoConfirmacion = nodosPideConfirmar.getFirst();
         assertThat(textoConfirmacion).as("resumen o aviso de confirmación de cancelación").contains("Confirmar");
         assertThat(tieneOpcion(textoConfirmacion, "Confirmar")).as("opción Confirmar presente").isTrue();
 
@@ -379,7 +423,14 @@ class RecorridoTwilioBsuidIT {
         assertThat(estadoDe(reservaCreada.getId()))
                 .as("la reserva queda CANCELADA tras confirmar")
                 .isEqualTo(EstadoReserva.CANCELADA);
-        assertThat(ultimoTexto()).isNotBlank();
+        List<String> nodosCancelado = ultimosNodos();
+        assertThat(nodosCancelado)
+                .as("la respuesta tras cancelación debe incluir exactamente 1 nodo <Message>")
+                .hasSize(1);
+        assertThat(nodosCancelado.getFirst())
+                .as("el mensaje debe confirmar la cancelación de la cita")
+                .contains("Cancelamos tu cita")
+                .contains("Reservar");
 
         // 6. Sin REST: verificar que el servidor Twilio simulado no recibió NINGUNA petición HTTP
         assertThat(servidorTwilio.peticiones())
@@ -472,6 +523,10 @@ class RecorridoTwilioBsuidIT {
 
     private String ultimoTexto() {
         return ultimoTextoRecibido;
+    }
+
+    private List<String> ultimosNodos() {
+        return ultimosNodosRecibidos;
     }
 
     private List<Reserva> reservasDelNegocio() {

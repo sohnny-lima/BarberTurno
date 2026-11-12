@@ -18,8 +18,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -264,6 +266,24 @@ public class ServidorTwilioFalso implements AutoCloseable {
                 return;
             }
             responderJson(exchange, estadoHttp, cuerpo);
+        });
+    }
+
+    /**
+     * Encola una respuesta que bloquea la atención HTTP hasta que se libere el cerrojo externo.
+     * @param bloqueoIniciado cerrojo decrementado cuando la petición llega al servidor falso
+     * @param liberador cerrojo que el servidor falso aguarda antes de responder con éxito
+     * @param sid identificador único del mensaje generado
+     */
+    public void encolarBloqueo(CountDownLatch bloqueoIniciado, CountDownLatch liberador, String sid) {
+        colaRespuestas.add(exchange -> {
+            bloqueoIniciado.countDown();
+            try {
+                liberador.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            responderJson(exchange, 201, "{\"sid\":\"" + sid + "\",\"status\":\"queued\"}");
         });
     }
 
