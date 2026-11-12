@@ -287,3 +287,115 @@ preexistente de VS Code, ajeno al encargo.
   - `*Twilio*`: **161/0**.
   - `verify` completo sobre `f09669d`: **3962 pruebas, 0 fallos/errores/omisiones**, «All coverage checks have been met», Javadoc sin avisos, BUILD SUCCESS (47:14 min).
 - **CT-10…CT-13:** cubiertos con un servidor Twilio simulado. Queda la prueba real con el Sandbox desde el teléfono (§7).
+
+## 13. Navegación, consulta de agenda del barbero y varios números (12/11/2026)
+
+**Hechos de la prueba manual del 12/11/2026** (responsable, Sandbox real, remitente BSUID):
+- 11:13–11:15: reserva completa por WhatsApp (ocho pasos; HTTP 200 en 1,7–3,8 s; un `<Message>` por paso).
+- 11:17:34: el responsable envió `3` en el menú de servicios, que solo tenía `1` y `2`. La respuesta estuvo lista a los 20 s, con el equipo saturado; la espera ya había vencido, la salida intentó REST al BSUID, Twilio la rechazó y **la respuesta se perdió**.
+- Reproducción con mensajes firmados simulados y el equipo sin carga: `3` responde «No entendí…» con el menú **principal**, no con el actual. Un segundo error seguido deriva a una persona y el asistente deja de responder.
+- La cuenta de Twilio es de prueba (*Trial*). Twilio no documenta límite de mensajes en el Sandbox, pero las cuentas de prueba tienen 100 unidades gratuitas de WhatsApp y un tope general de 50 mensajes al día. Fuentes: [Sandbox](https://www.twilio.com/docs/whatsapp/sandbox) y [restricciones de la prueba](https://help.twilio.com/articles/360036052753), consultadas el 12/11/2026.
+
+### V2-DA-105 · Opción fuera de rango y «menu» desde cualquier paso
+1. **Los menús numerados son un artefacto del adaptador** (§4.3): Meta usa botones y listas. Por eso el adaptador valida el número.
+   - `CorrespondenciaMenusTwilio` guarda, junto con las opciones, el **texto completo** del último menú enviado a ese destinatario.
+2. Un `Body` formado solo por dígitos, distinto de `0`, **fuera del rango** de un menú vigente:
+   - **no genera evento** y no cuenta como fallo para la derivación;
+   - el menú guardado sigue vigente;
+   - el webhook responde al instante por TwiML con «Esa opción no está en el menú. Responde con un número del 1 al N o escribe «menu» para volver al inicio.» seguido del **texto del menú guardado**;
+   - un duplicado del mismo `MessageSid` recibe la misma respuesta;
+   - con `respuesta-twiml=false` se mantiene el comportamiento anterior: el número llega como texto.
+3. **Pie de los menús numerados:** «Responde con el número o escribe «menu» para volver al inicio.» Se usa tuteo, como el resto del asistente.
+4. **Palabras de inicio** (`menu`, `hola`, `inicio`, `0`, ya existentes en `PalabraClave.MENU`):
+   - vuelven a la bienvenida desde **cualquier** paso: servicio, profesional, día, hora, consentimiento, resumen pendiente de confirmar y conversación derivada a una persona;
+   - una operación pendiente sin confirmar se descarta y **no** se confirma;
+   - las citas ya confirmadas **no cambian**;
+   - si la conversación estaba derivada, vuelve al asistente y queda registrado igual que con «Devolver al asistente».
+5. **Texto libre no reconocido:** el primero responde «No entendí…» y repite el **menú del paso actual**, generado de nuevo con la disponibilidad vigente. Si no hay paso actual, muestra el menú principal. El segundo seguido mantiene la derivación `SIN_PROGRESO` (V2-11).
+
+### V2-DA-106 · Vinculación del barbero por código y consulta «agenda hoy/mañana»
+1. **Código de vinculación:**
+   - Lo genera una cuenta con **perfil profesional activo** (`barbero` con su `usuario_id`) y **membresía activa** en el negocio de la ruta. Cualquier otra cuenta → 404, igual que ante un recurso ajeno.
+   - Ruta: `POST /api/n/{slug}/whatsapp/vinculo-profesional` → `201 {codigo, caducaEn}`.
+   - Formato: 8 caracteres del alfabeto `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, mostrados como `XXXX-XXXX`, generados con `SecureRandom`.
+   - Caduca a los **10 minutos** y es de **un solo uso**. Generar uno nuevo invalida el anterior sin usar.
+   - En la base solo se guarda su SHA-256.
+2. **Estado y baja:**
+   - `GET /api/n/{slug}/whatsapp/vinculo-profesional` → `{vinculado, vinculadoEn}`. Nunca expone el número ni el `wa_id`.
+   - `DELETE` en la misma ruta → 204 y desvincula.
+   - Mismas reglas de acceso que la generación.
+3. **Por WhatsApp, al número del negocio:**
+   - **`vincular XXXX-XXXX`** (sin distinguir mayúsculas; guion y espacios opcionales):
+     - busca el código **en el negocio del canal**; debe estar sin usar, sin caducar y con el perfil y la membresía todavía activos;
+     - vincula `(negocio, barbero, wa_id)`, sustituyendo cualquier vínculo anterior de ese barbero o de ese `wa_id` en el negocio, y marca el código como usado;
+     - responde «Listo, {nombre del barbero}: este WhatsApp quedó vinculado a tu agenda en {negocio}. Escribe «agenda hoy» o «agenda mañana».»
+   - **Fallos:**
+     - código inexistente, usado, caducado o de otro negocio → «El código no es válido o caducó. Genera uno nuevo desde tu cuenta de BarberTurno.»;
+     - a partir del **quinto fallo en una hora** por `wa_id` y negocio → «Demasiados intentos. Vuelve a intentarlo más tarde.», sin consultar el código.
+   - **`desvincular`:** borra el vínculo de ese `wa_id` en el negocio y lo confirma.
+4. **`agenda hoy` / `agenda mañana`** (acepta `manana`, mayúsculas y espacios). **En cada consulta** se comprueba:
+   - que hay vínculo `(negocio del canal, wa_id)`;
+   - que el barbero está activo;
+   - que su cuenta tiene membresía activa en ese negocio.
+5. **Si alguna comprobación falla**, la respuesta es siempre la misma: «Este WhatsApp no tiene acceso a una agenda de esta barbería.» No revela si existe un vínculo en otro negocio. Si falló por membresía o perfil inactivos, el vínculo se borra.
+6. **Respuesta de la agenda:**
+   - Encabezado: «Tu agenda de {hoy|mañana}, {fecha larga en Lima} ({negocio}):».
+   - Una línea por cita: `HH:mm · servicio · nombre e inicial del apellido del cliente`. Sin teléfono ni correo.
+   - Solo citas **de ese barbero** en ese negocio, en estados `PENDIENTE` y `CONFIRMADA`, ordenadas por inicio.
+   - Como máximo 25 líneas; si hay más, «y N más: revisa la agenda web».
+   - Sin citas: «No tienes citas para {hoy|mañana}.»
+   - El día se calcula con `TiempoNegocio` y el `Clock` inyectado.
+7. **Prioridad:** estos comandos se atienden **antes** del flujo de cliente y **sin** el consentimiento de cliente. Vincularse es un acto de la cuenta del barbero, que acepta el aviso en la web al generar el código. Cualquier otro texto de un barbero vinculado sigue el flujo normal de cliente.
+8. **Datos:** migración nueva `V118__whatsapp_vinculo_profesional.sql` con dos tablas, ambas con RLS forzada y la misma política por negocio que las tablas de V116/V117:
+   - `codigo_vinculo_whatsapp` (`negocio_id`, `barbero_id`, `codigo_hash` `char(64)` único, `caduca_en`, `usado_en`, `creado_en`; un código sin usar por barbero);
+   - `vinculo_whatsapp_profesional` (`negocio_id`, `barbero_id`, `wa_id` con el mismo `CHECK` que `conversacion_whatsapp`, `creado_en`; únicos `(negocio_id, wa_id)` y `(negocio_id, barbero_id)`).
+9. **Interfaz web:**
+   - En el área del barbero, una tarjeta **«WhatsApp de la barbería»** con el estado, el botón «Generar código» (muestra el código, su caducidad y la instrucción «Envía «vincular XXXX-XXXX» al WhatsApp de la barbería») y «Desvincular».
+   - Usa la dirección visual vigente (T-55/T-57).
+   - Antes de generar el código, muestra el aviso: «Se guardará el identificador de tu WhatsApp para enviarte tu agenda.»
+10. **Registros:** nunca incluyen el código, su hash, el `wa_id`, el BSUID ni nombres de clientes.
+
+### V2-DA-107 · Varios números de Twilio, uno por negocio
+1. **Configuración:**
+   - `barberturno.whatsapp.twilio.canales` es una lista de `{numero, negocio-slug}`. Si está vacía, se usa el par actual (`numero`, `negocio-slug`), así que la configuración anterior sigue funcionando.
+   - Números y slugs no pueden repetirse; si se repiten, la aplicación no arranca.
+   - `RegistroCanalTwilioService` registra cada par.
+2. **Entrada:**
+   - Se acepta el `To` de cualquier número configurado. El sobre usa ese número como `phone_number_id`, y el núcleo enruta al negocio de su canal, como con Meta.
+   - Otro `To` → sin evento.
+3. **Claves por número:** el menú guardado (V2-DA-105), la espera TwiML (V2-DA-104) y las respuestas retenidas (V2-DA-108) usan la clave **`(número del negocio, wa_id)`**, no solo `wa_id`.
+   - **Integridad:** un número enviado a la barbería B nunca se traduce con el menú de A, y una respuesta de A nunca viaja en la espera de B.
+4. **Salida REST:** `From` = el número del canal del negocio del mensaje.
+5. **Prueba local:**
+   - Sandbox `+14155238886` → `barberturno`, y un número ficticio `+15005550006` → `sur`.
+   - Solo el primero recibe mensajes reales; el segundo se prueba con webhooks firmados simulados.
+
+### V2-DA-108 · Respuestas tardías a un BSUID
+1. Si la espera TwiML ya no está abierta y el destino es un `wa_id` **sintético**, no se intenta REST: el Sandbox lo rechazó el 12/11/2026.
+2. La respuesta se **retiene** en memoria con la clave `(número, wa_id)`: como máximo 5 respuestas durante 10 minutos, con resultado `Aceptado("twiml-pendiente:" + UUID)`.
+3. Se entrega **delante** de las respuestas del siguiente webhook de esa persona, en el orden original.
+4. Las respuestas caducadas o desbordadas se descartan sin registrar el texto.
+5. Con un `wa_id` E.164 se mantiene REST.
+
+### Criterios añadidos
+| CT | Criterio |
+|---|---|
+| CT-14 | Menú de servicios con dos opciones, `3` → respuesta inmediata con el aviso y **el mismo menú**, sin evento ni fallo contado. Después, `2` elige la opción 2 de ese menú. `0` y `menu` → bienvenida. Duplicado del `MessageSid` → la misma respuesta. |
+| CT-15 | `menu` desde cada paso (servicio, profesional, día, hora, consentimiento, resumen y derivada) → bienvenida. La operación pendiente no se confirma, una cita `CONFIRMADA` sigue igual y la derivada vuelve al asistente. El texto no reconocido repite el menú del paso actual. |
+| CT-16 | Vinculación: el código generado vincula una sola vez. Sin efecto: reutilizado, caducado (con el `Clock`), de otro negocio o sustituido por uno nuevo. Al quinto fallo en una hora → bloqueo. Generar sin perfil profesional (cliente o cuenta de otro negocio) → 404. `GET` no expone el `wa_id`. `DELETE` y `desvincular` quitan el acceso. Solo se guarda el hash. |
+| CT-17 | `agenda hoy` y `agenda mañana` de un barbero vinculado → solo sus citas `PENDIENTE` y `CONFIRMADA` del día en Lima, en ese negocio, sin citas de otro barbero ni canceladas, y sin teléfono ni correo. Respuesta genérica de no acceso para: un cliente sin vínculo, un barbero vinculado en `sur` que escribe al número de `barberturno` y un barbero con la membresía revocada tras vincularse (además, el vínculo se borra). |
+| CT-18 | Dos números: los mensajes al número A crean la reserva en la agenda de `barberturno`, y los del número B en la de `sur`. El mismo BSUID con menús abiertos en A y B no los cruza. El `From` de REST corresponde al negocio. Una configuración duplicada no arranca. |
+| CT-19 | Una respuesta tardía a un sintético no hace HTTP y llega delante de las del siguiente webhook de esa persona, en ese número. Si caduca a los 10 min, se descarta. Un destino E.164 sigue por REST. |
+| CT-20 | Registros sin código, hash, `wa_id`, BSUID ni nombres de clientes (captura con marcadores ficticios). |
+
+### Plan de prueba manual (actualiza §7)
+1. Arranque: `probar-twilio.ps1 -Dominio … -SinVentanas`.
+2. Desde el teléfono:
+   - reserva completa;
+   - `3` en un menú de dos opciones → aviso y el mismo menú;
+   - `menu` a mitad del flujo → bienvenida;
+   - la cita confirmada se mantiene.
+3. Comprobación del coordinador:
+   - la cita está en la base temporal;
+   - el barbero asignado la ve con `agenda hoy` (vinculado con un código generado por la API con su cuenta ficticia, mediante webhooks firmados simulados) y en `GET /api/n/barberturno/reservas`.
+4. Multiempresa con webhooks firmados simulados: número A → `barberturno`, número B → `sur`, y acceso denegado entre negocios.
