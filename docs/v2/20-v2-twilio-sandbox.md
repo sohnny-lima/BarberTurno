@@ -150,3 +150,15 @@ Límites comprobados: §1–§7 intactos; ningún cambio en documentos protegido
 APF2, entregables, evidencias de v1, Azure o bases de v1; no se leyó `.local/coordinacion/`, ni se
 mostraron secretos; sin ramas, worktrees ni etiquetas nuevos, sin push ni servicios reales/de pago.
 Al terminar las verificaciones: 0 procesos Java, 0 escuchas en 8080/8081/4200 y cerrojo del ejecutor ausente.
+
+## 9. Cierre técnico (coordinador)
+
+**11/11/2026 · Hecha en local; pendiente de la prueba manual con el teléfono (§7).** Sin integración en `v2`, sin push y sin despliegue.
+
+- **Producción (Codex 155):** revisada por Claude (conforme) y por Gemini en solo lectura, *diff-first* (g126 terminó sin respuesta tras una lectura denegada; g126b: **APROBADO**).
+- **Pruebas (Gemini g125 → `8587ef1`):** Claude las ajustó a la API y al diálogo reales sin tocar producción (`07fde5f`). El recorrido CT-6 elige cada opción por su texto y exige `CONFIRMADA` antes de cancelar y `CANCELADA` después. Codex 156 las revisó en solo lectura y dejó 11 hallazgos. Gemini g127 y Claude los resolvieron (`3995710`): firma con `+`, espacios y caracteres no ASCII; parámetros repetidos; reintento del mismo `MessageSid`; menú caducado y número fuera de rango; `read`; restauración del negocio tras cada prueba. Un hallazgo alto también se corrigió: una prueba dejaba `limite_reservas_activas = 5` y rompía `ParametrosNegocioIT`.
+- **Bloqueo de Codex 155:** quedó resuelto. `-DskipTests verify` no omite el check de JaCoCo; el `verify` completo sí lo cumple.
+- **Resultados:**
+  - Twilio + `ParametrosNegocioIT`: 93/0.
+  - `verify` completo sobre `271d87c`: **3884 pruebas, 0 fallos/errores/omisiones**; «All coverage checks have been met»; Javadoc sin avisos; BUILD SUCCESS.
+- **CT-1…CT-9:** cubiertos por pruebas automáticas con un servidor Twilio simulado. Sin acreditar: la conexión con Twilio real y el recorrido desde un teléfono (§7).

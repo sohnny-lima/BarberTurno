@@ -175,3 +175,29 @@ Sin ramas, etiquetas o worktrees nuevos; sin cambios de remoto, historial, permi
 
 Tras finalizar Maven: **0 procesos Java**, **0 escuchas en 8080/8081/4200**, **cerrojo ausente**. Todas
 las sesiones del ejecutor terminaron; no se arrancó manualmente ninguna aplicación ni servidor.
+
+## Cierre del coordinador
+
+11/11/2026 · Claude, mismo ejecutor serializado sobre `barberturno_v2_test`.
+
+| Ejecución | Registro (ignorado por Git) | Resultado |
+|---|---|---|
+| Pruebas de Twilio + `ParametrosNegocioIT` tras la revisión 156 | `backend/target/g127-twilio-3.log` | 93 pruebas, 0 fallos/errores/omisiones |
+| `verify` completo sobre `271d87c` | `backend/target/v2-tw-verify-completo-2.log` | **3884 pruebas, 0 fallos/errores/omisiones**; «All coverage checks have been met»; Javadoc sin avisos; BUILD SUCCESS |
+
+Pruebas nuevas por clase:
+
+| Clase | Pruebas |
+|---|---|
+| `WebhookTwilioControllerTest` | 16 |
+| `TraduccionTwilioTest` | 18 |
+| `ClienteTwilioWhatsAppTest` | 14 |
+| `FirmaTwilioTest` | 1 |
+| `PerfilTwilioIT` | 25 |
+| `PerfilTwilioSinPerfilIT` | 2 |
+| `RegistroCanalTwilioIT` | 4 |
+| `RecorridoTwilioIT` (CT-6: consultar, reservar, ver en la agenda y cancelar) | 3 |
+
+Un primer `verify` completo se invalidó y se detuvo: los datos de una ejecución anterior que se había interrumpido seguían en la base desechable. Se restauraron los valores del negocio de prueba y se corrigió la prueba que los dejaba (`3995710`). El bloqueo por JaCoCo de la sección anterior queda resuelto con esta ejecución.
+
+Pendiente: la prueba manual con Twilio real desde el teléfono del responsable (contrato §7).
