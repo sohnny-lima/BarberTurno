@@ -209,11 +209,29 @@ class NavegacionMenusTwilioTest {
         MockHttpServletRequest peticion1 = crearPeticionFirmada(sid, "5");
         ResponseEntity<String> resp1 = controlador.recibir(peticion1, peticion1.getHeader("X-Twilio-Signature"));
 
+        // Entre los dos intentos con el mismo SID, sustituye el menú guardado
+        String textoMenuNuevo = """
+                Menú renovado:
+                1. Opción Nueva A
+                2. Opción Nueva B
+                Responde con el número o escribe «menu» para volver al inicio.""";
+        menus.guardar(PHONE_NUMBER_ID, WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("list_reply", "s:nueva_1", "Opción Nueva A"),
+                new CorrespondenciaMenusTwilio.Seleccion("list_reply", "s:nueva_2", "Opción Nueva B")
+        ), textoMenuNuevo);
+
         MockHttpServletRequest peticion2 = crearPeticionFirmada(sid, "5");
         ResponseEntity<String> resp2 = controlador.recibir(peticion2, peticion2.getHeader("X-Twilio-Signature"));
 
+        // El duplicado conserva el aviso original, sin evento y sin consumir el nuevo menú
         assertThat(resp1.getBody()).isEqualTo(resp2.getBody());
         assertThat(resp2.getBody()).contains("Esa opción no está en el menú");
+        assertThat(resp2.getBody()).contains(TEXTO_MENU_SERVICIOS);
+        assertThat(resp2.getBody()).doesNotContain("Menú renovado");
         verify(recepcion, never()).recibir(any(byte[].class));
+
+        var consumoNuevoMenu = menus.consumir(PHONE_NUMBER_ID, WA_ID, "1", "SM_VERIF_NUEVO_MENU");
+        assertThat(consumoNuevoMenu).isPresent();
+        assertThat(consumoNuevoMenu.get().id()).isEqualTo("s:nueva_1");
     }
 }

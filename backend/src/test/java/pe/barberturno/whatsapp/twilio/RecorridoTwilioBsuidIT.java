@@ -480,7 +480,18 @@ class RecorridoTwilioBsuidIT {
         // 4. El siguiente webhook de esa persona recoge la respuesta previamente retenida
         simularMensajeEntranteTwiml("SM_IN_TIMEOUT_002", "1");
         List<String> nodosSiguiente = ultimosNodos();
-        assertThat(nodosSiguiente).as("el siguiente webhook debe recibir las respuestas en TwiML").isNotEmpty();
+        assertThat(nodosSiguiente).as("el siguiente webhook debe recibir exactamente dos respuestas en TwiML")
+                .hasSize(2)
+                .doesNotHaveDuplicates();
+        assertThat(nodosSiguiente.get(0))
+                .as("primero debe entregarse la respuesta retenida anterior con el menú inicial")
+                .contains("Reservar")
+                .contains("Responde con el número");
+        assertThat(nodosSiguiente.get(1))
+                .as("segundo debe entregarse la nueva respuesta producida por la opción enviada")
+                .isNotBlank();
+        assertThat(nodosSiguiente.get(0)).isNotEqualTo(nodosSiguiente.get(1));
+        assertThat(servidorTwilio.peticiones()).as("no debe haberse realizado ninguna petición REST para sintético").isEmpty();
     }
 
     @Test

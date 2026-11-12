@@ -194,9 +194,24 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         enviarTexto(NUMERO_A, waFallos, "Fallo User", "vincular CODIGO5");
         assertThat(ultimoMensaje(a, waFallos).texto()).isEqualTo("Demasiados intentos. Vuelve a intentarlo más tarde.");
 
-        // Intentos subsiguientes en la misma hora siguen bloqueados
-        enviarTexto(NUMERO_A, waFallos, "Fallo User", "vincular CODIGO6");
+        // Intentos subsiguientes en la misma hora siguen bloqueados, incluso con un código válido
+        CodigoVinculoProfesionalDto codigoValido = ejecutor.ejecutar(a, () -> vinculoService.generar(barberoCuenta.getId()));
+        enviarTexto(NUMERO_A, waFallos, "Fallo User", "vincular " + codigoValido.codigo());
         assertThat(ultimoMensaje(a, waFallos).texto()).isEqualTo("Demasiados intentos. Vuelve a intentarlo más tarde.");
+
+        int vinculosDuranteBloqueo = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE wa_id=?", Integer.class, waFallos));
+        assertThat(vinculosDuranteBloqueo).as("durante el bloqueo no se debe crear vínculo").isZero();
+
+        // Tras avanzar el Clock una hora y generar otro código, vuelve a funcionar
+        reloj.adelantar(Duration.ofHours(1).plusSeconds(1));
+        CodigoVinculoProfesionalDto codigoNuevo = ejecutor.ejecutar(a, () -> vinculoService.generar(barberoCuenta.getId()));
+        enviarTexto(NUMERO_A, waFallos, "Carlos Barbero", "vincular " + codigoNuevo.codigo());
+        assertThat(ultimoMensaje(a, waFallos).texto()).contains("Listo");
+
+        int vinculosDesbloqueado = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE wa_id=?", Integer.class, waFallos));
+        assertThat(vinculosDesbloqueado).as("tras la hora de espera el nuevo código debe vincular").isEqualTo(1);
     }
 
     @Test

@@ -28,6 +28,10 @@ class RespuestasTardiasTwilioTest {
     private static final String AUTH_TOKEN = "secreto-ct19-test";
     private static final String NUMERO_SANDBOX = "+14155238886";
     private static final String PHONE_ID = "14155238886";
+    private static final String NUMERO_A = "+14155238886";
+    private static final String PHONE_ID_A = "14155238886";
+    private static final String NUMERO_B = "+15005550006";
+    private static final String PHONE_ID_B = "15005550006";
     private static final String URL_PUBLICA = "https://pruebas.barberturno.test";
     private static final String SINTETICO = "91122334455667788990";
     private static final String E164 = "51999000111";
@@ -53,7 +57,10 @@ class RespuestasTardiasTwilioTest {
 
         TwilioPropiedades propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
                 "barberturno", Duration.ofSeconds(3), servidor.urlBase(), true,
-                Duration.ofSeconds(10), Duration.ofMillis(1500), List.of());
+                Duration.ofSeconds(10), Duration.ofMillis(1500), List.of(
+                        new TwilioPropiedades.Canal(NUMERO_A, "barberturno"),
+                        new TwilioPropiedades.Canal(NUMERO_B, "sur")
+                ));
 
         buzon = new BuzonRespuestasTwilio(propiedades, reloj);
         cliente = new ClienteTwilioWhatsApp(propiedades, menus, mapper, direcciones, buzon);
@@ -167,5 +174,45 @@ class RespuestasTardiasTwilioTest {
         var espera = buzon.abrir(PHONE_ID, E164);
         assertThat(espera).isPresent();
         assertThat(buzon.tomar(espera.get())).isEmpty();
+    }
+
+    @Test
+    void mismoBsuid_conEsperasYRetenidasSimultaneasEnAyB_cadaUnaRecibeExclusivamenteSusTextos() {
+        // 1. Respuestas tardías retenidas simultáneamente para el mismo BSUID sintético en canal A y en canal B
+        ResultadoEnvio resRetenidaA = cliente.enviar(PHONE_ID_A, crearMensajeTexto(SINTETICO, "Retenida de negocio A"));
+        ResultadoEnvio resRetenidaB = cliente.enviar(PHONE_ID_B, crearMensajeTexto(SINTETICO, "Retenida de negocio B"));
+
+        assertThat(resRetenidaA).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(resRetenidaB).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resRetenidaA).wamid()).startsWith("twiml-pendiente:");
+        assertThat(((ResultadoEnvio.Aceptado) resRetenidaB).wamid()).startsWith("twiml-pendiente:");
+        assertThat(servidor.peticiones()).as("no debe realizarse petición REST para sintético").isEmpty();
+
+        // 2. Abrir esperas TwiML simultáneas en A y B para el mismo BSUID
+        var esperaA = buzon.abrir(PHONE_ID_A, SINTETICO);
+        var esperaB = buzon.abrir(PHONE_ID_B, SINTETICO);
+        assertThat(esperaA).isPresent();
+        assertThat(esperaB).isPresent();
+
+        // 3. Durante las esperas abiertas, se envían nuevas respuestas para A y para B
+        ResultadoEnvio resNuevaA = cliente.enviar(PHONE_ID_A, crearMensajeTexto(SINTETICO, "Nueva respuesta de A"));
+        ResultadoEnvio resNuevaB = cliente.enviar(PHONE_ID_B, crearMensajeTexto(SINTETICO, "Nueva respuesta de B"));
+        assertThat(resNuevaA).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(resNuevaB).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resNuevaA).wamid()).startsWith("twiml:");
+        assertThat(((ResultadoEnvio.Aceptado) resNuevaB).wamid()).startsWith("twiml:");
+
+        // 4. Cada espera recoge exclusivamente sus propios textos, en el orden correcto (retenida delante de nueva)
+        List<String> mensajesA = buzon.tomar(esperaA.get());
+        List<String> mensajesB = buzon.tomar(esperaB.get());
+
+        assertThat(mensajesA).as("A debe recibir solo sus mensajes y en orden")
+                .containsExactly("Retenida de negocio A", "Nueva respuesta de A");
+        assertThat(mensajesB).as("B debe recibir solo sus mensajes y en orden")
+                .containsExactly("Retenida de negocio B", "Nueva respuesta de B");
+
+        assertThat(mensajesA).doesNotContain("Retenida de negocio B", "Nueva respuesta de B");
+        assertThat(mensajesB).doesNotContain("Retenida de negocio A", "Nueva respuesta de A");
+        assertThat(servidor.peticiones()).as("ninguna respuesta debió salir por REST").isEmpty();
     }
 }

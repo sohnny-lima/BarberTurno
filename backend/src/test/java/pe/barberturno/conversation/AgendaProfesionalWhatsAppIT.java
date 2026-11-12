@@ -48,6 +48,8 @@ class AgendaProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
     @Autowired
     private JornadaRepository jornadas;
 
+    private long barberoA2;
+
     @BeforeEach
     void preparar() {
         sql.update("UPDATE negocio SET limite_reservas_activas = 50, confirmacion_manual = false WHERE id IN (?, ?)", a, b);
@@ -55,6 +57,13 @@ class AgendaProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         sql.update("UPDATE negocio SET nombre = 'Barbería Sur' WHERE id = ?", b);
         ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, a, barberoA);
         ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, b, barberoB);
+
+        // Crear otro barbero en el mismo negocio A
+        Usuario usuarioA2 = usuarios.save(new Usuario("Segundo Barbero A", "barbero-a2@ejemplo.test", "999000005", "hash-ficticio", Rol.BARBERO, reloj.instant(), reloj.instant()));
+        membresias.save(new Membresia(a, usuarioA2.getId(), RolNegocio.BARBERO, reloj.instant()));
+        Barbero bA2 = ejecutor.ejecutar(a, () -> barberos.save(new Barbero(usuarioA2, "Segundo Barbero A", reloj.instant())));
+        barberoA2 = bA2.getId();
+        ConversacionPruebas.prepararJornadasSemana(ejecutor, barberos, jornadas, a, barberoA2);
 
         // Vincular al barberoA con WA_BARBERO en negocio A
         CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(barberoCuenta.getId()));
@@ -149,11 +158,84 @@ class AgendaProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         // 2. Cita CONFIRMADA del barberoB (en negocio B)
         insertarCita(b, barberoB, servicioB, "Cliente Negocio B", "51966665555", inicioHoy, "CONFIRMADA");
 
+        // 3. Cita CONFIRMADA del barberoA2 (segundo barbero en el MISMO negocio A)
+        insertarCita(a, barberoA2, servicioA, "Cliente Segundo Barbero A", "51944443333", inicioHoy, "CONFIRMADA");
+
         enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", "agenda hoy");
 
         var respuesta = ultimoMensaje(a, WA_BARBERO);
         assertThat(respuesta.texto()).contains("No tienes citas para hoy.");
-        assertThat(respuesta.texto()).doesNotContain("Cliente Prueba").doesNotContain("Cliente Negocio B");
+        assertThat(respuesta.texto())
+                .doesNotContain("Cliente Prueba")
+                .doesNotContain("Cliente Negocio B")
+                .doesNotContain("Cliente Segundo Barbero A");
+    }
+
+    @Test
+    void agenda_conCitasCercaDeMedianocheEnAyerHoyYManana_eInsertadasEnOrdenInverso_muestraSoloLasSuyasEnOrdenExacto() {
+        LocalDate hoy = TiempoNegocio.fechaLima(reloj.instant());
+        LocalDate ayer = hoy.minusDays(1);
+        LocalDate manana = hoy.plusDays(1);
+
+        Instant ayerNoche = ayer.atTime(23, 30).atZone(TiempoNegocio.ZONA).toInstant();
+        Instant hoyMadrugada = hoy.atTime(0, 15).atZone(TiempoNegocio.ZONA).toInstant();
+        Instant hoyMediodia = hoy.atTime(12, 0).atZone(TiempoNegocio.ZONA).toInstant();
+        Instant hoyNoche = hoy.atTime(23, 45).atZone(TiempoNegocio.ZONA).toInstant();
+        Instant mananaMadrugada = manana.atTime(0, 30).atZone(TiempoNegocio.ZONA).toInstant();
+        Instant mananaNoche = manana.atTime(23, 15).atZone(TiempoNegocio.ZONA).toInstant();
+
+        // Inserción en orden INVERSO cronológico (desde mañana hacia ayer)
+        insertarCita(a, barberoA, servicioA, "Cliente Manana Noche", "51900000006", mananaNoche, "CONFIRMADA");
+        insertarCita(a, barberoA, servicioA, "Cliente Manana Madrugada", "51900000005", mananaMadrugada, "CONFIRMADA");
+        // Cita del segundo barbero en el MISMO negocio hoy
+        insertarCita(a, barberoA2, servicioA, "Cliente Otro Barbero Mismo Negocio", "51900000099", hoyMediodia, "CONFIRMADA");
+        insertarCita(a, barberoA, servicioA, "Cliente Hoy Noche", "51900000004", hoyNoche, "CONFIRMADA");
+        insertarCita(a, barberoA, servicioA, "Cliente Hoy Mediodia", "51900000003", hoyMediodia, "PENDIENTE");
+        insertarCita(a, barberoA, servicioA, "Cliente Hoy Madrugada", "51900000002", hoyMadrugada, "CONFIRMADA");
+        insertarCita(a, barberoA, servicioA, "Cliente Ayer Noche", "51900000001", ayerNoche, "CONFIRMADA");
+
+        // 1. Consulta «agenda hoy»: solo citas de hoy de barberoA, orden cronológico exacto
+        enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", "agenda hoy");
+        String textoHoy = ultimoMensaje(a, WA_BARBERO).texto();
+
+        String fechaHoyEsperada = hoy.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.forLanguageTag("es-PE")));
+        assertThat(textoHoy).contains("Tu agenda de hoy, " + fechaHoyEsperada + " (Barbería Norte):");
+        assertThat(textoHoy).contains("00:15 · Corte clásico · Cliente H.");
+        assertThat(textoHoy).contains("12:00 · Corte clásico · Cliente H.");
+        assertThat(textoHoy).contains("23:45 · Corte clásico · Cliente H.");
+
+        // Orden cronológico estricto independientemente del orden de inserción inverso
+        int idxHoyMadrugada = textoHoy.indexOf("00:15");
+        int idxHoyMediodia = textoHoy.indexOf("12:00");
+        int idxHoyNoche = textoHoy.indexOf("23:45");
+        assertThat(idxHoyMadrugada).isLessThan(idxHoyMediodia);
+        assertThat(idxHoyMediodia).isLessThan(idxHoyNoche);
+
+        // No incluye citas de ayer, de mañana ni del otro barbero en el mismo negocio
+        assertThat(textoHoy).doesNotContain("Cliente Ayer");
+        assertThat(textoHoy).doesNotContain("Cliente Manana");
+        assertThat(textoHoy).doesNotContain("Cliente Otro Barbero Mismo Negocio");
+        assertThat(textoHoy).doesNotContain("23:15");
+        assertThat(textoHoy).doesNotContain("00:30");
+
+        // 2. Consulta «agenda mañana»: solo citas de mañana de barberoA, orden cronológico exacto
+        enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", "agenda mañana");
+        String textoManana = ultimoMensaje(a, WA_BARBERO).texto();
+
+        String fechaMananaEsperada = manana.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.forLanguageTag("es-PE")));
+        assertThat(textoManana).contains("Tu agenda de mañana, " + fechaMananaEsperada + " (Barbería Norte):");
+        assertThat(textoManana).contains("00:30 · Corte clásico · Cliente M.");
+        assertThat(textoManana).contains("23:15 · Corte clásico · Cliente M.");
+
+        int idxMananaMadrugada = textoManana.indexOf("00:30");
+        int idxMananaNoche = textoManana.indexOf("23:15");
+        assertThat(idxMananaMadrugada).isLessThan(idxMananaNoche);
+
+        assertThat(textoManana).doesNotContain("Cliente Ayer");
+        assertThat(textoManana).doesNotContain("Cliente Hoy");
+        assertThat(textoManana).doesNotContain("Cliente Otro Barbero Mismo Negocio");
+        assertThat(textoManana).doesNotContain("00:15");
+        assertThat(textoManana).doesNotContain("23:45");
     }
 
     @Test
