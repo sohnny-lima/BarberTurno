@@ -55,7 +55,12 @@ describe('Agenda operativa', () => {
     http = TestBed.inject(HttpTestingController);
     prepararNegocio();
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http
+      .match('/api/n/prueba/whatsapp/vinculo-profesional')
+      .forEach((r) => r.flush({ vinculado: false, vinculadoEn: null }));
+    http.verify();
+  });
   function crear() {
     TestBed.inject(NegocioActual).actualizarSesion(usuarioNegocio(rol()));
     const fixture = TestBed.createComponent(Agenda);

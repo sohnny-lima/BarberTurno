@@ -326,7 +326,7 @@ class RecorridoTwilioBsuidIT {
         assertThat(nodosInicial.getFirst())
                 .as("el primer <Message> debe contener la opción Reservar y pedir respuesta numérica")
                 .contains("Reservar")
-                .contains("Responda con el número.");
+                .contains("Responde con el número");
 
         // 2. Proceso guiado de reserva: servicio, profesional, día, hora, confirmar
         int paso = 1;
@@ -441,9 +441,8 @@ class RecorridoTwilioBsuidIT {
     }
 
     @Test
-    void webhook_sinRespuestaEnPlazo_devuelveResponseVacioYEnvioPosteriorSalePorRest() throws Exception {
+    void webhook_sinRespuestaEnPlazo_devuelveResponseVacioYEnvioPosteriorSeRetieneParaSiguienteWebhook() throws Exception {
         servidorTwilio.reiniciar();
-        servidorTwilio.encolarExito("SM_REST_TIMEOUT_01");
 
         String sid = "SM_IN_TIMEOUT_001";
         Map<String, String> datos = new LinkedHashMap<>();
@@ -475,11 +474,24 @@ class RecorridoTwilioBsuidIT {
         procesador.procesarLote();
         enviador.enviarLote();
 
-        // 3. El envío posterior debe salir por la ruta REST utilizando el destino BSUID recordado
-        assertThat(servidorTwilio.peticiones()).hasSize(1);
-        var peticionRest = servidorTwilio.ultimaPeticion();
-        assertThat(peticionRest.parametros().get("To")).isEqualTo(BSUID_CLIENTE);
-        assertThat(peticionRest.parametros().get("Body")).contains("Responda con el número");
+        // 3. V2-DA-108: Un sintético sin espera abierta no va por REST, se retiene en memoria
+        assertThat(servidorTwilio.peticiones()).as("no debe realizarse petición REST para sintético").isEmpty();
+
+        // 4. El siguiente webhook de esa persona recoge la respuesta previamente retenida
+        simularMensajeEntranteTwiml("SM_IN_TIMEOUT_002", "1");
+        List<String> nodosSiguiente = ultimosNodos();
+        assertThat(nodosSiguiente).as("el siguiente webhook debe recibir exactamente dos respuestas en TwiML")
+                .hasSize(2)
+                .doesNotHaveDuplicates();
+        assertThat(nodosSiguiente.get(0))
+                .as("primero debe entregarse la respuesta retenida anterior con el menú inicial")
+                .contains("Reservar")
+                .contains("Responde con el número");
+        assertThat(nodosSiguiente.get(1))
+                .as("segundo debe entregarse la nueva respuesta producida por la opción enviada")
+                .isNotBlank();
+        assertThat(nodosSiguiente.get(0)).isNotEqualTo(nodosSiguiente.get(1));
+        assertThat(servidorTwilio.peticiones()).as("no debe haberse realizado ninguna petición REST para sintético").isEmpty();
     }
 
     @Test
@@ -500,12 +512,12 @@ class RecorridoTwilioBsuidIT {
                     java.sql.Timestamp.from(reloj.instant()));
         });
 
-        servidorTwilio.reiniciar();
-        servidorTwilio.encolarExito("SM_OUT_BSUID_DELIV_1");
-
-        ejecutor.ejecutar(negocioId, () -> new TransactionTemplate(gestor).execute(status ->
+        long mensajeId = ejecutor.ejecutar(negocioId, () -> new TransactionTemplate(gestor).execute(status ->
                 salida.encolarTexto(conversacionId, "Mensaje saliente para BSUID", OrigenMensaje.SISTEMA, OptionalLong.empty())));
-        enviador.enviarLote();
+        ejecutor.ejecutar(negocioId, () -> {
+            sql.update("UPDATE mensaje_whatsapp SET wamid = 'SM_OUT_BSUID_DELIV_1', estado = 'ENVIADO', enviado_como = 'TEXTO' WHERE id = ?", mensajeId);
+            return null;
+        });
 
         // Enviar callback firmado de delivered con To BSUID a /api/twilio/estado
         Map<String, String> datosDelivered = new LinkedHashMap<>();

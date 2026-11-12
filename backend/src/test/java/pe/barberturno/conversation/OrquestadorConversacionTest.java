@@ -373,8 +373,22 @@ class OrquestadorConversacionTest {
                 seleccion(new CodigoSeleccion.Confirmacion(9, "AAAAAAAAAAAAAAAAAAAAAA", true)), ModoConversacion.HUMANO);
         recibir();
         verify(registro).guardarEntrante(eq(CONVERSACION), any());
-        verifyNoInteractions(interprete, operaciones, salida, derivacion, consentimiento);
+        verify(interprete).interpretar(any(), any());
+        verifyNoInteractions(operaciones, salida, derivacion, consentimiento);
         verify(conversaciones, never()).guardar(anyLong(), any());
+    }
+
+    @Test
+    void modoHumano_conPalabraInicio_anulaOperacionDevuelveAlAsistenteYEnviaBienvenida() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                new Entrada.Texto(PalabraClave.MENU), ModoConversacion.HUMANO);
+        when(textos.bienvenida("Barbería Norte")).thenReturn("bienvenida");
+        when(menus.menuPrincipal("bienvenida")).thenReturn(interactivo);
+        recibir();
+        verify(registro).guardarEntrante(eq(CONVERSACION), any());
+        verify(operaciones).anularVigente(CONVERSACION);
+        verify(derivacion).devolver(CONVERSACION, OptionalLong.empty());
+        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.empty());
     }
 
     @Test
