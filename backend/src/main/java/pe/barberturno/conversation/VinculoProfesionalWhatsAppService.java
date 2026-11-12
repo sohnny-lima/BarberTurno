@@ -60,8 +60,8 @@ public class VinculoProfesionalWhatsAppService {
     public CodigoVinculoProfesionalDto generar(long usuarioId) {
         bloquear();
         long barbero = perfil(usuarioId);
-        entidades.createNativeQuery("DELETE FROM codigo_vinculo_whatsapp WHERE barbero_id=:barbero AND usado_en IS NULL")
-                .setParameter("barbero", barbero).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM codigo_vinculo_whatsapp WHERE negocio_id=:negocio AND barbero_id=:barbero AND usado_en IS NULL")
+                .setParameter("negocio", negocioId()).setParameter("barbero", barbero).executeUpdate();
         var codigo = new StringBuilder(8);
         for (int i = 0; i < 8; i++) codigo.append(ALFABETO.charAt(azar.nextInt(ALFABETO.length())));
         Instant ahora = reloj.instant();
@@ -83,8 +83,8 @@ public class VinculoProfesionalWhatsAppService {
     @Transactional(readOnly = true)
     public EstadoVinculoProfesionalDto estado(long usuarioId) {
         long barbero = perfil(usuarioId);
-        var filas = entidades.createNativeQuery("SELECT creado_en FROM vinculo_whatsapp_profesional WHERE barbero_id=:barbero", Instant.class)
-                .setParameter("barbero", barbero).getResultList();
+        var filas = entidades.createNativeQuery("SELECT creado_en FROM vinculo_whatsapp_profesional WHERE negocio_id=:negocio AND barbero_id=:barbero", Instant.class)
+                .setParameter("negocio", negocioId()).setParameter("barbero", barbero).getResultList();
         return new EstadoVinculoProfesionalDto(!filas.isEmpty(), filas.isEmpty() ? null : (Instant) filas.getFirst());
     }
 
@@ -97,8 +97,8 @@ public class VinculoProfesionalWhatsAppService {
         bloquear();
         long barbero = perfil(usuarioId);
         borrarPerfil(barbero);
-        entidades.createNativeQuery("DELETE FROM codigo_vinculo_whatsapp WHERE barbero_id=:barbero AND usado_en IS NULL")
-                .setParameter("barbero", barbero).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM codigo_vinculo_whatsapp WHERE negocio_id=:negocio AND barbero_id=:barbero AND usado_en IS NULL")
+                .setParameter("negocio", negocioId()).setParameter("barbero", barbero).executeUpdate();
     }
 
     /**
@@ -123,8 +123,8 @@ public class VinculoProfesionalWhatsAppService {
         }
         if (texto.equals("desvincular")) {
             bloquear();
-            entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE wa_id=:wa")
-                    .setParameter("wa", mensaje.waId()).executeUpdate();
+            entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE negocio_id=:negocio AND wa_id=:wa")
+                    .setParameter("negocio", negocioId()).setParameter("wa", mensaje.waId()).executeUpdate();
             return Optional.of("Este WhatsApp quedó desvinculado de tu agenda en esta barbería.");
         }
         if (texto.equals("agenda hoy") || texto.equals("agenda mañana") || texto.equals("agenda manana")) {
@@ -142,19 +142,19 @@ public class VinculoProfesionalWhatsAppService {
                 JOIN barbero b ON b.negocio_id=c.negocio_id AND b.id=c.barbero_id
                 JOIN membresia m ON m.negocio_id=b.negocio_id AND m.usuario_id=b.usuario_id
                 JOIN usuario u ON u.id=b.usuario_id
-                WHERE c.codigo_hash=:hash AND c.usado_en IS NULL AND c.caduca_en>:ahora
+                WHERE c.negocio_id=:negocio AND c.codigo_hash=:hash AND c.usado_en IS NULL AND c.caduca_en>:ahora
                     AND b.activo AND m.estado='ACTIVA' AND u.activo
-                """).setParameter("hash", hash).setParameter("ahora", reloj.instant()).getResultList();
+                """).setParameter("negocio", negocioId()).setParameter("hash", hash).setParameter("ahora", reloj.instant()).getResultList();
         if (filas.isEmpty()) return limitada(persona, true) ? LIMITE : CODIGO_INVALIDO;
         Object[] fila = (Object[]) filas.getFirst();
         long barbero = ((Number) fila[0]).longValue();
-        entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE barbero_id=:barbero OR wa_id=:wa")
-                .setParameter("barbero", barbero).setParameter("wa", waId).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE negocio_id=:negocio AND (barbero_id=:barbero OR wa_id=:wa)")
+                .setParameter("negocio", negocioId()).setParameter("barbero", barbero).setParameter("wa", waId).executeUpdate();
         entidades.createNativeQuery("""
                 INSERT INTO vinculo_whatsapp_profesional(barbero_id, wa_id, creado_en) VALUES (:barbero, :wa, :ahora)
                 """).setParameter("barbero", barbero).setParameter("wa", waId).setParameter("ahora", reloj.instant()).executeUpdate();
-        entidades.createNativeQuery("UPDATE codigo_vinculo_whatsapp SET usado_en=:ahora WHERE codigo_hash=:hash")
-                .setParameter("ahora", reloj.instant()).setParameter("hash", hash).executeUpdate();
+        entidades.createNativeQuery("UPDATE codigo_vinculo_whatsapp SET usado_en=:ahora WHERE negocio_id=:negocio AND codigo_hash=:hash")
+                .setParameter("negocio", negocioId()).setParameter("ahora", reloj.instant()).setParameter("hash", hash).executeUpdate();
         return "Listo, " + fila[1] + ": este WhatsApp quedó vinculado a tu agenda en " + nombreNegocio()
                 + ". Escribe «agenda hoy» o «agenda mañana».";
     }
@@ -167,11 +167,11 @@ public class VinculoProfesionalWhatsAppService {
                 JOIN barbero b ON b.negocio_id=v.negocio_id AND b.id=v.barbero_id
                 JOIN membresia m ON m.negocio_id=b.negocio_id AND m.usuario_id=b.usuario_id
                 JOIN usuario u ON u.id=b.usuario_id
-                WHERE v.wa_id=:wa AND b.activo AND m.estado='ACTIVA' AND u.activo
-                """, Long.class).setParameter("wa", waId).getResultList();
+                WHERE v.negocio_id=:negocio AND v.wa_id=:wa AND b.activo AND m.estado='ACTIVA' AND u.activo
+                """, Long.class).setParameter("negocio", negocioId()).setParameter("wa", waId).getResultList();
         if (perfiles.isEmpty()) {
-            entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE wa_id=:wa")
-                    .setParameter("wa", waId).executeUpdate();
+            entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE negocio_id=:negocio AND wa_id=:wa")
+                    .setParameter("negocio", negocioId()).setParameter("wa", waId).executeUpdate();
             return SIN_ACCESO;
         }
         var dia = TiempoNegocio.fechaLima(reloj.instant()).plusDays(manana ? 1 : 0);
@@ -223,14 +223,19 @@ public class VinculoProfesionalWhatsAppService {
         return ((Number) filas.getFirst()).longValue();
     }
 
+    /** Negocio del contexto: filtro explícito además de la RLS (defensa en profundidad, revisión g132). */
+    private long negocioId() {
+        return negocio.negocioActual().orElseThrow();
+    }
+
     private void bloquear() {
         entidades.createNativeQuery("SELECT pg_advisory_xact_lock(106106, CAST(:negocio AS integer))")
                 .setParameter("negocio", negocio.negocioActual().orElseThrow()).getSingleResult();
     }
 
     private void borrarPerfil(long barbero) {
-        entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE barbero_id=:barbero")
-                .setParameter("barbero", barbero).executeUpdate();
+        entidades.createNativeQuery("DELETE FROM vinculo_whatsapp_profesional WHERE negocio_id=:negocio AND barbero_id=:barbero")
+                .setParameter("negocio", negocioId()).setParameter("barbero", barbero).executeUpdate();
     }
 
     private String nombreNegocio() {
