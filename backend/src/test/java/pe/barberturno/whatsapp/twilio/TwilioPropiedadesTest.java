@@ -208,16 +208,29 @@ class TwilioPropiedadesTest {
                 BuzonRespuestasTwilio buzonRest = new BuzonRespuestasTwilio(propRest, java.time.Clock.systemUTC());
                 ClienteTwilioWhatsApp clienteRest = new ClienteTwilioWhatsApp(propRest, menus, mapper, direcciones, buzonRest);
 
-                // 3. Envío por REST (201)
+                // 3a. Envío por REST (201) a un número E.164
+                String marcadorE164 = "51999887766";
+                direcciones.identificar(marcadorE164, "whatsapp:+" + marcadorE164);
                 servidor.encolarExito("SM_OUT_REST_LOG_1");
                 ObjectNode cuerpoRest = mapper.createObjectNode();
                 cuerpoRest.put("messaging_product", "whatsapp");
-                cuerpoRest.put("to", marcadorSintetico);
+                cuerpoRest.put("to", marcadorE164);
                 cuerpoRest.put("type", "text");
                 cuerpoRest.putObject("text").put("body", marcadorTexto);
 
                 ResultadoEnvio resRest = clienteRest.enviar("14155238886", cuerpoRest);
                 assertThat(resRest).isInstanceOf(ResultadoEnvio.Aceptado.class);
+
+                // 3b. Envío diferido a sintético sin espera (se retiene en buzón como twiml-pendiente:)
+                ObjectNode cuerpoSintetico = mapper.createObjectNode();
+                cuerpoSintetico.put("messaging_product", "whatsapp");
+                cuerpoSintetico.put("to", marcadorSintetico);
+                cuerpoSintetico.put("type", "text");
+                cuerpoSintetico.putObject("text").put("body", marcadorTexto);
+
+                ResultadoEnvio resSintetico = clienteRest.enviar("14155238886", cuerpoSintetico);
+                assertThat(resSintetico).isInstanceOf(ResultadoEnvio.Aceptado.class);
+                assertThat(((ResultadoEnvio.Aceptado) resSintetico).wamid()).startsWith("twiml-pendiente:");
 
                 // 4a. Rechazo local por plantilla
                 ObjectNode cuerpoPlantilla = mapper.createObjectNode();
@@ -228,11 +241,11 @@ class TwilioPropiedadesTest {
                 ResultadoEnvio resPlantilla = clienteRest.enviar("14155238886", cuerpoPlantilla);
                 assertThat(resPlantilla).isInstanceOf(ResultadoEnvio.Rechazado.class);
 
-                // 4b. Rechazo remoto (HTTP 400)
+                // 4b. Rechazo remoto (HTTP 400) vía REST a E.164
                 servidor.encolarError(400, 21614, "Destinatario no habilitado");
                 ObjectNode cuerpoError = mapper.createObjectNode();
                 cuerpoError.put("messaging_product", "whatsapp");
-                cuerpoError.put("to", marcadorSintetico);
+                cuerpoError.put("to", marcadorE164);
                 cuerpoError.put("type", "text");
                 cuerpoError.putObject("text").put("body", marcadorTexto);
                 ResultadoEnvio resError = clienteRest.enviar("14155238886", cuerpoError);

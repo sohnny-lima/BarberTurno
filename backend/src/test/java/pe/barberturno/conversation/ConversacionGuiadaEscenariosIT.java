@@ -327,25 +327,26 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
     }
 
     @Test
-    void escenario5_textoNoReconocido_anulaOperacionVigente_siPosteriorNoReserva() {
+    void escenario5_textoNoReconocido_repiteResumenYConservaOperacionVigente_siPosteriorLaConfirma() {
         String idConfirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
         long opId = Long.parseLong(idConfirmar.split(":")[1]);
         assertThat(ConversacionPruebas.contarOperaciones(ejecutor, sql, a, "VIGENTE")).isEqualTo(1);
 
-        // «qué tal» no reconocido → mensaje INTERACTIVO con menú principal y anula la operación vigente
+        // «qué tal» no reconocido → repite el resumen con el aviso de no entendido y conserva la operación vigente
         long evQueTal = enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", "qué tal");
         assertThat(filaEvento(evQueTal).get("estado")).isEqualTo("PROCESADO");
-        assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("ANULADA");
+        assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("VIGENTE");
 
         var msgQueTal = ultimoMensaje(a, WA_CLIENTE);
         assertThat(msgQueTal.tipo()).isEqualTo("INTERACTIVO");
-        assertThat(msgQueTal.idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
+        assertThat(msgQueTal.texto()).contains("No entendí");
+        assertThat(msgQueTal.idsSeleccion()).contains(idConfirmar);
 
-        // Un «sí» posterior sin operación vigente no crea reservas y la operación sigue ANULADA
+        // Confirmar después mediante «sí» ejecuta la operación vigente y crea 1 reserva
         long evSi = enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente Ficticio", "sí");
         assertThat(filaEvento(evSi).get("estado")).isEqualTo("PROCESADO");
-        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
-        assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("ANULADA");
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isEqualTo(1);
+        assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("EJECUTADA");
     }
 
     @Test

@@ -259,7 +259,7 @@ class RecorridoTwilioIT {
     void recorridoCompleto_reservaYCancelacionPorNumeros() throws Exception {
         // Reserva: el recorrido se adapta al diálogo real del bot y elige cada opción por su texto.
         simularMensajeEntrante("SM_IN_000", "hola");
-        assertThat(ultimoTexto()).contains("Responda con el número.");
+        assertThat(ultimoTexto()).contains("Responde con el número");
         int paso = 1;
         String resumen = null;
         while (reservasDelNegocio().isEmpty()) {
@@ -409,7 +409,7 @@ class RecorridoTwilioIT {
 
         // Debe haber enviado exactamente una sola respuesta saliente al proveedor
         assertThat(servidorTwilio.peticiones()).as("solo se emite una respuesta por el evento único").hasSize(1);
-        assertThat(servidorTwilio.ultimaPeticion().parametros().get("Body")).contains("Responda con el número");
+        assertThat(servidorTwilio.ultimaPeticion().parametros().get("Body")).contains("Responde con el número");
 
         // En la base de datos solo se guardó un mensaje saliente
         // mensaje_whatsapp no guarda el wa_id (va en la conversación) y ambas tablas tienen RLS: consulta en el negocio.
