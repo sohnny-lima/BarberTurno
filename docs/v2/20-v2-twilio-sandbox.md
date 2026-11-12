@@ -270,3 +270,20 @@ reglas de reserva o webhook Meta. Sin lectura de coordinación, secretos expuest
 servicios de pago/reales, Azure, ngrok, push, remotos, etiquetas, ramas/worktrees nuevos ni cambios de ACL.
 Sin procesos propios, escuchas en 8080/8081/4200 ni cerrojo pendiente; se conserva únicamente el Java
 preexistente de VS Code, ajeno al encargo.
+
+## 12. Cierre técnico del ajuste BSUID/TwiML (coordinador)
+
+**12/11/2026 · Hecha en local; pendiente de la prueba manual con el teléfono.** Sin integración en `v2`, sin push y sin despliegue.
+
+- **Producción:**
+  - Codex 157 (`38af27a`).
+  - Corrección de Claude en la revisión (`4f2babc`): un duplicado devuelve lo ya aceptado en la espera.
+  - Gemini g129b, solo lectura sobre el diff: **APROBADO**. g129 terminó sin respuesta porque se lanzó desde el worktree y el diff quedaba fuera de su carpeta.
+- **Pruebas:**
+  - Gemini g128 (`369e7b2`). Ajuste de Claude: el accesor real `estadoHttp()`.
+  - Revisión Codex 158, solo lectura: 7 hallazgos medios y 2 bajos sobre la fuerza de las pruebas (orden exacto de los `<Message>`, carreras entre entregar y cerrar, cotas de tiempo, identidad exacta entre entrada y estado, TwiML fuera de la sección sincronizada, validaciones antes del buzón, captura de registros, cierre del servidor falso y una nota documental). La nota documental se resolvió en `5d1f92c`.
+  - Los hallazgos se corrigieron en Gemini g130, con tres ajustes de Claude tras ejecutarlas (`2672a55`): los textos reales del bot («Listo:», «Cancelamos tu cita») y un marcador BSUID con formato válido.
+- **Resultados:**
+  - `*Twilio*`: **161/0**.
+  - `verify` completo sobre `f09669d`: **3962 pruebas, 0 fallos/errores/omisiones**, «All coverage checks have been met», Javadoc sin avisos, BUILD SUCCESS (47:14 min).
+- **CT-10…CT-13:** cubiertos con un servidor Twilio simulado. Queda la prueba real con el Sandbox desde el teléfono (§7).

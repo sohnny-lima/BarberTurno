@@ -201,3 +201,13 @@ Pruebas nuevas por clase:
 Un primer `verify` completo se invalidó y se detuvo: los datos de una ejecución anterior que se había interrumpido seguían en la base desechable. Se restauraron los valores del negocio de prueba y se corrigió la prueba que los dejaba (`3995710`). El bloqueo por JaCoCo de la sección anterior queda resuelto con esta ejecución.
 
 Pendiente: la prueba manual con Twilio real desde el teléfono del responsable (contrato §7).
+
+## Cierre del ajuste BSUID/TwiML (12/11/2026)
+
+| Ejecución | Registro (ignorado por Git) | Resultado |
+|---|---|---|
+| `*Twilio*` tras g128 | `backend/target/g128-2.log` (worktree de pruebas) | 152/0 |
+| `*Twilio*` tras g130 y los ajustes | `backend/target/g130-3.log` (worktree de pruebas) | 161/0 |
+| `verify` completo sobre `f09669d` | `backend/target/v2-tw-bsuid-verify.log` | **3962/0**, JaCoCo y Javadoc correctos, BUILD SUCCESS, 47:14 min |
+
+**Sonda previa (sin credenciales, 12/11/2026):** confirmó que el Sandbox envía solo el BSUID y que acepta respuestas TwiML. Solo se registró la forma de los campos, nunca sus valores.
