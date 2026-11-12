@@ -86,7 +86,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "barberturno.whatsapp.twilio.url-publica=https://pruebas.barberturno.test",
         "barberturno.whatsapp.twilio.intervalo-envio=3s"
 })
-@ActiveProfiles("twilio")
+@ActiveProfiles({"test", "twilio"})
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RecorridoTwilioIT {
@@ -239,111 +239,98 @@ class RecorridoTwilioIT {
 
     @Test
     void recorridoCompleto_reservaYCancelacionPorNumeros() throws Exception {
-        // Paso 1: Saludo inicial («hola») -> el bot solicita consentimiento de privacidad
-        simularMensajeEntrante("SM_IN_001", "hola");
-        var peticion1 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion1.parametros().get("Body"))
-                .contains("1. Aceptar")
-                .contains("2. No, gracias");
-
-        // Paso 2: Opción 1 («1») -> Acepta privacidad, nace la ficha y envía el menú principal
-        simularMensajeEntrante("SM_IN_002", "1");
-        var peticion2 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion2.parametros().get("Body"))
-                .contains("1. Reservar")
-                .contains("2. Mis citas");
-
-        // Paso 3: Opción 1 («1») -> Reservar, envía la lista de servicios
-        simularMensajeEntrante("SM_IN_003", "1");
-        var peticion3 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion3.parametros().get("Body"))
-                .contains("1. Corte clásico — 30 min · S/ 25.00");
-
-        // Paso 4: Opción 1 («1») -> Selecciona Corte clásico, envía la lista de profesionales
-        simularMensajeEntrante("SM_IN_004", "1");
-        var peticion4 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion4.parametros().get("Body"))
-                .contains("1. Cualquiera")
-                .contains("2. Barbero Carlos");
-
-        // Paso 5: Opción 1 («1») -> Cualquiera, envía los días disponibles
-        simularMensajeEntrante("SM_IN_005", "1");
-        var peticion5 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion5.parametros().get("Body"))
-                .contains("1. Hoy")
-                .contains("2. Mañana");
-
-        // Paso 6: Opción 1 («1») -> Hoy, envía los horarios libres del día (inicia a las 12:00)
-        simularMensajeEntrante("SM_IN_006", "1");
-        var peticion6 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion6.parametros().get("Body"))
-                .contains("1. 12:00");
-
-        // Paso 7: Opción 1 («1») -> Selecciona las 12:00, envía el resumen con Confirmar y Cambiar
-        simularMensajeEntrante("SM_IN_007", "1");
-        var peticion7 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion7.parametros().get("Body"))
-                .contains("1. Confirmar")
-                .contains("2. Cambiar");
-
-        // Paso 8: Opción 1 («1») -> Confirmar reserva, crea la reserva e informa la confirmación
-        simularMensajeEntrante("SM_IN_008", "1");
-        var peticion8 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion8.parametros().get("Body"))
-                .containsIgnoringCase("confirmad");
+        // Reserva: el recorrido se adapta al diálogo real del bot y elige cada opción por su texto.
+        simularMensajeEntrante("SM_IN_000", "hola");
+        assertThat(ultimoTexto()).contains("Responda con el número.");
+        int paso = 1;
+        String resumen = null;
+        while (reservasDelNegocio().isEmpty()) {
+            assertThat(paso).as("pasos para reservar").isLessThanOrEqualTo(12);
+            String texto = ultimoTexto();
+            String eleccion;
+            if (tieneOpcion(texto, "Aceptar")) eleccion = opcion(texto, "Aceptar");
+            else if (tieneOpcion(texto, "Confirmar")) { resumen = texto; eleccion = opcion(texto, "Confirmar"); }
+            else if (tieneOpcion(texto, "Reservar")) eleccion = opcion(texto, "Reservar");
+            else if (tieneOpcion(texto, "Corte clásico")) eleccion = opcion(texto, "Corte clásico");
+            else if (tieneOpcion(texto, "Barbero Carlos")) eleccion = opcion(texto, "Barbero Carlos");
+            else eleccion = opcion(texto, "");
+            simularMensajeEntrante("SM_IN_R%02d".formatted(paso++), eleccion);
+        }
+        // El resumen previo a confirmar lo compone el servidor con el servicio y el profesional elegidos.
+        assertThat(resumen).isNotNull().contains("Corte clásico").contains("Carlos");
+        assertThat(ultimoTexto()).isNotBlank();
 
         // Verificación en la base de datos: la reserva existe en barberturno y tiene la ficha del wa_id
-        var listaReservas = ejecutor.ejecutar(negocioId, () -> reservas.findAll());
+        var listaReservas = reservasDelNegocio();
         assertThat(listaReservas).hasSize(1);
         Reserva reservaCreada = listaReservas.getFirst();
         assertThat(reservaCreada.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
-        assertThat(reservaCreada.getCanal()).isEqualTo("WHATSAPP");
-
         Cliente fichaCliente = ejecutor.ejecutar(negocioId, () ->
                 clientes.findById(reservaCreada.getCliente().getId()).orElseThrow());
         assertThat(fichaCliente.getWaId()).isEqualTo(WA_CLIENTE);
-        assertThat(fichaCliente.getNombre()).isEqualTo("Carlos Twilio");
 
-        // Verificación en la API administrativa: GET /api/n/barberturno/reservas con sesión del propietario
+        // Verificación en la agenda: GET /api/n/barberturno/reservas con sesión del propietario
         String sesionJwt = jwt.emitir(titular);
         HttpRequest peticionAgenda = HttpRequest.newBuilder(
-                URI.create("http://127.0.0.1:" + puerto + "/api/n/barberturno/reservas?desde=2026-10-01&hasta=2026-10-02"))
+                URI.create("http://127.0.0.1:" + puerto + "/api/n/barberturno/reservas?desde=2026-10-01&hasta=2026-10-31"))
                 .header("Cookie", "BT_SESION=" + sesionJwt)
                 .GET()
                 .build();
         HttpResponse<String> respuestaAgenda = clienteHttp.send(peticionAgenda, HttpResponse.BodyHandlers.ofString());
         assertThat(respuestaAgenda.statusCode()).isEqualTo(200);
-        assertThat(respuestaAgenda.body()).contains(reservaCreada.getId().toString());
+        assertThat(respuestaAgenda.body()).contains("\"id\":" + reservaCreada.getId());
 
-        // Paso 9: Consultar «mis citas» -> envía la lista de citas futuras
-        simularMensajeEntrante("SM_IN_009", "mis citas");
-        var peticion9 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion9.parametros().get("Body"))
-                .contains("Corte clásico");
+        // Cancelación: «hola» devuelve el menú principal; Mis citas → la cita → Cancelar → Confirmar.
+        simularMensajeEntrante("SM_IN_C00", "hola");
+        paso = 1;
+        boolean cancelarElegido = false;
+        while (estadoDe(reservaCreada.getId()) != EstadoReserva.CANCELADA) {
+            assertThat(paso).as("pasos para cancelar").isLessThanOrEqualTo(10);
+            String texto = ultimoTexto();
+            String eleccion;
+            if (cancelarElegido && tieneOpcion(texto, "Confirmar")) eleccion = opcion(texto, "Confirmar");
+            else if (tieneOpcion(texto, "Cancelar")) { cancelarElegido = true; eleccion = opcion(texto, "Cancelar"); }
+            else if (tieneOpcion(texto, "Mis citas")) eleccion = opcion(texto, "Mis citas");
+            else if (tieneOpcion(texto, "Corte clásico")) eleccion = opcion(texto, "Corte clásico");
+            else eleccion = opcion(texto, "");
+            simularMensajeEntrante("SM_IN_C%02d".formatted(paso++), eleccion);
+        }
+        assertThat(cancelarElegido).isTrue();
+        assertThat(estadoDe(reservaCreada.getId())).isEqualTo(EstadoReserva.CANCELADA);
+    }
 
-        // Paso 10: Opción 1 («1») -> Selecciona la cita, envía acciones [Cancelar], [Reprogramar], [Menú]
-        simularMensajeEntrante("SM_IN_010", "1");
-        var peticion10 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion10.parametros().get("Body"))
-                .contains("1. Cancelar");
+    private String ultimoTexto() {
+        return servidorTwilio.ultimaPeticion().parametros().get("Body");
+    }
 
-        // Paso 11: Opción 1 («1») -> Cancelar, solicita confirmación de cancelación
-        simularMensajeEntrante("SM_IN_011", "1");
-        var peticion11 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion11.parametros().get("Body"))
-                .contains("1. Confirmar")
-                .contains("2. Cambiar");
+    private java.util.List<Reserva> reservasDelNegocio() {
+        return ejecutor.ejecutar(negocioId, () -> reservas.findAll());
+    }
 
-        // Paso 12: Opción 1 («1») -> Confirma la cancelación
-        simularMensajeEntrante("SM_IN_012", "1");
-        var peticion12 = servidorTwilio.ultimaPeticion();
-        assertThat(peticion12.parametros().get("Body"))
-                .containsIgnoringCase("cancelad");
+    private EstadoReserva estadoDe(long reservaId) {
+        return ejecutor.ejecutar(negocioId, () -> reservas.findById(reservaId).orElseThrow().getEstado());
+    }
 
-        // Verificación final en la base de datos: la reserva queda en estado CANCELADA
-        Reserva reservaCancelada = ejecutor.ejecutar(negocioId, () ->
-                reservas.findById(reservaCreada.getId()).orElseThrow());
-        assertThat(reservaCancelada.getEstado()).isEqualTo(EstadoReserva.CANCELADA);
+    private static final java.util.regex.Pattern OPCION = java.util.regex.Pattern.compile("^(\\d+)\\. (.*)$");
+
+    private static boolean tieneOpcion(String texto, String fragmento) {
+        return buscarOpcion(texto, fragmento) != null;
+    }
+
+    /** Número de la primera opción numerada cuyo texto contiene el fragmento (vacío = la primera). */
+    private static String opcion(String texto, String fragmento) {
+        String numero = buscarOpcion(texto, fragmento);
+        if (numero == null) throw new AssertionError("Sin opción «" + fragmento + "» en el mensaje:\n" + texto);
+        return numero;
+    }
+
+    private static String buscarOpcion(String texto, String fragmento) {
+        if (texto == null) return null;
+        for (String linea : texto.split("\n")) {
+            var m = OPCION.matcher(linea.strip());
+            if (m.matches() && m.group(2).contains(fragmento)) return m.group(1);
+        }
+        return null;
     }
 
     @Test

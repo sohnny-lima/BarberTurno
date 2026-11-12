@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "barberturno.whatsapp.twilio.negocio-slug=barberturno",
         "barberturno.whatsapp.twilio.url-publica=https://pruebas.barberturno.test"
 })
-@ActiveProfiles("twilio")
+@ActiveProfiles({"test", "twilio"})
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RegistroCanalTwilioIT {
@@ -81,9 +81,12 @@ class RegistroCanalTwilioIT {
         assertThat(canalOpt).isPresent();
         CanalWhatsApp canal = canalOpt.get();
         assertThat(canal.negocioId()).isEqualTo(negocioId);
-        assertThat(canal.wabaId()).isEqualTo(PHONE_NUMBER_ID);
         assertThat(canal.phoneNumberId()).isEqualTo(PHONE_NUMBER_ID);
-        assertThat(canal.numeroVisible()).isEqualTo(NUMERO_SANDBOX);
+        // wabaId y numeroVisible no son públicos en la entidad: se comprueban en la tabla.
+        assertThat(sql.queryForObject("SELECT waba_id FROM canal_whatsapp WHERE negocio_id = ?", String.class, negocioId))
+                .isEqualTo(PHONE_NUMBER_ID);
+        assertThat(sql.queryForObject("SELECT numero_visible FROM canal_whatsapp WHERE negocio_id = ?", String.class,
+                negocioId)).isEqualTo(NUMERO_SANDBOX);
         assertThat(canal.activo()).isTrue();
 
         int cantidadCanales = sql.queryForObject(
@@ -102,11 +105,8 @@ class RegistroCanalTwilioIT {
     void registrar_canalInactivo_reactivaElCanalExistente() {
         // Crear canal previamente y desactivarlo
         registroCanal.registrar();
-        new TransactionTemplate(gestor).executeWithoutResult(status -> {
-            CanalWhatsApp canal = canales.findByPhoneNumberId(PHONE_NUMBER_ID).orElseThrow();
-            canal.desactivar(reloj.instant());
-            canales.saveAndFlush(canal);
-        });
+        // La entidad no expone la desconexión fuera de su paquete: se marca en la tabla.
+        sql.update("UPDATE canal_whatsapp SET estado = 'DESCONECTADO' WHERE negocio_id = ?", negocioId);
 
         assertThat(canales.findByPhoneNumberId(PHONE_NUMBER_ID).orElseThrow().activo()).isFalse();
 
@@ -129,7 +129,8 @@ class RegistroCanalTwilioIT {
         RegistroCanalTwilioService servicioInexistente = new RegistroCanalTwilioService(
                 entityManager, canales, reloj, propiedadesNegocioInexistente);
 
-        assertThatThrownBy(servicioInexistente::registrar)
+        // Sin el proxy de Spring no hay @Transactional: la transacción la abre la prueba.
+        assertThatThrownBy(() -> new TransactionTemplate(gestor).executeWithoutResult(estado -> servicioInexistente.registrar()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Falta el negocio de prueba para Twilio Sandbox.");
     }
@@ -140,7 +141,7 @@ class RegistroCanalTwilioIT {
         new TransactionTemplate(gestor).executeWithoutResult(status -> {
             CanalWhatsApp canalDistinto = new CanalWhatsApp(negocioId, "90001", "10001",
                     "+51999000001", reloj.instant());
-            canales.saveAndFlush(canalDistinto);
+            canales.save(canalDistinto);
         });
 
         assertThatThrownBy(() -> registroCanal.registrar())

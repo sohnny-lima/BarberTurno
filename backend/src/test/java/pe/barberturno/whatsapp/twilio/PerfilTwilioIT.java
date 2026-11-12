@@ -4,7 +4,7 @@ import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "barberturno.whatsapp.twilio.negocio-slug=barberturno",
         "barberturno.whatsapp.twilio.url-publica=https://pruebas.barberturno.test"
 })
-@ActiveProfiles("twilio")
+@ActiveProfiles({"test", "twilio"})
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PerfilTwilioIT {
@@ -80,9 +80,10 @@ class PerfilTwilioIT {
     @Test
     void exencionCsrf_noSeAmpliaAOtrasEscrituras_devuelve403Forbidden() throws Exception {
         // Cualquier escritura protegida fuera de los dos webhooks exactos debe exigir CSRF y dar 403
-        mvc.perform(post("/api/registro")
+        // /api/auth/login existe y es una escritura con CSRF obligatorio (las rutas legadas dan 404).
+        mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"correo\":\"cliente@ejemplo.test\"}"))
+                        .content("{\"correo\":\"cliente@ejemplo.test\",\"password\":\"x\"}"))
                 .andExpect(status().isForbidden());
     }
 

@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -167,8 +168,8 @@ class ClienteTwilioWhatsAppTest {
         assertThat(bodyEnviado).isEqualTo("""
                 Nuestros servicios:
 
-                1. Corte clásico — 30 min · S/ 25.00
-                2. Afeitado tradicional — 20 min · S/ 15.00
+                1. Corte clásico — 30 min · S/ 25,00
+                2. Afeitado tradicional — 20 min · S/ 15,00
                 Responda con el número.""");
 
         // Verifica que la opción 2 se resuelve como list_reply con el identificador del servicio
@@ -191,7 +192,7 @@ class ClienteTwilioWhatsAppTest {
 
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
         ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
-        assertThat(rechazo.isTransitorio()).isFalse();
+        assertThat(rechazo.transitorio()).isFalse();
         assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.PLANTILLA_RECHAZADA);
         assertThat(servidor.peticiones()).isEmpty();
     }
@@ -205,7 +206,7 @@ class ClienteTwilioWhatsAppTest {
 
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
         ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
-        assertThat(rechazo.isTransitorio()).isFalse();
+        assertThat(rechazo.transitorio()).isFalse();
         assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
         assertThat(servidor.peticiones()).isEmpty();
     }
@@ -220,8 +221,8 @@ class ClienteTwilioWhatsAppTest {
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
         ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazo.estadoHttp()).isEqualTo(429);
-        assertThat(rechazo.isTransitorio()).isTrue();
-        assertThat(rechazo.codigoProveedor()).isEqualTo(OptionalInt.of(20429));
+        assertThat(rechazo.transitorio()).isTrue();
+        assertThat(rechazo.codigoMeta()).isEqualTo(OptionalInt.of(20429));
     }
 
     @Test
@@ -234,7 +235,7 @@ class ClienteTwilioWhatsAppTest {
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
         ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazo.estadoHttp()).isEqualTo(500);
-        assertThat(rechazo.isTransitorio()).isTrue();
+        assertThat(rechazo.transitorio()).isTrue();
     }
 
     @Test
@@ -247,8 +248,8 @@ class ClienteTwilioWhatsAppTest {
         assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
         ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
         assertThat(rechazo.estadoHttp()).isEqualTo(400);
-        assertThat(rechazo.isTransitorio()).isFalse();
-        assertThat(rechazo.codigoProveedor()).isEqualTo(OptionalInt.of(21614));
+        assertThat(rechazo.transitorio()).isFalse();
+        assertThat(rechazo.codigoMeta()).isEqualTo(OptionalInt.of(21614));
         assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
     }
 
