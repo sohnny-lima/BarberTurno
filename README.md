@@ -62,15 +62,31 @@ la base HTTPS pública exacta, sin barra final. Desde `backend/`, con JDK 21 y s
 `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev,demo,twilio"`. La demo requiere
 `BT_DEMO_PASSWORD`. Este encargo no prepara esa base ni arranca la aplicación ni abre un túnel.
 
-El arranque registra idempotentemente el Sandbox en `barberturno` después de la demo; no sustituye
-un canal diferente. Sin credenciales o URL pública no se reclama la outbox y los callbacks dan 401.
+El arranque registra idempotentemente los canales de `barberturno.whatsapp.twilio.canales` después de
+la demo: `+14155238886` en `barberturno` y el número ficticio `+15005550006` en `sur`. Ambos negocios
+deben estar preparados (la demo multinegocio los crea). La lista vacía conserva el par histórico
+`numero`/`negocio-slug`; para cambiar el Sandbox con `BT_TWILIO_NUMERO`, vacíe la lista o ajuste sus pares.
+Números o slugs duplicados impiden arrancar. No sustituye un canal diferente.
+Sin credenciales o URL pública no se reclama la outbox y los callbacks dan 401.
 Los menús son texto numerado: su correspondencia caduca a las 24 h o al reiniciar; escriba «menú»
 para recuperarla. Por defecto, el webhook recoge hasta cinco respuestas por TwiML, con hasta 10 s
 para la primera, 1,5 s de silencio entre mensajes y un tope total de 12 s. Admite remitentes BSUID
-sin teléfono mediante una identidad sintética estable. Sin espera abierta, la salida usa REST,
-con al menos 3 s entre solicitudes; `barberturno.whatsapp.twilio.respuesta-twiml=false` conserva
-el modo REST anterior. Las plantillas y los textos de más de 1600 caracteres fallan permanentemente
+sin teléfono mediante una identidad sintética estable. Menús, esperas y respuestas retenidas se
+separan por número y persona. Una opción fuera de rango repite inmediatamente el menú actual;
+`menu`, `hola`, `inicio` y `0` vuelven al inicio, también tras la derivación a una persona.
+Sin espera abierta, un destino sintético retiene hasta cinco respuestas durante diez minutos,
+delante de las del siguiente webhook; si la persona no vuelve, caducan y se eliminan sin enviarse.
+Un teléfono E.164 conserva REST, con al menos 3 s entre solicitudes y el emisor de su negocio.
+`barberturno.whatsapp.twilio.respuesta-twiml=false` conserva REST para teléfonos y la traducción
+anterior de números fuera de rango; los sintéticos se retienen por V2-DA-108.
+Las plantillas y los textos de más de 1600 caracteres fallan permanentemente
 sin llamar al proveedor.
+
+En Agenda, el profesional con perfil y membresía activos puede generar un código desde la tarjeta
+«WhatsApp de la barbería» y enviarlo al número de ese negocio como `vincular XXXX-XXXX`. Caduca en
+diez minutos, es de un uso y permite `agenda hoy`, `agenda mañana` y `desvincular`, también con Meta.
+Cada consulta revalida el acceso. Las escrituras web conservan sesión y CSRF. El código se transforma
+en SHA-256 antes de persistir incluso el evento de entrada; no se muestra el WhatsApp en la web.
 
 Las verificaciones automatizadas usan el ejecutor serializado de este equipo, sin Twilio real:
 

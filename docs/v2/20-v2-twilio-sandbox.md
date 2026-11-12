@@ -399,3 +399,64 @@ preexistente de VS Code, ajeno al encargo.
    - la cita está en la base temporal;
    - el barbero asignado la ve con `agenda hoy` (vinculado con un código generado por la API con su cuenta ficticia, mediante webhooks firmados simulados) y en `GET /api/n/barberturno/reservas`.
 4. Multiempresa con webhooks firmados simulados: número A → `barberturno`, número B → `sur`, y acceso denegado entre negocios.
+
+## 14. Implementación (Codex 159)
+
+**12/11/2026 · Producción Hecha en local; pendientes CT-14…CT-20 y revisión del coordinador.**
+Rama existente `tarea/V2-TWILIO-sandbox`, desde `8b17ec2`. Sin merge ni push.
+CT-14…CT-20 quedan a cargo de Gemini por reparto explícito. §1–§13 intactos.
+
+- `whatsapp/twilio/`: canales con validación de duplicados y registro transaccional de todos los pares;
+  traducción de entrada/estado y emisor REST por canal; menús completos, esperas y retenidas con clave
+  `(número, wa_id)`. Aviso inmediato de rango idempotente por MessageSid sin evento ni fallo.
+  Pie aprobado. Sintéticos sin espera se retienen, incluso en modo REST; en ese modo el siguiente
+  webhook recoge solo lo previamente retenido, sin esperar respuestas nuevas.
+- `conversation/`: navegación desde modo humano mediante la transición existente y bienvenida;
+  repetición determinista del paso con consultas actuales. Se guarda un identificador de navegación,
+  no una copia del resumen; la confirmación repite el interactivo de la outbox sin ejecutar operaciones.
+  `VinculoProfesionalWhatsAppService` atiende comandos antes del flujo de cliente y sin su consentimiento.
+- `V118__whatsapp_vinculo_profesional.sql`: las dos tablas, relaciones compuestas, restricciones con
+  nombre, índices únicos y RLS forzada. Código de SecureRandom, SHA-256 y diez minutos; un solo uso,
+  sustitución atómica y cinco fallos por hora. Serialización de modificaciones por negocio.
+- `whatsapp/`: controlador y DTO de vínculo; `CodigoVinculoWhatsApp` protege el código **antes** de
+  persistir la cola, también en el transporte Meta. No se cambia su webhook. Seguridad: sesión,
+  excepción exacta al filtro para el 404 del perfil/membresía y CSRF obligatorio sin ampliar exenciones.
+- `frontend/`: modelo/API y tarjeta de Agenda, estado, aviso, código, caducidad, instrucción y baja;
+  proveedor limitado a la vista del negocio, fechas de Lima y estilo T-55/T-57. Sin reglas de negocio
+  ni persistencia del código en el navegador. README actualizado.
+
+**Permisos de agenda:** en cada comando se une vínculo local, perfil activo, membresía activa y cuenta
+activa; un rechazo borra el vínculo local si existe y siempre responde lo mismo. La lectura de citas
+repite esas uniones, limita explícitamente negocio y barbero además de RLS y solo proyecta los campos
+del contrato. Día por `TiempoNegocio`/`Clock`, máximo 25 citas, mensajes divididos por líneas.
+
+**Retenidas:** cinco primeras, diez minutos, en orden y delante del siguiente webhook. Un menú retenido
+solo se instala cuando se incorpora al TwiML, después de interpretar la nueva entrada con el menú
+conocido. Desbordadas y caducadas se descartan sin texto en los registros. Si la persona no vuelve,
+no se envían: caducan y una limpieza cada minuto libera la memoria. Se pierden al reiniciar.
+
+Decisiones y hallazgos: contador de fallos en memoria; cuenta activa revalidada adicionalmente;
+DELETE web invalida códigos pendientes. La transición desde humano conserva sus dos respuestas y añade
+la bienvenida. Un aviso inmediato tras cinco retenidas puede producir seis `<Message>`, conservando
+el límite de cinco en el buzón. El modelo solo tiene `cliente.nombre`, sin apellidos estructurados.
+Se conserva el enrutamiento a IA de V2-12 cuando está disponible; la repetición nueva rige el camino
+determinista. El coordinador debe precisar si V2-DA-105 pretende sustituir también ese enrutamiento.
+
+Verificación, incidencias, fallos deliberados y órdenes completas en
+[v2-tw-159.md](pruebas/v2-tw-159.md). No se añaden pruebas nuevas ni se cambian aserciones; solo se
+adaptan constructores, claves y configuración de fixtures existentes. Regresión Java ampliada:
+639 pruebas, 623 aprobadas, 15 fallos y 1 error por el contrato anterior; focal final de webhook/traducción:
+47/0. Javadoc BUILD SUCCESS, sin avisos. Migración V1, acceso cruzado y aislamiento aprobados; las
+aserciones de 22 tablas y 17 FK compuestas deben reflejar las 24 y 19 de V118.
+Lint y build aprobados con Node 24.21.0;
+frontend aislado: 639 pruebas, 609 aprobadas y 30 fallidas en Agenda por el nuevo GET sin resolver
+en el fixture y sus errores en cascada. No se ejecuta verify completo, JAR, aplicación manual,
+ngrok ni Twilio real. Sin servicios externos, secretos expuestos, cambios en documentos protegidos,
+APF2, v1, Azure, remotos, etiquetas, ACL, ramas/worktrees nuevos ni delegación.
+
+Commits de producción: `5267d8f68401ea2d33189c95b68f9bd343cdb14e` y
+`07049b292582305cdd0f62ba2c1e04f788b25dd2`. Cierre documental por asunto
+`docs(whatsapp): cerrar implementación y evidencias del encargo 159 [V2-TW]`;
+hash propio en informe final. **Merge: ninguno**, por instrucción expresa.
+Comprobación final: sin procesos propios de verificación, sin escuchas en 8080/8081/4200,
+sin cerrojo del ejecutor. Se conservan los procesos preexistentes y de herramientas.

@@ -1,5 +1,18 @@
 # BarberTurno — Plan de tareas de implementación
 
+> V2-TW · Encargo 159: **Producción Hecha en local** (12/11/2026), en `tarea/V2-TWILIO-sandbox`.
+> Contrato y seguimiento: `docs/v2/20-v2-twilio-sandbox.md` §13 y `docs/v2/10-backlog.md` §11.
+> Excepción de ejecución: solo regresión afectada, pruebas nuevas por Gemini; sin merge ni push.
+> Cierre: `5267d8f68401ea2d33189c95b68f9bd343cdb14e` y `07049b292582305cdd0f62ba2c1e04f788b25dd2`.
+> Regresión 639 (15 fallos/1 error por aserciones anteriores); focal final 47/0; Javadoc sin avisos;
+> lint/build correctos y frontend aislado 609/639, 30 fallos por el GET nuevo de Agenda sin resolver
+> en su fixture. Pendientes CT-14…CT-20 y revisión; evidencia: `docs/v2/pruebas/v2-tw-159.md`.
+> Decisiones/hallazgos: hash antes de la cola, comprobación de permisos en cada agenda, claves por
+> número/persona, retención 5/10 min con limpieza, contador en memoria; conservar IA existente
+> pendiente de precisión del coordinador. Cierre documental por asunto
+> `docs(whatsapp): cerrar implementación y evidencias del encargo 159 [V2-TW]` (hash propio en informe).
+> Merge: ninguno. Sin procesos propios de pruebas al terminar.
+
 > Versión 1.0 · 01/10/2026 · Preparado por Claude Code (arquitecto) para Codex (implementación y pruebas)
 > Antes de cada tarea, leer: [../AGENTS.md](../AGENTS.md), [requisitos.md](requisitos.md) y [arquitectura.md](arquitectura.md).
 
