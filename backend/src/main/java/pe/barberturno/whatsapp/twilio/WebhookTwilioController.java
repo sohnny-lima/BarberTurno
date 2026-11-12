@@ -92,15 +92,19 @@ public class WebhookTwilioController {
         var propia = traductor.identidad(datos).flatMap(buzon::abrir);
         try {
             int nuevos = recepcion.recibir(cuerpo.get());
-            if (nuevos == 0 || propia.isEmpty()) return respuesta("<Response/>");
-            var mensajes = buzon.esperar(propia.get());
-            if (mensajes.isEmpty()) return respuesta("<Response/>");
-            StringBuilder xml = new StringBuilder("<Response>");
-            for (String mensaje : mensajes) xml.append("<Message>").append(escaparXml(mensaje)).append("</Message>");
-            return respuesta(xml.append("</Response>").toString());
+            if (propia.isEmpty()) return respuesta("<Response/>");
+            // Sin eventos nuevos no se espera, pero se devuelve lo que ya se aceptó en la ventana previa.
+            return respuesta(twiml(nuevos == 0 ? buzon.tomar(propia.get()) : buzon.esperar(propia.get())));
         } finally {
             propia.ifPresent(buzon::cerrar);
         }
+    }
+
+    private static String twiml(java.util.List<String> mensajes) {
+        if (mensajes.isEmpty()) return "<Response/>";
+        StringBuilder xml = new StringBuilder("<Response>");
+        for (String mensaje : mensajes) xml.append("<Message>").append(escaparXml(mensaje)).append("</Message>");
+        return xml.append("</Response>").toString();
     }
 
     private static ResponseEntity<String> respuesta(String xml) {

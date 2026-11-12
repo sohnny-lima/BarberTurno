@@ -94,6 +94,19 @@ public class BuzonRespuestasTwilio {
     }
 
     /**
+     * Cierra sin esperar y devuelve lo ya aceptado: un webhook sin eventos nuevos no debe descartar
+     * respuestas que el enviador ya dio por entregadas durante la ventana previa a la recepción.
+     * @param espera reserva propia del webhook
+     * @return textos aceptados hasta el cierre, en orden de entrega, como lista inmutable
+     */
+    public List<String> tomar(Espera espera) {
+        synchronized (espera) {
+            try { return List.copyOf(espera.mensajes); }
+            finally { cerrar(espera); }
+        }
+    }
+
+    /**
      * Libera solo la reserva propia; repetir el cierre no elimina una espera posterior.
      * @param espera reserva del webhook, incluso si no hubo eventos nuevos o falló la recepción
      */
