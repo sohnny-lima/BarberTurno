@@ -14,10 +14,12 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import pe.barberturno.whatsapp.RecepcionWebhookService;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -138,6 +140,30 @@ class WebhookTwilioControllerTest {
     }
 
     @Test
+    void recibir_firmaValida_conUnicodeYMasLiteral_conservaTextoExactoYDelegaARecepcion() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String textoComplejo = "Corte + barba — Muñoz";
+        form.put("Body", textoComplejo);
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        var respuesta = controlador.recibir(req, firma);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_XML);
+        assertThat(respuesta.getBody()).isEqualTo("<Response/>");
+
+        ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
+        verify(recepcion).recibir(captor.capture());
+
+        JsonMapper mapper = JsonMapper.builder().build();
+        JsonNode raiz = mapper.readTree(captor.getValue());
+        String bodyDelegado = raiz.path("entry").path(0).path("changes").path(0).path("value")
+                .path("messages").path(0).path("text").path("body").asText();
+        assertThat(bodyDelegado).isEqualTo(textoComplejo);
+    }
+
+    @Test
     void recibir_sinCabeceraFirma_devuelve401SinLlamarARecepcion() throws Exception {
         Map<String, String> form = formularioMensajeValido();
         var req = crearPeticion(RUTA_WEBHOOK, form, null, null, null);
@@ -188,11 +214,35 @@ class WebhookTwilioControllerTest {
     }
 
     @Test
+    void recibir_conFirmaDeRutaEstado_devuelve401SinLlamarARecepcion() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        // Firma válida pero calculada para la ruta de estado
+        String firmaEstado = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_ESTADO, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firmaEstado, null, null);
+
+        var respuesta = controlador.recibir(req, firmaEstado);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(recepcion);
+    }
+
+    @Test
     void recibir_parametroRepetidoEnFormulario_devuelve401SinLlamarARecepcion() throws Exception {
         Map<String, String> form = formularioMensajeValido();
         String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
-        String cuerpoConDuplicado = "AccountSid=" + ACCOUNT_SID
-                + "&From=whatsapp%3A%2B51999000001&To=whatsapp%3A%2B14155238886&Body=hola&Body=hola-repetido";
+
+        // Serializa el formulario completo firmado con todos sus parámetros legítimos
+        StringBuilder sb = new StringBuilder();
+        form.forEach((k, v) -> {
+            if (!sb.isEmpty()) sb.append("&");
+            sb.append(java.net.URLEncoder.encode(k, StandardCharsets.UTF_8)).append("=")
+                    .append(java.net.URLEncoder.encode(v, StandardCharsets.UTF_8));
+        });
+        // Añade únicamente otro Body=hola: si el servidor admitiera duplicados colapsando al valor,
+        // la firma coincidiría y la prueba fallaría.
+        sb.append("&Body=").append(java.net.URLEncoder.encode("hola", StandardCharsets.UTF_8));
+        String cuerpoConDuplicado = sb.toString();
+
         var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, cuerpoConDuplicado);
 
         var respuesta = controlador.recibir(req, firma);
@@ -276,6 +326,19 @@ class WebhookTwilioControllerTest {
         var req = crearPeticion(RUTA_ESTADO, form, null, null, null);
 
         var respuesta = controlador.estado(req, null);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(recepcion);
+    }
+
+    @Test
+    void estado_conFirmaDeRutaWebhook_devuelve401SinLlamarARecepcion() throws Exception {
+        Map<String, String> form = formularioEstadoValido();
+        // Firma válida pero calculada para la ruta de webhook
+        String firmaWebhook = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_ESTADO, form, firmaWebhook, null, null);
+
+        var respuesta = controlador.estado(req, firmaWebhook);
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verifyNoInteractions(recepcion);

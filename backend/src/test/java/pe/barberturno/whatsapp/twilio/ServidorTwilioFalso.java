@@ -43,17 +43,32 @@ public class ServidorTwilioFalso implements AutoCloseable {
     private volatile boolean iniciado;
 
     /**
-     * Registro inmutable de una petición HTTP recibida por el servidor falso.
+     * Registro inmutable de una petición HTTP recibida por el servidor falso con marcas temporales monotónicas.
      * @param metodo método HTTP (por ejemplo {@code POST})
      * @param ruta ruta de la petición (por ejemplo {@code /2010-04-01/Accounts/AC.../Messages.json})
      * @param cabeceras cabeceras HTTP recibidas
      * @param cuerpoTexto cuerpo de la petición decodificado como texto UTF-8
      * @param parametros mapa ordenado de los parámetros del formulario urlencoded
+     * @param inicioNano instante de recepción monotónico en nanosegundos
+     * @param finNano instante de finalización de la respuesta en nanosegundos
      * @author Sohnny Walter Lima Infanzón
-     * @version 2.0
+     * @version 2.1
      */
     public record PeticionRegistrada(String metodo, String ruta, Map<String, List<String>> cabeceras,
-            String cuerpoTexto, Map<String, String> parametros) {
+            String cuerpoTexto, Map<String, String> parametros, long inicioNano, long finNano) {
+
+        /**
+         * Constructor de compatibilidad sin marcas de tiempo explícitas.
+         * @param metodo método HTTP
+         * @param ruta ruta de la petición
+         * @param cabeceras cabeceras HTTP recibidas
+         * @param cuerpoTexto cuerpo de la petición decodificado como texto UTF-8
+         * @param parametros mapa ordenado de los parámetros del formulario urlencoded
+         */
+        public PeticionRegistrada(String metodo, String ruta, Map<String, List<String>> cabeceras,
+                String cuerpoTexto, Map<String, String> parametros) {
+            this(metodo, ruta, cabeceras, cuerpoTexto, parametros, 0L, 0L);
+        }
 
         /**
          * Obtiene el valor de la cabecera Authorization enviada por el cliente.
@@ -256,13 +271,11 @@ public class ServidorTwilioFalso implements AutoCloseable {
         peticionesActivas.incrementAndGet();
         Thread hiloActual = Thread.currentThread();
         hilosActivos.add(hiloActual);
+        long inicioNano = System.nanoTime();
         try {
             byte[] cuerpoBytes = leerTodo(exchange.getRequestBody());
             String cuerpoTexto = new String(cuerpoBytes, StandardCharsets.UTF_8);
             Map<String, String> parametros = parsearFormulario(cuerpoTexto);
-
-            peticiones.add(new PeticionRegistrada(exchange.getRequestMethod(), exchange.getRequestURI().toString(),
-                    exchange.getRequestHeaders(), cuerpoTexto, parametros));
 
             AccionRespuesta accion = colaRespuestas.poll();
             if (accion == null) {
@@ -273,6 +286,9 @@ public class ServidorTwilioFalso implements AutoCloseable {
             } catch (IOException e) {
                 // Conexión interrumpida por el cliente
             }
+            long finNano = System.nanoTime();
+            peticiones.add(new PeticionRegistrada(exchange.getRequestMethod(), exchange.getRequestURI().toString(),
+                    exchange.getRequestHeaders(), cuerpoTexto, parametros, inicioNano, finNano));
         } finally {
             hilosActivos.remove(hiloActual);
             peticionesActivas.decrementAndGet();

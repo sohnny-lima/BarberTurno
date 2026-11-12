@@ -200,11 +200,13 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_mismoMessageSidRepetido_devuelveMismaTraduccionSinConsumirOtroMenu() throws Exception {
+        // 1. Instalar menú inicial
         menus.guardar(WA_ID, List.of(
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar"),
                 new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:MIS_CITAS", "Mis citas")
         ));
 
+        // 2. Primera entrada con SID "SM_REINTENTO_1" elige la opción 1 -> m:RESERVAR
         Map<String, String> primera = baseMensaje("SM_REINTENTO_1", "1");
         Optional<byte[]> res1 = traductor.mensaje(primera);
         assertThat(res1).isPresent();
@@ -213,7 +215,12 @@ class TraduccionTwilioTest {
         assertThat(msg1.path("type").asText()).isEqualTo("interactive");
         assertThat(msg1.path("interactive").path("button_reply").path("id").asText()).isEqualTo("m:RESERVAR");
 
-        // Reintento idéntico de Twilio con el mismo MessageSid
+        // 3. Instalar un menú posterior distinto antes del reintento
+        menus.guardar(WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("list_reply", "s:99", "Servicio Posterior Especial")
+        ));
+
+        // 4. Reintento de Twilio con el mismo MessageSid: devuelve la selección original sin consumir el menú nuevo
         Map<String, String> reintento = baseMensaje("SM_REINTENTO_1", "1");
         Optional<byte[]> res2 = traductor.mensaje(reintento);
         assertThat(res2).isPresent();
@@ -221,6 +228,16 @@ class TraduccionTwilioTest {
                 .path("entry").path(0).path("changes").path(0).path("value").path("messages").path(0);
         assertThat(msg2.path("type").asText()).isEqualTo("interactive");
         assertThat(msg2.path("interactive").path("button_reply").path("id").asText()).isEqualTo("m:RESERVAR");
+
+        // 5. Un SID nuevo enviando "1" todavía puede consumir el menú posterior intacto
+        Map<String, String> nuevoSid = baseMensaje("SM_NUEVO_2", "1");
+        Optional<byte[]> res3 = traductor.mensaje(nuevoSid);
+        assertThat(res3).isPresent();
+        JsonNode msg3 = mapper.readTree(res3.get())
+                .path("entry").path(0).path("changes").path(0).path("value").path("messages").path(0);
+        assertThat(msg3.path("type").asText()).isEqualTo("interactive");
+        assertThat(msg3.path("interactive").path("list_reply").path("id").asText()).isEqualTo("s:99");
+        assertThat(msg3.path("interactive").path("list_reply").path("title").asText()).isEqualTo("Servicio Posterior Especial");
     }
 
     @Test
