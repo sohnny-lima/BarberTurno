@@ -190,7 +190,7 @@ Con el adaptador de §8, ese remitente se descartaba: `wa_id` vacío no cumple `
 ### V2-DA-104 · Respuesta por TwiML dentro del mismo webhook
 1. Con `barberturno.whatsapp.twilio.respuesta-twiml=true` (valor por defecto), el webhook de mensajes hace lo siguiente:
    - abre una **espera** para el `wa_id` **antes** de llamar a `RecepcionWebhookService.recibir`;
-   - si `recibir` devuelve 0 (duplicado o ignorado), la cierra y responde `<Response/>` al instante;
+   - si `recibir` devuelve 0 (duplicado o ignorado), la cierra sin esperar y responde al instante con las respuestas que ya hubiera aceptado durante esa breve ventana, o `<Response/>` si no hay ninguna (corrección del coordinador en la revisión, `4f2babc`, 12/11/2026);
    - si no, espera las respuestas del bot y devuelve un `<Message>` por cada una, en orden y con XML escapado.
 2. **Plazos de la espera:**
    - hasta `respuesta-espera` por el primer mensaje (por defecto 10 s);
@@ -218,7 +218,7 @@ Con el adaptador de §8, ese remitente se descartaba: `wa_id` vacío no cumple `
 |---|---|
 | CT-10 | Remitente BSUID sin `WaId` → un evento con `wa_id` sintético de 20 dígitos. Es estable para el mismo BSUID y distinto entre dos BSUID distintos. Un `From` inválido no genera evento. Si `WaId` existe, se usa el número. |
 | CT-11 | **Recorrido CT-6 con un remitente BSUID y respuestas por TwiML:** cada webhook devuelve en su TwiML las respuestas del bot (menús numerados), sin llamar al servidor Twilio simulado. La reserva aparece en `GET /api/n/barberturno/reservas` y después queda `CANCELADA`. |
-| CT-12 | Se responde `<Response/>` sin esperar en tres casos: duplicado del mismo `MessageSid`, segundo mensaje con una espera abierta y remitente inválido. Sin respuestas del bot dentro del plazo, también `<Response/>`. Un mensaje posterior se envía por REST con `To=whatsapp:PE.…` cuando la dirección es conocida, o se rechaza sin HTTP si no lo es. `<`, `&` y comillas quedan escapados. Más de 5 mensajes → los sobrantes van por REST. |
+| CT-12 | Se responde sin esperar en tres casos: duplicado del mismo `MessageSid` (con lo ya aceptado en esa ventana, o `<Response/>`), segundo mensaje con una espera abierta y remitente inválido. Sin respuestas del bot dentro del plazo, también `<Response/>`. Un mensaje posterior se envía por REST con `To=whatsapp:PE.…` cuando la dirección es conocida, o se rechaza sin HTTP si no lo es. `<`, `&` y comillas quedan escapados. Más de 5 mensajes → los sobrantes van por REST. |
 | CT-13 | Un aviso de estado con `To` BSUID actualiza el mensaje por su `sid`. `respuesta-twiml=false` mantiene el comportamiento de §8. Configuración fuera de rango → no arranca. Los registros no contienen BSUID, `wa_id` sintético ni texto. |
 
 ## 11. Implementación (Codex 157)
