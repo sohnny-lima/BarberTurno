@@ -46,10 +46,9 @@ class VinculoProfesionalEndpointsIT extends PeticionNegocioPruebaBase {
         membresias.save(new Membresia(b, barberoCuentaB.getId(), RolNegocio.BARBERO, reloj.instant()));
         en("b", () -> barberos.saveAndFlush(new Barbero(barberoCuentaB, "Barbero B Visible", reloj.instant())));
 
-        // Cliente en negocio A (sin perfil de barbero)
+        // Cliente sin membresía ni perfil de barbero: el servicio responde 404
         clienteCuentaA = usuarios.saveAndFlush(new Usuario("Cliente A", "cliente-end-a@ejemplo.test", "999111003",
                 "hash-ficticio", Rol.CLIENTE, reloj.instant(), reloj.instant()));
-        membresias.save(new Membresia(a, clienteCuentaA.getId(), RolNegocio.CLIENTE, reloj.instant()));
     }
 
     @Test

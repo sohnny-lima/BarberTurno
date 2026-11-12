@@ -1,5 +1,10 @@
 package pe.barberturno.conversation;
 
+import pe.barberturno.platform.Membresia;
+import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.platform.RolNegocio;
+import pe.barberturno.users.Rol;
+import pe.barberturno.users.Usuario;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;

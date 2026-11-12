@@ -1,5 +1,6 @@
 package pe.barberturno.whatsapp.twilio;
 
+import pe.barberturno.platform.MembresiaRepository;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -103,6 +104,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class VariosNumerosTwilioIT {
+    @Autowired private MembresiaRepository membresias;
 
     private static final String ACCOUNT_SID = "AC0123456789abcdef0123456789abcdef";
     private static final String AUTH_TOKEN = "token-ficticio-ct18-it";
