@@ -359,4 +359,70 @@ class TraduccionTwilioTest {
 
         assertThat(resultado).isEmpty();
     }
+
+    @Test
+    void mensaje_bsuidValidoSinWaId_traduceAFormatoMetaConWaIdSintetico() throws Exception {
+        Map<String, String> datos = new LinkedHashMap<>();
+        datos.put("AccountSid", "AC0123456789abcdef0123456789abcdef");
+        datos.put("MessageSid", "SM_BSUID_001");
+        datos.put("From", "whatsapp:PE.0123456789ABCDEF");
+        datos.put("To", "whatsapp:" + NUMERO_SANDBOX);
+        datos.put("ProfileName", "Cliente BSUID");
+        datos.put("Body", "hola");
+
+        Optional<byte[]> resultado = traductor.mensaje(datos);
+
+        assertThat(resultado).isPresent();
+        JsonNode raiz = mapper.readTree(resultado.get());
+        JsonNode valor = raiz.path("entry").path(0).path("changes").path(0).path("value");
+
+        JsonNode contacto = valor.path("contacts").path(0);
+        String waIdContacto = contacto.path("wa_id").asText();
+        assertThat(waIdContacto)
+                .as("wa_id debe ser sintético de 20 dígitos empezando por 9")
+                .hasSize(20)
+                .startsWith("9")
+                .matches("9[0-9]{19}");
+
+        JsonNode mensaje = valor.path("messages").path(0);
+        assertThat(mensaje.path("from").asText()).isEqualTo(waIdContacto);
+        assertThat(mensaje.path("id").asText()).isEqualTo("SM_BSUID_001");
+    }
+
+    @Test
+    void mensaje_fromInvalidoSinWaId_devuelveVacio() {
+        Map<String, String> datos = new LinkedHashMap<>();
+        datos.put("AccountSid", "AC0123456789abcdef0123456789abcdef");
+        datos.put("MessageSid", "SM_FROM_INV");
+        datos.put("From", "whatsapp:pe.pais-en-minusculas");
+        datos.put("To", "whatsapp:" + NUMERO_SANDBOX);
+        datos.put("Body", "hola");
+
+        Optional<byte[]> resultado = traductor.mensaje(datos);
+
+        assertThat(resultado).isEmpty();
+    }
+
+    @Test
+    void estado_toBsuidValido_traduceRecipientIdConIdentidadSintetica() throws Exception {
+        Map<String, String> datos = new LinkedHashMap<>();
+        datos.put("MessageSid", "SM_EST_BSUID_1");
+        datos.put("MessageStatus", "delivered");
+        datos.put("To", "whatsapp:PE.0123456789ABCDEF");
+
+        Optional<byte[]> resultado = traductor.estado(datos);
+
+        assertThat(resultado).isPresent();
+        JsonNode aviso = mapper.readTree(resultado.get())
+                .path("entry").path(0).path("changes").path(0).path("value").path("statuses").path(0);
+
+        assertThat(aviso.path("id").asText()).isEqualTo("SM_EST_BSUID_1");
+        assertThat(aviso.path("status").asText()).isEqualTo("delivered");
+        String recipientId = aviso.path("recipient_id").asText();
+        assertThat(recipientId)
+                .as("recipient_id debe coincidir con la identidad sintética de 20 dígitos")
+                .hasSize(20)
+                .startsWith("9")
+                .matches("9[0-9]{19}");
+    }
 }
