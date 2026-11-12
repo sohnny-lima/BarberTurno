@@ -78,6 +78,8 @@ public class SecurityConfig {
      * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
      * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
      * Plataforma exige su rol global independiente; la suspensión conserva lecturas y rechaza escrituras.
+     * Solo con twilio permite y exime de CSRF los POST exactos /api/twilio/webhook y /api/twilio/estado;
+     * las variantes y rutas de negocio nunca heredan la exención.
      * Invitaciones: consulta y registro por token públicos, aceptación autenticada y gestión local solo ADMIN efectivo.
      * Equipo permite gestión ADMIN y salida propia del personal; el servicio distingue propietario y encargado.
      * Configuración admite ADMIN efectivo y exige propietario vigente también en el servicio.
@@ -138,9 +140,10 @@ public class SecurityConfig {
                             public <O extends CsrfFilter> O postProcess(O filtro) {
                                 // El resource server excluye bearer de CSRF por defecto.
                                 // Con JWT en cookie toda escritura sigue necesitando CSRF.
-                                // El webhook de WhatsApp se autentica con su firma (V2-DA-15): única exención.
+                                // Los webhooks se autentican por firma; Twilio solo existe en su perfil.
                                 filtro.setRequireCsrfProtectionMatcher(peticion -> CsrfFilter.DEFAULT_CSRF_MATCHER.matches(peticion)
-                                        && !esWebhookWhatsApp(peticion));
+                                        && !esWebhookWhatsApp(peticion)
+                                        && !(entorno.acceptsProfiles(Profiles.of("twilio")) && esWebhookTwilio(peticion)));
                                 return filtro;
                             }
                         }))
@@ -153,7 +156,8 @@ public class SecurityConfig {
                         .bearerTokenResolver(new CookieBearerTokenResolver())
                         .authenticationEntryPoint(entryPoint).accessDeniedHandler(denegado)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
-                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas), SecurityContextHolderFilter.class)
+                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas,
+                        entorno.acceptsProfiles(Profiles.of("twilio"))), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new RolNegocioFilter(contexto, respuestas, directorio), PasswordTemporalFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
@@ -164,6 +168,9 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.HEAD, "/actuator/health").permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/api/whatsapp/webhook").permitAll();
                     permisos.requestMatchers(HttpMethod.POST, "/api/whatsapp/webhook").permitAll();
+                    if (entorno.acceptsProfiles(Profiles.of("twilio"))) {
+                        permisos.requestMatchers(SecurityConfig::esWebhookTwilio).permitAll();
+                    }
                     if (apiDocsHabilitada) {
                         permisos.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**").permitAll();
                     }
@@ -227,7 +234,12 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** Notificación del webhook de WhatsApp: la única escritura sin CSRF, con autenticación propia. */
+    private static boolean esWebhookTwilio(jakarta.servlet.http.HttpServletRequest peticion) {
+        return "POST".equals(peticion.getMethod()) && ("/api/twilio/webhook".equals(peticion.getServletPath())
+                || "/api/twilio/estado".equals(peticion.getServletPath()));
+    }
+
+    /** Notificación de Meta con autenticación propia, cuya exención permanece exacta. */
     static boolean esWebhookWhatsApp(jakarta.servlet.http.HttpServletRequest peticion) {
         return "POST".equals(peticion.getMethod()) && "/api/whatsapp/webhook".equals(peticion.getServletPath());
     }

@@ -35,6 +35,7 @@ public class ResolutorNegocio extends OncePerRequestFilter {
     private final ContextoNegocio contexto;
     private final DirectorioNegocios directorio;
     private final RespuestaSeguridad errores;
+    private final boolean twilioActivo;
 
     /**
      * Recibe contexto, búsqueda y escritor común de errores RFC 9457.
@@ -44,9 +45,22 @@ public class ResolutorNegocio extends OncePerRequestFilter {
      */
     public ResolutorNegocio(ContextoNegocio contexto, DirectorioNegocios directorio,
             RespuestaSeguridad errores) {
+        this(contexto, directorio, errores, false);
+    }
+
+    /**
+     * Habilita exclusivamente los dos POST globales de Twilio cuando su perfil está activo.
+     * @param contexto ámbito que se elimina al terminar la petición
+     * @param directorio resolución de slugs sin caché
+     * @param errores respuesta pública sin trazas
+     * @param twilioActivo presencia del perfil de pruebas; false mantiene las rutas en 404
+     */
+    public ResolutorNegocio(ContextoNegocio contexto, DirectorioNegocios directorio,
+            RespuestaSeguridad errores, boolean twilioActivo) {
         this.contexto = contexto;
         this.directorio = directorio;
         this.errores = errores;
+        this.twilioActivo = twilioActivo;
     }
 
     /**
@@ -132,6 +146,8 @@ public class ResolutorNegocio extends OncePerRequestFilter {
                 || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
                 || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
                 || ruta.equals("/api/whatsapp/webhook")
+                || twilioActivo && metodo.equals("POST")
+                        && (ruta.equals("/api/twilio/webhook") || ruta.equals("/api/twilio/estado"))
                 || (metodo.equals("GET") || metodo.equals("HEAD")) && ruta.matches("/api/invitaciones/[^/]+")
                 || ruta.matches("/api/invitaciones/[^/]+/(aceptacion|registro)");
     }

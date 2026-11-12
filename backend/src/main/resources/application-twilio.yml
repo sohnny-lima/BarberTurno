@@ -1,0 +1,11 @@
+# Canal local de pruebas; prod + twilio se rechaza antes de abrir conexiones.
+barberturno:
+  whatsapp:
+    twilio:
+      account-sid: ${BT_TWILIO_ACCOUNT_SID:}
+      auth-token: ${BT_TWILIO_AUTH_TOKEN:}
+      numero: ${BT_TWILIO_NUMERO:+14155238886}
+      url-publica: ${BT_TWILIO_URL_PUBLICA:}
+      negocio-slug: barberturno
+      intervalo-envio: 3s
+      api-base: https://api.twilio.com
