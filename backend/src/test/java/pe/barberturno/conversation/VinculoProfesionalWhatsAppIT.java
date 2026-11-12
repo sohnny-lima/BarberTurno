@@ -57,13 +57,18 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         return id;
     }
 
+    private long usuarioDeBarbero(long negocioId, long barberoId) {
+        return ejecutor.ejecutar(negocioId, () -> sql.queryForObject(
+                "SELECT usuario_id FROM barbero WHERE id=?", Long.class, barberoId));
+    }
+
     private MensajeSalientePrueba ultimoMensaje(long negocioId, String waId) {
         return ConversacionPruebas.leerUltimoMensajeSaliente(ejecutor, sql, mapper, negocioId, waId);
     }
 
     @Test
     void generarYVincular_conFormatoNormalizado_vinculaCorrectamente_yGuardaSoloElHash() {
-        long usuarioId = barberoA.getUsuario().getId();
+        long usuarioId = barberoCuenta.getId();
 
         // 1. Generar código desde la cuenta del barbero
         CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(usuarioId));
@@ -73,13 +78,13 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         // 2. Verificar que en la tabla solo figura el hash SHA-256 de 64 hex, nunca el código en claro
         String hashEsperado = CodigoVinculoWhatsApp.hash(dto.codigo());
         String hashEnBase = ejecutor.ejecutar(a, () -> sql.queryForObject(
-                "SELECT codigo_hash FROM codigo_vinculo_whatsapp WHERE barbero_id=?", String.class, barberoA.getId()));
+                "SELECT codigo_hash FROM codigo_vinculo_whatsapp WHERE barbero_id=?", String.class, barberoA));
         assertThat(hashEnBase).isEqualTo(hashEsperado);
         assertThat(hashEnBase).matches("^[0-9a-f]{64}$");
 
         // Verificar que no se guardó el texto en claro en ninguna columna
         var columnasCodigo = ejecutor.ejecutar(a, () -> sql.queryForMap(
-                "SELECT * FROM codigo_vinculo_whatsapp WHERE barbero_id=?", barberoA.getId()));
+                "SELECT * FROM codigo_vinculo_whatsapp WHERE barbero_id=?", barberoA));
         assertThat(columnasCodigo.values().stream().map(String::valueOf).toList())
                 .allSatisfy(valor -> assertThat(valor).doesNotContain(dto.codigo()));
 
@@ -94,7 +99,7 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         // 4. Verificar que se creó el registro en vinculo_whatsapp_profesional y se marcó usado_en
         int vinculos = ejecutor.ejecutar(a, () -> sql.queryForObject(
                 "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE barbero_id=? AND wa_id=?",
-                Integer.class, barberoA.getId(), WA_BARBERO));
+                Integer.class, barberoA, WA_BARBERO));
         assertThat(vinculos).isEqualTo(1);
 
         Boolean usado = ejecutor.ejecutar(a, () -> sql.queryForObject(
@@ -105,7 +110,7 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void codigoReutilizado_noTieneEfecto_devuelveCodigoInvalido() {
-        long usuarioId = barberoA.getUsuario().getId();
+        long usuarioId = barberoCuenta.getId();
         CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(usuarioId));
 
         // Primera vinculación exitosa
@@ -125,11 +130,11 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void codigoCaducado_conRelojDePrueba_noTieneEfecto() {
-        long usuarioId = barberoA.getUsuario().getId();
+        long usuarioId = barberoCuenta.getId();
         CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(usuarioId));
 
         // Avanzar el reloj 10 minutos y 1 segundo
-        reloj.avanzar(Duration.ofSeconds(601));
+        reloj.adelantar(Duration.ofSeconds(601));
 
         enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", "vincular " + dto.codigo());
         var respuesta = ultimoMensaje(a, WA_BARBERO);
@@ -143,7 +148,8 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
     @Test
     void codigoDeOtroNegocio_noTieneEfectoEnEsteNegocio() {
         // Generar código en negocio B para barberoB
-        CodigoVinculoProfesionalDto dtoB = ejecutor.ejecutar(b, () -> vinculoService.generar(barberoB.getUsuario().getId()));
+        long cuentaB = usuarioDeBarbero(b, barberoB);
+        CodigoVinculoProfesionalDto dtoB = ejecutor.ejecutar(b, () -> vinculoService.generar(cuentaB));
 
         // Enviar ese código al número del negocio A
         enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", "vincular " + dtoB.codigo());
@@ -158,7 +164,7 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void nuevoCodigo_invalidaElAnteriorSinUsar() {
-        long usuarioId = barberoA.getUsuario().getId();
+        long usuarioId = barberoCuenta.getId();
 
         CodigoVinculoProfesionalDto codigo1 = ejecutor.ejecutar(a, () -> vinculoService.generar(usuarioId));
         CodigoVinculoProfesionalDto codigo2 = ejecutor.ejecutar(a, () -> vinculoService.generar(usuarioId));
@@ -196,17 +202,18 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         // Cuenta de usuario titular (no tiene perfil de barbero en negocio A)
         assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> vinculoService.generar(titular.getId())))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
 
         // Cuenta de barberoB que pertenece al negocio B intentando generar en negocio A
-        assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> vinculoService.generar(barberoB.getUsuario().getId())))
+        long cuentaB = usuarioDeBarbero(b, barberoB);
+        assertThatThrownBy(() -> ejecutor.ejecutar(a, () -> vinculoService.generar(cuentaB)))
                 .isInstanceOf(NegocioException.class)
-                .satisfies(e -> assertThat(((NegocioException) e).getCodigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
+                .satisfies(e -> assertThat(((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.NO_ENCONTRADO));
     }
 
     @Test
     void getEstado_noExponeWaIdNiNumero() {
-        long usuarioId = barberoA.getUsuario().getId();
+        long usuarioId = barberoCuenta.getId();
 
         // Antes de vincular
         EstadoVinculoProfesionalDto estadoInicial = ejecutor.ejecutar(a, () -> vinculoService.estado(usuarioId));
@@ -230,7 +237,7 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
     @Test
     void deleteWeb_y_desvincularWhatsApp_quitanAcceso() {
-        long usuarioId = barberoA.getUsuario().getId();
+        long usuarioId = barberoCuenta.getId();
 
         // 1. Vincular
         CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(usuarioId));
@@ -245,7 +252,7 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         assertThat(ejecutor.ejecutar(a, () -> vinculoService.estado(usuarioId)).vinculado()).isFalse();
 
         int vinculosTrasDelete = ejecutor.ejecutar(a, () -> sql.queryForObject(
-                "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE barbero_id=?", Integer.class, barberoA.getId()));
+                "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE barbero_id=?", Integer.class, barberoA));
         assertThat(vinculosTrasDelete).isZero();
 
         // 3. Volver a vincular
