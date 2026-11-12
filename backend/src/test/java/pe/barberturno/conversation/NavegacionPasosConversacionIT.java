@@ -186,9 +186,10 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
         // Crear cliente con cita previa CONFIRMADA
         long reservaPreviaId = crearReserva(a, WA_CLIENTE, INICIO_RESERVA_BASE);
 
-        // Iniciar conversación y solicitar hablar con persona
+        // Iniciar conversación, solicitar hablar con persona y aceptar consentimiento para derivar
         enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", "hola");
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente CT15", "m:PERSONA");
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente CT15", "p:S");
 
         // Modo pasa a HUMANO
         String modo = ejecutor.ejecutar(a, () -> sql.queryForObject(

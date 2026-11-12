@@ -570,18 +570,17 @@ class ClienteTwilioWhatsAppTest {
     }
 
     @Test
-    void enviar_e164Desconocido_devuelveRechazoPermanenteSinHttp() {
+    void enviar_e164Desconocido_seEnviaPorRestAlServidorSimulado() {
         String e164Desconocido = "51988887766";
-        ObjectNode cuerpo = crearMensajeTexto(e164Desconocido, "Aviso a teléfono desconocido");
+        ObjectNode cuerpo = crearMensajeTexto(e164Desconocido, "Aviso a teléfono");
 
         ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
 
-        assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
-        ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
-        assertThat(rechazo.estadoHttp()).isEqualTo(400);
-        assertThat(rechazo.transitorio()).isFalse();
-        assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
-        assertThat(servidor.peticiones()).as("no debe realizarse petición HTTP para teléfono sin destino conocido").isEmpty();
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        ResultadoEnvio.Aceptado aceptado = (ResultadoEnvio.Aceptado) resultado;
+        assertThat(aceptado.wamid()).startsWith("SM");
+        assertThat(servidor.peticiones()).as("un teléfono E.164 siempre se envía por REST").hasSize(1);
+        assertThat(servidor.ultimaPeticion().parametros().get("To")).isEqualTo("whatsapp:+51988887766");
     }
 
     @Test

@@ -176,7 +176,8 @@ class AgendaProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
 
         // Caso 3: Barbero vinculado en A cuya membresía es revocada
         ejecutor.ejecutar(a, () -> {
-            sql.update("UPDATE membresia SET estado='REVOCADA' WHERE usuario_id=?", barberoCuenta.getId());
+            sql.update("UPDATE membresia SET estado='REVOCADA', motivo_revocacion='DECISION_GESTOR' WHERE negocio_id=? AND usuario_id=?",
+                    a, barberoCuenta.getId());
             return null;
         });
 
@@ -193,10 +194,10 @@ class AgendaProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
     void agendaConMasDe25Citas_recortaConTextoYNMas() {
         LocalDate hoy = TiempoNegocio.fechaLima(reloj.instant());
 
-        // Crear 27 citas en el día para barberoA
+        // Crear 27 citas consecutivas de 30 min en el día para barberoA (desde las 07:00 hasta las 20:30)
         for (int i = 0; i < 27; i++) {
-            Instant inicio = hoy.atTime(8, 0).atZone(TiempoNegocio.ZONA).toInstant().plus(Duration.ofMinutes(15L * i));
-            insertarCita(a, barberoA, servicioA, "Cliente Masivo", "51900009999", inicio, "CONFIRMADA");
+            Instant inicio = hoy.atTime(7, 0).atZone(TiempoNegocio.ZONA).toInstant().plus(Duration.ofMinutes(30L * i));
+            insertarCita(a, barberoA, servicioA, "Cliente Masivo " + i, "5190000" + String.format("%04d", i), inicio, "CONFIRMADA");
         }
 
         enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", "agenda hoy");

@@ -504,7 +504,7 @@ class RecorridoTwilioBsuidIT {
         long mensajeId = ejecutor.ejecutar(negocioId, () -> new TransactionTemplate(gestor).execute(status ->
                 salida.encolarTexto(conversacionId, "Mensaje saliente para BSUID", OrigenMensaje.SISTEMA, OptionalLong.empty())));
         ejecutor.ejecutar(negocioId, () -> {
-            sql.update("UPDATE mensaje_whatsapp SET wamid = 'SM_OUT_BSUID_DELIV_1', estado = 'ENVIADO' WHERE id = ?", mensajeId);
+            sql.update("UPDATE mensaje_whatsapp SET wamid = 'SM_OUT_BSUID_DELIV_1', estado = 'ENVIADO', enviado_como = 'TEXTO' WHERE id = ?", mensajeId);
             return null;
         });
 

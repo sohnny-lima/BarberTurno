@@ -8,6 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.sql.DriverManager;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -18,14 +19,21 @@ import java.util.TreeMap;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import pe.barberturno.auth.JwtService;
 import pe.barberturno.catalog.Servicio;
 import pe.barberturno.catalog.ServicioRepository;
@@ -80,6 +88,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "barberturno.whatsapp.twilio.intervalo-envio=3s"
 })
 @ActiveProfiles({"test", "twilio"})
+@ContextConfiguration(initializers = VariosNumerosTwilioIT.InicializadorNegocios.class)
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class VariosNumerosTwilioIT {
@@ -97,6 +106,57 @@ class VariosNumerosTwilioIT {
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(servidorTwilio::close));
+    }
+
+    @DynamicPropertySource
+    static void registrarPropiedades(DynamicPropertyRegistry registry) {
+        if (!servidorTwilio.estaIniciado()) {
+            servidorTwilio.iniciar();
+        }
+        registry.add("barberturno.whatsapp.twilio.api-base", servidorTwilio::urlBase);
+    }
+
+    @BeforeAll
+    static void asegurarNegociosAntesDelContexto() {
+        if (!servidorTwilio.estaIniciado()) {
+            servidorTwilio.iniciar();
+        }
+        String url = System.getProperty("BT_DB_URL", System.getenv("BT_DB_URL"));
+        if (url == null || url.isBlank()) url = "jdbc:postgresql://localhost:5433/barberturno_v2_test";
+        String user = System.getProperty("BT_FLYWAY_USER", System.getenv("BT_FLYWAY_USER"));
+        if (user == null || user.isBlank()) user = "barberturno_v2";
+        String pass = System.getProperty("BT_FLYWAY_PASSWORD", System.getenv("BT_FLYWAY_PASSWORD"));
+        if (pass == null) pass = "";
+        try (var conexion = DriverManager.getConnection(url, user, pass);
+             var stmt = conexion.prepareStatement("""
+                     INSERT INTO negocio (slug, nombre, creado_en, actualizado_en)
+                     VALUES ('sur', 'Barbería Sur', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                     ON CONFLICT (slug) DO NOTHING
+                     """)) {
+            stmt.executeUpdate();
+        } catch (Exception ignored) {
+            // InicializadorNegocios lo completará con el Environment de Spring
+        }
+    }
+
+    static class InicializadorNegocios implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+        @Override
+        public void initialize(ConfigurableApplicationContext context) {
+            var env = context.getEnvironment();
+            try (var conexion = DriverManager.getConnection(
+                    env.getRequiredProperty("spring.datasource.url"),
+                    env.getRequiredProperty("spring.flyway.user"),
+                    env.getRequiredProperty("spring.flyway.password"));
+                 var stmt = conexion.prepareStatement("""
+                         INSERT INTO negocio (slug, nombre, creado_en, actualizado_en)
+                         VALUES ('sur', 'Barbería Sur', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                         ON CONFLICT (slug) DO NOTHING
+                         """)) {
+                stmt.executeUpdate();
+            } catch (Exception e) {
+                throw new IllegalStateException("No se pudo inicializar el negocio sur antes del contexto.", e);
+            }
+        }
     }
 
     @LocalServerPort private int puerto;
@@ -117,6 +177,8 @@ class VariosNumerosTwilioIT {
     @Autowired private CorrespondenciaDireccionesTwilio direcciones;
     @Autowired private BuzonRespuestasTwilio buzon;
     @Autowired private JsonMapper mapper;
+    @Autowired private RegistroCanalTwilioService registroCanal;
+    @Autowired private Environment entorno;
 
     private final HttpClient clienteHttp = HttpClient.newHttpClient();
     private long negocioAId;
@@ -131,6 +193,24 @@ class VariosNumerosTwilioIT {
         LimpiezaBaseDatos.limpiar(sql);
         reloj.reiniciar();
 
+        // Re-crear negocio 'sur' si fue eliminado por LimpiezaBaseDatos (DELETE FROM negocio WHERE id <> 1)
+        try (var conexion = DriverManager.getConnection(
+                entorno.getRequiredProperty("spring.datasource.url"),
+                entorno.getRequiredProperty("spring.flyway.user"),
+                entorno.getRequiredProperty("spring.flyway.password"));
+             var stmt = conexion.prepareStatement("""
+                     INSERT INTO negocio (slug, nombre, creado_en, actualizado_en)
+                     VALUES ('sur', 'Barbería Sur', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                     ON CONFLICT (slug) DO NOTHING
+                     """)) {
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo re-crear el negocio sur en la prueba.", e);
+        }
+
+        // Registrar canales del Sandbox para barberturno y sur
+        registroCanal.registrar();
+
         negocioAId = directorio.buscar("barberturno").orElseThrow();
         negocioBId = directorio.buscar("sur").orElseThrow();
 
@@ -139,15 +219,15 @@ class VariosNumerosTwilioIT {
 
         ejecutor.ejecutar(negocioAId, () -> {
             sql.update("UPDATE negocio SET limite_reservas_activas = 5, confirmacion_manual = false WHERE id = ?", negocioAId);
-            sql.update("INSERT INTO membresia (negocio_id, usuario_id, rol, estado, creado_en) VALUES (?, ?, 'PROPIETARIO', 'ACTIVA', ?)",
-                    negocioAId, titularA.getId(), java.sql.Timestamp.from(reloj.instant()));
+            sql.update("INSERT INTO membresia (negocio_id, usuario_id, rol, estado, creado_en, actualizado_en) VALUES (?, ?, 'PROPIETARIO', 'ACTIVA', ?, ?)",
+                    negocioAId, titularA.getId(), java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant()));
             return null;
         });
 
         ejecutor.ejecutar(negocioBId, () -> {
             sql.update("UPDATE negocio SET limite_reservas_activas = 5, confirmacion_manual = false WHERE id = ?", negocioBId);
-            sql.update("INSERT INTO membresia (negocio_id, usuario_id, rol, estado, creado_en) VALUES (?, ?, 'PROPIETARIO', 'ACTIVA', ?)",
-                    negocioBId, titularB.getId(), java.sql.Timestamp.from(reloj.instant()));
+            sql.update("INSERT INTO membresia (negocio_id, usuario_id, rol, estado, creado_en, actualizado_en) VALUES (?, ?, 'PROPIETARIO', 'ACTIVA', ?, ?)",
+                    negocioBId, titularB.getId(), java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant()));
             return null;
         });
     }

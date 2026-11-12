@@ -93,7 +93,9 @@ class VinculoProfesionalWhatsAppIT extends WhatsAppSalidaPruebaBase {
         enviarTexto(NUMERO_A, WA_BARBERO, "Carlos Barbero", comandoNormalizado);
 
         var respuesta = ultimoMensaje(a, WA_BARBERO);
-        assertThat(respuesta.texto()).contains("Listo, Profesional ficticio: este WhatsApp quedó vinculado a tu agenda en Barbería Norte");
+        String nombreNegocioA = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT nombre FROM negocio WHERE id=?", String.class, a));
+        assertThat(respuesta.texto()).contains("Listo, Profesional ficticio: este WhatsApp quedó vinculado a tu agenda en " + nombreNegocioA);
         assertThat(respuesta.texto()).contains("Escribe «agenda hoy» o «agenda mañana»");
 
         // 4. Verificar que se creó el registro en vinculo_whatsapp_profesional y se marcó usado_en
