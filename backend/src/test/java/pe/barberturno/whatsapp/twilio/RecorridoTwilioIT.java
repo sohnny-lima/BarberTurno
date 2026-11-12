@@ -84,6 +84,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "barberturno.whatsapp.twilio.auth-token=token-ficticio-twilio-it",
         "barberturno.whatsapp.twilio.numero=+14155238886",
         "barberturno.whatsapp.twilio.negocio-slug=barberturno",
+        "barberturno.whatsapp.twilio.respuesta-twiml=false",
         "barberturno.whatsapp.twilio.url-publica=https://pruebas.barberturno.test",
         "barberturno.whatsapp.twilio.intervalo-envio=3s"
 })

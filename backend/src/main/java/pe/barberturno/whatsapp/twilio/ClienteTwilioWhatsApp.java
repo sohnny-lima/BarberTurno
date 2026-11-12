@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +25,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Transporte del Sandbox con texto numerado y HTTP sin redirecciones ni reintentos ocultos (V2-DA-99).
- * Serializa las solicitudes de esta instancia, esperando al menos intervalo-envio desde el fin de la
+ * Entrega primero al buzón TwiML sin adquirir el bloqueo HTTP ni esperar el intervalo del Sandbox.
+ * Serializa las solicitudes REST de esta instancia, esperando al menos intervalo-envio desde el fin de la
  * anterior, incluso entre lotes e hilos. La espera y el HTTP ocurren fuera de transacciones del enviador.
  * No concilia por biz_opaque_callback_data: un resultado desconocido conserva el riesgo de duplicados.
  * @author Sohnny Walter Lima Infanzón
@@ -38,6 +40,8 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
     private final TwilioPropiedades propiedades;
     private final CorrespondenciaMenusTwilio menus;
     private final JsonMapper mapper;
+    private final CorrespondenciaDireccionesTwilio direcciones;
+    private final BuzonRespuestasTwilio buzon;
     private final RestClient cliente;
     private boolean huboEnvio;
     private long finAnterior;
@@ -47,9 +51,13 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
      * @param propiedades credenciales, origen y callbacks del Sandbox
      * @param menus correspondencias compartidas con la entrada
      * @param mapper lectura de las respuestas del proveedor
+     * @param direcciones destinos BSUID compartidos con la entrada
+     * @param buzon esperas TwiML abiertas por el webhook antes de encolar
      */
-    public ClienteTwilioWhatsApp(TwilioPropiedades propiedades, CorrespondenciaMenusTwilio menus, JsonMapper mapper) {
+    public ClienteTwilioWhatsApp(TwilioPropiedades propiedades, CorrespondenciaMenusTwilio menus, JsonMapper mapper,
+            CorrespondenciaDireccionesTwilio direcciones, BuzonRespuestasTwilio buzon) {
         this.propiedades = propiedades; this.menus = menus; this.mapper = mapper;
+        this.direcciones = direcciones; this.buzon = buzon;
         var transporte = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
         var fabrica = new JdkClientHttpRequestFactory(transporte);
@@ -64,14 +72,15 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
     public boolean configurado() { return propiedades.configurado(); }
 
     /**
-     * Convierte el cuerpo de Meta y realiza como máximo un POST, respetando el intervalo del Sandbox.
+     * Convierte el cuerpo de Meta y ofrece el texto validado a la espera TwiML antes de cualquier HTTP.
+     * Sin espera disponible realiza como máximo un POST, respetando el intervalo del Sandbox.
      * Un interactivo aceptado o incierto sustituye el menú; un rechazo conserva el anterior.
      * @param phoneNumberId dígitos del número del Sandbox registrado en el canal
      * @param cuerpo mensaje de la outbox en formato de Graph, con destinatario wa_id
-     * @return aceptación por sid, rechazo clasificado o resultado desconocido ante incertidumbre de red
+     * @return aceptación por sid o twiml:UUID, rechazo clasificado o incertidumbre de red
      */
     @Override
-    public synchronized ResultadoEnvio enviar(String phoneNumberId, ObjectNode cuerpo) {
+    public ResultadoEnvio enviar(String phoneNumberId, ObjectNode cuerpo) {
         if (!configurado()) return permanente(MotivoFallo.CREDENCIAL_RECHAZADA);
         if (!propiedades.numero().substring(1).equals(phoneNumberId)) return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         if ("template".equals(cuerpo.path("type").asString(""))) return permanente(MotivoFallo.PLANTILLA_RECHAZADA);
@@ -79,9 +88,21 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
         Mensaje mensaje;
         try { mensaje = convertir(cuerpo); }
         catch (IllegalArgumentException mal) { return permanente(MotivoFallo.SOLICITUD_RECHAZADA); }
-        if (!waId.matches("[1-9][0-9]{1,14}") || mensaje.texto().isBlank() || mensaje.texto().length() > 1600) {
+        if ((!waId.matches("[1-9][0-9]{1,14}") && !waId.matches("9[0-9]{19}"))
+                || mensaje.texto().isBlank() || mensaje.texto().length() > 1600) {
             return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         }
+        if (propiedades.respuestaTwiml() && buzon.entregar(waId, mensaje.texto())) {
+            if (!mensaje.opciones().isEmpty()) menus.guardar(waId, mensaje.opciones());
+            LOG.info("Twilio Sandbox: respuesta aceptada por TwiML.");
+            return new ResultadoEnvio.Aceptado("twiml:" + UUID.randomUUID());
+        }
+        return enviarRest(waId, mensaje);
+    }
+
+    private synchronized ResultadoEnvio enviarRest(String waId, Mensaje mensaje) {
+        var destino = direcciones.destino(waId);
+        if (destino.isEmpty()) return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         try { esperarIntervalo(); }
         catch (InterruptedException interrumpido) {
             Thread.currentThread().interrupt();
@@ -89,7 +110,7 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
         }
         var formulario = new LinkedMultiValueMap<String, String>();
         formulario.add("From", "whatsapp:" + propiedades.numero());
-        formulario.add("To", "whatsapp:+" + waId);
+        formulario.add("To", destino.get());
         formulario.add("Body", mensaje.texto());
         formulario.add("StatusCallback", propiedades.urlPublica() + "/api/twilio/estado");
         ResultadoEnvio resultado;

@@ -15,6 +15,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param negocioSlug negocio de prueba al que se registra el canal
  * @param intervaloEnvio separación mínima entre solicitudes, de al menos tres segundos
  * @param apiBase origen HTTPS de Twilio, o HTTP de bucle local para pruebas
+ * @param respuestaTwiml habilita la respuesta dentro del webhook en vez del envío REST cuando hay espera
+ * @param respuestaEspera plazo para el primer mensaje, entre uno y doce segundos
+ * @param respuestaSilencio plazo entre mensajes, desde cien milisegundos hasta la espera inicial
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
@@ -22,7 +25,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultValue("") String authToken,
         @DefaultValue("+14155238886") String numero, @DefaultValue("") String urlPublica,
         @DefaultValue("barberturno") String negocioSlug, @DefaultValue("3s") Duration intervaloEnvio,
-        @DefaultValue("https://api.twilio.com") String apiBase) {
+        @DefaultValue("https://api.twilio.com") String apiBase,
+        @DefaultValue("true") boolean respuestaTwiml, @DefaultValue("10s") Duration respuestaEspera,
+        @DefaultValue("1500ms") Duration respuestaSilencio) {
 
     /**
      * Rechaza configuraciones ambiguas y evita filtrar secretos en errores de validación.
@@ -33,6 +38,9 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
      * @param negocioSlug slug canónico del negocio ficticio
      * @param intervaloEnvio intervalo de al menos tres segundos impuesto por el Sandbox
      * @param apiBase origen del proveedor o del doble HTTP local
+     * @param respuestaTwiml true para recoger respuestas de la outbox en el webhook
+     * @param respuestaEspera máximo para el primer mensaje desde la apertura
+     * @param respuestaSilencio silencio máximo desde la última respuesta aceptada
      * @throws IllegalArgumentException si un formato o intervalo no cumple el contrato
      */
     public TwilioPropiedades {
@@ -45,7 +53,11 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
                 || !urlPublica.isEmpty() && !baseValida(urlPublica, false)
                 || negocioSlug == null || negocioSlug.length() > 40 || !negocioSlug.matches("[a-z0-9](-?[a-z0-9])*")
                 || intervaloEnvio == null || intervaloEnvio.compareTo(Duration.ofSeconds(3)) < 0
-                || !baseValida(apiBase, true)) {
+                || !baseValida(apiBase, true)
+                || respuestaEspera == null || respuestaEspera.compareTo(Duration.ofSeconds(1)) < 0
+                || respuestaEspera.compareTo(Duration.ofSeconds(12)) > 0
+                || respuestaSilencio == null || respuestaSilencio.compareTo(Duration.ofMillis(100)) < 0
+                || respuestaSilencio.compareTo(respuestaEspera) > 0) {
             throw new IllegalArgumentException("Configuración de Twilio Sandbox fuera de rango.");
         }
     }

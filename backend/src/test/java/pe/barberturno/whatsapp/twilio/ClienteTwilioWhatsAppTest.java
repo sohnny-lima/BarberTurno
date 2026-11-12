@@ -64,8 +64,9 @@ class ClienteTwilioWhatsAppTest {
         menusConversacion = new MenusConversacion();
 
         propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofSeconds(3), servidor.urlBase());
-        cliente = new ClienteTwilioWhatsApp(propiedades, menus, mapper);
+                "barberturno", Duration.ofSeconds(3), servidor.urlBase(), false, Duration.ofSeconds(10), Duration.ofMillis(1500));
+        cliente = new ClienteTwilioWhatsApp(propiedades, menus, mapper,
+                new CorrespondenciaDireccionesTwilio(), new BuzonRespuestasTwilio(propiedades));
     }
 
     @AfterEach
@@ -365,7 +366,7 @@ class ClienteTwilioWhatsAppTest {
     @Test
     void propiedades_intervaloMenorDeTresSegundos_esRechazadoEnConstruccion() {
         assertThatThrownBy(() -> new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofMillis(200), "https://api.twilio.com"))
+                "barberturno", Duration.ofMillis(200), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Configuración de Twilio Sandbox fuera de rango.");
     }

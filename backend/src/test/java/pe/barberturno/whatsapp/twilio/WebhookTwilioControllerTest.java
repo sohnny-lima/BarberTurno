@@ -54,13 +54,13 @@ class WebhookTwilioControllerTest {
     void preparar() {
         recepcion = mock(RecepcionWebhookService.class);
         propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
-                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com");
+                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500));
         FirmaTwilio firma = new FirmaTwilio(propiedades);
         Clock reloj = Clock.fixed(AHORA, ZoneOffset.UTC);
         menus = new CorrespondenciaMenusTwilio(reloj);
         JsonMapper mapper = JsonMapper.builder().build();
-        TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades);
-        controlador = new WebhookTwilioController(firma, traductor, recepcion);
+        TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, new CorrespondenciaDireccionesTwilio());
+        controlador = new WebhookTwilioController(firma, traductor, recepcion, propiedades, new BuzonRespuestasTwilio(propiedades));
     }
 
     private static String calcularFirma(String token, String url, Map<String, String> parametros) {

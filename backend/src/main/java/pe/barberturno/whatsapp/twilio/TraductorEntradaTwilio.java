@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Adapta formularios ya autenticados al JSON que recibe la cola de Meta (V2-DA-98).
+ * Prefiere teléfonos E.164 y adapta BSUID mediante identidades deterministas (V2-DA-103).
  * No resuelve negocios, fichas ni reservas y no modifica la conversación.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
@@ -21,6 +22,7 @@ public class TraductorEntradaTwilio {
     private final Clock reloj;
     private final CorrespondenciaMenusTwilio menus;
     private final TwilioPropiedades propiedades;
+    private final CorrespondenciaDireccionesTwilio direcciones;
 
     /**
      * Comparte las correspondencias con el cliente de salida.
@@ -28,14 +30,17 @@ public class TraductorEntradaTwilio {
      * @param reloj fecha de recepción para los eventos traducidos
      * @param menus último menú por persona
      * @param propiedades número del Sandbox
+     * @param direcciones traducción determinista de BSUID y destinos compartidos con la salida
      */
     public TraductorEntradaTwilio(JsonMapper mapper, Clock reloj, CorrespondenciaMenusTwilio menus,
-            TwilioPropiedades propiedades) {
+            TwilioPropiedades propiedades, CorrespondenciaDireccionesTwilio direcciones) {
         this.mapper = mapper; this.reloj = reloj; this.menus = menus; this.propiedades = propiedades;
+        this.direcciones = direcciones;
     }
 
     /**
-     * Convierte una entrada válida; los destinos ajenos y remitentes de otro canal no generan eventos.
+     * Convierte una entrada con WaId E.164 o BSUID admitido; sin identidad no genera eventos.
+     * Los destinos ajenos y remitentes de otro canal se ignoran antes de traducir el contenido.
      * @param datos formulario firmado con todos sus valores decodificados
      * @return JSON de Meta, o vacío si la notificación debe ignorarse
      */
@@ -43,7 +48,9 @@ public class TraductorEntradaTwilio {
         String id = datos.getOrDefault("MessageSid", "");
         if (!datos.getOrDefault("To", "").equals("whatsapp:" + propiedades.numero())
                 || !datos.getOrDefault("From", "").startsWith("whatsapp:") || id.isBlank()) return Optional.empty();
-        String waId = datos.getOrDefault("WaId", "");
+        var identidad = identidad(datos);
+        if (identidad.isEmpty()) return Optional.empty();
+        String waId = identidad.get();
         ObjectNode raiz = sobre(propiedades.numero().substring(1));
         ObjectNode valor = valor(raiz);
         valor.putArray("contacts").addObject().put("wa_id", waId).putObject("profile")
@@ -68,7 +75,7 @@ public class TraductorEntradaTwilio {
     }
 
     /**
-     * Convierte estados de Twilio a los estados que actualizan la outbox por sid.
+     * Convierte estados por sid, identificando el To E.164 o BSUID con la misma regla de entrada.
      * @param datos formulario de estado firmado; To es ahora el destinatario del mensaje saliente
      * @return JSON de Meta, o vacío para queued y estados no admitidos
      */
@@ -80,11 +87,14 @@ public class TraductorEntradaTwilio {
         };
         String id = datos.getOrDefault("MessageSid", "");
         String para = datos.getOrDefault("To", "");
-        if (estado.isEmpty() || id.isBlank() || !para.startsWith("whatsapp:+")) return Optional.empty();
+        if (estado.isEmpty() || id.isBlank()) return Optional.empty();
+        String telefono = para.startsWith("whatsapp:+") ? para.substring("whatsapp:+".length()) : "";
+        var identidad = direcciones.identificar(telefono, para);
+        if (identidad.isEmpty()) return Optional.empty();
         ObjectNode raiz = sobre(propiedades.numero().substring(1));
         ObjectNode aviso = valor(raiz).putArray("statuses").addObject().put("id", id).put("status", estado)
                 .put("timestamp", Long.toString(reloj.instant().getEpochSecond()))
-                .put("recipient_id", para.substring("whatsapp:+".length()));
+                .put("recipient_id", identidad.get());
         if (estado.equals("failed")) {
             try {
                 int codigo = Integer.parseInt(datos.getOrDefault("ErrorCode", ""));
@@ -94,6 +104,15 @@ public class TraductorEntradaTwilio {
             }
         }
         return Optional.of(mapper.writeValueAsBytes(raiz));
+    }
+
+    /**
+     * Resuelve la identidad que compartirá la espera del webhook con el mensaje traducido.
+     * @param datos formulario autenticado con WaId opcional y From
+     * @return teléfono o sintético válido, o vacío para un remitente que deba ignorarse
+     */
+    public Optional<String> identidad(Map<String, String> datos) {
+        return direcciones.identificar(datos.getOrDefault("WaId", ""), datos.getOrDefault("From", ""));
     }
 
     private ObjectNode sobre(String numero) {
