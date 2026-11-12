@@ -65,16 +65,20 @@ la base HTTPS pública exacta, sin barra final. Desde `backend/`, con JDK 21 y s
 El arranque registra idempotentemente el Sandbox en `barberturno` después de la demo; no sustituye
 un canal diferente. Sin credenciales o URL pública no se reclama la outbox y los callbacks dan 401.
 Los menús son texto numerado: su correspondencia caduca a las 24 h o al reiniciar; escriba «menú»
-para recuperarla. Los envíos se serializan con al menos 3 s de espera entre solicitudes. Las
-plantillas y los textos de más de 1600 caracteres fallan permanentemente sin llamar al proveedor.
+para recuperarla. Por defecto, el webhook recoge hasta cinco respuestas por TwiML, con hasta 10 s
+para la primera, 1,5 s de silencio entre mensajes y un tope total de 12 s. Admite remitentes BSUID
+sin teléfono mediante una identidad sintética estable. Sin espera abierta, la salida usa REST,
+con al menos 3 s entre solicitudes; `barberturno.whatsapp.twilio.respuesta-twiml=false` conserva
+el modo REST anterior. Las plantillas y los textos de más de 1600 caracteres fallan permanentemente
+sin llamar al proveedor.
 
 Las verificaciones automatizadas usan el ejecutor serializado de este equipo, sin Twilio real:
 
 ```powershell
-pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-twilio -Registro target\v2-tw-firma.log '-Dtest=FirmaTwilioTest' test
+pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-twilio -Registro target\v2-twilio.log '-Dtest=*Twilio*' test
 ```
 
-Ejecuciones y límites de la validación: [evidencia V2-TW](docs/v2/pruebas/v2-tw.md).
+Ejecuciones y límites: [adaptador inicial](docs/v2/pruebas/v2-tw.md) y [BSUID/TwiML](docs/v2/pruebas/v2-tw-157.md).
 
 ## Entorno
 

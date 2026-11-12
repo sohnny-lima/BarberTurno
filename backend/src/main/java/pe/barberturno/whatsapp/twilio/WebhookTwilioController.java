@@ -28,23 +28,29 @@ public class WebhookTwilioController {
     private final FirmaTwilio firma;
     private final TraductorEntradaTwilio traductor;
     private final RecepcionWebhookService recepcion;
+    private final TwilioPropiedades propiedades;
+    private final BuzonRespuestasTwilio buzon;
 
     /**
      * Recibe autenticación y traducción sin acceso directo a las tablas de negocio.
      * @param firma comprobación de HMAC y configuración
      * @param traductor conversión al contrato de entrada de Meta
      * @param recepcion inserción transaccional idempotente
+     * @param propiedades habilitación de la respuesta TwiML
+     * @param buzon esperas de respuesta compartidas con el cliente de salida
      */
     public WebhookTwilioController(FirmaTwilio firma, TraductorEntradaTwilio traductor,
-            RecepcionWebhookService recepcion) {
+            RecepcionWebhookService recepcion, TwilioPropiedades propiedades, BuzonRespuestasTwilio buzon) {
         this.firma = firma; this.traductor = traductor; this.recepcion = recepcion;
+        this.propiedades = propiedades; this.buzon = buzon;
     }
 
     /**
-     * Recibe mensajes sin responder desde el webhook: la respuesta real sale por la outbox.
+     * Encola mensajes y, con TwiML activo, recoge hasta cinco respuestas de la outbox dentro del plazo.
+     * Abre la espera antes de insertar, sin retener una transacción durante la espera del bot.
      * @param peticion formulario crudo, leído con límite antes de decodificarlo
      * @param cabecera firma de Twilio o null
-     * @return 200 text/xml con Response vacío; 401 sin firma válida; 413 por exceso de tamaño
+     * @return 200 text/xml con respuestas escapadas o Response vacío; 401 sin firma válida; 413 por tamaño
      * @throws IOException si falla la lectura del cuerpo HTTP
      */
     @PostMapping(path = "/api/twilio/webhook", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
@@ -78,8 +84,36 @@ public class WebhookTwilioController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         var cuerpo = estado ? traductor.estado(datos) : traductor.mensaje(datos);
-        cuerpo.ifPresent(recepcion::recibir);
-        return ResponseEntity.ok().contentType(MediaType.TEXT_XML).body("<Response/>");
+        if (cuerpo.isEmpty()) return respuesta("<Response/>");
+        if (estado || !propiedades.respuestaTwiml()) {
+            recepcion.recibir(cuerpo.get());
+            return respuesta("<Response/>");
+        }
+        var propia = traductor.identidad(datos).flatMap(buzon::abrir);
+        try {
+            int nuevos = recepcion.recibir(cuerpo.get());
+            if (propia.isEmpty()) return respuesta("<Response/>");
+            // Sin eventos nuevos no se espera, pero se devuelve lo que ya se aceptó en la ventana previa.
+            return respuesta(twiml(nuevos == 0 ? buzon.tomar(propia.get()) : buzon.esperar(propia.get())));
+        } finally {
+            propia.ifPresent(buzon::cerrar);
+        }
+    }
+
+    private static String twiml(java.util.List<String> mensajes) {
+        if (mensajes.isEmpty()) return "<Response/>";
+        StringBuilder xml = new StringBuilder("<Response>");
+        for (String mensaje : mensajes) xml.append("<Message>").append(escaparXml(mensaje)).append("</Message>");
+        return xml.append("</Response>").toString();
+    }
+
+    private static ResponseEntity<String> respuesta(String xml) {
+        return ResponseEntity.ok().contentType(MediaType.TEXT_XML).body(xml);
+    }
+
+    private static String escaparXml(String texto) {
+        return texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&apos;");
     }
 
     private static Map<String, String> formulario(byte[] crudo) {

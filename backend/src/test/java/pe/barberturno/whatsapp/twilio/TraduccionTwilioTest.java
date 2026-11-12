@@ -44,8 +44,8 @@ class TraduccionTwilioTest {
         menus = new CorrespondenciaMenusTwilio(reloj);
         TwilioPropiedades propiedades = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef",
                 "token-ficticio", NUMERO_SANDBOX, "https://pruebas.barberturno.test",
-                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com");
-        traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades);
+                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500));
+        traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, new CorrespondenciaDireccionesTwilio());
     }
 
     private Map<String, String> baseMensaje(String sid, String body) {

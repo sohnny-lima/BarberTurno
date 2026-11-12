@@ -1,6 +1,10 @@
 # Canal local de pruebas; prod + twilio se rechaza antes de abrir conexiones.
 barberturno:
   whatsapp:
+    procesador:
+      intervalo: 300ms
+    salida:
+      intervalo: 300ms
     twilio:
       account-sid: ${BT_TWILIO_ACCOUNT_SID:}
       auth-token: ${BT_TWILIO_AUTH_TOKEN:}
@@ -9,3 +13,6 @@ barberturno:
       negocio-slug: barberturno
       intervalo-envio: 3s
       api-base: https://api.twilio.com
+      respuesta-twiml: true
+      respuesta-espera: 10s
+      respuesta-silencio: 1500ms

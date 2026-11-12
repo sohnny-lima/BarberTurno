@@ -150,3 +150,123 @@ Límites comprobados: §1–§7 intactos; ningún cambio en documentos protegido
 APF2, entregables, evidencias de v1, Azure o bases de v1; no se leyó `.local/coordinacion/`, ni se
 mostraron secretos; sin ramas, worktrees ni etiquetas nuevos, sin push ni servicios reales/de pago.
 Al terminar las verificaciones: 0 procesos Java, 0 escuchas en 8080/8081/4200 y cerrojo del ejecutor ausente.
+
+## 9. Cierre técnico (coordinador)
+
+**11/11/2026 · Hecha en local; pendiente de la prueba manual con el teléfono (§7).** Sin integración en `v2`, sin push y sin despliegue.
+
+- **Producción (Codex 155):** revisada por Claude (conforme) y por Gemini en solo lectura, *diff-first* (g126 terminó sin respuesta tras una lectura denegada; g126b: **APROBADO**).
+- **Pruebas (Gemini g125 → `8587ef1`):** Claude las ajustó a la API y al diálogo reales sin tocar producción (`07fde5f`). El recorrido CT-6 elige cada opción por su texto y exige `CONFIRMADA` antes de cancelar y `CANCELADA` después. Codex 156 las revisó en solo lectura y dejó 11 hallazgos. Gemini g127 y Claude los resolvieron (`3995710`): firma con `+`, espacios y caracteres no ASCII; parámetros repetidos; reintento del mismo `MessageSid`; menú caducado y número fuera de rango; `read`; restauración del negocio tras cada prueba. Un hallazgo alto también se corrigió: una prueba dejaba `limite_reservas_activas = 5` y rompía `ParametrosNegocioIT`.
+- **Bloqueo de Codex 155:** quedó resuelto. `-DskipTests verify` no omite el check de JaCoCo; el `verify` completo sí lo cumple.
+- **Resultados:**
+  - Twilio + `ParametrosNegocioIT`: 93/0.
+  - `verify` completo sobre `271d87c`: **3884 pruebas, 0 fallos/errores/omisiones**; «All coverage checks have been met»; Javadoc sin avisos; BUILD SUCCESS.
+- **CT-1…CT-9:** cubiertos por pruebas automáticas con un servidor Twilio simulado. Sin acreditar: la conexión con Twilio real y el recorrido desde un teléfono (§7).
+
+## 10. Ajuste por BSUID y respuesta por TwiML (12/11/2026)
+
+**Hechos observados** (sonda local sin credenciales, 12/11/2026 03:56 h de Lima; solo se registró la forma de cada campo, no su valor):
+- **Remitente:** el Sandbox clásico envió `From` y `ExternalUserId` con `whatsapp:PE.` seguido de 16 caracteres (BSUID de Meta), **sin `WaId`**. También llegaron `ProfileName`, `Username`, `ChannelMetadata` y `X-Twilio-Signature`.
+- **TwiML:** una respuesta TwiML `<Response><Message>…</Message></Response>` devuelta por el webhook **llegó al teléfono**.
+- **API REST:** según el responsable, la API de mensajes devolvió **HTTP 400** al responsable con plantilla y con texto libre.
+
+Fuente: [Twilio · WhatsApp Key Concepts, «WhatsApp usernames»](https://www.twilio.com/docs/whatsapp/key-concepts), consultada el 12/11/2026. Si no hay número, Twilio pone el BSUID en `From`, `To` y `ExternalUserId`.
+
+Con el adaptador de §8, ese remitente se descartaba: `wa_id` vacío no cumple `^[0-9]{1,20}$`. Además, la salida solo admitía `whatsapp:+<E.164>`.
+
+### V2-DA-103 · Identidad por BSUID con un `wa_id` sintético
+1. Si `WaId` cumple `[1-9][0-9]{1,14}`, se usa como hasta ahora.
+2. Si no, y `From` cumple `whatsapp:[A-Z]{2}\.[A-Za-z0-9]{1,128}`, se usa un `wa_id` **sintético de 20 dígitos**:
+   - se calcula como `"9"` + `(los 8 primeros bytes de SHA-256(UTF-8 de From sin "whatsapp:") como entero sin signo) mod 10^19`, rellenado a 19 dígitos;
+   - es determinista: la misma persona conserva su ficha y su conversación tras reiniciar;
+   - nunca coincide con un E.164, que tiene 15 dígitos como máximo;
+   - cabe en las restricciones actuales (`^[0-9]{1,20}$`), así que **no hay migración**.
+3. En cualquier otro caso no se genera ningún evento.
+4. **Correspondencia en memoria:** se guarda `wa_id sintético → dirección BSUID` (la última vista; máximo 10 000 entradas; se pierde al reiniciar). Solo sirve para enviar por REST a esa dirección.
+5. **Avisos de estado:** un `To` con BSUID se traduce con la misma función.
+6. **Registros:** nunca incluyen el BSUID ni el `wa_id` sintético.
+7. **Bandeja local:** muestra el identificador sintético en lugar de un teléfono. Es aceptable, porque es solo para la prueba.
+
+### V2-DA-104 · Respuesta por TwiML dentro del mismo webhook
+1. Con `barberturno.whatsapp.twilio.respuesta-twiml=true` (valor por defecto), el webhook de mensajes hace lo siguiente:
+   - abre una **espera** para el `wa_id` **antes** de llamar a `RecepcionWebhookService.recibir`;
+   - si `recibir` devuelve 0 (duplicado o ignorado), la cierra y responde `<Response/>` al instante;
+   - si no, espera las respuestas del bot y devuelve un `<Message>` por cada una, en orden y con XML escapado.
+2. **Plazos de la espera:**
+   - hasta `respuesta-espera` por el primer mensaje (por defecto 10 s);
+   - tras cada mensaje, hasta `respuesta-silencio` por el siguiente (por defecto 1,5 s);
+   - nunca más de 12 s en total, porque Twilio corta a los 15 s;
+   - como máximo 5 mensajes por respuesta.
+3. **Una espera por `wa_id`.** Si llega otro mensaje de la misma persona con una espera abierta, se encola y responde `<Response/>` de inmediato. Sus respuestas viajan en la espera abierta.
+4. **Salida (`ClienteTwilioWhatsApp`):**
+   - Antes de cualquier HTTP, y fuera de la sección `synchronized`, el texto ya convertido (§4.3, con las mismas validaciones) se entrega a la espera abierta.
+   - Si la espera lo acepta, el resultado es `Aceptado("twiml:" + UUID)`, sin intervalo de 3 s y sin HTTP. El menú se guarda igual que con un envío aceptado.
+   - Si no hay espera, o ya se cerró o se llenó, se envía por REST como en §4.3. El `To` es `whatsapp:+<E.164>` o la dirección BSUID de la correspondencia. Un sintético sin dirección conocida → rechazo permanente local, sin HTTP.
+5. **Intervalos con el perfil `twilio`:** `barberturno.whatsapp.procesador.intervalo` y `barberturno.whatsapp.salida.intervalo` bajan a 300 ms para responder dentro del plazo.
+6. **Límites aceptados para el Sandbox:**
+   - si la respuesta HTTP no llega a Twilio, un mensaje marcado `twiml:` se pierde sin reintento;
+   - los avisos de estado de Twilio para esos mensajes no coinciden con ningún `sid` y se ignoran;
+   - el hilo del webhook queda ocupado hasta 12 s.
+7. **Medición de tiempo:** se usa `System.nanoTime`; no son fechas de negocio.
+8. **Configuración nueva**, validada al arrancar:
+   - `respuesta-twiml` (`true`);
+   - `respuesta-espera` (10 s, entre 1 y 12 s);
+   - `respuesta-silencio` (1,5 s, entre 100 ms y `respuesta-espera`).
+
+### Criterios añadidos
+| CT | Criterio |
+|---|---|
+| CT-10 | Remitente BSUID sin `WaId` → un evento con `wa_id` sintético de 20 dígitos. Es estable para el mismo BSUID y distinto entre dos BSUID distintos. Un `From` inválido no genera evento. Si `WaId` existe, se usa el número. |
+| CT-11 | **Recorrido CT-6 con un remitente BSUID y respuestas por TwiML:** cada webhook devuelve en su TwiML las respuestas del bot (menús numerados), sin llamar al servidor Twilio simulado. La reserva aparece en `GET /api/n/barberturno/reservas` y después queda `CANCELADA`. |
+| CT-12 | Se responde `<Response/>` sin esperar en tres casos: duplicado del mismo `MessageSid`, segundo mensaje con una espera abierta y remitente inválido. Sin respuestas del bot dentro del plazo, también `<Response/>`. Un mensaje posterior se envía por REST con `To=whatsapp:PE.…` cuando la dirección es conocida, o se rechaza sin HTTP si no lo es. `<`, `&` y comillas quedan escapados. Más de 5 mensajes → los sobrantes van por REST. |
+| CT-13 | Un aviso de estado con `To` BSUID actualiza el mensaje por su `sid`. `respuesta-twiml=false` mantiene el comportamiento de §8. Configuración fuera de rango → no arranca. Los registros no contienen BSUID, `wa_id` sintético ni texto. |
+
+## 11. Implementación (Codex 157)
+
+**12/11/2026 · Producción Hecha; pendientes CT-10…CT-13 de Gemini y revisión del coordinador.**
+Rama existente `tarea/V2-TWILIO-sandbox`, desde `1c9e5b8`. Sin merge, integración ni push.
+
+- Nuevos componentes `CorrespondenciaDireccionesTwilio` (identidad exacta de V2-DA-103, mapa
+  sincronizado con máximo 10 000 entradas) y `BuzonRespuestasTwilio` (una reserva por persona,
+  cinco mensajes, plazos monotónicos y cierre atómico con la entrega).
+- `TraductorEntradaTwilio`: WaId E.164 prioritario, BSUID como alternativa, inválidos sin evento;
+  avisos de estado con la misma identidad sintética.
+- `WebhookTwilioController`: abre antes de recibir, no espera con cero eventos nuevos o reserva
+  ajena; devuelve los mensajes en orden con los cinco caracteres XML escapados y cierra en finally.
+- `ClienteTwilioWhatsApp`: validación/conversión previa; entrega TwiML fuera del bloqueo REST,
+  sin intervalo ni HTTP, con `Aceptado("twiml:" + UUID)` y menú guardado. La ruta REST conserva
+  el intervalo y admite el BSUID conocido; un sintético desconocido se rechaza localmente.
+- `TwilioPropiedades`, `application-twilio.yml`: valores y rangos de §10; procesador/salida a 300 ms.
+  Javadoc útil en toda la superficie pública nueva o modificada; registros solo de resultados.
+- Seis pruebas existentes: ajustes mecánicos de constructores/componentes y configuración
+  `respuesta-twiml=false`; ninguna aserción modificada y ninguna prueba nueva. README actualizado.
+  Estado en `10-backlog.md`, conforme a AGENTS §5.1; evidencia en [v2-tw-157.md](pruebas/v2-tw-157.md).
+
+Decisiones menores: retirada de la dirección menos recientemente vista al superar 10 000; el tiempo
+inicial cuenta desde abrir, incluida la recepción; copia y cierre de la espera bajo el mismo monitor.
+El cierre usa comparación de reserva para no retirar otra posterior. El orden dentro del TwiML es
+el de aceptación; no se garantiza el orden de llegada entre TwiML y los sobrantes enviados por REST.
+Si procesador/enviador llegan tarde, se toma REST, con el riesgo de HTTP 400 observado por el responsable.
+Una cancelación por recepción duplicada/fallida puede descartar una respuesta anterior aceptada en
+esa ventana; no se cambia la cola ni se añade compensación. Detalles y demás límites en la evidencia.
+
+Verificación serializada con `mvn-v2-test.ps1`, JDK 21.0.8+9 y PostgreSQL 18.6 de pruebas:
+
+| Argumentos | Resultado | Registro en `backend/target/` |
+|---|---|---|
+| `-Dtest=*Twilio* test` | 83 pruebas; 0 fallos/errores/omisiones; BUILD SUCCESS | `v2-tw-157-twilio.log` |
+| Regresión del encargo 155 (ocho clases, orden completa en evidencia) | 154 pruebas; 0 fallos/errores/omisiones; BUILD SUCCESS | `v2-tw-157-regresion.log` |
+| `-DskipTests javadoc:javadoc` | BUILD SUCCESS; 0 avisos | `v2-tw-157-javadoc.log` |
+
+No se ejecutó verify completo ni se acredita todavía CT-10…CT-13, cobertura total o prueba real.
+No hay bloqueos de implementación ni cambios necesarios de contrato, DDL o reglas de negocio.
+
+Commit de producción: `38af27af6d2b1af398e2364731830f71d7ca5c7e`.
+Cierre documental por asunto `docs(whatsapp): documentar BSUID, TwiML y verificación del encargo 157 [V2-TW]`;
+el hash propio se entrega en el informe final. **Merge: ninguno**, por instrucción expresa.
+
+§1–§10 intactos; sin cambios en documentos protegidos, APF2, v1, frontend, migraciones, conversación,
+reglas de reserva o webhook Meta. Sin lectura de coordinación, secretos expuestos, datos reales,
+servicios de pago/reales, Azure, ngrok, push, remotos, etiquetas, ramas/worktrees nuevos ni cambios de ACL.
+Sin procesos propios, escuchas en 8080/8081/4200 ni cerrojo pendiente; se conserva únicamente el Java
+preexistente de VS Code, ajeno al encargo.

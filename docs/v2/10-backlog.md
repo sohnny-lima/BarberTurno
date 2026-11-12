@@ -562,7 +562,10 @@ Dos barberías: la inicial (`barberturno`) y `sur`, creadas por el *seed* `demo`
 
 | Subtarea autorizada | Estado | Fecha | Evidencia |
 |---|---|---|---|
-| Producción y vector de firma · Codex 155 | Bloqueada (cierre: JaCoCo exige cobertura de la suite completa reservada a Claude); código implementado y 155 pruebas aprobadas | 11/11/2026 | [Contrato §8](20-v2-twilio-sandbox.md#8-implementación-codex-155), [evidencia](pruebas/v2-tw.md) |
+| Producción y vector de firma · Codex 155 | Hecha (el bloqueo por JaCoCo venía de la ejecución parcial; lo resolvió el `verify` completo del coordinador) | 11/11/2026 | [Contrato §8](20-v2-twilio-sandbox.md#8-implementación-codex-155), [evidencia](pruebas/v2-tw.md) |
+| Pruebas CT-1…CT-8 · Gemini g125/g127 + ajustes de Claude; revisión Codex 156 | Hecha | 11/11/2026 | `8587ef1`, `07fde5f`, `3995710`; 83 pruebas nuevas, 0 fallos |
+| BSUID y respuesta TwiML · Codex 157 | Hecha (producción; pendientes CT-10…CT-13 de Gemini y revisión) | 12/11/2026 | `38af27af6d2b1af398e2364731830f71d7ca5c7e`; 83 + 154 pruebas, Javadoc sin avisos; [§11](20-v2-twilio-sandbox.md#11-implementación-codex-157), [evidencia](pruebas/v2-tw-157.md); sin merge ni push |
+| Cierre técnico · Claude (revisión de producción, Gemini g126b APROBADO, `verify` completo) | **Hecha en local; pendiente de la prueba manual con el teléfono** (sin integrar en `v2` ni publicar) | 11/11/2026 | [Contrato §9](20-v2-twilio-sandbox.md#9-cierre-técnico-coordinador), [evidencia](pruebas/v2-tw.md#cierre-del-coordinador): 3884/0, JaCoCo y Javadoc correctos |
 
 Contrato aprobado: [Twilio Sandbox](20-v2-twilio-sandbox.md). Rama existente `tarea/V2-TWILIO-sandbox`,
 sin integración ni push. Las pruebas nuevas CT-1…CT-8 pertenecen a Gemini y la ejecución completa al

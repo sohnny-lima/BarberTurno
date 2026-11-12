@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "barberturno.whatsapp.twilio.auth-token=token-ficticio-twilio-it",
         "barberturno.whatsapp.twilio.numero=+14155238886",
         "barberturno.whatsapp.twilio.negocio-slug=barberturno",
+        "barberturno.whatsapp.twilio.respuesta-twiml=false",
         "barberturno.whatsapp.twilio.url-publica=https://pruebas.barberturno.test"
 })
 @ActiveProfiles({"test", "twilio"})
@@ -125,7 +126,7 @@ class RegistroCanalTwilioIT {
         TwilioPropiedades propiedadesNegocioInexistente = new TwilioPropiedades(
                 "AC0123456789abcdef0123456789abcdef", "token", NUMERO_SANDBOX,
                 "https://pruebas.barberturno.test", "slug-inexistente", Duration.ofSeconds(3),
-                "https://api.twilio.com");
+                "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500));
         RegistroCanalTwilioService servicioInexistente = new RegistroCanalTwilioService(
                 entityManager, canales, reloj, propiedadesNegocioInexistente);
 

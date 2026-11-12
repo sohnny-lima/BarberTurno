@@ -48,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "barberturno.whatsapp.twilio.auth-token=token-ficticio-twilio-it",
         "barberturno.whatsapp.twilio.numero=+14155238886",
         "barberturno.whatsapp.twilio.negocio-slug=barberturno",
+        "barberturno.whatsapp.twilio.respuesta-twiml=false",
         "barberturno.whatsapp.twilio.url-publica=https://pruebas.barberturno.test"
 })
 @ActiveProfiles({"test", "twilio"})
