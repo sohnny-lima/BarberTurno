@@ -3,6 +3,7 @@ package pe.barberturno.conversation;
 import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.util.OptionalLong;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,6 +79,22 @@ public class ConversacionesWhatsApp {
      */
     public void vaciar(long conversacionId) {
         guardar(conversacionId, mapper.createObjectNode());
+    }
+
+    /**
+     * Recupera el resumen interactivo ya presentado sin duplicar datos ni nonce en el estado de navegación.
+     * Se usa únicamente al repetir el paso de confirmación: no propone ni ejecuta operaciones.
+     * @param conversacionId conversación bloqueada del negocio actual, limitada por RLS
+     * @return último interactivo de salida, si su contenido sigue disponible
+     */
+    public Optional<ObjectNode> ultimoInteractivo(long conversacionId) {
+        var filas = entidades.createNativeQuery("""
+                SELECT contenido::text FROM mensaje_whatsapp WHERE conversacion_id=:id
+                    AND direccion='SALIENTE' AND tipo='INTERACTIVO' ORDER BY id DESC LIMIT 1
+                """, String.class).setParameter("id", conversacionId).getResultList();
+        if (filas.isEmpty()) return Optional.empty();
+        var interactivo = mapper.readTree((String) filas.getFirst()).path("interactivo");
+        return interactivo instanceof ObjectNode objeto ? Optional.of(objeto.deepCopy()) : Optional.empty();
     }
 
     /**

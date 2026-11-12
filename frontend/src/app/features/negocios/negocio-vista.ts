@@ -10,6 +10,7 @@ import { ReportesApi } from '../../core/api/reportes-api';
 import { ReservasApi } from '../../core/api/reservas-api';
 import { ServiciosApi } from '../../core/api/servicios-api';
 import { UsuariosApi } from '../../core/api/usuarios-api';
+import { VinculoProfesionalApi } from '../../core/api/vinculo-profesional-api';
 import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { CabeceraPagina } from '../../shared/cabecera-pagina';
 import { EstadoContenido } from '../../shared/estado-contenido';
@@ -26,6 +27,7 @@ import { EstadoContenido } from '../../shared/estado-contenido';
     ReservasApi,
     ServiciosApi,
     UsuariosApi,
+    VinculoProfesionalApi,
     MatDialog,
     {
       provide: MAT_DIALOG_DEFAULT_OPTIONS,

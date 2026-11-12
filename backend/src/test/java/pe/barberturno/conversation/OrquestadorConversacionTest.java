@@ -81,7 +81,7 @@ class OrquestadorConversacionTest {
                 new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
         orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
                 consultas, operaciones, salida, propiedades, derivacion, bandeja(BandejaPropiedades.Entrantes.SOLO_HUMANO),
-                turnos, limites, Clock.fixed(AHORA, ZoneOffset.UTC));
+                turnos, limites, mock(VinculoProfesionalWhatsAppService.class), Clock.fixed(AHORA, ZoneOffset.UTC));
         when(registro.operativo(NEGOCIO)).thenReturn(true);
         when(consultas.nombreNegocio()).thenReturn("Barbería Norte");
         when(textos.bienvenida(anyString())).thenReturn("bienvenida");
@@ -395,7 +395,7 @@ class OrquestadorConversacionTest {
                 new ConversacionPropiedades.Retencion(false, Duration.ofHours(1), 200, Duration.ofDays(30), null, null, null));
         orquestador = new OrquestadorConversacion(registro, conversaciones, consentimiento, interprete, menus, textos,
                 consultas, operaciones, salida, propiedades, derivacion, bandeja(BandejaPropiedades.Entrantes.TODOS),
-                turnos, limites, Clock.fixed(AHORA, ZoneOffset.UTC));
+                turnos, limites, mock(VinculoProfesionalWhatsAppService.class), Clock.fixed(AHORA, ZoneOffset.UTC));
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
                 seleccion(new CodigoSeleccion.Menu(OpcionMenu.PERSONA)));
         recibir();

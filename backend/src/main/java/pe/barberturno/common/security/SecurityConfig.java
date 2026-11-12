@@ -82,6 +82,7 @@ public class SecurityConfig {
      * las variantes y rutas de negocio nunca heredan la exención.
      * Invitaciones: consulta y registro por token públicos, aceptación autenticada y gestión local solo ADMIN efectivo.
      * Equipo permite gestión ADMIN y salida propia del personal; el servicio distingue propietario y encargado.
+     * Vínculo profesional exige sesión; el servicio impone perfil y membresía activos con 404, y conserva CSRF.
      * Configuración admite ADMIN efectivo y exige propietario vigente también en el servicio.
      * La proyección pública GET de negocio expone solo los parámetros aprobados en V2-DA-44.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
@@ -223,6 +224,7 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.POST, "/api/notificaciones/{id}/lectura", "/api/notificaciones/lectura").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/reportes/resumen", "/api/reportes/resumen.xlsx").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole("ADMIN");
+                    permisos.requestMatchers("/api/whatsapp/vinculo-profesional").authenticated();
                     permisos.requestMatchers("/api/whatsapp/conversaciones", "/api/whatsapp/conversaciones/**").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.POST, "/api/clientes/{id}/anonimizar").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/clientes/{id}").hasRole("ADMIN");

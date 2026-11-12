@@ -33,6 +33,7 @@ public class RolNegocioFilter extends OncePerRequestFilter {
 
     /**
      * Deniega con 403 a una identidad válida sin papel local, sin confundirla con una sesión inválida.
+     * La ruta exacta de vínculo profesional delega el 404 de perfil y membresía al servicio (V2-DA-106).
      * Tras CSRF y autenticación impide toda escritura de negocio suspendido (409) bajo su ruta canónica.
      * @param request solicitud normalizada por el resolutor
      * @param response respuesta que recibe PROHIBIDO cuando corresponde
@@ -50,7 +51,8 @@ public class RolNegocioFilter extends OncePerRequestFilter {
                 || ruta.equals("/api/registro"));
         var autenticacion = SecurityContextHolder.getContext().getAuthentication();
         if (contexto.negocioActual().isPresent() && !publica && !altaPropia && autenticacion != null
-                && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario && usuario.rol() == null) {
+                && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario && usuario.rol() == null
+                && !ruta.equals("/api/whatsapp/vinculo-profesional")) {
             errores.escribir(request, response, ErrorCodigo.PROHIBIDO, "No tiene permiso para realizar esta acción.");
             return;
         }

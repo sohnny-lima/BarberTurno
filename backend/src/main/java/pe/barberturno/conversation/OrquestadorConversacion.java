@@ -42,8 +42,10 @@ import tools.jackson.databind.node.ObjectNode;
  * paso del menú, consentimiento u operación → respuesta. Ninguna decisión de negocio se toma aquí: las
  * consultas, propuestas y ejecuciones revalidan en {@link ConsultasConversacion} y
  * {@link OperacionesConversacion}. No registra el texto del cliente en los registros.
- * <p>Desde V2-11 (16-v2-11 §2): en modo {@code HUMANO} solo guarda el mensaje y no responde (V2-RN-15), antes
- * que cualquier confirmación; «Hablar con alguien», la palabra clave {@code PERSONA} o dos textos seguidos no
+ * <p>Desde V2-11 (16-v2-11 §2): en modo {@code HUMANO} guarda el mensaje y no confirma operaciones (V2-RN-15).
+ * V2-DA-105 permite volver al inicio mediante la transición de devolución existente y V2-DA-106 atiende
+ * primero los comandos profesionales, con autorización independiente y sin consentimiento de cliente.
+ * «Hablar con alguien», la palabra clave {@code PERSONA} o dos textos seguidos no
  * reconocidos derivan a una persona (sin ficha, tras el consentimiento); los entrantes se guardan según
  * {@link BandejaPropiedades#entrantes()}, una sola vez por mensaje.</p>
  * <p>Desde V2-12 (17-v2-12 §2): un texto libre no reconocido va a un turno de IA si {@link LimitesIA} la da por
@@ -81,6 +83,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
     private final BandejaPropiedades bandeja;
     private final TurnosIA turnos;
     private final LimitesIA limites;
+    private final VinculoProfesionalWhatsAppService vinculos;
     private final Clock reloj;
 
     /**
@@ -99,13 +102,14 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
      * @param bandeja qué entrantes se guardan (V2-11)
      * @param turnos turnos de IA (V2-12)
      * @param limites disponibilidad de la IA (V2-12)
+     * @param vinculos comandos profesionales revalidados antes del flujo de cliente
      * @param reloj reloj de la aplicación
      */
     public OrquestadorConversacion(RegistroEntradaWhatsApp registro, ConversacionesWhatsApp conversaciones,
             ConsentimientoConversacion consentimiento, InterpreteEntradas interprete, MenusConversacion menus,
             TextosConversacion textos, ConsultasConversacion consultas, OperacionesConversacion operaciones,
             SalidaWhatsApp salida, ConversacionPropiedades propiedades, DerivacionConversacion derivacion,
-            BandejaPropiedades bandeja, TurnosIA turnos, LimitesIA limites, Clock reloj) {
+            BandejaPropiedades bandeja, TurnosIA turnos, LimitesIA limites, VinculoProfesionalWhatsAppService vinculos, Clock reloj) {
         this.registro = registro;
         this.conversaciones = conversaciones;
         this.consentimiento = consentimiento;
@@ -120,6 +124,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         this.bandeja = bandeja;
         this.turnos = turnos;
         this.limites = limites;
+        this.vinculos = vinculos;
         this.reloj = reloj;
     }
 
@@ -136,6 +141,33 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         if (!registro.operativo(mensaje.negocioId())) return;
         var entrada = registro.registrar(mensaje);
         var conversacion = conversaciones.bloquear(entrada.conversacionId());
+        var profesional = vinculos.atender(mensaje);
+        if (profesional.isPresent()) {
+            // SISTEMA permite responder al profesional aunque su flujo de cliente esté derivado.
+            StringBuilder bloque = new StringBuilder();
+            for (String linea : profesional.get().split("\\n")) {
+                if (bloque.length() + linea.length() + 1 > 1500) {
+                    salida.encolarTexto(conversacion.id(), bloque.toString(), OrigenMensaje.SISTEMA, OptionalLong.empty());
+                    bloque.setLength(0);
+                }
+                if (!bloque.isEmpty()) bloque.append('\n');
+                bloque.append(linea);
+            }
+            if (!bloque.isEmpty()) salida.encolarTexto(conversacion.id(), bloque.toString(), OrigenMensaje.SISTEMA, OptionalLong.empty());
+            return;
+        }
+        var interpretada = interprete.interpretar(mensaje.tipo(), mensaje.dato());
+        boolean volver = interpretada instanceof Entrada.Texto(var clave) && clave == PalabraClave.MENU
+                || interpretada instanceof Entrada.Seleccion(var codigo)
+                    && codigo instanceof Menu(var opcion) && opcion == OpcionMenu.INICIO;
+        if (conversacion.modo() == ModoConversacion.HUMANO && volver) {
+            registro.guardarEntrante(conversacion.id(), mensaje);
+            operaciones.anularVigente(conversacion.id());
+            derivacion.devolver(conversacion.id(), OptionalLong.empty());
+            salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.bienvenida(consultas.nombreNegocio())),
+                    OrigenMensaje.SISTEMA, OptionalLong.empty());
+            return;
+        }
         if (conversacion.modo() == ModoConversacion.HUMANO) {
             registro.guardarEntrante(conversacion.id(), mensaje);
             return;
@@ -153,7 +185,6 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             registro.guardarEntrante(conversacion.id(), mensaje);
             guardado = true;
         }
-        var interpretada = interprete.interpretar(mensaje.tipo(), mensaje.dato());
         boolean noReconocido = interpretada instanceof Entrada.Texto(var clave) && clave == PalabraClave.OTRA;
         if (!noReconocido && conversacion.estado().has(FALLOS)) {
             var estado = conversacion.estado().deepCopy();
@@ -176,6 +207,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         private final String nombrePerfil;
         private final LocalDate hoy;
         private boolean guardado;
+        private CodigoSeleccion vista;
+        private String avisoRepeticion;
 
         Turno(EstadoConversacion conversacion, MensajeEntrante mensaje, boolean guardado, LocalDate hoy) {
             this.conversacion = conversacion;
@@ -256,10 +289,36 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                 pedirPersona(MotivoDerivacion.SIN_PROGRESO);
                 return;
             }
-            menu(textos.noEntendido(fallos));
+            avisoRepeticion = textos.noEntendido(fallos);
+            repetirPaso();
             var estado = conversaciones.bloquear(conversacion.id()).estado();
             estado.put(FALLOS, fallos);
             conversaciones.guardar(conversacion.id(), estado);
+        }
+
+        /** Regenera las consultas del paso vigente; nunca vuelve a ejecutar una operación. */
+        private void repetirPaso() {
+            String paso = conversacion.estado().path(ConversacionesWhatsApp.PASO).asString("");
+            if ("CONSENTIMIENTO".equals(paso)) {
+                var privacidad = propiedades.privacidad();
+                enviar(menus.consentimiento(textos.privacidad(privacidad.texto(), consultas.nombreNegocio(),
+                        privacidad.enlace())), null);
+                return;
+            }
+            if ("CONFIRMACION".equals(paso)) {
+                var resumen = conversaciones.ultimoInteractivo(conversacion.id());
+                if (resumen.isPresent()) {
+                    enviar(resumen.get(), null);
+                    return;
+                }
+            }
+            var anterior = CodigoSeleccion.decodificar(conversacion.estado().path("vista").asString(""));
+            if (anterior.isPresent()) seleccion(anterior.get());
+            else {
+                String aviso = avisoRepeticion;
+                avisoRepeticion = null;
+                menu(aviso);
+            }
         }
 
         /**
@@ -315,12 +374,14 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void servicios(int pagina) {
+            vista = new PaginaServicios(pagina);
             var lista = consultas.servicios();
             if (lista.isEmpty()) menu(textos.sinOpciones());
             else enviar(menus.servicios(textos.elegirServicio(), lista, pagina), "SERVICIO");
         }
 
         private void profesionales(long servicioId, int pagina) {
+            vista = new PaginaProfesionales(servicioId, pagina);
             var servicio = consultas.servicio(servicioId);
             if (servicio.isEmpty()) {
                 menu(textos.noDisponible());
@@ -333,6 +394,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void dias(long servicioId, long barberoId) {
+            vista = new Profesional(servicioId, barberoId);
             if (consultas.servicio(servicioId).isEmpty() || (barberoId != 0
                     && consultas.profesionales(servicioId).stream().noneMatch(p -> p.id() == barberoId))) {
                 menu(textos.noDisponible());
@@ -342,6 +404,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void franjas(long servicioId, long barberoId, LocalDate dia, int pagina) {
+            vista = new Dia(servicioId, barberoId, dia, pagina);
             if (!diaOfrecido(dia)) {
                 enviar(menus.dias(textos.noDisponible(), servicioId, barberoId, hoy), "DIA");
                 return;
@@ -420,6 +483,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void misCitas() {
+            vista = new Menu(OpcionMenu.MIS_CITAS);
             if (conversacion.clienteId().isEmpty()) {
                 menu(textos.sinCitas());
                 return;
@@ -430,12 +494,14 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void cita(long reservaId) {
+            vista = new Cita(reservaId);
             var cita = conversacion.clienteId().isEmpty() ? null : consultas.cita(ficha(), reservaId).orElse(null);
             if (cita == null) menu(textos.noDisponible());
             else enviar(menus.accionesCita(textos.detalleCita(cita), cita), "CITA");
         }
 
         private void accionCita(long reservaId, boolean cancelar) {
+            vista = new AccionCita(reservaId, cancelar);
             if (conversacion.clienteId().isEmpty()) {
                 menu(textos.noDisponible());
                 return;
@@ -450,6 +516,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         private void franjasCambio(long reservaId, LocalDate dia, int pagina) {
+            vista = new DiaCambio(reservaId, dia, pagina);
             var cita = conversacion.clienteId().isEmpty() ? null : consultas.cita(ficha(), reservaId).orElse(null);
             if (cita == null || !cita.puedeReprogramar()) {
                 menu(textos.noDisponible());
@@ -514,9 +581,16 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
 
         /** Encola la respuesta y, si se indica, anota el paso mostrado (informativo). */
         private void enviar(ObjectNode interactivo, String paso) {
+            if (avisoRepeticion != null) {
+                interactivo = interactivo.deepCopy();
+                String cuerpo = avisoRepeticion + "\n\n" + interactivo.path("body").path("text").asString("");
+                interactivo.putObject("body").put("text", MenusConversacion.recortar(cuerpo, 1024));
+                avisoRepeticion = null;
+            }
             if (paso != null) {
                 var estado = conversaciones.bloquear(conversacion.id()).estado();
                 estado.put(ConversacionesWhatsApp.PASO, paso);
+                if (vista != null) estado.put("vista", vista.codificar());
                 conversaciones.guardar(conversacion.id(), estado);
             }
             salida.encolarInteractivo(conversacion.id(), interactivo, OrigenMensaje.ASISTENTE, OptionalLong.empty());

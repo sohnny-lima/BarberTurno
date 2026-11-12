@@ -40,7 +40,7 @@ public class RecepcionWebhookService {
     }
 
     /**
-     * Inserta cada mensaje y aviso de estado una sola vez por clave.
+     * Inserta cada mensaje y aviso una sola vez por clave; reduce códigos de vinculación a SHA-256 antes de persistir.
      * @param cuerpo bytes de la notificación, con firma válida
      * @return número de eventos nuevos; 0 si todos estaban ya en la cola o no había ninguno
      * @throws NegocioException VALIDACION si el cuerpo no es un objeto JSON válido
@@ -59,8 +59,13 @@ public class RecepcionWebhookService {
         Instant ahora = clock.instant();
         int nuevos = 0;
         for (var evento : extractor.extraer(raiz)) {
+            var persistible = mapper.readTree(evento.cuerpo());
+            if (evento.tipo() == TipoEvento.MENSAJE
+                    && persistible.path("dato") instanceof tools.jackson.databind.node.ObjectNode dato) {
+                CodigoVinculoWhatsApp.proteger(dato);
+            }
             nuevos += eventos.insertarSiNoExiste(evento.clave(), evento.tipo().name(), evento.phoneNumberId(),
-                    evento.cuerpo(), ahora);
+                    mapper.writeValueAsString(persistible), ahora);
         }
         return nuevos;
     }

@@ -37,6 +37,7 @@ import { ESTADOS_RESERVA } from '../../shared/estado-reserva-chip';
 import { TituloPagina } from '../../shared/titulo-pagina';
 import { ReservaEsqueleto } from '../reservar/reserva-esqueleto';
 import { AgendaCita } from './agenda-cita';
+import { WhatsAppProfesional } from './whatsapp-profesional';
 import { mostrarErrores } from '../../shared/formulario';
 import { CancelarDialogo } from '../mis-citas/cancelar-dialogo';
 import { AuditoriaDialogo } from './auditoria-dialogo';
@@ -68,6 +69,7 @@ const fechaValida: ValidatorFn = (control) => {
     MatInputModule,
     MatSelectModule,
     AgendaCita,
+    WhatsAppProfesional,
     ReservaEsqueleto,
   ],
   templateUrl: './agenda.html',

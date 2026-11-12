@@ -1,0 +1,57 @@
+@if (disponible()) {
+  <section aria-labelledby="titulo-whatsapp-profesional" [attr.aria-busy]="ocupado()">
+    <h2 id="titulo-whatsapp-profesional">WhatsApp de la barbería</h2>
+    <div aria-live="polite">
+      @if (estado(); as estado) {
+        <p>
+          {{
+            estado.vinculado
+              ? 'Tu WhatsApp está vinculado a tu agenda.'
+              : 'Todavía no has vinculado tu WhatsApp.'
+          }}
+        </p>
+        @if (estado.vinculadoEn) {
+          <p>Vinculado el {{ fecha(estado.vinculadoEn) }} (Lima).</p>
+        }
+      } @else if (ocupado()) {
+        <p>Cargando estado…</p>
+      }
+      @if (codigo(); as codigo) {
+        <p class="codigo">{{ codigo.codigo }}</p>
+        <p>Envía «vincular {{ codigo.codigo }}» al WhatsApp de la barbería.</p>
+        <p>Caduca el {{ fecha(codigo.caducaEn) }} (Lima). Es de un solo uso.</p>
+        <p>Después, escribe «agenda hoy» o «agenda mañana».</p>
+      }
+    </div>
+    <p id="aviso-whatsapp-profesional">
+      Se guardará el identificador de tu WhatsApp para enviarte tu agenda.
+    </p>
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+    <div class="acciones">
+      <button
+        mat-flat-button
+        type="button"
+        (click)="generar()"
+        aria-describedby="aviso-whatsapp-profesional"
+        [disabled]="ocupado() || negocio.soloLectura()"
+      >
+        Generar código
+      </button>
+      @if (estado()?.vinculado) {
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="desvincular()"
+          [disabled]="ocupado() || negocio.soloLectura()"
+        >
+          Desvincular
+        </button>
+      }
+      <button mat-button type="button" (click)="cargar()" [disabled]="ocupado()">
+        Actualizar estado
+      </button>
+    </div>
+  </section>
+}
