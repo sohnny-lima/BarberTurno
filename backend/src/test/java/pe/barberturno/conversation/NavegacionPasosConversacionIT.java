@@ -5,8 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import pe.barberturno.conversation.ConversacionPruebas.MensajeSalientePrueba;
-import pe.barberturno.reservations.EstadoReserva;
-import pe.barberturno.reservations.Reserva;
 import pe.barberturno.scheduling.JornadaRepository;
 import pe.barberturno.whatsapp.ProcesadorEventosWhatsApp;
 import pe.barberturno.whatsapp.WhatsAppSalidaPruebaBase;
@@ -186,14 +184,7 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
     @Test
     void menu_desdeConversacionDerivada_vuelveAlAsistente_citaConfirmadaPreviaSigueIgual() {
         // Crear cliente con cita previa CONFIRMADA
-        long fichaCliente = ficha(a, WA_CLIENTE);
-        long reservaPreviaId = ejecutor.ejecutar(a, () -> {
-            var reserva = new Reserva(barberoA, servicioA, clientes.findById(fichaCliente).orElseThrow(),
-                    INICIO_RESERVA_BASE.toInstant(), INICIO_RESERVA_BASE.toInstant().plusSeconds(1800),
-                    new BigDecimal("25.00"));
-            reserva.confirmar(reloj.instant());
-            return reservas.save(reserva).getId();
-        });
+        long reservaPreviaId = crearReserva(a, WA_CLIENTE, INICIO_RESERVA_BASE);
 
         // Iniciar conversación y solicitar hablar con persona
         enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", "hola");
@@ -217,8 +208,9 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
         assertThat(msgVuelta.idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
 
         // La cita confirmada previa sigue CONFIRMADA
-        Reserva citaPrevia = ejecutor.ejecutar(a, () -> reservas.findById(reservaPreviaId).orElseThrow());
-        assertThat(citaPrevia.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
+        String estadoCita = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT estado FROM reserva WHERE id = ?", String.class, reservaPreviaId));
+        assertThat(estadoCita).isEqualTo("CONFIRMADA");
     }
 
     @Test

@@ -12,9 +12,9 @@ describe('VinculoProfesionalApi', () => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), VinculoProfesionalApi],
     });
-    api = TestBed.inject(VinculoProfesionalApi);
     http = TestBed.inject(HttpTestingController);
     prepararNegocio();
+    api = TestBed.inject(VinculoProfesionalApi);
   });
 
   afterEach(() => http.verify());

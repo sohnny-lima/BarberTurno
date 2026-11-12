@@ -108,7 +108,7 @@ class RespuestasTardiasTwilioTest {
         assertThat(servidor.peticiones()).isEmpty();
 
         // Avanzar el reloj 10 minutos y 1 segundo
-        reloj.avanzar(Duration.ofSeconds(601));
+        reloj.adelantar(Duration.ofSeconds(601));
 
         // El siguiente webhook abre espera: la respuesta caducada fue purgada
         var esperaSiguiente = buzon.abrir(PHONE_ID, SINTETICO);

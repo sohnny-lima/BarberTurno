@@ -55,7 +55,12 @@ describe('Agenda operativa', () => {
     http = TestBed.inject(HttpTestingController);
     prepararNegocio();
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http
+      .match('/api/n/prueba/whatsapp/vinculo-profesional')
+      .forEach((r) => r.flush({ vinculado: false, vinculadoEn: null }));
+    http.verify();
+  });
   function crear() {
     TestBed.inject(NegocioActual).actualizarSesion(usuarioNegocio(rol()));
     const fixture = TestBed.createComponent(Agenda);
@@ -63,9 +68,6 @@ describe('Agenda operativa', () => {
       http
         .expectOne('/api/n/prueba/barberos?incluirInactivos=true')
         .flush([{ id: 3, nombre: 'Profesional ficticio', activo: true }]);
-    http
-      .expectOne('/api/n/prueba/whatsapp/vinculo-profesional')
-      .flush({ vinculado: false, vinculadoEn: null });
     const inicial = http.expectOne((r) => r.url === '/api/n/prueba/reservas');
     expect(inicial.request.params.get('desde')).toBe(fechaHoyLima());
     expect(inicial.request.params.get('hasta')).toBe(fechaHoyLima());

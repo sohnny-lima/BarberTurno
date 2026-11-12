@@ -93,7 +93,7 @@ class RegistrosSeguridadTwilioIT extends WhatsAppSalidaPruebaBase {
     @Test
     void operacionesVinculoYAgenda_noRegistranCodigoHashBsuidSinteticoNiNombresDeClientes() {
         // 1. Generar código de vinculación para el barbero
-        CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(barberoA.getUsuario().getId()));
+        CodigoVinculoProfesionalDto dto = ejecutor.ejecutar(a, () -> vinculoService.generar(barberoCuenta.getId()));
         String codigoEnClaro = dto.codigo();
         String hashCodigo = CodigoVinculoWhatsApp.hash(codigoEnClaro);
 

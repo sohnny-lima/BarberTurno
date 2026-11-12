@@ -134,8 +134,8 @@ class VariosNumerosTwilioIT {
         negocioAId = directorio.buscar("barberturno").orElseThrow();
         negocioBId = directorio.buscar("sur").orElseThrow();
 
-        titularA = usuarios.save(new Usuario("adminA@ejemplo.test", "hash", "Admin A", Rol.CLIENTE));
-        titularB = usuarios.save(new Usuario("adminB@ejemplo.test", "hash", "Admin B", Rol.CLIENTE));
+        titularA = usuarios.save(new Usuario("Admin A", "admina@ejemplo.test", "999000001", "hash-ficticio-no-utilizable", Rol.CLIENTE, reloj.instant(), reloj.instant()));
+        titularB = usuarios.save(new Usuario("Admin B", "adminb@ejemplo.test", "999000002", "hash-ficticio-no-utilizable", Rol.CLIENTE, reloj.instant(), reloj.instant()));
 
         ejecutor.ejecutar(negocioAId, () -> {
             sql.update("UPDATE negocio SET limite_reservas_activas = 5, confirmacion_manual = false WHERE id = ?", negocioAId);
@@ -250,42 +250,58 @@ class VariosNumerosTwilioIT {
     void dosNumeros_creanReservaEnLaAgendaDeSuPropioNegocio() throws Exception {
         // Preparar catálogo y barbero en negocio A (barberturno)
         long barberoAId = ejecutor.ejecutar(negocioAId, () -> {
-            Usuario u = usuarios.save(new Usuario("barberoA@ejemplo.test", "hash", "Barbero A", Rol.BARBERO));
-            Barbero b = barberos.save(new Barbero(u, "Barbero A"));
-            Servicio s = servicios.save(new Servicio("Corte A", (short) 30, new BigDecimal("25.00")));
+            Usuario u = usuarios.save(new Usuario("Barbero A", "barberoa@ejemplo.test", "999000003", "hash-ficticio", Rol.BARBERO, null, reloj.instant()));
+            Barbero b = barberos.save(new Barbero(u, "Cortes", reloj.instant()));
+            Servicio s = servicios.save(new Servicio("Corte A", "Descripción A", (short) 30, new BigDecimal("25.00"), reloj.instant()));
             jornadas.save(new Jornada(b, (short) reloj.instant().atZone(java.time.ZoneOffset.UTC).getDayOfWeek().getValue(),
                     java.time.LocalTime.of(8, 0), java.time.LocalTime.of(20, 0)));
             return b.getId();
         });
+        long servicioAId = ejecutor.ejecutar(negocioAId, () -> servicios.findAll().getFirst().getId());
 
         // Preparar catálogo y barbero en negocio B (sur)
         long barberoBId = ejecutor.ejecutar(negocioBId, () -> {
-            Usuario u = usuarios.save(new Usuario("barberoB@ejemplo.test", "hash", "Barbero B", Rol.BARBERO));
-            Barbero b = barberos.save(new Barbero(u, "Barbero B"));
-            Servicio s = servicios.save(new Servicio("Corte B", (short) 30, new BigDecimal("35.00")));
+            Usuario u = usuarios.save(new Usuario("Barbero B", "barberob@ejemplo.test", "999000004", "hash-ficticio", Rol.BARBERO, null, reloj.instant()));
+            Barbero b = barberos.save(new Barbero(u, "Cortes", reloj.instant()));
+            Servicio s = servicios.save(new Servicio("Corte B", "Descripción B", (short) 30, new BigDecimal("35.00"), reloj.instant()));
             jornadas.save(new Jornada(b, (short) reloj.instant().atZone(java.time.ZoneOffset.UTC).getDayOfWeek().getValue(),
                     java.time.LocalTime.of(8, 0), java.time.LocalTime.of(20, 0)));
             return b.getId();
         });
+        long servicioBId = ejecutor.ejecutar(negocioBId, () -> servicios.findAll().getFirst().getId());
 
         // Crear una reserva directamente bajo el contexto del negocio A para el wa_id del cliente
         String waIdCliente = "51988889999";
-        Instant inicio = reloj.instant().plus(Duration.ofHours(2));
-        Reserva resA = ejecutor.ejecutar(negocioAId, () -> {
-            Cliente c = clientes.save(new Cliente("Cliente A", waIdCliente));
-            Reserva r = new Reserva(barberos.findById(barberoAId).orElseThrow(),
-                    servicios.findAll().getFirst(), c, inicio, inicio.plusSeconds(1800), new BigDecimal("25.00"));
-            r.confirmar(reloj.instant());
-            return reservas.save(r);
+        Instant inicio = Instant.parse("2026-10-15T15:00:00Z");
+        long resAId = ejecutor.ejecutar(negocioAId, () -> {
+            long clienteId = sql.queryForObject("""
+                    INSERT INTO cliente(negocio_id, nombre, wa_id, telefono, activo, creado_en, actualizado_en)
+                    VALUES (?, 'Cliente A', ?, '999000001', true, ?, ?) RETURNING id
+                    """, Long.class, negocioAId, waIdCliente,
+                    java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant()));
+            return sql.queryForObject("""
+                    INSERT INTO reserva(negocio_id, cliente_id, barbero_id, servicio_id, inicio, fin,
+                        duracion_ref_min, precio_ref, estado, creada_por, creado_en, actualizado_en)
+                    VALUES (?, ?, ?, ?, ?, ?, 30, 25.00, 'CONFIRMADA', ?, ?, ?) RETURNING id
+                    """, Long.class, negocioAId, clienteId, barberoAId, servicioAId,
+                    java.sql.Timestamp.from(inicio), java.sql.Timestamp.from(inicio.plusSeconds(1800)),
+                    titularA.getId(), java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant()));
         });
 
         // Crear una reserva directamente bajo el contexto del negocio B para el mismo wa_id
-        Reserva resB = ejecutor.ejecutar(negocioBId, () -> {
-            Cliente c = clientes.save(new Cliente("Cliente B", waIdCliente));
-            Reserva r = new Reserva(barberos.findById(barberoBId).orElseThrow(),
-                    servicios.findAll().getFirst(), c, inicio, inicio.plusSeconds(1800), new BigDecimal("35.00"));
-            r.confirmar(reloj.instant());
-            return reservas.save(r);
+        long resBId = ejecutor.ejecutar(negocioBId, () -> {
+            long clienteId = sql.queryForObject("""
+                    INSERT INTO cliente(negocio_id, nombre, wa_id, telefono, activo, creado_en, actualizado_en)
+                    VALUES (?, 'Cliente B', ?, '999000002', true, ?, ?) RETURNING id
+                    """, Long.class, negocioBId, waIdCliente,
+                    java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant()));
+            return sql.queryForObject("""
+                    INSERT INTO reserva(negocio_id, cliente_id, barbero_id, servicio_id, inicio, fin,
+                        duracion_ref_min, precio_ref, estado, creada_por, creado_en, actualizado_en)
+                    VALUES (?, ?, ?, ?, ?, ?, 30, 35.00, 'CONFIRMADA', ?, ?, ?) RETURNING id
+                    """, Long.class, negocioBId, clienteId, barberoBId, servicioBId,
+                    java.sql.Timestamp.from(inicio), java.sql.Timestamp.from(inicio.plusSeconds(1800)),
+                    titularB.getId(), java.sql.Timestamp.from(reloj.instant()), java.sql.Timestamp.from(reloj.instant()));
         });
 
         // Comprobar agenda administrativa de negocio A: solo contiene resA, no resB
@@ -296,8 +312,8 @@ class VariosNumerosTwilioIT {
                 .GET().build();
         HttpResponse<String> respA = clienteHttp.send(reqAgendaA, HttpResponse.BodyHandlers.ofString());
         assertThat(respA.statusCode()).isEqualTo(200);
-        assertThat(respA.body()).contains("\"id\":" + resA.getId());
-        assertThat(respA.body()).doesNotContain("\"id\":" + resB.getId());
+        assertThat(respA.body()).contains("\"id\":" + resAId);
+        assertThat(respA.body()).doesNotContain("\"id\":" + resBId);
 
         // Comprobar agenda administrativa de negocio B: solo contiene resB, no resA
         String tokenB = jwt.emitir(titularB);
@@ -307,7 +323,7 @@ class VariosNumerosTwilioIT {
                 .GET().build();
         HttpResponse<String> respB = clienteHttp.send(reqAgendaB, HttpResponse.BodyHandlers.ofString());
         assertThat(respB.statusCode()).isEqualTo(200);
-        assertThat(respB.body()).contains("\"id\":" + resB.getId());
-        assertThat(respB.body()).doesNotContain("\"id\":" + resA.getId());
+        assertThat(respB.body()).contains("\"id\":" + resBId);
+        assertThat(respB.body()).doesNotContain("\"id\":" + resAId);
     }
 }
