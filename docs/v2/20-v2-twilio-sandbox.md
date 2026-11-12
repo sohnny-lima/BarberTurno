@@ -400,6 +400,15 @@ preexistente de VS Code, ajeno al encargo.
    - el barbero asignado la ve con `agenda hoy` (vinculado con un código generado por la API con su cuenta ficticia, mediante webhooks firmados simulados) y en `GET /api/n/barberturno/reservas`.
 4. Multiempresa con webhooks firmados simulados: número A → `barberturno`, número B → `sur`, y acceso denegado entre negocios.
 
+### Aclaraciones del coordinador tras Codex 159 (12/11/2026)
+1. **Texto no reconocido en el resumen pendiente:**
+   - repite el resumen y la operación sigue **vigente**;
+   - esto sustituye la anulación de V2-11, escenario 5: el cliente vuelve a ver lo que confirmaría;
+   - la confirmación posterior aplica igualmente el protocolo de bloqueos.
+2. **En modo humano**, el orquestador interpreta la entrada solo para reconocer las palabras de inicio. Cualquier otro texto se guarda sin respuesta, como antes.
+3. **Retenidas y aviso inmediato:** se admite que viajen las respuestas retenidas (máximo 5) más el aviso inmediato en una misma respuesta TwiML (hasta 6 `<Message>`). El tope de 5 de V2-DA-104 rige solo para las respuestas recogidas en la espera.
+4. **Pruebas existentes** que fallan por estos cambios deliberados (pie de los menús, REST a sintéticos, resumen, modo humano, recuentos del esquema, petición de estado en Agenda): se adaptan al contrato nuevo conservando su intención, sin borrarlas.
+
 ## 14. Implementación (Codex 159)
 
 **12/11/2026 · Producción Hecha en local; pendientes CT-14…CT-20 y revisión del coordinador.**
