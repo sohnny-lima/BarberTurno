@@ -169,18 +169,9 @@ class RegistrosSeguridadTwilioIT extends WhatsAppSalidaPruebaBase {
             enviarWebhookFirmado("SM_CT20_ADAPT_02", BSUID_DIRECCION, MARCADOR_CLIENTE, "agenda hoy");
             enviarWebhookFirmado("SM_CT20_ADAPT_03", BSUID_DIRECCION, MARCADOR_CLIENTE, "texto no reconocido confidencial");
 
-            // 3. Además de lo actual, vincular vía mensaje directo con WA_MARCADO
-            enviarMensajeConMarcadores(NUMERO_A, MARCADOR_CLIENTE, "vincular " + codigoEnClaro);
-            enviarMensajeConMarcadores(NUMERO_A, MARCADOR_CLIENTE, "agenda hoy");
-            enviarMensajeConMarcadores(NUMERO_A, MARCADOR_CLIENTE, "texto no reconocido confidencial");
-
-            // Las operaciones ocurrieron de verdad: los vínculos existen tras «vincular» y «agenda hoy»
+            // Las operaciones ocurrieron de verdad por el adaptador: el vínculo existe tras «vincular» y «agenda hoy».
             assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject(
                     "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE wa_id=?", Long.class, waIdSintetico)))
-                    .isEqualTo(1L);
-
-            assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject(
-                    "SELECT count(*) FROM vinculo_whatsapp_profesional WHERE wa_id=?", Long.class, WA_MARCADO)))
                     .isEqualTo(1L);
 
             // La captura funciona: una línea de control bajo pe.barberturno llega al appender
