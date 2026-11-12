@@ -557,3 +557,13 @@ Dos barberías: la inicial (`barberturno`) y `sur`, creadas por el *seed* `demo`
 - **E2E actual:** `frontend/e2e` apunta a la base de v1 (`barberturno_test`) y **no se ejecuta** hasta que V2-07.6 lo pase a `barberturno_v2_test`.
 - **Huecos H-102-01…03 (encargo 102):** resueltos por V2-DA-45 (`rolPlataforma` y `rolNegocio` de presentación en las sesiones) y V2-DA-46 (estado de la invitación ante quien tiene el enlace). Forman parte de V2-07.0 como **V2-07.0b** (backend, crítica), antes de las pantallas de .2 y .3.
 - **Hueco H-103-01 (encargo 104):** resuelto por V2-DA-47 (registro de invitados por la capacidad de la invitación, sin ficha). Se implementa como **V2-07.0c** (backend, crítica) antes de las pantallas de .2.
+
+## 11. V2-TW · Seguimiento del adaptador de prueba
+
+| Subtarea autorizada | Estado | Fecha | Evidencia |
+|---|---|---|---|
+| Producción y vector de firma · Codex 155 | Bloqueada (cierre: JaCoCo exige cobertura de la suite completa reservada a Claude); código implementado y 155 pruebas aprobadas | 11/11/2026 | [Contrato §8](20-v2-twilio-sandbox.md#8-implementación-codex-155), [evidencia](pruebas/v2-tw.md) |
+
+Contrato aprobado: [Twilio Sandbox](20-v2-twilio-sandbox.md). Rama existente `tarea/V2-TWILIO-sandbox`,
+sin integración ni push. Las pruebas nuevas CT-1…CT-8 pertenecen a Gemini y la ejecución completa al
+coordinador; el estado de esta subtarea no acredita el recorrido manual ni la conexión real.

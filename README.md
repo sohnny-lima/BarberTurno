@@ -48,6 +48,34 @@ Con `dev,demo` y `BT_DEMO_PASSWORD` configurada en el entorno del proceso, el ar
 
 Para actuar como cliente, envíe `X-BT-Papel: CLIENTE` solo en `/api/n/{slug}/…`. Una ficha activa concede el papel CLIENTE y elimina los permisos de personal de esa petición; sin ficha no hay papel local. Otro valor o la cabecera fuera del prefijo da 400 `VALIDACION`. Sigue siendo obligatorio CSRF al escribir. `GET /api/n/{slug}/sesion` refleja el papel efectivo; `GET /api/mis-negocios` publica todos los `papeles` disponibles; `GET /api/n/{slug}/negocio` expone los seis parámetros públicos aprobados (suspendido → 404). [Contrato y pruebas de V2-07.0](docs/v2/pruebas/v2-07.md).
 
+## Twilio Sandbox local (V2-TW)
+
+Adaptador de pruebas en la rama `tarea/V2-TWILIO-sandbox`; contrato y recorrido manual en
+[20-v2-twilio-sandbox.md](docs/v2/20-v2-twilio-sandbox.md). Meta conserva su transporte habitual sin
+el perfil `twilio`. `prod,twilio` impide arrancar y, sin `twilio`, los dos callbacks nuevos dan 404.
+
+Para la prueba manual, el responsable prepara la base separada **`barberturno_v2_twilio`**, configura
+`BT_DB_URL` para ella y carga únicamente en el proceso las credenciales locales y las variables
+`BT_TWILIO_ACCOUNT_SID`, `BT_TWILIO_AUTH_TOKEN`, `BT_TWILIO_NUMERO` y `BT_TWILIO_URL_PUBLICA`
+([plantilla sin valores nuevos](tools/barberturno-v2.env.example)). `BT_TWILIO_URL_PUBLICA` debe ser
+la base HTTPS pública exacta, sin barra final. Desde `backend/`, con JDK 21 y sin otras suites activas:
+`.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev,demo,twilio"`. La demo requiere
+`BT_DEMO_PASSWORD`. Este encargo no prepara esa base ni arranca la aplicación ni abre un túnel.
+
+El arranque registra idempotentemente el Sandbox en `barberturno` después de la demo; no sustituye
+un canal diferente. Sin credenciales o URL pública no se reclama la outbox y los callbacks dan 401.
+Los menús son texto numerado: su correspondencia caduca a las 24 h o al reiniciar; escriba «menú»
+para recuperarla. Los envíos se serializan con al menos 3 s de espera entre solicitudes. Las
+plantillas y los textos de más de 1600 caracteres fallan permanentemente sin llamar al proveedor.
+
+Las verificaciones automatizadas usan el ejecutor serializado de este equipo, sin Twilio real:
+
+```powershell
+pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-twilio -Registro target\v2-tw-firma.log '-Dtest=FirmaTwilioTest' test
+```
+
+Ejecuciones y límites de la validación: [evidencia V2-TW](docs/v2/pruebas/v2-tw.md).
+
 ## Entorno
 
 El empaquetado de producción de T-33 genera un único jar con Angular: active Java 21 y Node 24.21.0 con fnm, y ejecute `cd backend` y `mvnw.cmd clean verify -Pcon-frontend` (Linux: `./mvnw clean verify -Pcon-frontend`). El build normal no ejecuta npm. Consulte [la guía de despliegue](docs/despliegue.md) para variables obligatorias de `prod`, base endurecida, proxy TLS, CSP, servicio y monitor de health. Proveedor/TLS (P-03), PostgreSQL local actualizado (T-38) y respaldo/recuperación (T-36) siguen pendientes.

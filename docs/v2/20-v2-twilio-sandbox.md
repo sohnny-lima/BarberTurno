@@ -92,3 +92,61 @@ Fuentes: <https://www.twilio.com/docs/whatsapp/sandbox>, <https://www.twilio.com
 1. Twilio: consola clásica → Messaging → Try it out → Send a WhatsApp message; enviar `join <código>` al `+14155238886`.
 2. Sandbox settings: «When a message comes in» = `<url-publica>/api/twilio/webhook` (POST); «Status callback URL» = `<url-publica>/api/twilio/estado`.
 3. Escribir «hola» y seguir el recorrido de CT-6; comprobar la cita en la agenda local (`http://localhost:8081`, cuenta `multirol@ejemplo.test` o `carlos@ejemplo.test`).
+
+## 8. Implementación (Codex 155)
+
+**11/11/2026 · Código implementado; cierre Bloqueada (cobertura parcial de JaCoCo: la suite completa está reservada a Claude).**
+Solo producción y el vector unitario de firma; las pruebas nuevas CT-1…CT-8 corresponden a Gemini y la
+verificación completa al coordinador. No se acredita todavía CT-6 ni Twilio real. Sin integración ni push.
+
+Archivos y módulos:
+
+- `backend/src/main/java/pe/barberturno/whatsapp/twilio/`: `TwilioPropiedades`, `ConfiguracionTwilio`,
+  `FirmaTwilio`, `WebhookTwilioController`, `TraductorEntradaTwilio`, `CorrespondenciaMenusTwilio`,
+  `ClienteTwilioWhatsApp`, `RegistroCanalTwilioService` y `RegistroCanalTwilioRunner`.
+- `ClienteGraphWhatsApp`, `ClienteGraphWhatsAppRest`, `EnviadorMensajesWhatsApp` y `ConfiguracionWhatsApp`:
+  configuración del transporte activo y avisos coherentes con el perfil, conservando el transporte Meta.
+- `SecurityConfig`, `ResolutorNegocio` y `ConfiguracionProduccion`: dos POST exactos solo en twilio,
+  404 sin el perfil y prohibición de `prod,twilio`. `CanalWhatsApp`: visibilidad y Javadoc de los miembros
+  de dominio usados desde el subpaquete, sin cambiar el modelo ni el comportamiento de Meta.
+- `application-twilio.yml`, `tools/barberturno-v2.env.example`, `FirmaTwilioTest`, README,
+  seguimiento en `10-backlog.md` y [evidencia completa](pruebas/v2-tw.md).
+
+Decisiones menores: waba_id sintético con los dígitos del Sandbox; registro después de la demo (orden
+200), sin actor ni auditoría ficticios; no sustituir un canal diferente; formato/configuración validados
+sin mostrar valores. Se rechazan formularios ambiguos y consultas no configuradas antes de traducir.
+El método `configurado()` por defecto conserva los dobles funcionales existentes, y ambos transportes
+reales lo implementan con sus propias credenciales.
+
+El cliente serializa todas sus solicitudes y espera como mínimo 3 s **desde el final de la anterior**,
+también entre lotes/hilos, usando tiempo monotónico y sin transacciones abiertas. Las correspondencias
+caducan a las 24 h: sin menú vigente, un número llega como texto y «menú» permite recuperarlo. Un
+texto posterior no borra la correspondencia. Ante aceptación o resultado desconocido se instala el
+menú enviado; un rechazo probado conserva el anterior. Los reintentos numéricos conservan la misma
+traducción por MessageSid durante 24 h para no consumir otro menú. Todo ese estado es local a la instancia.
+
+Verificación serializada y registros en `backend/target/`:
+
+| Orden/argumentos del ejecutor | Resultado | Registro |
+|---|---|---|
+| `-Dtest=FirmaTwilioTest test` | 1 prueba aprobada; vector del SDK oficial Twilio, enlazado desde Javadoc | `v2-tw-firma.log` |
+| Regresión indicada en el encargo (8 clases) | 154 pruebas aprobadas; 0 fallos, errores y omisiones | `v2-tw-regresion.log` |
+| `-DskipTests verify` | Empaqueta correctamente; falla en cobertura JaCoCo antes de Javadoc | `v2-tw-verify.log` |
+| `-DskipTests javadoc:javadoc` | Primer intento: tres descripciones ausentes, corregidas; repetición BUILD SUCCESS, 0 avisos | `v2-tw-javadoc.log`, `v2-tw-javadoc-2.log` |
+
+No se alteraron umbrales, datos de cobertura ni pruebas existentes. Hallazgo para el coordinador:
+`skipTests` no omite el check de cobertura; con solo la selección autorizada no se alcanza el 70 % de
+reservas, agenda y fichas. Debe cerrar ese check con el verify completo tras las pruebas de Gemini.
+Los problemas de permisos del cerrojo y del índice Git se resolvieron por escalación automática;
+no se cambiaron ACL ni configuración. El fallo inicial por falta de target y todas las salidas relevantes
+se conservan en la evidencia. Javadoc útil en toda la superficie pública nueva o modificada.
+
+Commits de producción: `2f1ababfd299a777edebb1ea3a7478890136c8b7` (transporte activo) y
+`4f0289a6aebfbcd5a6b0c52f3a2b24a88ffcd50a` (adaptador, seguridad, configuración y vector).
+El cierre documental se identifica por `docs(whatsapp): registrar verificación parcial y bloqueo de cobertura [V2-TW]`;
+su hash propio se entrega en el informe final. **Merge: no realizado, por instrucción expresa.**
+
+Límites comprobados: §1–§7 intactos; ningún cambio en documentos protegidos, frontend, migraciones,
+APF2, entregables, evidencias de v1, Azure o bases de v1; no se leyó `.local/coordinacion/`, ni se
+mostraron secretos; sin ramas, worktrees ni etiquetas nuevos, sin push ni servicios reales/de pago.
+Al terminar las verificaciones: 0 procesos Java, 0 escuchas en 8080/8081/4200 y cerrojo del ejecutor ausente.
