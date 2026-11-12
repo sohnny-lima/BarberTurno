@@ -73,12 +73,12 @@ public class EnviadorMensajesWhatsApp implements EnviadorSalidaWhatsApp {
 
     /**
      * Recorre los canales en orden y reclama como máximo el lote por negocio, aislando fallos por mensaje.
-     * @return número de mensajes reclamados; cero sin token, sin reclamar ninguna fila
-     * @throws IllegalStateException si se invoca con una transacción abierta y hay token configurado
+     * @return número de mensajes reclamados; cero si el transporte activo no está configurado, sin reclamar filas
+     * @throws IllegalStateException si se invoca con una transacción abierta y el transporte está configurado
      */
     @Override
     public int enviarLote() {
-        if (!opciones.envioConfigurado()) return 0;
+        if (!cliente.configurado()) return 0;
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("El envío HTTP exige invocarse fuera de una transacción.");
         }

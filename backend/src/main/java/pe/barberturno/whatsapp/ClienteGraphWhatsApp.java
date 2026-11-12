@@ -11,6 +11,14 @@ import tools.jackson.databind.node.ObjectNode;
  */
 public interface ClienteGraphWhatsApp {
     /**
+     * Indica si el transporte activo dispone de configuración para reclamar mensajes de la outbox.
+     * Los transportes concretos comprueban sus credenciales; el valor por defecto conserva los dobles
+     * funcionales que suministran explícitamente un resultado sin conexión externa.
+     * @return true para un transporte disponible; false para dejar la cola pendiente sin reclamar
+     */
+    default boolean configurado() { return true; }
+
+    /**
      * Envía un mensaje y clasifica la respuesta sin lanzar excepciones por errores de red o de Meta.
      * @param phoneNumberId identificador del número emisor del negocio (solo dígitos)
      * @param cuerpo JSON completo de la petición ({@code messaging_product}, {@code to}, {@code type}…)

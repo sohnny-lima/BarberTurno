@@ -23,6 +23,7 @@ import tools.jackson.databind.node.ObjectNode;
 public class ClienteGraphWhatsAppRest implements ClienteGraphWhatsApp {
     private final RestClient cliente;
     private final String version;
+    private final boolean configurado;
     private final JsonMapper mapper = JsonMapper.builder().build();
 
     /**
@@ -38,7 +39,12 @@ public class ClienteGraphWhatsAppRest implements ClienteGraphWhatsApp {
         this.cliente = RestClient.builder().requestFactory(fabrica).baseUrl(graph.urlBase())
                 .defaultHeaders(cabeceras -> cabeceras.setBearerAuth(graph.token())).build();
         this.version = graph.version();
+        this.configurado = propiedades.envioConfigurado();
     }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean configurado() { return configurado; }
 
     /** {@inheritDoc} */
     @Override
