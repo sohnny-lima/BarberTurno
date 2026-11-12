@@ -34,6 +34,7 @@ class TraduccionTwilioTest {
     private JsonMapper mapper;
     private RelojAjustable reloj;
     private CorrespondenciaMenusTwilio menus;
+    private CorrespondenciaDireccionesTwilio direcciones;
     private TraductorEntradaTwilio traductor;
 
     @BeforeEach
@@ -42,10 +43,11 @@ class TraduccionTwilioTest {
         reloj = new RelojAjustable();
         reloj.fijar(T0);
         menus = new CorrespondenciaMenusTwilio(reloj);
+        direcciones = new CorrespondenciaDireccionesTwilio();
         TwilioPropiedades propiedades = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef",
                 "token-ficticio", NUMERO_SANDBOX, "https://pruebas.barberturno.test",
                 "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500));
-        traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, new CorrespondenciaDireccionesTwilio());
+        traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, direcciones);
     }
 
     private Map<String, String> baseMensaje(String sid, String body) {
@@ -362,10 +364,13 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_bsuidValidoSinWaId_traduceAFormatoMetaConWaIdSintetico() throws Exception {
+        String bsuid = "whatsapp:PE.0123456789ABCDEF";
+        String sinteticoEsperado = direcciones.identificar(null, bsuid).orElseThrow();
+
         Map<String, String> datos = new LinkedHashMap<>();
         datos.put("AccountSid", "AC0123456789abcdef0123456789abcdef");
         datos.put("MessageSid", "SM_BSUID_001");
-        datos.put("From", "whatsapp:PE.0123456789ABCDEF");
+        datos.put("From", bsuid);
         datos.put("To", "whatsapp:" + NUMERO_SANDBOX);
         datos.put("ProfileName", "Cliente BSUID");
         datos.put("Body", "hola");
@@ -379,13 +384,16 @@ class TraduccionTwilioTest {
         JsonNode contacto = valor.path("contacts").path(0);
         String waIdContacto = contacto.path("wa_id").asText();
         assertThat(waIdContacto)
-                .as("wa_id debe ser sintético de 20 dígitos empezando por 9")
+                .as("wa_id debe ser sintético de 20 dígitos empezando por 9 y coincidir con la fórmula exacta")
                 .hasSize(20)
                 .startsWith("9")
-                .matches("9[0-9]{19}");
+                .matches("9[0-9]{19}")
+                .isEqualTo(sinteticoEsperado);
 
         JsonNode mensaje = valor.path("messages").path(0);
-        assertThat(mensaje.path("from").asText()).isEqualTo(waIdContacto);
+        assertThat(mensaje.path("from").asText())
+                .as("messages.from debe coincidir exactamente con el sintético esperado")
+                .isEqualTo(sinteticoEsperado);
         assertThat(mensaje.path("id").asText()).isEqualTo("SM_BSUID_001");
     }
 
@@ -405,10 +413,13 @@ class TraduccionTwilioTest {
 
     @Test
     void estado_toBsuidValido_traduceRecipientIdConIdentidadSintetica() throws Exception {
+        String bsuid = "whatsapp:PE.0123456789ABCDEF";
+        String sinteticoEsperado = direcciones.identificar(null, bsuid).orElseThrow();
+
         Map<String, String> datos = new LinkedHashMap<>();
         datos.put("MessageSid", "SM_EST_BSUID_1");
         datos.put("MessageStatus", "delivered");
-        datos.put("To", "whatsapp:PE.0123456789ABCDEF");
+        datos.put("To", bsuid);
 
         Optional<byte[]> resultado = traductor.estado(datos);
 
@@ -420,9 +431,55 @@ class TraduccionTwilioTest {
         assertThat(aviso.path("status").asText()).isEqualTo("delivered");
         String recipientId = aviso.path("recipient_id").asText();
         assertThat(recipientId)
-                .as("recipient_id debe coincidir con la identidad sintética de 20 dígitos")
+                .as("recipient_id debe coincidir exactamente con la identidad sintética esperada")
                 .hasSize(20)
                 .startsWith("9")
-                .matches("9[0-9]{19}");
+                .matches("9[0-9]{19}")
+                .isEqualTo(sinteticoEsperado);
+    }
+
+    @Test
+    void mensajeYEstado_conMismoBsuid_producenExactamenteLaMismaIdentidadSintetica() throws Exception {
+        String bsuid = "whatsapp:PE.AABBCCDDEEFF0011";
+        String sinteticoEsperado = direcciones.identificar(null, bsuid).orElseThrow();
+
+        Map<String, String> datosMensaje = new LinkedHashMap<>();
+        datosMensaje.put("AccountSid", "AC0123456789abcdef0123456789abcdef");
+        datosMensaje.put("MessageSid", "SM_IN_COINCIDE_1");
+        datosMensaje.put("From", bsuid);
+        datosMensaje.put("To", "whatsapp:" + NUMERO_SANDBOX);
+        datosMensaje.put("Body", "hola");
+
+        Optional<byte[]> resMensaje = traductor.mensaje(datosMensaje);
+        assertThat(resMensaje).isPresent();
+        JsonNode valorMensaje = mapper.readTree(resMensaje.get())
+                .path("entry").path(0).path("changes").path(0).path("value");
+        String fromMensaje = valorMensaje.path("messages").path(0).path("from").asText();
+        String waIdContacto = valorMensaje.path("contacts").path(0).path("wa_id").asText();
+
+        Map<String, String> datosEstado = new LinkedHashMap<>();
+        datosEstado.put("MessageSid", "SM_OUT_COINCIDE_1");
+        datosEstado.put("MessageStatus", "read");
+        datosEstado.put("To", bsuid);
+
+        Optional<byte[]> resEstado = traductor.estado(datosEstado);
+        assertThat(resEstado).isPresent();
+        JsonNode aviso = mapper.readTree(resEstado.get())
+                .path("entry").path(0).path("changes").path(0).path("value").path("statuses").path(0);
+        String recipientIdEstado = aviso.path("recipient_id").asText();
+
+        assertThat(fromMensaje)
+                .as("messages.from debe coincidir con el sintético esperado")
+                .isEqualTo(sinteticoEsperado);
+        assertThat(waIdContacto)
+                .as("contacts.wa_id debe coincidir con el sintético esperado")
+                .isEqualTo(sinteticoEsperado);
+        assertThat(recipientIdEstado)
+                .as("statuses.recipient_id debe coincidir con el sintético esperado")
+                .isEqualTo(sinteticoEsperado);
+        assertThat(recipientIdEstado)
+                .as("la identidad sintética en entrada y estado para el mismo BSUID debe ser exactamente idéntica")
+                .isEqualTo(fromMensaje)
+                .isEqualTo(waIdContacto);
     }
 }

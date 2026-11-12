@@ -4,10 +4,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,38 +94,100 @@ class BuzonRespuestasTwilioTest {
         long duracionMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
 
         assertThat(mensajes).isEmpty();
-        // Con espera de 1 s, debe haber esperado aproximadamente 1000 ms (al menos 850 ms)
+        // Con espera de 1 s, debe agotar el plazo entre 850 ms (cota inferior) y 3000 ms (cota superior con margen amplio)
         assertThat(duracionMs)
-                .as("debe agotar el plazo de espera inicial de 1000 ms")
-                .isGreaterThanOrEqualTo(850L);
+                .as("debe agotar el plazo de espera inicial de 1000 ms con margen amplio")
+                .isBetween(850L, 3000L);
     }
 
     @Test
     void esperar_respetaSilencio_cuandoLlegaMensajeAntesDelTope() throws Exception {
         var espera = buzon.abrir(WA_ID).orElseThrow();
 
-        // Enviar un mensaje a los 50 ms desde otro hilo
         CountDownLatch mensajeEnviado = new CountDownLatch(1);
+        long[] instanteEntrega = new long[1];
+        Thread hiloPrincipal = Thread.currentThread();
+
         ejecutor.submit(() -> {
             try {
-                TimeUnit.MILLISECONDS.sleep(50);
+                while (hiloPrincipal.getState() != Thread.State.TIMED_WAITING) {
+                    Thread.onSpinWait();
+                }
+                instanteEntrega[0] = System.nanoTime();
                 buzon.entregar(WA_ID, "Respuesta rápida");
                 mensajeEnviado.countDown();
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 Thread.currentThread().interrupt();
             }
         });
 
         long inicioNano = System.nanoTime();
         List<String> mensajes = buzon.esperar(espera);
-        long duracionMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+        long duracionTotalMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+        long duracionDesdeEntregaMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - instanteEntrega[0]);
 
+        assertThat(mensajeEnviado.await(2, TimeUnit.SECONDS)).isTrue();
         assertThat(mensajes).containsExactly("Respuesta rápida");
-        // Debe despertar tras el silencio de 200 ms después de entregar el mensaje (~250-400 ms),
-        // mucho antes del tope inicial de 1000 ms
-        assertThat(duracionMs)
-                .as("debe despertar tras vencer el silencio de 200 ms y no esperar el segundo entero")
+        // Silencio de 200 ms: debe respetar la cota inferior (no devolver inmediatamente) y superior (< 800 ms)
+        assertThat(duracionDesdeEntregaMs)
+                .as("debe respetar la cota inferior del silencio de 200 ms")
+                .isGreaterThanOrEqualTo(150L);
+        assertThat(duracionTotalMs)
+                .as("debe despertar tras vencer el silencio y no esperar el segundo entero")
                 .isLessThan(800L);
+    }
+
+    @Test
+    void esperar_segundoMensajeReiniciaSilencio_extiendeTiempoTotal() throws Exception {
+        TwilioPropiedades propLargas = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef", "token-ficticio",
+                "+14155238886", "https://pruebas.barberturno.test", "barberturno",
+                Duration.ofSeconds(3), "https://api.twilio.com", true,
+                Duration.ofSeconds(2), Duration.ofMillis(300));
+        BuzonRespuestasTwilio buzonLargo = new BuzonRespuestasTwilio(propLargas);
+        var espera = buzonLargo.abrir(WA_ID).orElseThrow();
+
+        CountDownLatch segundoEnviado = new CountDownLatch(1);
+        long[] tiempos = new long[2]; // 0: entrega 1, 1: entrega 2
+        Thread hiloPrincipal = Thread.currentThread();
+
+        ejecutor.submit(() -> {
+            try {
+                while (hiloPrincipal.getState() != Thread.State.TIMED_WAITING) {
+                    Thread.onSpinWait();
+                }
+                tiempos[0] = System.nanoTime();
+                buzonLargo.entregar(WA_ID, "Primer mensaje");
+
+                // Esperar a que el hilo vuelva a entrar en espera tras procesar el primer mensaje
+                while (hiloPrincipal.getState() != Thread.State.TIMED_WAITING) {
+                    Thread.onSpinWait();
+                }
+                // Pausar 120 ms (dentro del silencio de 300 ms) antes de entregar el segundo mensaje
+                TimeUnit.MILLISECONDS.sleep(120);
+                tiempos[1] = System.nanoTime();
+                buzonLargo.entregar(WA_ID, "Segundo mensaje");
+                segundoEnviado.countDown();
+            } catch (Exception e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        List<String> mensajes = buzonLargo.esperar(espera);
+        long finNano = System.nanoTime();
+
+        assertThat(segundoEnviado.await(2, TimeUnit.SECONDS)).isTrue();
+        assertThat(mensajes).containsExactly("Primer mensaje", "Segundo mensaje");
+        long tiempoDesdeMensaje1Ms = TimeUnit.NANOSECONDS.toMillis(finNano - tiempos[0]);
+        long tiempoDesdeMensaje2Ms = TimeUnit.NANOSECONDS.toMillis(finNano - tiempos[1]);
+
+        // Desde el mensaje 2 se esperaron al menos ~220 ms de silencio
+        assertThat(tiempoDesdeMensaje2Ms)
+                .as("debe haber esperado el silencio tras el segundo mensaje")
+                .isGreaterThanOrEqualTo(220L);
+        // El tiempo total desde el mensaje 1 debe ser mayor a 340 ms (120 ms + silencio de 300 ms)
+        assertThat(tiempoDesdeMensaje1Ms)
+                .as("el segundo mensaje debe haber reiniciado el silencio")
+                .isGreaterThanOrEqualTo(340L);
     }
 
     @Test
@@ -172,6 +236,85 @@ class BuzonRespuestasTwilioTest {
         boolean resultado = buzon.entregar(WA_ID, "Mensaje posterior al cierre");
 
         assertThat(resultado).isFalse();
+    }
+
+    @Test
+    void carrera_entregarYTomar_mensajeAceptadoApareceEnInstantaneaOSeDesviaARest() throws Exception {
+        for (int i = 0; i < 50; i++) {
+            String idPersona = "51999" + String.format("%06d", i);
+            var espera = buzon.abrir(idPersona).orElseThrow();
+            String texto = "Mensaje-Carrera-" + i;
+
+            CyclicBarrier barrera = new CyclicBarrier(2);
+            AtomicBoolean entregaAceptada = new AtomicBoolean();
+            AtomicReference<List<String>> mensajesTomados = new AtomicReference<>();
+
+            var futuroEntrega = ejecutor.submit(() -> {
+                barrera.await(2, TimeUnit.SECONDS);
+                boolean ok = buzon.entregar(idPersona, texto);
+                entregaAceptada.set(ok);
+                return ok;
+            });
+
+            var futuroTomar = ejecutor.submit(() -> {
+                barrera.await(2, TimeUnit.SECONDS);
+                List<String> res = buzon.tomar(espera);
+                mensajesTomados.set(res);
+                return res;
+            });
+
+            futuroEntrega.get(2, TimeUnit.SECONDS);
+            futuroTomar.get(2, TimeUnit.SECONDS);
+
+            List<String> tomados = mensajesTomados.get();
+            if (entregaAceptada.get()) {
+                assertThat(tomados)
+                        .as("repetición %d: mensaje aceptado debe figurar exactamente en la instantánea devuelta", i)
+                        .containsExactly(texto);
+            } else {
+                assertThat(tomados)
+                        .as("repetición %d: mensaje rechazado no debe figurar en la instantánea (desvía a REST)", i)
+                        .isEmpty();
+            }
+
+            // Tras la toma y cierre, cualquier entrega posterior es rechazada
+            assertThat(buzon.entregar(idPersona, "Mensaje posterior")).isFalse();
+        }
+    }
+
+    @Test
+    void carrera_entregarYEsperar_mensajeAceptadoApareceEnInstantanea() throws Exception {
+        for (int i = 0; i < 30; i++) {
+            String idPersona = "51998" + String.format("%06d", i);
+            var espera = buzon.abrir(idPersona).orElseThrow();
+            String texto = "Mensaje-Esperar-" + i;
+
+            CyclicBarrier barrera = new CyclicBarrier(2);
+            AtomicBoolean entregaAceptada = new AtomicBoolean();
+
+            var futuroEntrega = ejecutor.submit(() -> {
+                barrera.await(2, TimeUnit.SECONDS);
+                boolean ok = buzon.entregar(idPersona, texto);
+                entregaAceptada.set(ok);
+                return ok;
+            });
+
+            var futuroEsperar = ejecutor.submit(() -> {
+                barrera.await(2, TimeUnit.SECONDS);
+                return buzon.esperar(espera);
+            });
+
+            futuroEntrega.get(2, TimeUnit.SECONDS);
+            List<String> recibidos = futuroEsperar.get(2, TimeUnit.SECONDS);
+
+            if (entregaAceptada.get()) {
+                assertThat(recibidos)
+                        .as("mensaje aceptado debe aparecer exactamente una vez en la lista de esperar")
+                        .containsExactly(texto);
+            } else {
+                assertThat(recibidos).isEmpty();
+            }
+        }
     }
 
     @Test

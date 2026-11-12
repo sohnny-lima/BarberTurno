@@ -9,6 +9,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -381,23 +383,125 @@ class ClienteTwilioWhatsAppTest {
     }
 
     @Test
-    void enviar_conEsperaAbierta_textoVaAEsperaAceptadoTwimlSinHttpYSinIntervalo() {
+    void enviar_conSolicitudRestBloqueada_envioTwimlSimultaneoTerminaInmediatoSinEsperarRest() throws Exception {
         var espera = buzonConTwiml.abrir(WA_ID);
         assertThat(espera).isPresent();
 
-        ObjectNode cuerpo = crearMensajeTexto(WA_ID, "Texto entregado por TwiML");
+        CountDownLatch restIniciado = new CountDownLatch(1);
+        CountDownLatch liberarRest = new CountDownLatch(1);
 
+        // Encolar en el servidor falso una petición REST que se bloquee hasta liberarRest
+        servidor.encolarBloqueo(restIniciado, liberarRest, "SM_REST_BLOQUEADO");
+
+        // Hilo asíncrono para enviar petición REST (a un destinatario sin espera abierta)
+        CompletableFuture<ResultadoEnvio> futuroRest = CompletableFuture.supplyAsync(() -> {
+            ObjectNode cuerpoRest = crearMensajeTexto("51999887766", "Mensaje REST en cola");
+            return clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpoRest);
+        });
+
+        // Esperar a que la petición REST llegue al servidor falso y adquiera la sección sincronizada
+        assertThat(restIniciado.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(futuroRest.isDone()).as("la petición REST debe seguir bloqueada en el servidor falso").isFalse();
+
+        // Enviar simultáneamente una respuesta TwiML con espera abierta
+        ObjectNode cuerpoTwiml = crearMensajeTexto(WA_ID, "Texto entregado por TwiML con REST ocupado");
         long inicioNano = System.nanoTime();
-        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+        ResultadoEnvio resultadoTwiml = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpoTwiml);
         long duracionMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
 
-        assertThat(resultado).isInstanceOf(ResultadoEnvio.Aceptado.class);
-        assertThat(((ResultadoEnvio.Aceptado) resultado).wamid()).startsWith("twiml:");
-        assertThat(servidor.peticiones()).as("ninguna petición HTTP debe emitirse con espera TwiML").isEmpty();
-        assertThat(duracionMs).as("no debe esperar el intervalo de 3 s").isLessThan(200L);
+        // La respuesta TwiML debe haber terminado de inmediato SIN esperar el cerrojo REST ni HTTP
+        assertThat(resultadoTwiml).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resultadoTwiml).wamid()).startsWith("twiml:");
+        assertThat(duracionMs).as("TwiML no debe esperar la sección sincronizada ni el intervalo REST").isLessThan(200L);
+        assertThat(futuroRest.isDone()).as("la petición REST debe continuar bloqueada tras completarse TwiML").isFalse();
 
+        // Verificar que el mensaje TwiML llegó al buzón
         List<String> mensajes = buzonConTwiml.tomar(espera.get());
-        assertThat(mensajes).containsExactly("Texto entregado por TwiML");
+        assertThat(mensajes).containsExactly("Texto entregado por TwiML con REST ocupado");
+
+        // Liberar la petición REST y verificar que complete exitosamente
+        liberarRest.countDown();
+        ResultadoEnvio resultadoRest = futuroRest.get(5, TimeUnit.SECONDS);
+        assertThat(resultadoRest).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resultadoRest).wamid()).isEqualTo("SM_REST_BLOQUEADO");
+
+        // En el servidor falso solo debe figurar la petición REST, ninguna por TwiML
+        assertThat(servidor.peticiones()).hasSize(1);
+        assertThat(servidor.ultimaPeticion().parametros().get("To")).isEqualTo("whatsapp:+51999887766");
+    }
+
+    @Test
+    void enviar_conTwimlActivoYEsperaAbierta_template_rechazoPermanenteBuzonVacioSinHttp() {
+        var espera = buzonConTwiml.abrir(WA_ID);
+        assertThat(espera).isPresent();
+
+        ObjectNode cuerpo = mapper.createObjectNode();
+        cuerpo.put("messaging_product", "whatsapp");
+        cuerpo.put("to", WA_ID);
+        cuerpo.put("type", "template");
+        cuerpo.putObject("template").put("name", "recordatorio_cita");
+
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
+        ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
+        assertThat(rechazo.transitorio()).isFalse();
+        assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.PLANTILLA_RECHAZADA);
+
+        // Validaciones previas: el buzón debe quedar vacío y cero peticiones HTTP
+        assertThat(buzonConTwiml.tomar(espera.get()))
+                .as("el buzón debe quedar vacío tras rechazar plantilla")
+                .isEmpty();
+        assertThat(servidor.peticiones())
+                .as("ninguna petición HTTP debe emitirse")
+                .isEmpty();
+    }
+
+    @Test
+    void enviar_conTwimlActivoYEsperaAbierta_cuerpoMayorDe1600Caracteres_rechazoPermanenteBuzonVacioSinHttp() {
+        var espera = buzonConTwiml.abrir(WA_ID);
+        assertThat(espera).isPresent();
+
+        String textoLargo = "B".repeat(1601);
+        ObjectNode cuerpo = crearMensajeTexto(WA_ID, textoLargo);
+
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
+        ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
+        assertThat(rechazo.transitorio()).isFalse();
+        assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
+
+        assertThat(buzonConTwiml.tomar(espera.get()))
+                .as("el buzón debe quedar vacío tras rechazar texto excesivo")
+                .isEmpty();
+        assertThat(servidor.peticiones()).isEmpty();
+    }
+
+    @Test
+    void enviar_conTwimlActivoYEsperaAbierta_interactivoMalFormado_rechazoPermanenteBuzonVacioSinHttp() {
+        var espera = buzonConTwiml.abrir(WA_ID);
+        assertThat(espera).isPresent();
+
+        // Interactivo mal formado: tipo 'button' pero con lista de botones vacía
+        ObjectNode interactivoMalFormado = mapper.createObjectNode();
+        interactivoMalFormado.put("type", "button");
+        interactivoMalFormado.putObject("body").put("text", "Menú con botones vacíos");
+        interactivoMalFormado.putObject("action").putArray("buttons");
+
+        ObjectNode cuerpo = crearMensajeInteractivo(WA_ID, interactivoMalFormado);
+
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
+        ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
+        assertThat(rechazo.transitorio()).isFalse();
+        assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
+
+        assertThat(buzonConTwiml.tomar(espera.get()))
+                .as("el buzón debe quedar vacío tras rechazar interactivo mal formado")
+                .isEmpty();
+        assertThat(servidor.peticiones()).isEmpty();
     }
 
     @Test

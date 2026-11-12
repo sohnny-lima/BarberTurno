@@ -515,4 +515,29 @@ class WebhookTwilioControllerTest {
                 .as("la espera debe haber sido cerrada en finally permitiendo una nueva apertura posterior")
                 .isPresent();
     }
+
+    @Test
+    void recibir_tresMensajesDistintos_devuelveTresNodosMessageEnOrdenExacto() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        when(recepcion.recibir(any(byte[].class))).thenAnswer(inv -> {
+            buzonTwiml.entregar("51999000001", "Primer texto: Servicios disponibles");
+            buzonTwiml.entregar("51999000001", "Segundo texto: Elija un barbero");
+            buzonTwiml.entregar("51999000001", "Tercer texto: Responda con el número");
+            return 1;
+        });
+
+        var respuesta = controladorTwiml.recibir(req, firma);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_XML);
+        assertThat(respuesta.getBody()).isEqualTo(
+                "<Response>"
+                + "<Message>Primer texto: Servicios disponibles</Message>"
+                + "<Message>Segundo texto: Elija un barbero</Message>"
+                + "<Message>Tercer texto: Responda con el número</Message>"
+                + "</Response>");
+    }
 }
