@@ -22,10 +22,12 @@ import pe.barberturno.whatsapp.RecepcionWebhookService;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * Pruebas unitarias de {@link WebhookTwilioController} sin base de datos (CT-1, 20-v2-twilio-sandbox.md §5).
@@ -49,6 +51,8 @@ class WebhookTwilioControllerTest {
     private WebhookTwilioController controlador;
     private TwilioPropiedades propiedades;
     private CorrespondenciaMenusTwilio menus;
+    private BuzonRespuestasTwilio buzonTwiml;
+    private WebhookTwilioController controladorTwiml;
 
     @BeforeEach
     void preparar() {
@@ -61,6 +65,13 @@ class WebhookTwilioControllerTest {
         JsonMapper mapper = JsonMapper.builder().build();
         TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, new CorrespondenciaDireccionesTwilio());
         controlador = new WebhookTwilioController(firma, traductor, recepcion, propiedades, new BuzonRespuestasTwilio(propiedades));
+
+        TwilioPropiedades propiedadesTwiml = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
+                "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", true, Duration.ofSeconds(1), Duration.ofMillis(200));
+        FirmaTwilio firmaTwiml = new FirmaTwilio(propiedadesTwiml);
+        buzonTwiml = new BuzonRespuestasTwilio(propiedadesTwiml);
+        TraductorEntradaTwilio traductorTwiml = new TraductorEntradaTwilio(mapper, reloj, menus, propiedadesTwiml, new CorrespondenciaDireccionesTwilio());
+        controladorTwiml = new WebhookTwilioController(firmaTwiml, traductorTwiml, recepcion, propiedadesTwiml, buzonTwiml);
     }
 
     private static String calcularFirma(String token, String url, Map<String, String> parametros) {
@@ -356,5 +367,152 @@ class WebhookTwilioControllerTest {
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(respuesta.getBody()).isEqualTo("<Response/>");
         verifyNoInteractions(recepcion);
+    }
+
+    @Test
+    void recibir_twimlConCaracteresEspeciales_devuelveMensajesConXmlEscapado() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        String textoConCaracteresXml = "Corte <Especial> & \"Barba\" 'VIP'";
+        when(recepcion.recibir(any(byte[].class))).thenAnswer(inv -> {
+            buzonTwiml.entregar("51999000001", textoConCaracteresXml);
+            return 1;
+        });
+
+        var respuesta = controladorTwiml.recibir(req, firma);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_XML);
+        assertThat(respuesta.getBody())
+                .isEqualTo("<Response><Message>Corte &lt;Especial&gt; &amp; &quot;Barba&quot; &apos;VIP&apos;</Message></Response>");
+    }
+
+    @Test
+    void recibir_duplicadoConCeroNuevosYEsperaVacia_devuelveResponseVacioInmediato() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        when(recepcion.recibir(any(byte[].class))).thenReturn(0);
+
+        long inicioNano = System.nanoTime();
+        var respuesta = controladorTwiml.recibir(req, firma);
+        long duracionMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isEqualTo("<Response/>");
+        assertThat(duracionMs).as("debe responder inmediatamente sin esperar").isLessThan(200L);
+    }
+
+    @Test
+    void recibir_otraEsperaAbierta_devuelveResponseVacioInmediato() throws Exception {
+        // Simular que otra espera para la misma persona ya está abierta en paralelo
+        var esperaPrevia = buzonTwiml.abrir("51999000001");
+        assertThat(esperaPrevia).isPresent();
+
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+        when(recepcion.recibir(any(byte[].class))).thenReturn(1);
+
+        long inicioNano = System.nanoTime();
+        var respuesta = controladorTwiml.recibir(req, firma);
+        long duracionMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isEqualTo("<Response/>");
+        assertThat(duracionMs).as("no debe bloquearse si la espera ya estaba reservada").isLessThan(200L);
+
+        buzonTwiml.cerrar(esperaPrevia.get());
+    }
+
+    @Test
+    void recibir_remitenteInvalido_devuelveResponseVacioInmediatoSinEsperar() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        form.put("From", "invalido-sin-whatsapp");
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        long inicioNano = System.nanoTime();
+        var respuesta = controladorTwiml.recibir(req, firma);
+        long duracionMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isEqualTo("<Response/>");
+        assertThat(duracionMs).isLessThan(200L);
+        verifyNoInteractions(recepcion);
+    }
+
+    @Test
+    void recibir_avisoDeEstadoConTwimlActivo_devuelveResponseVacioInmediato() throws Exception {
+        Map<String, String> form = formularioEstadoValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_ESTADO, form);
+        var req = crearPeticion(RUTA_ESTADO, form, firma, null, null);
+
+        long inicioNano = System.nanoTime();
+        var respuesta = controladorTwiml.estado(req, firma);
+        long duracionMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isEqualTo("<Response/>");
+        assertThat(duracionMs).isLessThan(200L);
+        verify(recepcion).recibir(any(byte[].class));
+    }
+
+    @Test
+    void recibir_respuestaTwimlDesactivada_devuelveResponseVacioInmediato() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+        when(recepcion.recibir(any(byte[].class))).thenReturn(1);
+
+        // Usamos el controlador con respuestaTwiml=false
+        long inicioNano = System.nanoTime();
+        var respuesta = controlador.recibir(req, firma);
+        long duracionMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isEqualTo("<Response/>");
+        assertThat(duracionMs).isLessThan(200L);
+    }
+
+    @Test
+    void recibir_duplicadoConMensajesYaEntregados_devuelveMensajesAceptadosPrevios() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        // Simula la corrección de Claude: recibir devuelve 0 (duplicado), pero el enviador
+        // ya entregó respuestas a la espera abierta antes de finalizar la recepción
+        when(recepcion.recibir(any(byte[].class))).thenAnswer(inv -> {
+            buzonTwiml.entregar("51999000001", "Respuesta previa ya aceptada");
+            return 0;
+        });
+
+        var respuesta = controladorTwiml.recibir(req, firma);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody())
+                .isEqualTo("<Response><Message>Respuesta previa ya aceptada</Message></Response>");
+    }
+
+    @Test
+    void recibir_cuandoRecepcionLanzaExcepcion_cierraLaEsperaEnFinally() throws Exception {
+        Map<String, String> form = formularioMensajeValido();
+        String firma = calcularFirma(AUTH_TOKEN, URL_PUBLICA + RUTA_WEBHOOK, form);
+        var req = crearPeticion(RUTA_WEBHOOK, form, firma, null, null);
+
+        when(recepcion.recibir(any(byte[].class))).thenThrow(new IllegalStateException("fallo simulado en BD"));
+
+        assertThatThrownBy(() -> controladorTwiml.recibir(req, firma))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("fallo simulado en BD");
+
+        // Comprobar que la espera en el buzón fue liberada en el bloque finally
+        assertThat(buzonTwiml.abrir("51999000001"))
+                .as("la espera debe haber sido cerrada en finally permitiendo una nueva apertura posterior")
+                .isPresent();
     }
 }

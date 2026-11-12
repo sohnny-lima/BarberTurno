@@ -51,6 +51,9 @@ class ClienteTwilioWhatsAppTest {
     private MenusConversacion menusConversacion;
     private TwilioPropiedades propiedades;
     private ClienteTwilioWhatsApp cliente;
+    private CorrespondenciaDireccionesTwilio direcciones;
+    private BuzonRespuestasTwilio buzonConTwiml;
+    private ClienteTwilioWhatsApp clienteTwiml;
 
     @BeforeEach
     void iniciar() {
@@ -63,10 +66,16 @@ class ClienteTwilioWhatsAppTest {
         menus = new CorrespondenciaMenusTwilio(reloj);
         menusConversacion = new MenusConversacion();
 
+        direcciones = new CorrespondenciaDireccionesTwilio();
         propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
                 "barberturno", Duration.ofSeconds(3), servidor.urlBase(), false, Duration.ofSeconds(10), Duration.ofMillis(1500));
         cliente = new ClienteTwilioWhatsApp(propiedades, menus, mapper,
-                new CorrespondenciaDireccionesTwilio(), new BuzonRespuestasTwilio(propiedades));
+                direcciones, new BuzonRespuestasTwilio(propiedades));
+
+        TwilioPropiedades propiedadesTwiml = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
+                "barberturno", Duration.ofSeconds(3), servidor.urlBase(), true, Duration.ofSeconds(10), Duration.ofMillis(1500));
+        buzonConTwiml = new BuzonRespuestasTwilio(propiedadesTwiml);
+        clienteTwiml = new ClienteTwilioWhatsApp(propiedadesTwiml, menus, mapper, direcciones, buzonConTwiml);
     }
 
     @AfterEach
@@ -369,5 +378,110 @@ class ClienteTwilioWhatsAppTest {
                 "barberturno", Duration.ofMillis(200), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Configuración de Twilio Sandbox fuera de rango.");
+    }
+
+    @Test
+    void enviar_conEsperaAbierta_textoVaAEsperaAceptadoTwimlSinHttpYSinIntervalo() {
+        var espera = buzonConTwiml.abrir(WA_ID);
+        assertThat(espera).isPresent();
+
+        ObjectNode cuerpo = crearMensajeTexto(WA_ID, "Texto entregado por TwiML");
+
+        long inicioNano = System.nanoTime();
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+        long duracionMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNano);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resultado).wamid()).startsWith("twiml:");
+        assertThat(servidor.peticiones()).as("ninguna petición HTTP debe emitirse con espera TwiML").isEmpty();
+        assertThat(duracionMs).as("no debe esperar el intervalo de 3 s").isLessThan(200L);
+
+        List<String> mensajes = buzonConTwiml.tomar(espera.get());
+        assertThat(mensajes).containsExactly("Texto entregado por TwiML");
+    }
+
+    @Test
+    void enviar_conEsperaAbierta_menuVaAEsperaGuardaMenuSinHttp() {
+        var espera = buzonConTwiml.abrir(WA_ID);
+        assertThat(espera).isPresent();
+
+        ObjectNode interactivo = menusConversacion.menuPrincipal("Seleccione una opción:");
+        ObjectNode cuerpo = crearMensajeInteractivo(WA_ID, interactivo);
+
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resultado).wamid()).startsWith("twiml:");
+        assertThat(servidor.peticiones()).isEmpty();
+
+        // El menú queda guardado en la correspondencia
+        var seleccion1 = menus.consumir(WA_ID, "1", "SM_IN_1");
+        assertThat(seleccion1).isPresent();
+        assertThat(seleccion1.get().titulo()).isEqualTo("Reservar");
+
+        buzonConTwiml.cerrar(espera.get());
+    }
+
+    @Test
+    void enviar_sinEspera_sinteticoConocido_usaDestinoBsuidPorRest() {
+        String bsuid = "whatsapp:PE.0123456789ABCDEF";
+        String sintetico = direcciones.identificar(null, bsuid).orElseThrow();
+
+        servidor.encolarExito("SM_REST_BSUID_001");
+        ObjectNode cuerpo = crearMensajeTexto(sintetico, "Aviso por REST a BSUID");
+
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) resultado).wamid()).isEqualTo("SM_REST_BSUID_001");
+
+        assertThat(servidor.peticiones()).hasSize(1);
+        ServidorTwilioFalso.PeticionRegistrada peticion = servidor.ultimaPeticion();
+        assertThat(peticion.parametros().get("To"))
+                .as("el destinatario REST debe ser la dirección BSUID conocida")
+                .isEqualTo(bsuid);
+    }
+
+    @Test
+    void enviar_sinteticoDesconocido_devuelveRechazoPermanenteSinHttp() {
+        // Sintético con formato válido de 20 dígitos pero sin correspondencia en memoria
+        String sinteticoDesconocido = "99999999999999999999";
+        ObjectNode cuerpo = crearMensajeTexto(sinteticoDesconocido, "Aviso a desconocido");
+
+        ResultadoEnvio resultado = clienteTwiml.enviar(PHONE_NUMBER_ID, cuerpo);
+
+        assertThat(resultado).isInstanceOf(ResultadoEnvio.Rechazado.class);
+        ResultadoEnvio.Rechazado rechazo = (ResultadoEnvio.Rechazado) resultado;
+        assertThat(rechazo.estadoHttp()).isEqualTo(400);
+        assertThat(rechazo.transitorio()).isFalse();
+        assertThat(rechazo.motivo()).isEqualTo(MotivoFallo.SOLICITUD_RECHAZADA);
+        assertThat(servidor.peticiones()).as("no debe realizarse petición HTTP para destinatario desconocido").isEmpty();
+    }
+
+    @Test
+    void enviar_conEsperaAbierta_alSuperarCincoMensajes_elSextoVaPorRest() {
+        String bsuid = "whatsapp:PE.1122334455667788";
+        String sintetico = direcciones.identificar(null, bsuid).orElseThrow();
+        var espera = buzonConTwiml.abrir(sintetico);
+        assertThat(espera).isPresent();
+
+        // Enviar 5 mensajes: todos van a la espera TwiML sin HTTP
+        for (int i = 1; i <= 5; i++) {
+            ResultadoEnvio res = clienteTwiml.enviar(PHONE_NUMBER_ID, crearMensajeTexto(sintetico, "Mensaje " + i));
+            assertThat(res).isInstanceOf(ResultadoEnvio.Aceptado.class);
+            assertThat(((ResultadoEnvio.Aceptado) res).wamid()).startsWith("twiml:");
+        }
+        assertThat(servidor.peticiones()).isEmpty();
+
+        // El sexto mensaje excede el cupo de 5 del buzón y se desvía a REST
+        servidor.encolarExito("SM_REST_SOBRANTE_006");
+        ResultadoEnvio res6 = clienteTwiml.enviar(PHONE_NUMBER_ID, crearMensajeTexto(sintetico, "Mensaje 6 sobrante"));
+
+        assertThat(res6).isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(((ResultadoEnvio.Aceptado) res6).wamid()).isEqualTo("SM_REST_SOBRANTE_006");
+        assertThat(servidor.peticiones()).hasSize(1);
+        assertThat(servidor.ultimaPeticion().parametros().get("To")).isEqualTo(bsuid);
+
+        buzonConTwiml.cerrar(espera.get());
     }
 }
