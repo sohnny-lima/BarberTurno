@@ -35,8 +35,12 @@ describe('WhatsAppProfesional', () => {
     expect(texto).toContain('Se guardará el identificador de tu WhatsApp para enviarte tu agenda.');
 
     // Botón generar visible, desvincular ausente
-    expect(f.nativeElement.querySelector('button[aria-describedby="aviso-whatsapp-profesional"]')).not.toBeNull();
-    const botones = Array.from(f.nativeElement.querySelectorAll('button')).map((b) => (b as HTMLElement).textContent?.trim());
+    expect(
+      f.nativeElement.querySelector('button[aria-describedby="aviso-whatsapp-profesional"]'),
+    ).not.toBeNull();
+    const botones = Array.from(f.nativeElement.querySelectorAll('button')).map((b) =>
+      (b as HTMLElement).textContent?.trim(),
+    );
     expect(botones).toContain('Generar código');
     expect(botones).not.toContain('Desvincular');
   });
@@ -48,14 +52,17 @@ describe('WhatsAppProfesional', () => {
     expect(texto).toContain('Tu WhatsApp está vinculado a tu agenda.');
     expect(texto).toContain('Vinculado el');
 
-    const botones = Array.from(f.nativeElement.querySelectorAll('button')).map((b) => (b as HTMLElement).textContent?.trim());
+    const botones = Array.from(f.nativeElement.querySelectorAll('button')).map((b) =>
+      (b as HTMLElement).textContent?.trim(),
+    );
     expect(botones).toContain('Desvincular');
   });
 
   it('genera un código y muestra las instrucciones con la caducidad', () => {
     const f = crear(false);
-    const botonGenerar = Array.from(f.nativeElement.querySelectorAll('button'))
-      .find((b) => (b as HTMLElement).textContent?.includes('Generar código')) as HTMLElement;
+    const botonGenerar = Array.from(f.nativeElement.querySelectorAll('button')).find((b) =>
+      (b as HTMLElement).textContent?.includes('Generar código'),
+    ) as HTMLElement;
 
     botonGenerar.click();
 
@@ -74,8 +81,9 @@ describe('WhatsAppProfesional', () => {
 
   it('permite desvincular y actualiza el estado a no vinculado', () => {
     const f = crear(true, '2026-11-12T10:00:00Z');
-    const botonDesvincular = Array.from(f.nativeElement.querySelectorAll('button'))
-      .find((b) => (b as HTMLElement).textContent?.includes('Desvincular')) as HTMLElement;
+    const botonDesvincular = Array.from(f.nativeElement.querySelectorAll('button')).find((b) =>
+      (b as HTMLElement).textContent?.includes('Desvincular'),
+    ) as HTMLElement;
 
     botonDesvincular.click();
 
@@ -88,7 +96,9 @@ describe('WhatsAppProfesional', () => {
     expect(texto).toContain('Todavía no has vinculado tu WhatsApp.');
     expect(f.componentInstance.estado()?.vinculado).toBe(false);
 
-    const botones = Array.from(f.nativeElement.querySelectorAll('button')).map((b) => (b as HTMLElement).textContent?.trim());
+    const botones = Array.from(f.nativeElement.querySelectorAll('button')).map((b) =>
+      (b as HTMLElement).textContent?.trim(),
+    );
     expect(botones).not.toContain('Desvincular');
   });
 
