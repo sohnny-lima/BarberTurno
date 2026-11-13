@@ -469,3 +469,14 @@ Commits de producción: `5267d8f68401ea2d33189c95b68f9bd343cdb14e` y
 hash propio en informe final. **Merge: ninguno**, por instrucción expresa.
 Comprobación final: sin procesos propios de verificación, sin escuchas en 8080/8081/4200,
 sin cerrojo del ejecutor. Se conservan los procesos preexistentes y de herramientas.
+
+## 15. Despliegue en el App Service de V2 (12/11/2026, autorizado por el responsable)
+
+### V2-DA-109 · Panel del barbero solo donde hay WhatsApp
+- **Motivo:** Azure se ejecuta con `BARBERTURNO_WHATSAPP_PROCESADOR_HABILITADO=false` y sin canal; el panel de la agenda invitaría a enviar un código a un número que no existe.
+- **Decisión:** `barberturno.whatsapp.vinculo-profesional.habilitado` toma por defecto el valor de `barberturno.whatsapp.procesador.habilitado`. Apagado, `GET|POST|DELETE /api/n/{slug}/whatsapp/vinculo-profesional` responden 404 antes de llamar al servicio y el frontend (que ya trataba el 404) oculta el panel. Las pruebas fijan `true` porque llaman al procesador a mano.
+- **Pruebas:** `VinculoProfesionalApagadoTest` (3) más las dirigidas `VinculoProfesionalEndpointsIT`, `VinculoProfesionalWhatsAppIT` y `AgendaProfesionalWhatsAppIT`: 24/0.
+
+### Qué se despliega
+- El JAR de esta rama **sin** el perfil `twilio`: el Sandbox, sus credenciales, ngrok y el proxy siguen solo en local (`prod` + `twilio` se rechaza al arrancar).
+- La migración V118 (dos tablas nuevas con RLS) se aplica a `barberturno_v2_demo`. Es aditiva: el JAR anterior sigue arrancando (Flyway ignora migraciones futuras).

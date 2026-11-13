@@ -73,6 +73,9 @@ barberturno:
       espera-base: 5s
       espera-maxima: 5m
       reclamo: 60s
+    # V2-DA-109: sin procesador de entrada no hay WhatsApp al que enviar el código; el panel se oculta (404).
+    vinculo-profesional:
+      habilitado: ${barberturno.whatsapp.procesador.habilitado:true}
     # V2-09: salida por la Graph API oficial (12-v2-09-whatsapp-salida.md §4.7); sin token no se envía.
     salida:
       habilitado: true

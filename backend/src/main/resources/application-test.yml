@@ -19,6 +19,9 @@ barberturno:
   whatsapp:
     procesador:
       habilitado: false
+    # Las pruebas llaman al procesador a mano: el vínculo profesional sigue disponible (V2-DA-109).
+    vinculo-profesional:
+      habilitado: true
     salida:
       habilitado: false
       graph:
