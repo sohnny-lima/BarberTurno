@@ -480,3 +480,14 @@ sin cerrojo del ejecutor. Se conservan los procesos preexistentes y de herramien
 ### Qué se despliega
 - El JAR de esta rama **sin** el perfil `twilio`: el Sandbox, sus credenciales, ngrok y el proxy siguen solo en local (`prod` + `twilio` se rechaza al arrancar).
 - La migración V118 (dos tablas nuevas con RLS) se aplica a `barberturno_v2_demo`. Es aditiva: el JAR anterior sigue arrancando (Flyway ignora migraciones futuras).
+
+### Verificación previa (12/11/2026)
+- `verify` completo sobre `3737d04`: **4013/0**, JaCoCo y Javadoc sin avisos (1 h 30 min). La primera pasada (`2ae1e26`) detectó que `EsquemaIT` no listaba las tablas de V118 (la migración llegó después del último `verify`, sobre `f09669d`); corregido en `3737d04`.
+- Frontend: lint limpio, compilación correcta y **647/647** pruebas. Con 12 procesos en paralelo fallaron 2–3 pruebas distintas en cada pasada por tiempo agotado (5 s) en pantallas que esta rama no toca; con 4 procesos pasan todas.
+
+### Resultado del despliegue (12/11/2026, 22:42–23:05, hora de Lima)
+- `barberturno-web-202610` (plan B1 sin cambios, sin recursos nuevos): JAR de `3737d04` con frontend, SHA-256 `02727FD1E3D217F981DC775F6C60D269AB0212CC5D59C18824773A6982EBDB04`. Flyway 117 → **118** en `barberturno_v2_demo`. Arranque en 161 s.
+- Respaldo previo: JAR anterior (`39133f58…`), esquema y datos por negocio de `barberturno_v2_demo` (`pg_dump` con RLS por negocio), más la restauración a un punto en el tiempo de Azure (7 días).
+- Comprobaciones HTTPS: todas las críticas pasan (salud, `/ingresar`, PWA, inicio de sesión con cookie `Secure`, agendas de propietario, encargado y barbero, bandeja 200, cliente 403, vínculo del barbero 404 con WhatsApp apagado, `/api/twilio/webhook` 404, escritura sin CSRF 403).
+- Incidencia: el primer inicio de sesión de `multirol` tras el arranque superó el tiempo de la pasarela (504) y dejó su fila de `usuario` bloqueada unos minutos (503 «recurso ocupado» en el reintento). Se liberó sola; después, 200 en 1,4 s. Observación: valorar `idle_in_transaction_session_timeout` para el rol de la aplicación.
+- **WhatsApp en Azure:** apagado (`BARBERTURNO_WHATSAPP_PROCESADOR_HABILITADO=false`, `…_SALIDA_HABILITADO=false`, sin canal ni perfil `twilio`). Lo desplegado queda latente hasta conectar un número real.
