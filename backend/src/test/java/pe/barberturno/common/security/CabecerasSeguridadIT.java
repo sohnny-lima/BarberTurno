@@ -20,7 +20,7 @@ class CabecerasSeguridadIT {
     @Autowired MockMvc mvc;
 
     @ParameterizedTest
-    @ValueSource(strings = {"/agenda", "/index.html", "/main-prueba.js", "/api/servicios", "/api/perfil",
+    @ValueSource(strings = {"/agenda", "/index.html", "/main-prueba.js", "/api/n/barberturno/servicios", "/api/perfil",
             "/actuator/health", "/ausente.js"})
     void responder_enHttpLocal_imponeCabecerasSinHsts(String ruta) throws Exception {
         mvc.perform(get(ruta).accept("*/*"))
@@ -32,7 +32,7 @@ class CabecerasSeguridadIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/agenda", "/api/servicios", "/api/perfil", "/actuator/health"})
+    @ValueSource(strings = {"/agenda", "/api/n/barberturno/servicios", "/api/perfil", "/actuator/health"})
     void responder_enHttps_imponeHstsYCsp(String ruta) throws Exception {
         mvc.perform(get(ruta).secure(true).accept("*/*"))
                 .andExpect(header().string("Strict-Transport-Security", "max-age=31536000 ; includeSubDomains"))
@@ -40,7 +40,7 @@ class CabecerasSeguridadIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/reservas", "/api/usuarios/1/estado"})
+    @ValueSource(strings = {"/api/n/barberturno/reservas", "/api/n/barberturno/usuarios/1/estado"})
     void rechazarCsrf_tambienIncluyeCabeceras(String ruta) throws Exception {
         mvc.perform(post(ruta)).andExpect(status().isForbidden())
                 .andExpect(header().string("Content-Security-Policy", CSP))

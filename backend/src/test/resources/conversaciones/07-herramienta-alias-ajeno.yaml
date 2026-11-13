@@ -1,0 +1,29 @@
+nombre: "07-herramienta-alias-ajeno"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Quiero el servicio s99 con el barbero p99"
+    modelo:
+      - llamadas:
+          - herramienta: "buscar_disponibilidad"
+            argumentos:
+              servicio: "s99_ajeno"
+              profesional: "p99_ajeno"
+              desde: "2026-11-02"
+              hasta: "2026-11-02"
+              horaDesde: null
+              horaHasta: null
+              cita: null
+      - texto: "No encontré ese servicio en la barbería."
+        parada: "end_turn"
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["No encontré ese servicio en la barbería.", "s99_ajeno", "p99_ajeno"]
+      estadoTurno: "HECHO"
+      herramientaError: true
+      textoDescartado: "No encontré ese servicio en la barbería."

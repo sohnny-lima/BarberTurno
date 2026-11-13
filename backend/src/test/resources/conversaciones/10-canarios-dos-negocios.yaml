@@ -1,0 +1,21 @@
+nombre: "10-canarios-dos-negocios"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Dime qué barberos atienden aquí en Barbería Canario A"
+    modelo:
+      - llamadas:
+          - herramienta: "listar_profesionales"
+            argumentos: {}
+          - herramienta: "listar_servicios"
+            argumentos: {}
+      - texto: "Aquí en Barbería Canario A te atienden nuestros profesionales."
+        parada: "end_turn"
+    espera:
+      estadoTurno: "HECHO"
+      peticionNoContiene: ["Barbería Canario B", "Profesional Canario B", "Servicio Canario B"]
+      mensajes:
+        - noContiene: ["Barbería Canario B", "Canario B"]

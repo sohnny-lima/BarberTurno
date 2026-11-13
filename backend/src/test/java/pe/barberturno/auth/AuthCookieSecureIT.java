@@ -1,5 +1,7 @@
 package pe.barberturno.auth;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +40,7 @@ class AuthCookieSecureIT {
         assertThat(borrada.getPath()).isEqualTo("/");
         assertThat(borrada.getDomain()).isNull();
         assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
-        mvc.perform(get("/api/servicios").secure(true)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/servicios")).secure(true)).andExpect(status().isOk());
         mvc.perform(get("/api/perfil").secure(true)).andExpect(status().isUnauthorized())
                 .andExpect(result -> assertThat(result.getResponse().getCookie("BT_SESION")).isNull());
     }
@@ -49,7 +51,7 @@ class AuthCookieSecureIT {
         assertThat(xsrf).isNotNull();
         assertThat(xsrf.getSecure()).isTrue();
         assertThat(xsrf.isHttpOnly()).isFalse();
-        var r = mvc.perform(post("/api/auth/registro").secure(true).cookie(xsrf)
+        var r = mvc.perform(post(negocio("/api/registro")).secure(true).cookie(xsrf)
                 .header("X-XSRF-TOKEN", xsrf.getValue()).contentType("application/json")
                 .content("""
                         {"nombre":"Cliente de prueba","correo":"seguro@ejemplo.test","telefono":"999111222",

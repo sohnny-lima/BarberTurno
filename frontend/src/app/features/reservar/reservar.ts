@@ -66,7 +66,10 @@ import { sumarDias } from '../../core/tiempo/semana-lima';
 export class Reservar {
   readonly store = inject(ReservaStore);
   private readonly stepper = viewChild(MatStepper);
-  readonly limites = limitesDatepicker();
+  readonly limites = limitesDatepicker(
+    new Date(),
+    this.store.negocio.parametros()?.horizonteDias ?? 0,
+  );
   readonly fechaControl = new FormControl<Date | null>(fechaDatepicker(this.store.fecha()));
   private readonly destroyRef = inject(DestroyRef);
   readonly movil = toSignal(

@@ -7,11 +7,15 @@ import java.time.Clock;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import pe.barberturno.auth.PoliticaPassword;
 import pe.barberturno.common.error.*;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.common.tenancy.ProveedorNegocioActual;
 import pe.barberturno.platform.dto.*;
 import pe.barberturno.users.UsuarioRepository;
+import pe.barberturno.users.Usuario;
+import pe.barberturno.users.Rol;
 
 /**
  * Emite capacidades secretas y consume una sola vez bajo bloqueo de fila, sin vincular perfiles.
@@ -26,6 +30,7 @@ public class InvitacionService {
     private final ProveedorNegocioActual negocio;
     private final EntityManager entidades;
     private final Clock clock;
+    private final PasswordEncoder passwords;
     private final SecureRandom aleatorio = new SecureRandom();
 
     /**
@@ -36,11 +41,14 @@ public class InvitacionService {
      * @param negocio ámbito de la ruta para la gestión local
      * @param entidades lectura y bloqueo del estado administrativo
      * @param clock fuente única de instantes
+     * @param passwords codificador BCrypt compartido con el registro de clientes
      */
     public InvitacionService(InvitacionRepository invitaciones, MembresiaRepository membresias,
-            UsuarioRepository usuarios, ProveedorNegocioActual negocio, EntityManager entidades, Clock clock) {
+            UsuarioRepository usuarios, ProveedorNegocioActual negocio, EntityManager entidades, Clock clock,
+            PasswordEncoder passwords) {
         this.invitaciones = invitaciones; this.membresias = membresias; this.usuarios = usuarios;
         this.negocio = negocio; this.entidades = entidades; this.clock = clock;
+        this.passwords = passwords;
     }
 
     /**
@@ -114,18 +122,24 @@ public class InvitacionService {
     }
 
     /**
-     * Revela solo negocio, rol y correo oculto para una capacidad pendiente y vigente.
+     * Revela negocio, rol, correo oculto y estado solo ante quien tiene la capacidad (V2-DA-46).
      * @param token capacidad opaca presentada por la persona invitada
      * @return proyección pública mínima sin identificadores de cuenta ni hash
-     * @throws NegocioException si el enlace no es válido o el negocio está suspendido
+     * Una invitación pendiente de una barbería suspendida no se presenta como aceptable (V2-DA-38/46).
+     * @throws NegocioException si el token es desconocido o está mal formado (404), o si sigue pendiente
+     * y su barbería está suspendida (409 NEGOCIO_SUSPENDIDO)
      */
     @Transactional(readOnly = true)
     public InvitacionPublicaDto consultar(String token) {
         var invitacion = invitaciones.findByTokenHash(hashValido(token)).orElseThrow(this::noEncontrado);
-        if (!invitacion.vigente(clock.instant())) throw noEncontrado();
-        String nombre = (String) estadoNegocio(invitacion.negocioId(), false)[0];
+        String estado = invitacion.estadoPublico(clock.instant());
+        String nombre = "PENDIENTE".equals(estado) ? (String) estadoNegocio(invitacion.negocioId(), false)[0]
+                : entidades.unwrap(org.hibernate.Session.class)
+                        .createNativeQuery("select nombre from negocio where id=:id", String.class)
+                        .setParameter("id", invitacion.negocioId()).getSingleResult();
         String correo = invitacion.correo();
-        return new InvitacionPublicaDto(nombre, invitacion.rol(), correo.substring(0, 1) + "***@" + correo.substring(correo.indexOf('@') + 1));
+        return new InvitacionPublicaDto(nombre, invitacion.rol(), correo.substring(0, 1) + "***@" + correo.substring(correo.indexOf('@') + 1),
+                estado);
     }
 
     /**
@@ -133,18 +147,24 @@ public class InvitacionService {
      * Bloquea invitación y cuenta para serializar consumos y dos tokens de una misma persona.
      * @param token secreto presentado, del que solo se consulta SHA-256
      * @param actor identidad autenticada cuyo correo se contrasta en persistencia
-     * @throws NegocioException con 404 genérico si el enlace o correo no es válido, 409 si ya pertenece
-     * o si el negocio está suspendido
+     * @throws NegocioException con 404 si el token es desconocido o mal formado, 403 si el correo
+     * corresponde a otra cuenta y 409 si no está vigente, ya pertenece o el negocio está suspendido
      */
     @Transactional
     public void aceptar(String token, UsuarioAutenticado actor) {
         if (actor == null) throw new NegocioException(ErrorCodigo.PROHIBIDO, "Se requiere una cuenta autenticada.");
         var invitacion = invitaciones.bloquearPorToken(hashValido(token)).orElseThrow(this::noEncontrado);
-        if (!invitacion.vigente(clock.instant())) throw noEncontrado();
+        if (!invitacion.vigente(clock.instant())) {
+            throw new NegocioException(ErrorCodigo.INVITACION_NO_VIGENTE,
+                    "La invitación no está vigente: " + invitacion.estadoPublico(clock.instant()) + ".");
+        }
         // Toda acreditación del equipo usa el bloqueo de propietarios antes de ① (V2-RN-06).
         membresias.bloquearPropietarios(invitacion.negocioId());
         var usuario = usuarios.bloquearPorId(actor.id()).orElseThrow(this::noEncontrado);
-        if (!usuario.getCorreo().equalsIgnoreCase(invitacion.correo())) throw noEncontrado();
+        if (!usuario.getCorreo().equalsIgnoreCase(invitacion.correo())) {
+            throw new NegocioException(ErrorCodigo.INVITACION_OTRA_CUENTA,
+                    "Esta invitación es para otra cuenta. Ingrese con el correo invitado.");
+        }
         estadoNegocio(invitacion.negocioId(), true);
         var anterior = membresias.findByNegocioIdAndUsuarioId(invitacion.negocioId(), actor.id());
         if (anterior.filter(Membresia::isActiva).isPresent()) {
@@ -153,6 +173,40 @@ public class InvitacionService {
         if (anterior.isPresent()) anterior.get().restablecerPorInvitacion(invitacion.rol(), clock.instant());
         else membresias.save(new Membresia(invitacion.negocioId(), actor.id(), invitacion.rol(), clock.instant()));
         invitacion.aceptar(actor.id(), clock.instant());
+    }
+
+    /**
+     * Registra y acredita personal en una sola transacción, sin ficha ni permisos de plataforma.
+     * El bloqueo del token serializa los registros; el de propietarios precede a la creación de la cuenta.
+     * El rol heredado CLIENTE solo satisface el esquema de v1 y nunca concede acceso en v2.
+     * @param token capacidad que determina correo, negocio y rol de la membresía
+     * @param datos identidad, teléfono, contraseña y consentimiento validados por MVC
+     * @return cuenta nueva cuya sesión se emite después del commit
+     * @throws NegocioException si el token no existe, no está vigente, el negocio está suspendido,
+     * el correo ya existe o la contraseña incumple RN-25; ningún cambio parcial se conserva
+     */
+    @Transactional
+    public Usuario registrar(String token, RegistroInvitadoDto datos) {
+        var invitacion = invitaciones.bloquearPorToken(hashValido(token)).orElseThrow(this::noEncontrado);
+        if (!invitacion.vigente(clock.instant())) {
+            throw new NegocioException(ErrorCodigo.INVITACION_NO_VIGENTE,
+                    "La invitación no está vigente: " + invitacion.estadoPublico(clock.instant()) + ".");
+        }
+        membresias.bloquearPropietarios(invitacion.negocioId());
+        estadoNegocio(invitacion.negocioId(), true);
+        if (!new PoliticaPassword().validar(datos.password()).isEmpty()) {
+            throw new NegocioException(ErrorCodigo.VALIDACION,
+                    "La contraseña debe tener de 8 a 72 caracteres, máximo 72 bytes UTF-8, una letra y un dígito.");
+        }
+        if (usuarios.findByCorreo(invitacion.correo()).isPresent()) {
+            throw new NegocioException(ErrorCodigo.CORREO_DUPLICADO, "El correo ya está registrado. Ingrese con su cuenta.");
+        }
+        var ahora = clock.instant();
+        var usuario = usuarios.saveAndFlush(new Usuario(datos.nombre(), invitacion.correo(), datos.telefono(),
+                passwords.encode(datos.password()), Rol.CLIENTE, ahora, ahora));
+        // Reutiliza el consumo íntegro: mismo bloqueo, revalidación y reglas que la aceptación autenticada.
+        aceptar(token, new UsuarioAutenticado(usuario.getId(), null, Optional.empty(), false));
+        return usuario;
     }
 
     private Object[] estadoNegocio(long id, boolean bloquear) {

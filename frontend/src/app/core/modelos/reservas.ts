@@ -14,7 +14,8 @@ export type EstadoReserva =
 export interface ReservaDto {
   id: number;
   codigo: string;
-  cliente: { id: number; nombre: string; telefono?: string | null };
+  /** id = cuenta web (null en fichas sin cuenta, V2-DA-69); fichaId = ficha local, siempre presente. */
+  cliente: { id: number | null; fichaId: number; nombre: string; telefono?: string | null };
   barbero: { id: number; nombre: string };
   servicio: { id: number; nombre: string };
   inicio: string;

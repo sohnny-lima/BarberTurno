@@ -6,6 +6,10 @@ package pe.barberturno.audit;
  * @version 1.0
  */
 public enum AccionAuditoria {
+    /** Aviso de presupuesto de IA agotado; no es una acción de auditoría de reserva. */
+    LIMITE_IA,
+    /** Aviso de atención humana; no es una acción de auditoría de reserva. */
+    DERIVACION,
     /**
      * Creación de reserva auditada en la misma transacción RN-15.
      */
@@ -33,5 +37,7 @@ public enum AccionAuditoria {
     /**
      * Inasistencia registrada desde el inicio de reserva RN-12.
      */
-    NO_ASISTIO
+    NO_ASISTIO,
+    /** Fallo de salida de WhatsApp: solo avisos internos, nunca auditoría de reserva. */
+    WHATSAPP
     }

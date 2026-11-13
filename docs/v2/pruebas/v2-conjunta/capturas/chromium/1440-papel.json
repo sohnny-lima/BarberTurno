@@ -1,0 +1,51 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 900
+  },
+  "superpuesta": true,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": {
+    "ambito": "[role=\"dialog\"]",
+    "pulsaciones": 6
+  },
+  "ruta": "/negocios",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 32,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 57
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-hidden-focus",
+        "impacto": "serious",
+        "nodos": [
+          "app-root",
+          "#cdk-overlay-0 > .cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(1)",
+          "#cdk-overlay-0 > .cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(3)"
+        ]
+      }
+    ],
+    "contrasteManual": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

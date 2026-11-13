@@ -1,3 +1,4 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -36,6 +37,7 @@ import { ESTADOS_RESERVA } from '../../shared/estado-reserva-chip';
 import { TituloPagina } from '../../shared/titulo-pagina';
 import { ReservaEsqueleto } from '../reservar/reserva-esqueleto';
 import { AgendaCita } from './agenda-cita';
+import { WhatsAppProfesional } from './whatsapp-profesional';
 import { mostrarErrores } from '../../shared/formulario';
 import { CancelarDialogo } from '../mis-citas/cancelar-dialogo';
 import { AuditoriaDialogo } from './auditoria-dialogo';
@@ -67,6 +69,7 @@ const fechaValida: ValidatorFn = (control) => {
     MatInputModule,
     MatSelectModule,
     AgendaCita,
+    WhatsAppProfesional,
     ReservaEsqueleto,
   ],
   templateUrl: './agenda.html',
@@ -74,6 +77,7 @@ const fechaValida: ValidatorFn = (control) => {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Agenda {
+  readonly negocio = inject(NegocioActual);
   private readonly api = inject(ReservasApi);
   private readonly barberosApi = inject(BarberosApi);
   private readonly dialogos = inject(MatDialog);
@@ -88,7 +92,7 @@ export class Agenda {
     { initialValue: false },
   );
   private peticion?: Subscription;
-  readonly admin = computed(() => this.sesion.rol() === 'ADMIN');
+  readonly admin = computed(() => this.negocio.rol() === 'ADMIN');
   readonly formulario = new FormGroup({
     fecha: new FormControl(fechaHoyLima(), {
       nonNullable: true,

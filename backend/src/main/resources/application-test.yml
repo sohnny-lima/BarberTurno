@@ -10,12 +10,44 @@ spring:
 
 barberturno:
   tenancy:
-    alias-legado:
-      slug: barberturno
     negocio-inicial-slug: barberturno
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}
+  # Las pruebas del procesador y del enviador llaman al lote directamente (V2-DA-08). La salida apunta
+  # a un origen inexistente y sin token: cada prueba que envía fija su servidor Graph falso y un token ficticio.
+  whatsapp:
+    procesador:
+      habilitado: false
+    # Las pruebas llaman al procesador a mano: el vínculo profesional sigue disponible (V2-DA-109).
+    vinculo-profesional:
+      habilitado: true
+    salida:
+      habilitado: false
+      graph:
+        url-base: http://127.0.0.1:9
+        token: ""
+    # V2-10: borrador NO aprobado (P2-06); la retención se ejecuta solo cuando una prueba la llama.
+    conversacion:
+      privacidad:
+        texto: "BORRADOR (pendiente de P2-06): para reservar en {negocio} guardaremos tu nombre de WhatsApp y tu número. Aviso de privacidad: {enlace}. ¿Aceptas?"
+        enlace: https://barberturno.ejemplo.test/privacidad
+      retencion:
+        habilitada: false
+        # BORRADOR P2-06 (propuesta del documento 15, NO aprobada): plazos solo para pruebas.
+        cuerpo-eventos: 30d
+        contenido-mensajes: 90d
+        operaciones-terminadas: 30d
+    # V2-11: el retorno automático solo se ejecuta cuando una prueba lo llama.
+    bandeja:
+      habilitado: false
+      entrantes: SOLO_HUMANO
+
+  # V2-12: solo las pruebas que usan el adaptador falso o el servidor local la activan.
+  ia:
+    habilitada: false
+    trabajador:
+      habilitado: false
 
   admin:
     correo: ${BT_ADMIN_CORREO:}

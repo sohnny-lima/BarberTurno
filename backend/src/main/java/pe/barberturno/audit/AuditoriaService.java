@@ -46,4 +46,19 @@ public class AuditoriaService {
         auditorias.save(new AuditoriaReserva(reserva, actor, accion, estadoAnterior,
                 reserva.getEstado(), datosAnteriores, datosNuevos, motivo, excepcional, clock.instant()));
     }
+
+    /**
+     * Conserva RN-15 dentro de la transacción de una acción de la ficha.
+     * @param reserva reserva modificada
+     * @param ficha actor sin sesión web
+     * @param accion acción ejecutada
+     * @param anterior estado previo
+     * @param antes datos previos o nulos al crear
+     * @param despues datos posteriores
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void registrarCambioFicha(Reserva reserva, pe.barberturno.customers.Cliente ficha,
+            AccionAuditoria accion, EstadoReserva anterior, Map<String, Object> antes, Map<String, Object> despues) {
+        auditorias.save(AuditoriaReserva.porFicha(reserva, ficha, accion, anterior, antes, despues, clock.instant()));
+    }
 }

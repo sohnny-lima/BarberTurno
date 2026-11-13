@@ -1,5 +1,7 @@
 package pe.barberturno.auth;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.HttpCookie;
@@ -66,7 +68,7 @@ class AuthCsrfHttpIT {
             assertThat(enviar("POST", "/api/auth/login", LOGIN, tokenActual()).statusCode()).isEqualTo(200);
         }
         String anterior = tokenActual();
-        var resultado = enviar("POST", "/api/auth/" + ruta,
+        var resultado = enviar("POST", ruta.equals("registro") ? negocio("/api/registro") : "/api/auth/" + ruta,
                 ruta.equals("registro") ? REGISTRO : ruta.equals("login") ? LOGIN : null, anterior);
         assertThat(resultado.statusCode()).isEqualTo(ruta.equals("registro") ? 201 : ruta.equals("login") ? 200 : 204);
         var cabeceras = resultado.headers().allValues("Set-Cookie");
@@ -90,12 +92,12 @@ class AuthCsrfHttpIT {
         String nuevo = tokenActual();
         assertThat(!nuevo.isBlank() && !nuevo.equals(anterior)).as("CSRF renovado en la misma respuesta").isTrue();
         // Tras logout, el login público permite demostrar el CSRF anónimo sin otra lectura.
-        String escritura = ruta.equals("logout") ? "/api/auth/login" : "/api/notificaciones/lectura";
+        String escritura = ruta.equals("logout") ? "/api/auth/login" : negocio("/api/notificaciones/lectura");
         String cuerpo = ruta.equals("logout") ? LOGIN : null;
         assertThat(enviar("POST", escritura, cuerpo, anterior).statusCode()).isEqualTo(403);
         assertThat(enviar("POST", escritura, cuerpo, nuevo).statusCode()).isEqualTo(ruta.equals("logout") ? 200 : 204);
         String estable = tokenActual();
-        for (String lectura : new String[]{"/api/notificaciones/conteo", "/api/auth/sesion"}) {
+        for (String lectura : new String[]{negocio("/api/notificaciones/conteo"), "/api/auth/sesion"}) {
             var lecturaRespuesta = enviar("GET", lectura, null, null);
             assertThat(lecturaRespuesta.statusCode()).isEqualTo(200);
             assertThat(lecturaRespuesta.headers().allValues("Set-Cookie").stream()
@@ -112,7 +114,7 @@ class AuthCsrfHttpIT {
         assertThat(fallido.statusCode()).isEqualTo(401);
         assertThat(fallido.headers().allValues("Set-Cookie").isEmpty()).isTrue();
         assertThat(tokenActual().equals(anterior)).isTrue();
-        var duplicado = enviar("POST", "/api/auth/registro", REGISTRO, anterior);
+        var duplicado = enviar("POST", negocio("/api/registro"), REGISTRO, anterior);
         assertThat(duplicado.statusCode()).isEqualTo(409);
         assertThat(duplicado.headers().allValues("Set-Cookie").isEmpty()).isTrue();
         assertThat(tokenActual().equals(anterior)).isTrue();

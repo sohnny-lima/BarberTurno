@@ -8,6 +8,13 @@ import org.springframework.web.bind.annotation.*;
 import pe.barberturno.common.error.NegocioException;
 import pe.barberturno.common.security.UsuarioAutenticado;
 import pe.barberturno.platform.dto.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import pe.barberturno.auth.AuthService;
+import pe.barberturno.auth.JwtService;
+import pe.barberturno.auth.dto.UsuarioSesionDto;
+import pe.barberturno.common.security.CookieSesion;
 
 /**
  * Gestión local y capacidades globales; CSRF obligatorio en todas las escrituras.
@@ -18,12 +25,45 @@ import pe.barberturno.platform.dto.*;
 @RequestMapping("/api/invitaciones")
 public class InvitacionController {
     private final InvitacionService invitaciones;
+    private final AuthService auth;
+    private final JwtService jwt;
+    private final CookieSesion cookies;
+    private final CsrfTokenRepository csrf;
 
     /**
      * Conecta las rutas con la autorización y las transacciones del servicio.
      * @param invitaciones emisión, consulta y consumo atómicos
+     * @param auth proyección global de la nueva identidad sin usar el alias de negocio
+     * @param jwt firmante compartido de sesión
+     * @param cookies política común de emisión de BT_SESION
+     * @param csrf renovación del token tras registrar la cuenta (DA-26)
      */
-    public InvitacionController(InvitacionService invitaciones) { this.invitaciones = invitaciones; }
+    public InvitacionController(InvitacionService invitaciones, AuthService auth, JwtService jwt,
+            CookieSesion cookies, CsrfTokenRepository csrf) {
+        this.invitaciones = invitaciones; this.auth = auth; this.jwt = jwt;
+        this.cookies = cookies; this.csrf = csrf;
+    }
+
+    /**
+     * Crea la cuenta del correo invitado y su membresía; inicia sesión renovando ambas cookies.
+     * La capacidad es pública y CSRF obligatorio, incluso si hay una sesión previa.
+     * @param token secreto que acredita el correo y rol, nunca tomados del cuerpo
+     * @param datos identidad y consentimiento validados
+     * @param peticion solicitud cuyo CSRF validó la cadena
+     * @param respuesta salida que añade BT_SESION y XSRF-TOKEN con su política compartida
+     * @return 201 con la identidad global y sin caché
+     * @throws NegocioException si la capacidad, el correo o la validación impiden el alta atómica
+     */
+    @PostMapping("/{token}/registro")
+    public ResponseEntity<UsuarioSesionDto> registrar(@PathVariable String token,
+            @Valid @RequestBody RegistroInvitadoDto datos, HttpServletRequest peticion,
+            HttpServletResponse respuesta) {
+        var usuario = invitaciones.registrar(token, datos);
+        var dto = auth.sesion(usuario);
+        respuesta.addHeader(HttpHeaders.SET_COOKIE, cookies.emitir(jwt.emitir(usuario)).toString());
+        csrf.saveToken(csrf.generateToken(peticion), peticion, respuesta);
+        return ResponseEntity.status(201).cacheControl(CacheControl.noStore()).body(dto);
+    }
 
     /**
      * Emite el enlace una sola vez dentro del negocio resuelto.

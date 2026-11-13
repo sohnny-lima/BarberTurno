@@ -23,19 +23,20 @@ public class ReservaAutorizacion {
      */
     public boolean puedeVer(UsuarioAutenticado actor, Reserva reserva) {
         return actor.rol() == Rol.ADMIN
-                || actor.rol() == Rol.CLIENTE && actor.id() == reserva.getCliente().getUsuario().getId()
+                || actor.rol() == Rol.CLIENTE && reserva.getCliente().getUsuario() != null
+                    && actor.id() == reserva.getCliente().getUsuario().getId()
                 || actor.rol() == Rol.BARBERO && actor.id() == reserva.getBarbero().getUsuario().getId();
     }
     /**
      * Aplica la misma visibilidad a la fotografía escalar RF-09 sin precargar entidades.
      * @param actor identidad vigente autenticada
-     * @param clienteId propietario de la reserva
+     * @param clienteId cuenta propietaria de la reserva, o nula si la ficha no tiene cuenta
      * @param asignadoId cuenta del profesional asignado
      * @return true para ADMIN, CLIENTE propietario o BARBERO asignado
      */
-    public boolean puedeVer(UsuarioAutenticado actor, long clienteId, long asignadoId) {
+    public boolean puedeVer(UsuarioAutenticado actor, Long clienteId, long asignadoId) {
         return actor.rol() == Rol.ADMIN
-                || actor.rol() == Rol.CLIENTE && actor.id() == clienteId
+                || actor.rol() == Rol.CLIENTE && clienteId != null && actor.id() == clienteId
                 || actor.rol() == Rol.BARBERO && actor.id() == asignadoId;
     }
 }

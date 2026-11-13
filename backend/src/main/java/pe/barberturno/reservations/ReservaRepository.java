@@ -39,7 +39,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
      * @param id reserva cuya propiedad y asignación inicial se necesitan
      * @return fotografía o vacío si no existe; debe revalidarse después de esperar
      */
-    @Query("select new pe.barberturno.reservations.ReservaLectura(r.cliente.id, r.cliente.usuario.id, r.barbero.id, r.barbero.usuario.id, r.version, r.estado, r.inicio) from Reserva r where r.id = :id")
+    @Query("select new pe.barberturno.reservations.ReservaLectura(r.cliente.id, cuenta.id, r.barbero.id, r.barbero.usuario.id, r.version, r.estado, r.inicio) from Reserva r left join r.cliente.usuario cuenta where r.id = :id")
     Optional<ReservaLectura> leerParaReprogramar(@Param("id") long id);
 
 
@@ -179,7 +179,7 @@ public interface ReservaRepository extends RepositorioTransaccional<Reserva, Lon
     /**
      * Lee propiedad sin cargar relaciones para autorizar excluirReservaId sin revelar reservas ajenas.
      * @param id identidad de la reserva solicitada
-     * @return id de la cuenta propietaria o vacío cuando no existe la reserva
+     * @return id de la cuenta propietaria o vacío si no existe la reserva o su ficha no tiene cuenta
      */
     @Query("select r.cliente.usuario.id from Reserva r where r.id = :id")
     Optional<Long> buscarClienteId(@Param("id") long id);

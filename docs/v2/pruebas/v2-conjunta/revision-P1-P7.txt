@@ -1,0 +1,54 @@
+== P1
+color-contrast (serious) · Element content is too short to determine if it is actual text content
+    2 nodos: 360-cajon → .distintivo; 360-cajon → .mat-step-icon-selected > .mat-step-icon-content > span[aria-hidden="true"][_ngcontent-ng-c4039708100=""]
+color-contrast (serious) · Element's background color could not be determined because it is overlapped by another element
+    61 nodos: 1440-agenda → #mat-button-toggle-0-button > .mat-button-toggle-label-content; 1440-agenda → #mat-button-toggle-1-button > .mat-button-toggle-label-content; 1440-agenda → .mat-mdc-select-min-line; 1440-agenda → #mat-input-0; 1440-configuracion → #mat-input-0; 1440-configuracion → #mat-input-1
+color-contrast (serious) · Element's background color could not be determined because it partially overlaps other elements
+    2 nodos: 360-papel → #mat-mdc-dialog-title-0; 360-alta → #mat-mdc-hint-2
+Backend detenido: PID 116052
+barberturno_v2_test vaciada.
+== P2
+Jar: 04/11/2026 05:28
+Backend: PID 126740 en http://localhost:8081 (barberturno_v2_test)
+Backend listo con los datos ficticios de las dos barber�as y los avisos de revisi�n.
+Sesi�n en espera (-Mantener): consola PID 179208, backend PID 126740.
+== P3
+Recuperación completada: backend (PID 126740) ya no existía; ventanas sin PID registrado; base barberturno_v2_test vaciada; cerrojo borrado (PID 179208); archivo de sesión borrado.
+== P4
+color-contrast (serious) · Element content is too short to determine if it is actual text content
+    2 nodos: 360-cajon → .distintivo; 360-cajon → .mat-step-icon-selected > .mat-step-icon-content > span[aria-hidden="true"][_ngcontent-ng-c4039708100=""]
+color-contrast (serious) · Element's background color could not be determined because it is overlapped by another element
+    61 nodos: 1440-agenda → #mat-button-toggle-0-button > .mat-button-toggle-label-content; 1440-agenda → #mat-button-toggle-1-button > .mat-button-toggle-label-content; 1440-agenda → .mat-mdc-select-min-line; 1440-agenda → #mat-input-0; 1440-configuracion → #mat-input-0; 1440-configuracion → #mat-input-1
+color-contrast (serious) · Element's background color could not be determined because it partially overlaps other elements
+    2 nodos: 360-papel → #mat-mdc-dialog-title-0; 360-alta → #mat-mdc-hint-2
+Backend detenido: PID 116764
+barberturno_v2_test vaciada.
+== P5a
+Exception: D:\Proyectos\BarberTurno-v2-conjunta\frontend\tools\revision-conjunta.ps1:186
+Line |
+ 186 |      throw "El cerrojo de la base ($Cerrojo) pertenece a otro proceso  …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | El cerrojo de la base (D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock) pertenece a otro proceso vivo (PID
+     | 116824). Se aborta sin tocar nada.
+== P5b
+Exception: D:\Proyectos\BarberTurno-v2-conjunta\frontend\tools\revision-conjunta.ps1:186
+Line |
+ 186 |      throw "El cerrojo de la base ($Cerrojo) pertenece a otro proceso  …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | El cerrojo de la base (D:\Proyectos\BarberTurno-v2\.local\bd-v2-test.lock) pertenece a otro proceso vivo (PID
+     | 116824). Se aborta sin tocar nada.
+== P6-r1
+Otra recuperaci�n concurrente (PID '99248') ya complet� la limpieza. Se sale sin tocar nada.
+== P6-r2
+Recuperaci�n completada: backend (PID 193856) ya no exist�a; ventanas sin PID registrado; base barberturno_v2_test vaciada; cerrojo borrado (PID 107716); archivo de sesi�n borrado.
+== P7a
+Exception: D:\Proyectos\BarberTurno-v2-conjunta\frontend\tools\revision-conjunta.ps1:520
+Line |
+ 520 |        throw $mensajeFallo
+     |        ~~~~~~~~~~~~~~~~~~~
+     | Falló el vaciado de barberturno_v2_test durante la recuperación: No se pudo vaciar barberturno_v2_test (existen
+     | sesiones activas u otra condición rechazada por vaciar()). Se conservan el archivo de sesión
+     | (limpiezaPendiente=true) y el cerrojo. Para reintentar la recuperación ejecute: pwsh -NoProfile -File
+     | frontend/tools/revision-conjunta.ps1 -Recuperar
+== P7b
+Recuperación completada: backend (PID 153068) ya no existía; ventanas sin PID registrado; base barberturno_v2_test vaciada; cerrojo borrado (PID 221240); archivo de sesión borrado.

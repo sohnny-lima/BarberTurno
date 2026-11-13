@@ -26,6 +26,9 @@ public class Cliente {
     private String nombre;
     @Column(length = 16)
     private String telefono;
+    // V2-08 solo lee el remitente verificado; su escritura llega con el consentimiento (V2-10).
+    @Column(name = "wa_id", length = 20, insertable = false, updatable = false)
+    private String waId;
     @Column(name = "privacidad_aceptada_en")
     private Instant privacidadAceptadaEn;
     @Column(nullable = false)
@@ -34,6 +37,9 @@ public class Cliente {
     private Instant creadoEn;
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn;
+
+    @Column(name = "anonimizada_en")
+    private Instant anonimizadaEn;
 
     /** Hidrata la ficha exclusivamente desde JPA. */
     protected Cliente() { }
@@ -60,8 +66,10 @@ public class Cliente {
      * @param telefono teléfono local opcional
      * @param ahora instante del reloj del servicio
      * @throws NullPointerException si falta el nombre o el instante
+     * @throws pe.barberturno.common.error.NegocioException CONFLICTO si la ficha ya fue anonimizada
      */
     public void actualizarDatos(String nombre, String telefono, Instant ahora) {
+        exigirIdentificable();
         this.nombre = Objects.requireNonNull(nombre);
         this.telefono = telefono;
         this.actualizadoEn = Objects.requireNonNull(ahora);
@@ -77,6 +85,11 @@ public class Cliente {
         activo = false;
     }
 
+    private void exigirIdentificable() {
+        if (anonimizadaEn != null) throw new pe.barberturno.common.error.NegocioException(
+                pe.barberturno.common.error.ErrorCodigo.CONFLICTO, "Una ficha anonimizada no admite cambios.");
+    }
+
     /** {@return identificador de ficha, independiente del de la cuenta} */
     public Long getId() { return id; }
     /** {@return cuenta destinataria de avisos; nula en una futura ficha sin cuenta} */
@@ -85,6 +98,8 @@ public class Cliente {
     public String getNombre() { return nombre; }
     /** {@return teléfono local opcional} */
     public String getTelefono() { return telefono; }
+    /** {@return identificador de WhatsApp del remitente verificado, o {@code null} si la ficha no tiene canal} */
+    public String getWaId() { return waId; }
     /** {@return consentimiento copiado al crear la ficha} */
     public Instant getPrivacidadAceptadaEn() { return privacidadAceptadaEn; }
     /** {@return si la ficha permite actuar como cliente en este negocio} */

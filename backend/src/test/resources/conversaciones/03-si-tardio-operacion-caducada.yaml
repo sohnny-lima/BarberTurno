@@ -1,0 +1,42 @@
+nombre: "03-si-tardio-operacion-caducada"
+negocio: "A"
+reloj: "2026-11-04T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Quiero una cita para corte"
+    modelo:
+      - llamadas:
+          - herramienta: "buscar_disponibilidad"
+            argumentos:
+              servicio: "s1"
+              profesional: null
+              desde: "2026-11-04"
+              hasta: "2026-11-10"
+              horaDesde: "10:00"
+              horaHasta: null
+              cita: null
+      - llamadas:
+          - herramienta: "proponer_reserva"
+            argumentos:
+              franja: "f1"
+      - texto: "Te he preparado la propuesta para que confirmes."
+        parada: "end_turn"
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Precio"]
+      operacionVigente: true
+      estadoTurno: "HECHO"
+  - avanzarMinutos: 15
+    cliente:
+      texto: "SI"
+    modelo: []
+    espera:
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["Esa propuesta ya no es válida"]
+          noContiene: ["Listo:"]
+      reservasCreadas: 0
+      operacionVigente: false

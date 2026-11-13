@@ -1,7 +1,13 @@
 <app-cabecera-pagina titulo="Usuarios" />
 <form (submit)="$event.preventDefault(); buscar()" class="tarjeta filtros">
   <mat-form-field appearance="outline" subscriptSizing="dynamic"
-    ><mat-label>Nombre o correo</mat-label><input matInput [formControl]="busqueda"
+    ><mat-label>Nombre o correo</mat-label
+    ><input
+      matInput
+      type="search"
+      [formControl]="busqueda"
+      autocomplete="off"
+      enterkeyhint="search"
   /></mat-form-field>
   <mat-form-field appearance="outline" subscriptSizing="dynamic"
     ><mat-label>Rol</mat-label
@@ -114,7 +120,7 @@
 <ng-template #acciones let-u>
   <button
     mat-stroked-button
-    [disabled]="operando()"
+    [disabled]="operando() || soloLectura()"
     (click)="restablecer(u)"
     [attr.aria-label]="'Restablecer contraseña de ' + u.nombre"
   >
@@ -123,7 +129,7 @@
   <button
     mat-stroked-button
     [class.riesgo]="u.activo"
-    [disabled]="operando()"
+    [disabled]="operando() || soloLectura()"
     (click)="cambiarEstado(u)"
     [attr.aria-label]="(u.activo ? 'Desactivar ' : 'Activar ') + u.nombre"
   >

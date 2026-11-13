@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { MatFormField } from '@angular/material/form-field';
 import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
@@ -33,6 +34,7 @@ describe('Alta y edición de barberos', () => {
     });
     TestBed.overrideProvider(MatDialog, { useValue: dialogos });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
     const fixture = TestBed.createComponent(BarberoDialogo);
     fixture.detectChanges();
     return fixture;
@@ -53,7 +55,7 @@ describe('Alta y edición de barberos', () => {
     const password = fixture.componentInstance.formulario.controls.passwordTemporal.value;
     fixture.componentInstance.guardar();
     fixture.componentInstance.guardar();
-    const peticion = http.expectOne('/api/barberos');
+    const peticion = http.expectOne('/api/n/prueba/barberos');
     expect(peticion.request.body).toEqual({
       nombre: 'Barbero ficticio',
       correo: 'personal@ejemplo.test',
@@ -84,7 +86,7 @@ describe('Alta y edición de barberos', () => {
     expect(controles.passwordTemporal.value).toBe('');
     expect(fixture.nativeElement.textContent).toContain('T-31');
     fixture.componentInstance.guardar();
-    const peticion = http.expectOne('/api/barberos');
+    const peticion = http.expectOne('/api/n/prueba/barberos');
     expect(peticion.request.body).toEqual({ usuarioId: 8, especialidad: 'Corte y barba' });
     peticion.flush({ id: 17 });
     cerrado.next(true);
@@ -100,7 +102,7 @@ describe('Alta y edición de barberos', () => {
     });
     fixture.componentInstance.formulario.controls.telefono.setValue('999000017');
     fixture.componentInstance.guardar();
-    const peticion = http.expectOne('/api/barberos/17');
+    const peticion = http.expectOne('/api/n/prueba/barberos/17');
     expect(peticion.request.method).toBe('PUT');
     expect(peticion.request.body).toEqual({
       nombre: 'Ficticio',
@@ -115,7 +117,7 @@ describe('Alta y edición de barberos', () => {
     const fixture = nueva();
     fixture.componentInstance.guardar();
     http
-      .expectOne('/api/barberos')
+      .expectOne('/api/n/prueba/barberos')
       .flush(
         { codigo: 'CORREO_DUPLICADO', detail: 'Ya existe una cuenta con ese correo.' },
         { status: 409, statusText: 'Conflict' },
@@ -129,13 +131,13 @@ describe('Alta y edición de barberos', () => {
     expect(referencia.close).not.toHaveBeenCalled();
     fixture.componentInstance.formulario.controls.correo.setValue('otro@ejemplo.test');
     fixture.componentInstance.guardar();
-    http.expectOne('/api/barberos').flush({ id: 17 });
+    http.expectOne('/api/n/prueba/barberos').flush({ id: 17 });
     expect(referencia.close).toHaveBeenCalledWith(true);
   });
   it('explica el límite de diez activos sin cerrar el formulario', () => {
     const fixture = nueva();
     fixture.componentInstance.guardar();
-    http.expectOne('/api/barberos').flush(
+    http.expectOne('/api/n/prueba/barberos').flush(
       {
         codigo: 'LIMITE_BARBEROS_ACTIVOS',
         detail: 'Como máximo puede haber 10 barberos activos.',
@@ -157,14 +159,14 @@ describe('Alta y edición de barberos', () => {
     controles.especialidad.setValue('Cortes');
     controles.usuarioId.setValue(1.5);
     fixture.componentInstance.guardar();
-    http.expectNone('/api/barberos');
+    http.expectNone('/api/n/prueba/barberos');
     controles.usuarioId.setValue(8);
     expect(fixture.componentInstance.formulario.valid).toBe(true);
     controles.modo.setValue('nueva');
     fixture.componentInstance.ajustarModo();
     expect(fixture.componentInstance.formulario.invalid).toBe(true);
     fixture.componentInstance.guardar();
-    http.expectNone('/api/barberos');
+    http.expectNone('/api/n/prueba/barberos');
   });
   it('mantiene campos outline y el pie fuera del contenido desplazable', () => {
     const f = nueva();

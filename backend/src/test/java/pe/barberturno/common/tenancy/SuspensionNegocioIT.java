@@ -6,13 +6,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.assertj.core.api.Assertions.*;
 
-/** CF-2: suspensión transversal, dos negocios simultáneos y compatibilidad del alias. */
+/** CF-2: suspensión transversal por rutas canónicas, incluido el negocio inicial. */
 class SuspensionNegocioIT extends PlataformaPruebaBase {
     @ParameterizedTest @ValueSource(strings = {"a", "barberturno"})
     void suspension_publicas404_personalLee_escrituras409_reactivacionYOtroNegocioIntacto(String slug) throws Exception {
         var datos = en(slug, () -> DatosNegocioPrueba.crear(jdbc, "suspendido"));
         var otros = en("b", () -> DatosNegocioPrueba.crear(jdbc, "activo"));
-        String prefijo = slug.equals("barberturno") ? "/api" : "/api/n/a";
+        String prefijo = "/api/n/" + slug;
         var aAntes = huella(slug); var bAntes = huella("b");
         var cuentasAntes = jdbc.queryForList("select * from usuario order by id");
         long id = directorio.buscar(slug).orElseThrow();

@@ -1,0 +1,211 @@
+<app-cabecera-pagina
+  titulo="Bandeja de WhatsApp"
+  subtitulo="Atención y derivación de conversaciones en modo humano."
+>
+  <button
+    mat-stroked-button
+    type="button"
+    (click)="actualizar()"
+    [disabled]="cargandoLista() || cargandoDetalle()"
+    aria-label="Actualizar conversaciones"
+  >
+    Actualizar
+  </button>
+</app-cabecera-pagina>
+
+<div class="bandeja-layout" [class.modo-detalle-movil]="movil() && seleccionadaId()">
+  <!-- Columna izquierda: Lista de conversaciones -->
+  @if (!movil() || !seleccionadaId()) {
+    <section class="panel-lista" aria-label="Lista de conversaciones derivadas">
+      <h2 class="sr-only">Conversaciones derivadas</h2>
+
+      @if (errorLista()) {
+        <app-estado-contenido
+          tipo="error"
+          [texto]="errorLista()"
+          reintento="Reintentar"
+          (reintentar)="cargarLista()"
+        />
+      }
+
+      @if (cargandoLista()) {
+        <app-estado-contenido tipo="carga" texto="Cargando conversaciones…" />
+      } @else if (!conversaciones().length) {
+        <app-estado-contenido tipo="vacio" texto="No hay conversaciones derivadas" />
+      } @else {
+        <ul class="lista-items" role="list">
+          @for (c of conversaciones(); track c.id) {
+            <li class="item-fila" [class.seleccionada]="c.id === seleccionadaId()">
+              <a
+                [routerLink]="negocio.ruta('whatsapp/' + c.id)"
+                class="enlace-conversacion"
+                [attr.aria-current]="c.id === seleccionadaId() ? 'true' : null"
+              >
+                <div class="item-cabecera">
+                  <span class="cliente-nombre">{{ c.cliente }}</span>
+                  @if (c.pendienteDeRespuesta) {
+                    <span class="pildora-pendiente">Sin responder</span>
+                  }
+                </div>
+                <div class="item-info">
+                  <span class="telefono">{{ c.telefonoEnmascarado }}</span>
+                  <span class="separador">·</span>
+                  <span class="motivo">{{ motivoLegible(c.motivo) }}</span>
+                </div>
+                @if (c.ultimaEntradaEn) {
+                  <div class="item-fecha">{{ c.ultimaEntradaEn | fechaLima }}</div>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <!-- Columna derecha: Detalle de conversación seleccionada -->
+  @if (!movil() || seleccionadaId()) {
+    <section class="panel-detalle" aria-label="Detalle de la conversación">
+      @if (movil() && seleccionadaId()) {
+        <div class="barra-volver-movil">
+          <a mat-button [routerLink]="negocio.ruta('whatsapp')" class="btn-volver">
+            ← Volver a la lista
+          </a>
+        </div>
+      }
+
+      @if (!seleccionadaId()) {
+        <div class="detalle-vacio" role="status">
+          <p>Seleccione una conversación para ver su historial y responder.</p>
+        </div>
+      } @else if (cargandoDetalle()) {
+        <app-estado-contenido tipo="carga" texto="Cargando conversación…" />
+      } @else if (errorDetalle()) {
+        <div class="alerta-error" role="alert">
+          <p>{{ errorDetalle() }}</p>
+        </div>
+      } @else if (detalle(); as d) {
+        <div class="detalle-contenido">
+          <!-- Cabecera del detalle -->
+          <div class="detalle-cabecera">
+            <div class="info-cliente">
+              <h2>{{ d.conversacion.cliente }}</h2>
+              <p class="datos-secundarios">
+                {{ d.conversacion.telefonoEnmascarado }} ·
+                {{ motivoLegible(d.conversacion.motivo) }}
+              </p>
+              @if (d.conversacion.pendienteDeRespuesta) {
+                <span class="pildora-pendiente">Sin responder</span>
+              }
+            </div>
+            <div class="acciones-detalle">
+              <button
+                mat-stroked-button
+                type="button"
+                class="btn-devolver"
+                (click)="devolver()"
+                [disabled]="devolviendo()"
+              >
+                Devolver al asistente
+              </button>
+            </div>
+          </div>
+
+          <!-- Historial de mensajes -->
+          <div class="historial-mensajes" role="log" aria-label="Historial de mensajes">
+            @if (d.hayAnteriores) {
+              <div class="contenedor-anteriores">
+                <button
+                  mat-button
+                  type="button"
+                  class="btn-anteriores"
+                  (click)="verAnteriores()"
+                  [disabled]="cargandoAnteriores()"
+                >
+                  {{ cargandoAnteriores() ? 'Cargando anteriores…' : 'Ver anteriores' }}
+                </button>
+              </div>
+            }
+
+            @for (m of d.mensajes; track m.id) {
+              <div
+                class="burbuja-mensaje"
+                [class.entrante]="m.entrante"
+                [class.saliente]="!m.entrante"
+                [class.fallido]="m.estado === 'FALLIDO'"
+              >
+                <div class="mensaje-origen">{{ origenLegible(m) }}</div>
+                <div class="mensaje-texto">
+                  @if (m.retirado) {
+                    <span class="texto-retirado"
+                      >Mensaje retirado por la política de retención</span
+                    >
+                  } @else {
+                    <span>{{ m.texto }}</span>
+                  }
+                </div>
+                <div class="mensaje-pie">
+                  <span class="mensaje-hora">{{ m.creadoEn | fechaLima }}</span>
+                  @if (m.estado === 'PENDIENTE') {
+                    <span class="insignia-estado estado-pendiente">Pendiente</span>
+                  }
+                  @if (m.estado === 'FALLIDO') {
+                    <span class="insignia-estado estado-fallido">
+                      No se pudo enviar{{ m.motivoFallo ? ': ' + m.motivoFallo : '' }}
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Zona de respuesta -->
+          <div class="zona-respuesta">
+            @if (!d.conversacion.puedeResponder) {
+              <p class="aviso-ventana-cerrada" role="status">
+                {{ explicacionNoResponder(d.conversacion.motivoNoResponder) }}
+              </p>
+            }
+
+            <div class="campo-respuesta">
+              <label for="texto-respuesta" class="etiqueta-respuesta">Respuesta</label>
+              <textarea
+                id="texto-respuesta"
+                class="textarea-respuesta"
+                [value]="textoRespuesta()"
+                (input)="textoRespuesta.set($any($event.target).value)"
+                maxlength="4096"
+                rows="3"
+                [disabled]="!d.conversacion.puedeResponder || enviando()"
+                placeholder="Escriba su mensaje al cliente…"
+                enterkeyhint="send"
+              ></textarea>
+              <div class="contador-caracteres" aria-hidden="true">
+                {{ textoRespuesta().length }} / 4096
+              </div>
+            </div>
+
+            <div class="acciones-envio">
+              <button
+                mat-flat-button
+                type="button"
+                color="primary"
+                class="btn-enviar"
+                (click)="enviarRespuesta()"
+                [disabled]="
+                  !d.conversacion.puedeResponder || enviando() || !textoRespuesta().trim().length
+                "
+              >
+                {{ enviando() ? 'Enviando…' : 'Enviar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<div class="sr-only" aria-live="polite">
+  {{ mensajeEnvio() || mensajeAccion() }}
+</div>

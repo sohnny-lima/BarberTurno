@@ -32,17 +32,21 @@ public class MisNegociosService {
     /**
      * Deduplica por negocio y conserva la prioridad de la membresía activa (V2-DA-25).
      * @param usuarioId id del principal autenticado; el controlador no acepta un id alternativo
-     * @return negocios propios ordenados por slug, con el rol de ese negocio
+     * @return negocios propios ordenados por slug, con rol prioritario y todos sus papeles activos
      */
     @Transactional(readOnly = true)
     public List<NegocioPropioDto> listar(long usuarioId) {
         Map<Long, String> roles = new HashMap<>();
-        vinculos.listarNegociosPropiosActivos(usuarioId).forEach(id -> roles.put(id, "CLIENTE"));
+        var comoCliente = new HashSet<>(vinculos.listarNegociosPropiosActivos(usuarioId));
+        comoCliente.forEach(id -> roles.put(id, "CLIENTE"));
         membresias.listarPropiasActivas(usuarioId).forEach(m -> roles.put(m.getNegocioId(), m.getRol().name()));
         var resultado = new TreeMap<String, NegocioPropioDto>();
         for (var fila : negocios.describir(roles.keySet())) {
             String slug = (String) fila[1];
-            resultado.put(slug, new NegocioPropioDto(slug, (String) fila[2], roles.get(((Number)fila[0]).longValue())));
+            long id = ((Number) fila[0]).longValue();
+            String rol = roles.get(id);
+            var papeles = !rol.equals("CLIENTE") && comoCliente.contains(id) ? List.of(rol, "CLIENTE") : List.of(rol);
+            resultado.put(slug, new NegocioPropioDto(slug, (String) fila[2], rol, papeles));
         }
         return List.copyOf(resultado.values());
     }

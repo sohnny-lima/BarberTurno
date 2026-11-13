@@ -1,0 +1,48 @@
+nombre: "04-doble-boton"
+negocio: "A"
+reloj: "2026-11-04T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Quiero una cita para corte"
+    modelo:
+      - llamadas:
+          - herramienta: "buscar_disponibilidad"
+            argumentos:
+              servicio: "s1"
+              profesional: null
+              desde: "2026-11-04"
+              hasta: "2026-11-10"
+              horaDesde: "10:00"
+              horaHasta: null
+              cita: null
+      - llamadas:
+          - herramienta: "proponer_reserva"
+            argumentos:
+              franja: "f1"
+      - texto: "Te envío el resumen para que lo confirmes."
+        parada: "end_turn"
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Precio"]
+      operacionVigente: true
+      reservasCreadas: 0
+      estadoTurno: "HECHO"
+  - cliente:
+      seleccionDelUltimoMensaje: 0
+    modelo: []
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Listo:"]
+      reservasCreadas: 1
+  - cliente:
+      repetirSeleccion: true
+    modelo: []
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Listo:"]
+      reservasCreadas: 1

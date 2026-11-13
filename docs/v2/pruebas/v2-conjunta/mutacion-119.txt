@@ -1,0 +1,25 @@
+[ERROR] Tests run: 80, Failures: 9, Errors: 0, Skipped: 0, Time elapsed: 0.665 s <<< FAILURE! -- in pe.barberturno.conversation.CodigoSeleccionTest
+[ERROR] Tests run: 27, Failures: 4, Errors: 0, Skipped: 0, Time elapsed: 0.645 s <<< FAILURE! -- in pe.barberturno.conversation.MenusConversacionTest
+[ERROR] Tests run: 22, Failures: 7, Errors: 2, Skipped: 0, Time elapsed: 1.859 s <<< FAILURE! -- in pe.barberturno.conversation.OrquestadorConversacionTest
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_identificadoresInvalidos_devuelveVacio:130 
+[ERROR]   CodigoSeleccionTest.decodificar_nonceCanonicoYNoCanonico_distingueFormato:190 
+[ERROR]   CodigoSeleccionTest.decodificar_segundosEpochLimiteExactoYSiguiente_comportamientoEsperado:174 
+[ERROR]   MenusConversacionTest.listas_paginacion90_91_200Opciones_pagina9SinVerMas:584 
+[ERROR]   MenusConversacionTest.profesionales_con89Y90Opciones_contenidoPagina9:642 
+[ERROR]   MenusConversacionTest.recortar_caracteresSuplementarios_noSeparaParesSustitutosYNuncaSuperaLimite:519 
+[ERROR]   MenusConversacionTest.todasLasPaginas_todosLosIdentificadores_decodificanAlTipoEsperado:663 [Id en p�g 9: sp:10] 
+[ERROR]   OrquestadorConversacionTest.aceptarConFranjaValidaPeroSinElPasoDeConsentimiento_noCreaFicha:265 
+[ERROR]   OrquestadorConversacionTest.aceptarSinAvisoPresentado_noCreaFicha:184 
+[ERROR]   OrquestadorConversacionTest.confirmacionConNonceIncorrecto_respondeSoloTextoYConservaLaVigente:241 
+[ERROR]   OrquestadorConversacionTest.confirmacionSinFicha_respondeNoVigenteSinTocarOperaciones:227 
+[ERROR]   OrquestadorConversacionTest.franjaConUnSegundoMasQueElMaximo_noPropone:273 
+[ERROR]   OrquestadorConversacionTest.repetirUnaEjecutadaConOtraVigente_anulaLaVigenteAlMostrarElMenu:254 
+[ERROR]   OrquestadorConversacionTest.textoNoReconocidoTrasUnaPropuesta_anulaLaVigenteYVaciaElEstado:194 
+[ERROR]   OrquestadorConversacionTest.franjaCambioConInicioNoRepresentable_noProponeYRespondeNoDisponible:212->recibir:91 � DateTime Instant exceeds minimum or maximum instant
+[ERROR]   OrquestadorConversacionTest.franjaConInicioNoRepresentable_noProponeYRespondeNoDisponible:203->recibir:91 � DateTime Instant exceeds minimum or maximum instant

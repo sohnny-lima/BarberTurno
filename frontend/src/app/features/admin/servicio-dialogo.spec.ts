@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { MatFormField } from '@angular/material/form-field';
 import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
@@ -21,6 +22,7 @@ describe('Diálogo de servicio y errores por campo', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function preparar() {
@@ -33,7 +35,7 @@ describe('Diálogo de servicio y errores por campo', () => {
     const fixture = preparar();
     fixture.componentInstance.guardar();
     http
-      .expectOne('/api/servicios')
+      .expectOne('/api/n/prueba/servicios')
       .flush(
         { codigo: 'NOMBRE_DUPLICADO', detail: 'Ya existe un servicio con ese nombre.' },
         { status: 409, statusText: 'Conflict' },
@@ -45,13 +47,13 @@ describe('Diálogo de servicio y errores por campo', () => {
     expect(referencia.close).not.toHaveBeenCalled();
     nombre.setValue('Otro corte');
     fixture.componentInstance.guardar();
-    http.expectOne('/api/servicios').flush({ id: 4 });
+    http.expectOne('/api/n/prueba/servicios').flush({ id: 4 });
     expect(referencia.close).toHaveBeenCalledWith(true);
   });
   it('400 errores[] muestra todos los campos conocidos y acumula mensajes', () => {
     const fixture = preparar();
     fixture.componentInstance.guardar();
-    http.expectOne('/api/servicios').flush(
+    http.expectOne('/api/n/prueba/servicios').flush(
       {
         codigo: 'VALIDACION',
         detail: 'Revise los datos.',
@@ -77,11 +79,11 @@ describe('Diálogo de servicio y errores por campo', () => {
   it('impide enviar formulario inválido y solicitudes dobles', () => {
     const fixture = TestBed.createComponent(ServicioDialogo);
     fixture.componentInstance.guardar();
-    http.expectNone('/api/servicios');
+    http.expectNone('/api/n/prueba/servicios');
     fixture.componentInstance.formulario.controls.nombre.setValue('Corte ficticio');
     fixture.componentInstance.guardar();
     fixture.componentInstance.guardar();
-    http.expectOne('/api/servicios').flush({ id: 4 });
+    http.expectOne('/api/n/prueba/servicios').flush({ id: 4 });
   });
   it('mantiene campos outline y el pie fuera del contenido desplazable', () => {
     const f = preparar();

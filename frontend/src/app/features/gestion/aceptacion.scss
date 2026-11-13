@@ -1,0 +1,14 @@
+@use '../../shared/formulario-pagina' as formulario;
+@include formulario.contenido;
+:host {
+  display: block;
+  max-width: 440px;
+  margin: 32px auto;
+}
+.formulario {
+  display: grid;
+  gap: 16px;
+}
+p {
+  overflow-wrap: anywhere;
+}

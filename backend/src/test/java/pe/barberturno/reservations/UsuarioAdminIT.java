@@ -1,4 +1,6 @@
 package pe.barberturno.reservations;
+
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
 import jakarta.servlet.http.Cookie;
 import java.util.*;
 import java.util.concurrent.*;
@@ -25,12 +27,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UsuarioAdminIT extends ReservaPruebaBase {
     @Test void perfilProfesionalLocal_noCambiaLaCuentaGestionadaPorUsuarios() throws Exception {
         var antes = jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId());
-        mvc.perform(conCsrf(put("/api/barberos/" + barbero.getId()).contentType("application/json")
+        mvc.perform(conCsrf(put(negocio("/api/barberos/") + barbero.getId()).contentType("application/json")
                 .content("{\"nombre\":\"Nombre profesional local\",\"telefono\":\"999000009\",\"especialidad\":\"Barba\"}"), sesion(admin)))
                 .andExpect(status().isOk());
         assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(antes);
         for (boolean activo : List.of(false, true)) {
-            mvc.perform(conCsrf(patch("/api/barberos/" + barbero.getId() + "/estado").contentType("application/json")
+            mvc.perform(conCsrf(patch(negocio("/api/barberos/") + barbero.getId() + "/estado").contentType("application/json")
                     .content("{\"activo\":" + activo + "}"), sesion(admin))).andExpect(status().isOk());
             assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(antes);
         }
@@ -45,18 +47,18 @@ class UsuarioAdminIT extends ReservaPruebaBase {
     Usuario admin;
     @BeforeEach void administrador() { admin = admin("primero"); }
     Usuario admin(String nombre) { return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
-    String estado(long id) { return "/api/usuarios/" + id + "/estado"; }
-    String reset(long id) { return "/api/usuarios/" + id + "/restablecer-password"; }
+    String estado(long id) { return negocio("/api/usuarios/") + id + "/estado"; }
+    String reset(long id) { return negocio("/api/usuarios/") + id + "/restablecer-password"; }
     org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cambio(long id, boolean activo) { return patch(estado(id)).contentType("application/json").content(json.writeValueAsString(Map.of("activo", activo))); }
     @Test void buscaNombreCorreoSinMayusculas_filtraRolPaginaYSinDatosInternos() throws Exception {
-        mvc.perform(get("/api/usuarios").param("q", "CLIENTE FICT").param("rol", "CLIENTE").param("tamano", "1").cookie(sesion(admin))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1)).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId())).andExpect(jsonPath("$.contenido[0].passwordHash").doesNotExist()).andExpect(jsonPath("$.contenido[0].tokenVersion").doesNotExist()).andExpect(jsonPath("$.contenido[0].intentosFallidos").doesNotExist()).andExpect(jsonPath("$.contenido[0].bloqueadoHasta").doesNotExist());
-        mvc.perform(get("/api/usuarios").param("q", "PRIMERO@EJEMPLO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].id").value(admin.getId()));
-        mvc.perform(get("/api/usuarios").param("q", "%").cookie(sesion(admin))).andExpect(jsonPath("$.totalElementos").value(0));
-        mvc.perform(get("/api/usuarios").param("rol", "BARBERO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].barberoId").value(barbero.getId()));
-        mvc.perform(get("/api/usuarios").param("pagina", "1").param("tamano", "1").cookie(sesion(admin))).andExpect(jsonPath("$.pagina").value(1)).andExpect(jsonPath("$.totalElementos").value(3));
+        mvc.perform(get(negocio("/api/usuarios")).param("q", "CLIENTE FICT").param("rol", "CLIENTE").param("tamano", "1").cookie(sesion(admin))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1)).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId())).andExpect(jsonPath("$.contenido[0].passwordHash").doesNotExist()).andExpect(jsonPath("$.contenido[0].tokenVersion").doesNotExist()).andExpect(jsonPath("$.contenido[0].intentosFallidos").doesNotExist()).andExpect(jsonPath("$.contenido[0].bloqueadoHasta").doesNotExist());
+        mvc.perform(get(negocio("/api/usuarios")).param("q", "PRIMERO@EJEMPLO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].id").value(admin.getId()));
+        mvc.perform(get(negocio("/api/usuarios")).param("q", "%").cookie(sesion(admin))).andExpect(jsonPath("$.totalElementos").value(0));
+        mvc.perform(get(negocio("/api/usuarios")).param("rol", "BARBERO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].barberoId").value(barbero.getId()));
+        mvc.perform(get(negocio("/api/usuarios")).param("pagina", "1").param("tamano", "1").cookie(sesion(admin))).andExpect(jsonPath("$.pagina").value(1)).andExpect(jsonPath("$.totalElementos").value(3));
     }
     @ParameterizedTest @ValueSource(strings = {"pagina=-1", "tamano=0", "tamano=101", "rol=OTRO"}) void consultaInvalida400(String parametro) throws Exception {
-        var par=parametro.split("="); mvc.perform(get("/api/usuarios").param(par[0],par[1]).cookie(sesion(admin))).andExpect(status().isBadRequest());
+        var par=parametro.split("="); mvc.perform(get(negocio("/api/usuarios")).param(par[0],par[1]).cookie(sesion(admin))).andExpect(status().isBadRequest());
     }
     @Test void cp17_temporalRevocaSesionAnterior_exigeCambioYDesbloqueaAcceso() throws Exception {
         var anterior=sesion(cliente); cliente.registrarIntentoFallido(reloj.instant().plusSeconds(900), reloj.instant()); usuarios.saveAndFlush(cliente);
@@ -66,7 +68,7 @@ class UsuarioAdminIT extends ReservaPruebaBase {
         var actualizado=usuarios.findById(cliente.getId()).orElseThrow(); assertThat(passwords.matches(temporal,actualizado.getPasswordHash())).isTrue(); assertThat(actualizado.isDebeCambiarPassword()).isTrue(); assertThat(actualizado.getTokenVersion()).isEqualTo(cliente.getTokenVersion()+1); assertThat(actualizado.getBloqueadoHasta()).isNull();
         mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
         var login=mvc.perform(conCsrf(post("/api/auth/login").contentType("application/json").content(json.writeValueAsString(Map.of("correo",cliente.getCorreo(),"password",temporal))),sesion(admin))).andExpect(status().isOk()).andExpect(jsonPath("$.debeCambiarPassword").value(true)).andReturn();
-        mvc.perform(get("/api/notificaciones").cookie(login.getResponse().getCookie("BT_SESION"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
+        mvc.perform(get(negocio("/api/notificaciones")).cookie(login.getResponse().getCookie("BT_SESION"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         assertThat(new pe.barberturno.users.dto.PasswordTemporalDto(temporal).toString()).doesNotContain(temporal);
     }
     @Test void desactivarRevoca_reactivarNoResucitaSesion_idempotente() throws Exception {
@@ -94,7 +96,7 @@ class UsuarioAdminIT extends ReservaPruebaBase {
         assertThat(usuarios.findById(cliente.getId()).orElseThrow().getTokenVersion()).isZero();
     }
     @ParameterizedTest @EnumSource(value=Rol.class,names={"CLIENTE","BARBERO"}) void rolNoAutorizado403_enTodasLasRutas(Rol rol) throws Exception {
-        var u=rol==Rol.CLIENTE?cliente:barbero.getUsuario(); mvc.perform(get("/api/usuarios").cookie(sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(post(reset(cliente.getId())),sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(cambio(cliente.getId(),false),sesion(u))).andExpect(status().isForbidden());
+        var u=rol==Rol.CLIENTE?cliente:barbero.getUsuario(); mvc.perform(get(negocio("/api/usuarios")).cookie(sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(post(reset(cliente.getId())),sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(cambio(cliente.getId(),false),sesion(u))).andExpect(status().isForbidden());
         assertThatThrownBy(()->gestion.restablecer(cliente.getId(),actor(u))).isInstanceOf(NegocioException.class);assertThatThrownBy(()->gestion.cambiarEstado(cliente.getId(),false,actor(u))).isInstanceOf(NegocioException.class);
     }
     @Test void inexistente404_estadoOmitido400() throws Exception {

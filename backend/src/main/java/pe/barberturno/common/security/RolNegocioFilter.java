@@ -33,7 +33,8 @@ public class RolNegocioFilter extends OncePerRequestFilter {
 
     /**
      * Deniega con 403 a una identidad válida sin papel local, sin confundirla con una sesión inválida.
-     * Tras CSRF y autenticación impide toda escritura de negocio suspendido (409), también en el alias.
+     * La ruta exacta de vínculo profesional delega el 404 de perfil y membresía al servicio (V2-DA-106).
+     * Tras CSRF y autenticación impide toda escritura de negocio suspendido (409) bajo su ruta canónica.
      * @param request solicitud normalizada por el resolutor
      * @param response respuesta que recibe PROHIBIDO cuando corresponde
      * @param chain autorización por rol y controles de recurso del resto de la aplicación
@@ -45,12 +46,13 @@ public class RolNegocioFilter extends OncePerRequestFilter {
             FilterChain chain) throws ServletException, IOException {
         String ruta = request.getRequestURI().substring(request.getContextPath().length());
         boolean publica = "GET".equals(request.getMethod()) && (ruta.equals("/api/servicios")
-                || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad") || ruta.equals("/api/sesion"));
+                || ruta.equals("/api/barberos") || ruta.equals("/api/negocio") || ruta.equals("/api/disponibilidad") || ruta.equals("/api/sesion"));
         boolean altaPropia = "POST".equals(request.getMethod()) && (ruta.equals("/api/clientes/alta")
-                || ruta.equals("/api/registro") || ruta.equals("/api/auth/registro"));
+                || ruta.equals("/api/registro"));
         var autenticacion = SecurityContextHolder.getContext().getAuthentication();
         if (contexto.negocioActual().isPresent() && !publica && !altaPropia && autenticacion != null
-                && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario && usuario.rol() == null) {
+                && autenticacion.getPrincipal() instanceof UsuarioAutenticado usuario && usuario.rol() == null
+                && !ruta.equals("/api/whatsapp/vinculo-profesional")) {
             errores.escribir(request, response, ErrorCodigo.PROHIBIDO, "No tiene permiso para realizar esta acción.");
             return;
         }

@@ -1,0 +1,72 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "fechas-ambiguas"
+conversaciones:
+  - id: "AMB-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quiero atenderme a las 4."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, resérvame un turno para el viernes."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Quisiera cita con Carlos por favor."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Sepárame para mañana."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola, quiero un corte clásico en la tarde."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, ¿a qué hora atienden el sábado?"
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Quiero arreglarme la barba la próxima semana."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola maestro, ¿tienen espacio a las diez?"
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, quisiera saber si tienen turno este jueves."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "AMB-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola chochera, sepárame una cita para corte con Miguel cuando pueda."
+    esperado:
+      tipo: "ACLARACION"

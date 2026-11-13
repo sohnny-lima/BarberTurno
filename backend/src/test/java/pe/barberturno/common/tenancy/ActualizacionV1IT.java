@@ -11,6 +11,72 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.*;
 
 class ActualizacionV1IT extends MigracionPruebaBase {
+    @Test void v116_aV117_conservaDatosYDesactivaIaInicialmente() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("116").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long conversacion;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "pre-v117");
+            jdbc.update("update cliente set wa_id='51900000117' where id=?", datos.ficha());
+            conversacion = jdbc.queryForObject("""
+                    insert into conversacion(wa_id,cliente_id,estado,ultima_entrada_en,creado_en,actualizado_en)
+                    values ('51900000117',?,'{"paso":"CITAS"}',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id
+                    """, Long.class, datos.ficha());
+            for (String tabla : List.of("negocio", "cliente", "conversacion", "reserva", "auditoria_reserva", "notificacion"))
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            ConversacionIAEsquemaPruebas.comprobar(jdbc);
+            assertThat(jdbc.queryForObject("select ia_habilitada from negocio where id=1", Boolean.class)).isFalse();
+            assertThat(jdbc.queryForObject("select revision from conversacion where id=?", Long.class, conversacion)).isZero();
+            jdbc.update("update conversacion set estado=estado where id=?", conversacion);
+            assertThat(jdbc.queryForObject("select revision from conversacion where id=?", Long.class, conversacion)).isEqualTo(1L);
+            aplicacion.commit();
+        }
+    }
+    @Test void v115_aV116_conDatos_conservaTodasLasColumnasAnteriores_yAnadeDestinosYDerivacion() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("115").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long conversacion;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "pre-v116");
+            jdbc.update("update cliente set wa_id='51900000116' where id=?", datos.ficha());
+            conversacion = jdbc.queryForObject("""
+                    insert into conversacion(wa_id,cliente_id,ultima_entrada_en,creado_en,actualizado_en)
+                    values ('51900000116',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id
+                    """, Long.class, datos.ficha());
+            jdbc.update("""
+                    insert into mensaje_whatsapp(conversacion_id,reserva_id,direccion,origen,tipo,contenido,estado,error_codigo,creado_en,actualizado_en)
+                    values (?,?,'SALIENTE','SISTEMA','TEXTO','{"texto":"conservado"}','FALLIDO','VENTANA_CERRADA',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    """, conversacion, datos.reserva());
+            jdbc.update("""
+                    insert into operacion_pendiente(conversacion_id,cliente_id,tipo,datos,nonce,expira_en,creado_en,actualizado_en)
+                    values (?,?,'CREAR','{}',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    """, conversacion, datos.ficha(), new byte[16]);
+            for (String tabla : List.of("cliente", "conversacion", "mensaje_whatsapp", "operacion_pendiente",
+                    "reserva", "auditoria_reserva", "notificacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            assertThat(jdbc.queryForObject("select modo from conversacion where id=?", String.class, conversacion)).isEqualTo("ASISTENTE");
+            assertThat(jdbc.queryForObject("select count(*) from mensaje_whatsapp where enviado_por is not null", Long.class)).isZero();
+            WhatsAppSalidaEsquemaPruebas.comprobar(jdbc);
+            aplicacion.commit();
+        }
+    }
     @Test void v111_aV112_conservaDatos_yRestringeUpdateAColumnasPermitidas() throws Exception {
         var completa = flyway(null);
         completa.clean(); flyway("111").migrate();
@@ -28,8 +94,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         completa.migrate(); comprobarMigracionCompleta(completa);
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id"))
-                    .as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             ConfiguracionNegocioEsquemaPruebas.comprobarPermisos(jdbc);
             ConfiguracionNegocioEsquemaPruebas.rechazarColumnasReservadas(aplicacion);
             assertThat(jdbc.update("update negocio set nombre='Nombre permitido', estado='SUSPENDIDO', actualizado_en=CURRENT_TIMESTAMP where id=1")).isEqualTo(1);
@@ -54,7 +119,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         completa.migrate(); comprobarMigracionCompleta(completa);
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
             for (String accion : List.of("REENVIAR_INVITACION_PROPIETARIO", "REVOCAR_INVITACION_PROPIETARIO")) {
                 assertThat(jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,?,1,CURRENT_TIMESTAMP)", cuenta, accion)).isEqualTo(1);
@@ -79,7 +144,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         completa.migrate(); comprobarMigracionCompleta(completa);
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             assertThat(jdbc.queryForObject("select count(*) from invitacion", Long.class)).isZero();
             InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
             aplicacion.commit();
@@ -105,7 +170,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
         try (var aplicacion = conexion(false)) {
             contexto(aplicacion, 1L);
             var jdbc = jdbc(aplicacion);
-            for (String tabla : antes.keySet()) assertThat(jdbc.queryForList("select * from " + tabla + " order by id")).as(tabla).isEqualTo(antes.get(tabla));
+            comprobarConservados(jdbc, antes);
             AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
             InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
             assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma", Long.class)).isZero();
@@ -201,6 +266,8 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             }
             assertThat(jdbc.queryForList("select distinct estado from reserva", String.class)).containsExactlyInAnyOrder(
                     "PENDIENTE", "CONFIRMADA", "EN_ATENCION", "COMPLETADA", "CANCELADA", "NO_ASISTIO");
+            assertThat(jdbc.queryForList("select distinct canal from reserva", String.class)).containsExactly("WEB");
+            assertThat(jdbc.queryForObject("select count(*) from reserva where creada_por is null", Integer.class)).isZero();
             for (String tabla : TABLAS) {
                 assertThat(jdbc.queryForObject("select nextval(pg_get_serial_sequence(?, 'id'))", Long.class, tabla))
                         .as("identidad de " + tabla).isGreaterThan(maximos.get(tabla));
@@ -335,7 +402,7 @@ class ActualizacionV1IT extends MigracionPruebaBase {
     private static Map<String, String> huellas(JdbcTemplate jdbc) {
         var resultado = new LinkedHashMap<String, String>();
         for (String tabla : TABLAS) {
-            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto')::text, ',' order by id)) from " + tabla + " t", String.class));
+            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto' - 'canal' - 'actor_cliente_id' - 'conversacion_id')::text, ',' order by id)) from " + tabla + " t", String.class));
         }
         return resultado;
     }
@@ -350,6 +417,51 @@ class ActualizacionV1IT extends MigracionPruebaBase {
             assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo(restriccion);
         } finally {
             aplicacion.rollback();
+        }
+    }
+
+    /** Columnas añadidas por migraciones posteriores a las versiones de partida; nacen nulas o con valor por defecto ('WEB' en reserva). */
+    static final java.util.Map<String, java.util.Set<String>> COLUMNAS_NUEVAS = java.util.Map.of(
+            "negocio", java.util.Set.of("ia_habilitada", "ia_presupuesto_mensual_usd", "ia_llamadas_dia_conversacion", "ia_entradas_minuto", "ia_aviso_limite_en"),
+            "cliente", java.util.Set.of("wa_id", "anonimizada_en"),
+            "notificacion", java.util.Set.of("conversacion_id"),
+            "conversacion", java.util.Set.of("derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en", "revision", "minuto_entradas", "entradas_minuto"),
+            "mensaje_whatsapp", java.util.Set.of("enviado_por"),
+            "reserva", java.util.Set.of("canal"),
+            "auditoria_reserva", java.util.Set.of("actor_cliente_id"));
+
+    /** Cada fila conserva todas sus columnas originales y comprueba los valores iniciales de V113…V117. */
+    @SuppressWarnings("unchecked")
+    static void comprobarConservados(org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.Map<String, Object> antes) {
+        for (var tabla : antes.entrySet()) {
+            var previas = (List<java.util.Map<String, Object>>) tabla.getValue();
+            var actuales = jdbc.queryForList("select * from " + tabla.getKey() + " order by id");
+            assertThat(actuales).as(tabla.getKey()).hasSameSizeAs(previas);
+            for (int i = 0; i < previas.size(); i++) {
+                var actual = new LinkedHashMap<>(actuales.get(i));
+                for (var columna : previas.get(i).entrySet()) {
+                    assertThat(actual).as("%s fila %d", tabla.getKey(), i).containsEntry(columna.getKey(), columna.getValue());
+                }
+                actual.keySet().removeAll(previas.get(i).keySet());
+                assertThat(actual.keySet()).as("columnas nuevas de %s", tabla.getKey())
+                        .isSubsetOf(COLUMNAS_NUEVAS.getOrDefault(tabla.getKey(), java.util.Set.of()));
+                if ("reserva".equals(tabla.getKey())) {
+                    if (actual.containsKey("canal")) {
+                        assertThat(actual.get("canal")).as("canal en reserva migrada fila %d", i).isEqualTo("WEB");
+                    }
+                    assertThat(previas.get(i).get("creada_por")).as("creada_por previo en reserva fila %d", i).isNotNull();
+                    assertThat(actuales.get(i).get("creada_por")).as("creada_por conservado en reserva fila %d", i).isEqualTo(previas.get(i).get("creada_por"));
+                } else if ("conversacion".equals(tabla.getKey())) {
+                    if (actual.containsKey("revision")) assertThat(actual.remove("revision")).isEqualTo(0L);
+                    if (actual.containsKey("entradas_minuto")) assertThat(((Number) actual.remove("entradas_minuto")).intValue()).isZero();
+                    assertThat(actual.values()).allMatch(java.util.Objects::isNull);
+                } else if ("negocio".equals(tabla.getKey())) {
+                    if (actual.containsKey("ia_habilitada")) assertThat(actual.remove("ia_habilitada")).isEqualTo(false);
+                    assertThat(actual.values()).allMatch(java.util.Objects::isNull);
+                } else {
+                    assertThat(actual.values()).as("columnas nuevas nulas en %s", tabla.getKey()).allMatch(java.util.Objects::isNull);
+                }
+            }
         }
     }
 }

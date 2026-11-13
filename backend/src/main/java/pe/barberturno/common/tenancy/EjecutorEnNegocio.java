@@ -39,6 +39,26 @@ public class EjecutorEnNegocio {
         }
         OptionalLong id = directorio.buscar(slug);
         if (id.isEmpty()) throw new IllegalStateException("No existe el negocio configurado para la tarea.");
+        return delimitar(id, accion);
+    }
+
+    /**
+     * Ejecuta la acción en el negocio que una tabla de plataforma ya identificó (por ejemplo, el
+     * canal de WhatsApp del número receptor, V2-RN-02); nunca un identificador recibido del exterior.
+     * @param negocioId negocio existente, leído de datos de la plataforma
+     * @param accion trabajo que abre sus propias transacciones de servicio
+     * @param <T> tipo del resultado del trabajo
+     * @return resultado del trabajo
+     * @throws IllegalStateException si existe una transacción abierta
+     */
+    public <T> T ejecutar(long negocioId, Supplier<T> accion) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("El negocio debe fijarse antes de abrir la transacción.");
+        }
+        return delimitar(OptionalLong.of(negocioId), accion);
+    }
+
+    private <T> T delimitar(OptionalLong id, Supplier<T> accion) {
         boolean delimitado = contexto.delimitado();
         var anterior = contexto.negocioActual();
         contexto.fijar(id);

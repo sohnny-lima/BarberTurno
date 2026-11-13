@@ -32,7 +32,9 @@ figcaption {
     font-size: 14px;
     font-weight: 700;
     line-height: 20px;
-    background: linear-gradient(transparent, var(--color-tinta));
+    // El fundido termina antes del texto (padding superior de 36 px): el blanco queda siempre
+    // sobre tinta opaca y no depende de la zona clara de la foto (contraste medido en V2-07.6c).
+    background: linear-gradient(transparent, var(--color-tinta) 45%);
     border-radius: 0 0 16px 16px;
   }
 }

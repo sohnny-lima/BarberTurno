@@ -20,7 +20,7 @@ flowchart LR
     DOM[Dominio v1: catalog · scheduling · reservations<br/>audit · notifications · reporting]
     PLAT[platform: negocios · membresías · invitaciones]
     WHK[whatsapp: webhook · cola entrante · outbox]
-    CONV[conversation: estado · herramientas · guardas]
+    CONV[conversation: estado · herramientas · respuestas deterministas]
     JOBS[Trabajos @Scheduled por negocio]
   end
   DB[(PostgreSQL 18<br/>RLS FORCE + EXCLUDE)]
@@ -42,7 +42,7 @@ flowchart LR
 | `platform` (nuevo) | `Negocio`, `Membresia`, `Invitacion`, `RolNegocio`, `RolPlataforma`, servicios y controladores `/api/plataforma/**` y `/api/n/{slug}/equipo/**` | Alta de negocios, equipo, invitaciones, último propietario. |
 | `customers` (nuevo, extraído de `users`) | `Cliente` (ficha por negocio) | Fichas, búsqueda, alta por el personal, vínculo con cuenta y con `wa_id`. |
 | `whatsapp` (nuevo) | `CanalWhatsApp`, `EventoEntrante`, `MensajeSaliente`, `WebhookController`, `ClienteGraphApi`, `CifradorCredenciales` | *Webhook*, idempotencia, colas, envío, estados, plantillas. |
-| `conversation` (nuevo) | `Conversacion`, `OperacionPendiente`, `Orquestador`, `HerramientasReserva`, `ModeloConversacional` (puerto) + `ModeloAnthropic` (adaptador), `GuardasSalida`, `MenusGuiados` | Máquina de estados del diálogo, herramientas, confirmaciones, derivación, límites. |
+| `conversation` (nuevo) | `Conversacion`, `OperacionPendiente`, `Orquestador`, `HerramientasReserva`, `ModeloConversacional` (puerto) + `ModeloAnthropic` (adaptador), `RespuestasAsistente` (salida, V2-DA-86), `GuardasSalida` (solo indicador de la evaluación), `MenusGuiados` | Máquina de estados del diálogo, herramientas, confirmaciones, derivación, límites. |
 | `users`, `auth` | `usuario` pierde `rol` y gana `rol_plataforma`; JWT sin cambios de formato | Cuentas globales. |
 | `catalog`, `scheduling`, `reservations`, `audit`, `notifications`, `reporting` | `negocio_id` en sus tablas; reglas y protocolo **sin cambios** | Igual que v1, siempre dentro de un negocio. |
 
@@ -175,8 +175,8 @@ CREATE TABLE conversacion (
   negocio_id bigint NOT NULL REFERENCES negocio(id),
   wa_id      varchar(20) NOT NULL,                  -- la conversación existe antes de la ficha (consentimiento pendiente)
   cliente_id bigint,                                -- se rellena al aceptar la privacidad (06-flujos.md §6)
-  modo   varchar(8)  NOT NULL DEFAULT 'ASISTENTE' CHECK (modo IN ('ASISTENTE','HUMANO')),
-  estado jsonb       NOT NULL DEFAULT '{}',          -- datos ya fijados: servicio, profesional, fecha, franja (ciclo de vida en §7.1)
+  modo   varchar(10) NOT NULL DEFAULT 'ASISTENTE' CHECK (modo IN ('ASISTENTE','HUMANO')),  -- antes varchar(8), que no admitía ASISTENTE (28/10/2026)
+  estado jsonb       NOT NULL DEFAULT '{}',          -- V2-10 (V2-DA-63): solo paso y franja pendiente de consentimiento; los datos viajan en los identificadores (ciclo de vida en §7.1)
   ultima_entrada_en timestamptz,                     -- ventana de 24 h (V2-RN-13)
   version integer NOT NULL DEFAULT 0,
   creado_en timestamptz NOT NULL, actualizado_en timestamptz NOT NULL,
@@ -220,6 +220,7 @@ CREATE UNIQUE INDEX operacion_vigente_uk ON operacion_pendiente (conversacion_id
 -- Proponer una operación nueva marca antes como ANULADA la VIGENTE de la conversación (misma transacción).
 -- La caducidad se evalúa al usarla (expira_en <= ahora → CADUCADA), sin depender de un trabajo programado.
 
+-- Precisión del 04/11/2026 (V2-DA-79): uso_ia agrega por (negocio_id, dia), sin conversacion_id; el detalle por llamada va en llamada_ia (17-v2-12 §8).
 CREATE TABLE uso_ia (                               -- límites y costes (V2-RN-14)
   negocio_id bigint NOT NULL, dia date NOT NULL, conversacion_id bigint NOT NULL,
   llamadas integer NOT NULL DEFAULT 0, tokens_entrada bigint NOT NULL DEFAULT 0,
@@ -268,12 +269,13 @@ En la primera tarea, `negocio_id` se añade **en tres pasos** (columna anulable 
 ### 6.1 Entrada
 1. `GET /api/whatsapp/webhook`: verificación (`hub.mode=subscribe`, `hub.verify_token` comparado en tiempo constante con la variable de entorno, devuelve `hub.challenge`).
 2. `POST /api/whatsapp/webhook` (sin sesión ni CSRF: exento solo en esta ruta, con su propia autenticación): calcula HMAC-SHA256 del **cuerpo crudo** con el *app secret* y lo compara en tiempo constante con `X-Hub-Signature-256`; si no coincide → 401 sin efectos. Si coincide, inserta un `evento_whatsapp_entrante` por mensaje o aviso de estado con `ON CONFLICT (clave_idempotencia) DO NOTHING` y responde 200 inmediatamente. Meta reintenta durante días ante cualquier respuesta distinta de 200 y puede duplicar avisos: la idempotencia está en la base, no en memoria.
-3. Trabajo `ProcesadorEventos` (`@Scheduled` cada 1–2 s): toma eventos con `SKIP LOCKED`, resuelve el negocio por `phone_number_id` (número no registrado → `DESCARTADO`), abre el contexto del negocio, localiza o crea la ficha y la conversación, y entrega el mensaje al orquestador. Reintentos con espera creciente; tras 5 → `ERROR` y aviso operativo.
+3. Trabajo `ProcesadorEventos` (`@Scheduled` cada 1–2 s): toma eventos con `SKIP LOCKED`, resuelve el negocio por `phone_number_id` (número no registrado → `DESCARTADO`), abre el contexto del negocio, localiza o crea la ficha y la conversación, y entrega el mensaje al orquestador. Reintentos con espera creciente; tras 5 → `ERROR` y aviso operativo. *(Precisión del 28/10/2026, V2-DA-54: en V2-08 el procesador solo **localiza** la ficha por `(negocio, wa_id)` y entrega al puerto `ReceptorMensajesWhatsApp`; la creación de la ficha, tras el consentimiento, y la de la conversación llegan con V2-10. También descarta los números de canales desconectados o de negocios no operativos, V2-DA-53.)*
 
 ### 6.2 Salida
 - Toda respuesta se guarda como `mensaje_whatsapp` `SALIENTE`/`PENDIENTE` **en la misma transacción** que el cambio de estado que la origina (outbox). Así, si la reserva se revierte, el mensaje «reservada» no existe.
 - `EnviadorMensajes` (`@Scheduled`): envía por la Graph API con el token del canal, guarda el `wamid`, reintenta 429/5xx con espera exponencial y marca `FALLIDO` los errores permanentes (número inválido, ventana cerrada, plantilla rechazada). Un fallo de entrega **no** deshace la operación: genera un aviso interno al personal para que contacte al cliente.
 - Avisos de estado (`sent`, `delivered`, `read`, `failed`) actualizan el mensaje por `wamid`.
+- *(Precisión del 28/10/2026, V2-09: el contrato completo de la salida, con las columnas añadidas a `mensaje_whatsapp`, el reclamo de uno en uno, la conciliación por `biz_opaque_callback_data` y la garantía de entrega, está en `12-v2-09-whatsapp-salida.md` y en V2-DA-57…62. V2-09 crea `conversacion` al recibir un mensaje, solo con `wa_id` y `ultima_entrada_en`; la ficha sigue llegando con V2-10.)*
 - Ventana de 24 h: `conversacion.ultima_entrada_en`; fuera de ella solo plantillas (`bt_recordatorio_cita`, `bt_cita_modificada_por_negocio`, `bt_cita_cancelada_por_negocio`, categoría *utility*, en español). Las plantillas se crean en la cuenta de cada negocio al conectar el canal.
 - Para reducir coste (desde el 01/10/2026 los mensajes de servicio que superan 1000/mes por número se cobran), el diseño **agrupa** la información en mensajes interactivos (listas y botones) en lugar de varios textos seguidos.
 
@@ -286,7 +288,7 @@ En la primera tarea, `negocio_id` se añade **en tres pasos** (columna anulable 
 ### 7.1 Principio y flujo
 El modelo **interpreta y redacta**; el servidor **consulta, valida, propone y ejecuta**. Flujo por mensaje entrante:
 1. Si es la pulsación de un botón de confirmación → `EjecutorOperaciones` (sin IA): valida nonce, ficha, vigencia y estado; ejecuta el servicio de dominio; compone la respuesta con una **plantilla del servidor** a partir del resultado (V2-RN-11).
-2. Si la conversación está en modo `HUMANO` → solo se guarda y se avisa al personal (V2-RN-15).
+2. Si la conversación está en modo `HUMANO` → solo se guarda y se avisa al personal (V2-RN-15). *(Precisión del 04/11/2026, V2-11: esta comprobación va **antes** que la del punto 1; en modo humano tampoco se ejecutan confirmaciones. Ver `16-v2-11-…` §2.)*
 3. Si se superan los límites o el modelo no está disponible → **menús guiados** (la Fase 1, que se conserva como respaldo permanente).
 4. **Ciclo de vida de `conversacion.estado`:** se vacía (`{}`) cuando una operación pasa a `EJECUTADA`, cuando el cliente vuelve al menú principal y cuando pasan 24 h sin mensajes del cliente; así el modelo nunca hereda servicio, profesional o fecha de una interacción anterior.
 5. En otro caso → `Orquestador` llama al modelo con: instrucciones fijas del sistema, el catálogo del negocio (solo ese negocio), el estado de la conversación, la fecha y hora actuales en Lima con el día de la semana, y los últimos N mensajes. El modelo puede responder texto o pedir herramientas.
@@ -304,13 +306,14 @@ El modelo **interpreta y redacta**; el servidor **consulta, valida, propone y ej
 
 No existe ninguna herramienta que escriba reservas directamente, que lea datos de otros clientes o de otro negocio, ni que acepte un `negocioId` o `clienteId` como argumento: esos valores salen del contexto del servidor.
 
-### 7.3 Guardas
-- **Horarios inventados (V2-RN-12):** antes de enviar el texto del modelo, `GuardasSalida` extrae las horas y fechas que menciona y comprueba que pertenecen a las franjas devueltas por herramientas en ese turno; si no, descarta el texto y envía la lista de franjas compuesta por el servidor. Las franjas se ofrecen además como lista interactiva generada por el servidor.
-- **Confirmaciones falsas (V2-RN-11):** el texto del modelo no puede afirmar que algo se reservó, canceló o reprogramó (se rechazan formas como «reservé», «confirmada», «cancelé» fuera de las plantillas). Las confirmaciones solo salen de `EjecutorOperaciones`.
+### 7.3 Salida al cliente (V2-DA-86; sustituye las guardas de V2-DA-84/85 como protección)
+- **El texto libre del modelo no llega nunca al cliente** (ni a la *outbox*, la bandeja o los registros). El modelo solo elige herramientas y la terminal `responder_al_cliente` (intención y alias de listas cerradas); el servidor la valida, la degrada contra sus datos y compone el mensaje con `RespuestasAsistente` y los menús de V2-10 (`17-v2-12-13-ia-y-evaluacion.md` §13).
+- **Horarios (V2-RN-12):** solo los muestra la lista interactiva que compone el servidor con las franjas del turno y la fecha completa.
+- **Confirmaciones (V2-RN-11):** el turno de IA solo **propone** (operación con *nonce*); la única afirmación de una operación es `TextosConversacion.resultado`, tras ejecutarla con la confirmación del cliente y con el código real. `GuardasSalida` queda solo como indicador de la evaluación sobre el texto descartado.
 - **Fechas completas:** el resumen de la propuesta lo compone el servidor con `TiempoNegocio` («jueves 23 de octubre de 2026, 17:30–18:00, Corte con Carlos, S/ 25,00»).
 - **Ambigüedad:** las instrucciones obligan a preguntar si faltan servicio, profesional o día, o si «mañana», «el viernes» o «después de las 5» admiten varias lecturas; en caso de duda se ofrece una opción concreta para elegir.
 - **Inyección de instrucciones:** el texto del cliente es dato; las herramientas solo pueden hacer lo que el cliente podría hacer en la web; los resultados de herramientas no incluyen texto libre de otras personas.
-- **Datos mínimos al proveedor (V2-RNF-05):** nombre de pila del cliente, nombres de servicios y profesionales, franjas; nunca teléfonos, correos, `wa_id` ni identificadores internos legibles.
+- **Datos mínimos al proveedor (V2-RNF-05, V2-DA-86):** nombres de servicios y profesionales, franjas y, con ficha, las citas del propio cliente sin código; ya no el nombre de pila ni el historial de textos; nunca teléfonos, correos, `wa_id` ni identificadores internos legibles (detalle en `15-…` §1.4).
 - **Límites (V2-RN-14):** contador en `uso_ia`; al alcanzarlos, menús guiados o persona.
 - **Derivación automática:** dos turnos seguidos sin avance, petición explícita («hablar con alguien»), queja o tema fuera de las reservas.
 

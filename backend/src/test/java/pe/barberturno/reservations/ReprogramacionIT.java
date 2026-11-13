@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -65,7 +67,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
     }
 
     private MockHttpServletRequestBuilder peticion(long id, ReprogramarReservaDto cmd) {
-        return post("/api/reservas/{id}/reprogramacion", id).contentType("application/json")
+        return post(negocio("/api/reservas/{id}/reprogramacion"), id).contentType("application/json")
                 .content(json.writeValueAsString(cmd));
     }
 
@@ -307,7 +309,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
         "{\"inicio\":\"2026-10-01T11:00:00\",\"version\":0}"})
     void cuerpoInvalido400(String cuerpo) throws Exception {
         var dto = crear();
-        mvc.perform(conCsrf(post("/api/reservas/{id}/reprogramacion", dto.id())
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/reprogramacion"), dto.id())
                 .contentType("application/json").content(cuerpo), sesion(cliente)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
@@ -370,7 +372,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
 
     @RepeatedTest(20) void reprogramacionFrenteCancelacion_unaGanaOtra409SinEstadoMixto() throws Exception {
         var dto = crear();
-        var cancelar = post("/api/reservas/{id}/cancelacion", dto.id()).contentType("application/json")
+        var cancelar = post(negocio("/api/reservas/{id}/cancelacion"), dto.id()).contentType("application/json")
                 .content(json.writeValueAsString(new CancelarReservaDto(0, null)));
         var respuestas = simultaneas(conCsrf(peticion(dto.id(), mover("11:00", null, 0, null)), sesion(cliente)),
                 conCsrf(cancelar, sesion(cliente)));

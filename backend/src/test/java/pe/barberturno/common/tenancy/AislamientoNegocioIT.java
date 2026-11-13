@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -65,7 +67,7 @@ class AislamientoNegocioIT extends TenancyPruebaBase {
         assertThat(reportes.resumen(admin, fecha, fecha, null, null).total()).isEqualTo(1);
         assertThat(enNegocio(b, () -> jdbc.queryForObject("select count(*) from notificacion where not leida", Integer.class))).isEqualTo(1);
         var sesion = new jakarta.servlet.http.Cookie("BT_SESION", jwt.emitir(usuarios.findById(datosA.admin()).orElseThrow()));
-        mvc.perform(get("/api/reservas/" + datosB.reserva()).cookie(sesion)).andExpect(status().isNotFound())
+        mvc.perform(get(negocio("/api/reservas/") + datosB.reserva()).cookie(sesion)).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
     }
 
@@ -75,7 +77,7 @@ class AislamientoNegocioIT extends TenancyPruebaBase {
         var admin = usuarios.findByCorreo("admin-a@ejemplo.test").orElseThrow();
         var sesion = new jakarta.servlet.http.Cookie("BT_SESION", jwt.emitir(admin));
         var csrf = mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
-        mvc.perform(post("/api/servicios").cookie(sesion, csrf).header("X-XSRF-TOKEN", csrf.getValue())
+        mvc.perform(post(negocio("/api/servicios")).cookie(sesion, csrf).header("X-XSRF-TOKEN", csrf.getValue())
                 .contentType("application/json").content("""
                         {"nombre":"CORTE HOMÓNIMO","descripcion":"Prueba","duracionMin":30,"precio":20}
                         """)).andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("NOMBRE_DUPLICADO"));

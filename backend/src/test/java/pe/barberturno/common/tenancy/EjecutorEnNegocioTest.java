@@ -38,6 +38,24 @@ class EjecutorEnNegocioTest {
         } finally { contexto.limpiar(); }
     }
 
+    @Test void porId_fijaEseNegocioSinConsultarElDirectorioYRestauraElAmbito() {
+        assertThat(ejecutor.ejecutar(7L, () -> contexto.negocioActual())).hasValue(7);
+        assertThat(contexto.delimitado()).isFalse();
+        assertThatThrownBy(() -> ejecutor.ejecutar(8L, () -> { throw new IllegalStateException("Fallo ficticio"); }))
+                .hasMessage("Fallo ficticio");
+        assertThat(contexto.delimitado()).isFalse();
+        verifyNoInteractions(directorio);
+    }
+
+    @Test void porId_conTransaccionAbierta_fallaSinCambiarElAmbito() {
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            assertThatThrownBy(() -> ejecutor.ejecutar(7L, () -> fail("No debe ejecutar")))
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("antes de abrir la transacción");
+            assertThat(contexto.delimitado()).isFalse();
+        } finally { TransactionSynchronizationManager.setActualTransactionActive(false); }
+    }
+
     @Test void transaccionAbierta_impideCambiarElAmbitoAntesDeBuscarElSlug() {
         TransactionSynchronizationManager.setActualTransactionActive(true);
         try {

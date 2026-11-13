@@ -75,10 +75,31 @@ public class DisponibilidadService {
      * @throws NegocioException si falta un recurso o la reserva es ajena (404), el servicio no coincide (400),
      * o el barbero o un servicio requerido para crear está inactivo (422)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = NegocioException.class)
     public DisponibilidadDto consultarFranjas(long servicioId, Optional<Long> barberoId,
             LocalDate fecha, Optional<Long> excluirReservaId) {
         excluirReservaId.ifPresent(this::autorizarExclusion);
+        return calcularFranjas(servicioId, barberoId, fecha, excluirReservaId);
+    }
+
+    /**
+     * Consulta DA-21 para una ficha verificada, sin exigir sesión web.
+     * @param fichaId ficha propietaria
+     * @param reservaId cita cuya ocupación se excluye
+     * @param fecha día de Lima
+     * @return franjas del mismo profesional con duración de referencia
+     * @throws NegocioException si la cita no pertenece a la ficha
+     */
+    @Transactional(readOnly = true, noRollbackFor = NegocioException.class)
+    public DisponibilidadDto consultarCambioFicha(long fichaId, long reservaId, LocalDate fecha) {
+        var lectura = reservas.leerParaReprogramar(reservaId).orElseThrow(this::noEncontrado);
+        if (lectura.clienteId() != fichaId) throw noEncontrado();
+        var referencia = reservas.leerReferenciaDisponibilidad(reservaId).orElseThrow(this::noEncontrado);
+        return calcularFranjas(referencia.servicioId(), Optional.of(lectura.barberoId()), fecha, Optional.of(reservaId));
+    }
+
+    private DisponibilidadDto calcularFranjas(long servicioId, Optional<Long> barberoId,
+            LocalDate fecha, Optional<Long> excluirReservaId) {
         var parametros = reglasNegocio.reservas();
         var referencia = excluirReservaId.map(id ->
                 reservas.leerReferenciaDisponibilidad(id).orElseThrow(this::noEncontrado));
@@ -135,7 +156,7 @@ public class DisponibilidadService {
      * @return primer código incumplido, o vacío si la franja pertenece a la disponibilidad
      * @throws NegocioException si el perfil no existe (404)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = NegocioException.class)
     public Optional<ErrorCodigo> validarFranja(long barberoId, Instant inicio, Instant fin, long excluirReservaId) {
         var parametros = reglasNegocio.reservas();
         var perfil = barberos.findById(barberoId).orElseThrow(this::noEncontrado);
@@ -194,8 +215,8 @@ public class DisponibilidadService {
             throw error;
         }
         if (rol != Rol.ADMIN && rol != Rol.CLIENTE) throw noEncontrado();
-        long propietario = reservas.buscarClienteId(id).orElseThrow(this::noEncontrado);
-        if (rol != Rol.ADMIN && propietario != actorId) throw noEncontrado();
+        var lectura = reservas.leerParaReprogramar(id).orElseThrow(this::noEncontrado);
+        if (rol != Rol.ADMIN && !Objects.equals(lectura.usuarioId(), actorId)) throw noEncontrado();
     }
 
     private Barbero barberoActivo(long id) {

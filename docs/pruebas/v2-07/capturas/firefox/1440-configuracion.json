@@ -1,0 +1,124 @@
+{
+  "navegador": "firefox",
+  "version": "155.0",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 1110
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-switch mdc-switch--unselected",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": null,
+  "ruta": "/n/barberturno/configuracion",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 39,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 50
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": [
+          "#mat-input-0",
+          "#mat-input-1",
+          "#mat-input-2",
+          "#mat-input-3",
+          "#mat-input-4",
+          "#mat-input-5"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-input-0",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-1",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-2",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-3",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-4",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-5",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      }
+    ]
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

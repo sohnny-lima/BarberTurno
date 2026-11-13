@@ -1,0 +1,58 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "900000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "15550000001", "phone_number_id": "100000000000001" },
+            "contacts": [
+              { "profile": { "name": "Cliente Ficticio" }, "wa_id": "51900000001" },
+              { "profile": { "name": "Otra Persona Ficticia" }, "wa_id": "51900000002" }
+            ],
+            "messages": [
+              {
+                "from": "51900000001",
+                "id": "wamid.FICTICIO-MENSAJE-001",
+                "timestamp": "1793178000",
+                "type": "text",
+                "text": { "body": "Hola, quiero reservar" }
+              },
+              {
+                "from": "51900000002",
+                "id": "wamid.FICTICIO-MENSAJE-002",
+                "timestamp": "1793178010",
+                "type": "text",
+                "text": { "body": "Buenos días" }
+              }
+            ]
+          }
+        },
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "15550000001", "phone_number_id": "100000000000001" },
+            "statuses": [
+              {
+                "id": "wamid.FICTICIO-SALIENTE-001",
+                "status": "delivered",
+                "timestamp": "1793178020",
+                "recipient_id": "51900000001"
+              },
+              {
+                "id": "wamid.FICTICIO-SALIENTE-001",
+                "status": "read",
+                "timestamp": "1793178030",
+                "recipient_id": "51900000001"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

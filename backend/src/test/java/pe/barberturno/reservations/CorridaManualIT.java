@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -109,7 +111,7 @@ class CorridaManualIT extends ReservaPruebaBase {
     }
 
     private ResultActions cambiar(long id, String accion, Object comando, Cookie sesion) throws Exception {
-        return mvc.perform(conCsrf(post("/api/reservas/{id}/{accion}", id, accion)
+        return mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/{accion}"), id, accion)
                 .contentType("application/json").content(json.writeValueAsString(comando)), sesion));
     }
 
@@ -120,7 +122,7 @@ class CorridaManualIT extends ReservaPruebaBase {
     }
 
     private ReservaDto detalle(long id, Cookie sesion) throws Exception {
-        return leer(mvc.perform(get("/api/reservas/{id}", id).cookie(sesion)));
+        return leer(mvc.perform(get(negocio("/api/reservas/{id}"), id).cookie(sesion)));
     }
 
     private void contar(int reservasEsperadas, int auditoriasEsperadas, int avisosEsperados) {
@@ -197,7 +199,7 @@ class CorridaManualIT extends ReservaPruebaBase {
 
         // 8. Edición del catálogo por el administrador, sin alterar precio_ref.
         adminSesion = login(admin);
-        mvc.perform(conCsrf(put("/api/servicios/{id}", servicio.getId()).contentType("application/json")
+        mvc.perform(conCsrf(put(negocio("/api/servicios/{id}"), servicio.getId()).contentType("application/json")
                 .content(json.writeValueAsString(new GuardarServicioDto("Corte", "Corte", 30,
                         new BigDecimal("30.00")))), adminSesion))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.precio").value(30));
@@ -220,9 +222,9 @@ class CorridaManualIT extends ReservaPruebaBase {
         assertThat(jdbc.queryForList("select tipo from notificacion where usuario_id=? order by id",
                 String.class, luis.getId())).containsExactly("CREAR", "CONFIRMAR", "INICIAR", "COMPLETAR");
         conciliarReportes();
-        mvc.perform(get("/api/reservas/mias").cookie(anaSesion))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(anaSesion))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(2));
-        mvc.perform(get("/api/reservas/mias").cookie(login(luis)))
+        mvc.perform(get(negocio("/api/reservas/mias")).cookie(login(luis)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1));
         System.out.printf("Corrida T-32: R101=%d, R102=%d, R103=%d; 8 auditorías; avisos Ana=4 Luis=4 Carlos=5.%n",
                 r101.getId(), r102.getId(), r103.id());
@@ -234,7 +236,7 @@ class CorridaManualIT extends ReservaPruebaBase {
                 Map.entry(r102, List.of("CREAR", "CONFIRMAR", "INICIAR", "COMPLETAR")),
                 Map.entry(r103, List.of("CREAR", "REPROGRAMAR")));
         for (var entrada : esperado) {
-            var respuesta = mvc.perform(get("/api/reservas/{id}/auditoria", entrada.getKey())
+            var respuesta = mvc.perform(get(negocio("/api/reservas/{id}/auditoria"), entrada.getKey())
                     .cookie(carlosSesion)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
             var acciones = new java.util.ArrayList<String>();
             json.readTree(respuesta).forEach(n -> acciones.add(n.get("accion").asString()));
@@ -249,17 +251,17 @@ class CorridaManualIT extends ReservaPruebaBase {
     }
 
     private void conciliarAvisos(Usuario usuario, Cookie sesion, int esperados) throws Exception {
-        mvc.perform(get("/api/notificaciones").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/notificaciones")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElementos").value(esperados))
                 .andExpect(jsonPath("$.contenido.length()").value(esperados));
-        mvc.perform(get("/api/notificaciones/conteo").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/notificaciones/conteo")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.noLeidas").value(esperados));
         assertThat(jdbc.queryForObject("select count(*) from notificacion where usuario_id = ?",
                 Integer.class, usuario.getId())).isEqualTo(esperados);
     }
 
     private void conciliarReportes() throws Exception {
-        var resultado = mvc.perform(get("/api/reportes/resumen").cookie(adminSesion)
+        var resultado = mvc.perform(get(negocio("/api/reportes/resumen")).cookie(adminSesion)
                 .param("desde", "2026-10-01").param("hasta", "2026-10-01"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         var resumen = json.readValue(resultado, ResumenReporteDto.class);
@@ -283,7 +285,7 @@ class CorridaManualIT extends ReservaPruebaBase {
     }
 
     private void historial(String estado, Long servicioId, long total) throws Exception {
-        MockHttpServletRequestBuilder peticion = get("/api/reservas").cookie(adminSesion)
+        MockHttpServletRequestBuilder peticion = get(negocio("/api/reservas")).cookie(adminSesion)
                 .param("desde", "2026-10-01").param("hasta", "2026-10-01");
         if (estado != null) peticion.param("estado", estado);
         if (servicioId != null) peticion.param("servicioId", servicioId.toString());

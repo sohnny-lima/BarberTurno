@@ -20,12 +20,29 @@ logging:
 
 barberturno:
   tenancy:
-    alias-legado:
-      slug: barberturno
     negocio-inicial-slug: barberturno
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}
+  # V2-10: borrador NO aprobado (P2-06). En prod no hay valor por defecto y la aplicación no arranca sin él.
+  whatsapp:
+    conversacion:
+      privacidad:
+        texto: "BORRADOR (pendiente de P2-06): para reservar en {negocio} guardaremos tu nombre de WhatsApp y tu número. Aviso de privacidad: {enlace}. ¿Aceptas?"
+        enlace: https://barberturno.ejemplo.test/privacidad
+      # BORRADOR P2-06 (propuesta del documento 15, NO aprobada). dev usa bases desechables (barberturno_v2_test en
+      # el entorno de revisión); ningún plazo alcanza datos de menos de 30 días. En prod estas purgas quedan desactivadas.
+      retencion:
+        cuerpo-eventos: 30d
+        contenido-mensajes: 90d
+        operaciones-terminadas: 30d
+    # V2-11: D6 pendiente; se guardan solo los entrantes mínimos.
+    bandeja:
+      entrantes: SOLO_HUMANO
+
+  # V2-12: sin clave en el entorno de revisión (P2-03); los menús siguen funcionando.
+  ia:
+    habilitada: false
 
   admin:
     correo: ${BT_ADMIN_CORREO:}

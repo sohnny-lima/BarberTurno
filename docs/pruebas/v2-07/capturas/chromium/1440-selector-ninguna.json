@@ -1,0 +1,38 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 900
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "A",
+    "clase": "mdc-button mat-mdc-button-base mdc-button--outlined mat-mdc-outlined-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": null,
+  "ruta": "/negocios",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 36,
+      "violadas": 0,
+      "incompletas": 0,
+      "inaplicables": 53
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [],
+    "contrasteManual": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

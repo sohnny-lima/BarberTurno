@@ -6,6 +6,7 @@ import org.springframework.dao.DataAccessException;
 import static org.assertj.core.api.Assertions.*;
 
 class EsquemaV2IT extends TenancyPruebaBase {
+    @Test void v117_iaRlsForzada_yPermisosExactos() { ConversacionIAEsquemaPruebas.comprobar(jdbc); }
     @Test void v110_invitacionesSinRls_permisosMinimosYRestriccionesComoAplicacion() {
         enNegocio(1L, () -> {
             var datos = DatosNegocioPrueba.crear(jdbc, "v110");
@@ -14,6 +15,35 @@ class EsquemaV2IT extends TenancyPruebaBase {
         });
     }
     @Test void v107_indicesEmpiezanPorElNegocio() { IndicesNegocioEsquemaPruebas.comprobar(jdbc); }
+    @Test void v113_whatsappSinRls_permisosPorColumnaYRestriccionesComoAplicacion() throws Exception {
+        WhatsAppEsquemaPruebas.comprobar(jdbc);
+        assertThatThrownBy(() -> jdbc.update("""
+                insert into evento_whatsapp_entrante (clave_idempotencia, tipo, phone_number_id, cuerpo, estado, proximo_intento, recibido_en)
+                values ('m:esquema', 'MENSAJE', '1', '{}'::jsonb, 'DESCARTADO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"""))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("evento_whatsapp_motivo_coherente"));
+        long b = negocioB();
+        var primera = enNegocio(1L, () -> DatosNegocioPrueba.crear(jdbc, "wa-1"));
+        long segunda = enNegocio(1L, () -> jdbc.queryForObject("""
+                insert into cliente (nombre, telefono, creado_en, actualizado_en)
+                values ('Segunda ficha ficticia', '51900000099', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) returning id""", Long.class));
+        var otroNegocio = enNegocio(b, () -> DatosNegocioPrueba.crear(jdbc, "wa-b"));
+        // La aplicación aún no escribe wa_id desde el dominio (V2-10); la prueba lo fija con SQL bajo RLS.
+        enNegocio(1L, () -> jdbc.update("update cliente set wa_id='51900000001' where id=?", primera.ficha()));
+        enNegocio(b, () -> jdbc.update("update cliente set wa_id='51900000001' where id=?", otroNegocio.ficha()));
+        assertThatThrownBy(() -> enNegocio(1L, () -> jdbc.update("update cliente set wa_id='51900000001' where id=?", segunda)))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("cliente_wa_uk"));
+        assertThatThrownBy(() -> enNegocio(1L, () -> jdbc.update("update cliente set wa_id='+51900' where id=?", segunda)))
+                .isInstanceOf(DataAccessException.class).satisfies(fallo -> assertThat(restriccion(fallo)).isEqualTo("cliente_wa_formato"));
+    }
+
+    @Test void v114_whatsappSalidaConRls_permisosPorColumnaYRestriccionesComoAplicacion() {
+        WhatsAppSalidaEsquemaPruebas.comprobar(jdbc);
+    }
+
+    private static String restriccion(Throwable fallo) {
+        var causa = (org.postgresql.util.PSQLException) ((DataAccessException) fallo).getMostSpecificCause();
+        return causa.getServerErrorMessage().getConstraint();
+    }
     @Test void v106_estadoDeFichaSincronizadoYAplicacionSoloLeeElIndice() throws Exception {
         long b = negocioB();
         for (long id : new long[]{1L, b}) {
@@ -118,11 +148,29 @@ class EsquemaV2IT extends TenancyPruebaBase {
     }
 
     @Test
-    void fkCompuestas_sonLasSieteRelacionesDelPlan() {
+    void fkCompuestas_sonLasDiecinueveRelacionesDelPlan() {
         assertThat(jdbc.queryForList("""
                 select conname from pg_constraint where contype='f' and array_length(conkey,1)=2 order by conname
-                """, String.class)).containsExactly("auditoria_reserva_reserva_fk", "bloqueo_barbero_fk",
-                "jornada_barbero_fk", "notificacion_reserva_fk", "reserva_barbero_fk", "reserva_cliente_fk", "reserva_servicio_fk");
+                """, String.class)).containsExactly(
+                "auditoria_actor_cliente_fk",
+                "auditoria_reserva_reserva_fk",
+                "bloqueo_barbero_fk",
+                "codigo_vinculo_whatsapp_barbero_fk",
+                "conversacion_cliente_fk",
+                "jornada_barbero_fk",
+                "llamada_ia_conversacion_fk",
+                "llamada_ia_turno_fk",
+                "mensaje_conversacion_fk",
+                "mensaje_reserva_fk",
+                "notificacion_conversacion_fk",
+                "notificacion_reserva_fk",
+                "operacion_cliente_fk",
+                "operacion_conversacion_fk",
+                "reserva_barbero_fk",
+                "reserva_cliente_fk",
+                "reserva_servicio_fk",
+                "turno_ia_conversacion_fk",
+                "vinculo_whatsapp_profesional_barbero_fk");
     }
 
     @Test void vinculo_soloDisparadorEscribeConClienteForceInclusoActualizacionYBorrado() {

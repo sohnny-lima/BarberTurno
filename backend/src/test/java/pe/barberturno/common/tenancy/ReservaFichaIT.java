@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.time.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,13 +69,13 @@ class ReservaFichaIT extends IdentidadPruebaBase {
                     assertThat(causa.getSQLState()).isEqualTo("23503");
                     assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo("reserva_cliente_fk");
                 });
-        mvc.perform(csrf(post("/api/reservas").contentType("application/json").content("""
+        mvc.perform(csrf(post(negocio("/api/reservas")).contentType("application/json").content("""
                 {"servicioId":%d,"barberoId":%d,"inicio":"2026-10-01T11:00:00-05:00","clienteId":%d}
                 """.formatted(a.servicio(), a.barbero(), datosB.cliente())), sesion(actor)))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
-        mvc.perform(get("/api/reservas/" + datosB.reserva()).cookie(sesion(actor)))
+        mvc.perform(get(negocio("/api/reservas/") + datosB.reserva()).cookie(sesion(actor)))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
-        mvc.perform(csrf(post("/api/reservas/" + datosB.reserva() + "/reprogramacion").contentType("application/json")
+        mvc.perform(csrf(post(negocio("/api/reservas/") + datosB.reserva() + "/reprogramacion").contentType("application/json")
                 .content("{\"inicio\":\"2026-10-01T11:00:00-05:00\",\"version\":0,\"motivo\":\"Cambio ajeno\"}"), sesion(actor)))
                 .andExpect(status().isNotFound());
         var local = clientes.findByUsuarioId(a.cliente()).orElseThrow();

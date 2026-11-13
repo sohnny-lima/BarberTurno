@@ -3,15 +3,32 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, type Response, type TestInfo } from '@playwright/test';
 import { test, expect, escribir, sesionApi } from './fixture';
+import { sql } from './base-datos';
+import { capturarV2 } from './evidencia-v2';
 import type { BarberoDto, ServicioDto } from '../src/app/core/modelos/catalogo';
 import type { NotificacionDto } from '../src/app/core/modelos/notificaciones';
 import type { Pagina } from '../src/app/core/modelos/pagina';
 import type { ReservaDto } from '../src/app/core/modelos/reservas';
 import type { UsuarioAdminDto } from '../src/app/core/modelos/usuarios';
 
+async function capturarNucleo(page: Page, testInfo: TestInfo, nombre: string) {
+  await capturarV2(page, testInfo, nombre);
+}
+
+async function abrirContexto(page: Page) {
+  const menu = page.getByRole('button', { name: 'Abrir menú', exact: true });
+  const cuenta = page.getByRole('button', { name: 'Abrir cuenta', exact: true });
+  if (await menu.isVisible()) await menu.click();
+  else if (await cuenta.isVisible()) await cuenta.click();
+  return page
+    .getByRole('region', { name: 'Barbería actual', exact: true })
+    .filter({ visible: true });
+}
+
 let atencion: string;
 let cercana: string;
 let pendiente: string;
+let cuentaRegistrada: number;
 
 // El guion modifica la demo de forma secuencial y reportes verifica su resultado final.
 test.describe.configure({ mode: 'serial' });
@@ -84,7 +101,7 @@ async function accionAgenda(page: Page, cita: Locator, nombre: string) {
   }
 }
 
-async function ingresar(page: Page, correo: string) {
+async function ingresar(page: Page, correo: string, elegirInicial = true) {
   await page.goto('/ingresar');
   await page.getByLabel('Correo', { exact: true }).fill(correo);
   // Evita que la clave efímera aparezca en los pasos del informe HTML.
@@ -96,7 +113,14 @@ async function ingresar(page: Page, correo: string) {
   // Esperar el destino evita abrir el menú mientras NavigationEnd lo está cerrando.
   await expect(page).not.toHaveURL(/\/ingresar(?:\?|$)/);
   await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  await comprobarSalida(page);
+  if (elegirInicial) {
+    // Estas dos cuentas del seed tienen dos relaciones; las demás entran directamente.
+    if (['cliente@ejemplo.test', 'multirol@ejemplo.test'].includes(correo))
+      await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
+    await expect(page).toHaveURL(/\/n\/barberturno\//);
+    await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  }
+  if (elegirInicial) await comprobarSalida(page);
 }
 
 /** En móvil los avisos del cliente se consultan desde la campana; en escritorio, en su columna. */
@@ -187,7 +211,7 @@ async function fechaFranja(page: Page, fecha: string, hora: string) {
 }
 
 async function prepararReserva(page: Page, fecha: string, hora: string) {
-  await page.goto('/reservar');
+  await page.goto('/n/barberturno/reservar');
   await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
   await seleccionar(page, 'Profesional', 'Carlos');
   await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
@@ -195,17 +219,19 @@ async function prepararReserva(page: Page, fecha: string, hora: string) {
 }
 
 test.beforeAll(async ({ servidor }) => {
-  expect(servidor).toContain('18034');
-  const api = await sesionApi('admin-e2e@ejemplo.test');
+  expect(servidor).toContain('8081');
+  const api = await sesionApi('multirol@ejemplo.test');
   try {
-    const servicios = await (await api.get('/api/servicios')).json();
-    const barberos = await (await api.get('/api/barberos')).json();
-    const clientes = await (await api.get('/api/usuarios?rol=CLIENTE&tamano=100')).json();
+    const servicios = await (await api.get('/api/n/barberturno/servicios')).json();
+    const barberos = await (await api.get('/api/n/barberturno/barberos')).json();
+    const clientes = await (
+      await api.get('/api/n/barberturno/usuarios?rol=CLIENTE&tamano=100')
+    ).json();
     const carlos = barberos.find((b: { nombre: string }) => b.nombre === 'Carlos');
     const barba = servicios.find((s: { nombre: string }) => s.nombre === 'Barba');
     const ana = clientes.contenido.find((u: { correo: string }) => u.correo === 'ana@ejemplo.test');
     const reservas = await (
-      await api.get('/api/reservas?desde=2026-09-28&hasta=2026-10-01')
+      await api.get('/api/n/barberturno/reservas?desde=2026-09-28&hasta=2026-10-01')
     ).json();
     cercana = reservas.contenido.find((r: { inicio: string }) =>
       r.inicio.startsWith('2026-09-28T10:00'),
@@ -213,7 +239,7 @@ test.beforeAll(async ({ servidor }) => {
     pendiente = reservas.contenido.find((r: { estado: string }) => r.estado === 'PENDIENTE').codigo;
     atencion = (
       await (
-        await escribir(api, '/api/reservas', {
+        await escribir(api, '/api/n/barberturno/reservas', {
           clienteId: ana.id,
           barberoId: carlos.id,
           servicioId: barba.id,
@@ -223,14 +249,16 @@ test.beforeAll(async ({ servidor }) => {
     ).codigo;
     // K1 ya ocupa 16–17 en la demo. Retirarlo por API permite ensayar el alta del guion.
     const bloqueos = await (
-      await api.get(`/api/barberos/${carlos.id}/bloqueos?desde=2026-10-01&hasta=2026-10-01`)
+      await api.get(
+        `/api/n/barberturno/barberos/${carlos.id}/bloqueos?desde=2026-10-01&hasta=2026-10-01`,
+      )
     ).json();
     const estado = await api.storageState();
     const token = estado.cookies.find((c) => c.name === 'XSRF-TOKEN')!.value;
     for (const bloqueo of bloqueos) {
       expect(
         (
-          await api.delete(`/api/bloqueos/${bloqueo.id}`, {
+          await api.delete(`/api/n/barberturno/bloqueos/${bloqueo.id}`, {
             headers: { 'X-XSRF-TOKEN': decodeURIComponent(token) },
           })
         ).status(),
@@ -256,7 +284,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   ).not.toBe('none');
   await ingresar(page, 'cliente@ejemplo.test');
   const inicio = Date.now();
-  await page.goto('/reservar');
+  await page.goto('/n/barberturno/reservar');
   await expect(page.locator('mat-step-header')).toHaveCount(3);
   await expect(page.locator('mat-step-header').first()).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 767) {
@@ -269,7 +297,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   if ((page.viewportSize()?.width ?? 1440) <= 767) {
     await expect(page.locator('h1')).toHaveCSS('clip-path', 'inset(50%)');
-    await expect(page.locator('.titulo-pagina')).toHaveText('Reservar un turno');
+    await expect(page.locator('.titulo-pagina')).toHaveText('Reservar un turno BarberTurno');
     await expect(page.locator('.titulo-pagina')).not.toHaveAttribute('role', 'heading');
   }
   await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
@@ -280,7 +308,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-paso="1"]')).toBeFocused();
   await page.route(
-    '**/api/disponibilidad?**',
+    '**/api/n/barberturno/disponibilidad?**',
     (ruta) =>
       ruta.fulfill({
         status: 503,
@@ -290,7 +318,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
     { times: 1 },
   );
   const fallida = page.waitForResponse(
-    (r) => r.url().includes('/api/disponibilidad?') && r.status() === 503,
+    (r) => r.url().includes('/api/n/barberturno/disponibilidad?') && r.status() === 503,
   );
   const entrada = page.getByLabel('Otra fecha, hasta 30 días', { exact: true });
   await entrada.fill('10/01/2026');
@@ -298,15 +326,11 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   const consultaFallida = await fallida;
   await expect(page.getByRole('alert')).toContainText('Su servicio y profesional se conservan');
   await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled();
-  // El interceptor común anuncia también el error por snackbar; se cierra para revisar la alerta.
-  await page
-    .locator('mat-snack-bar-container')
-    .getByRole('button', { name: 'Cerrar', exact: true })
-    .click();
+  // El error se anuncia una sola vez, en la alerta junto a la acción (sin snackbar duplicado).
   await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'reservar-error');
   const reintento = page.waitForResponse(
-    (r) => r.url().includes('/api/disponibilidad?') && r.status() === 200,
+    (r) => r.url().includes('/api/n/barberturno/disponibilidad?') && r.status() === 200,
   );
   await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
   expect((await reintento).url()).toBe(consultaFallida.url());
@@ -330,7 +354,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
   // Leer el cuerpo real antes de entregarlo a la SPA y permitir su navegación.
   let creada!: ReservaDto;
   await page.route(
-    '**/api/reservas',
+    '**/api/n/barberturno/reservas',
     async (ruta) => {
       expect(ruta.request().method()).toBe('POST');
       const cabeceras = await ruta.request().allHeaders();
@@ -346,7 +370,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
     { times: 1 },
   );
   const respuesta = page.waitForResponse(
-    (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
+    (r) => r.url().endsWith('/api/n/barberturno/reservas') && r.request().method() === 'POST',
   );
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
   expect((await respuesta).status()).toBe(201);
@@ -400,7 +424,7 @@ test('01 · cliente reserva en tres pasos, ve el aviso, reprograma y cancela', a
       ),
   ).toBe(true);
   const cancelacion = page.waitForResponse((r) =>
-    r.url().endsWith(`/api/reservas/${creada.id}/cancelacion`),
+    r.url().endsWith(`/api/n/barberturno/reservas/${creada.id}/cancelacion`),
   );
   await page
     .getByRole('dialog')
@@ -431,10 +455,18 @@ test('02 · BT-104 conserva las horas de Lima y oculta las acciones a menos de d
   page,
 }) => {
   await ingresar(page, 'cliente@ejemplo.test');
-  await page.goto('/mis-citas');
+  await page.goto('/n/barberturno/mis-citas');
   const tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: cercana });
   await expect(tarjeta).toContainText('10:00');
-  await expect(tarjeta).toContainText('Faltan menos de 2 horas');
+  await expect(tarjeta).toContainText(
+    'Esta cita no permite cambios por la web. Comuníquese con la barbería.',
+  );
+  const citas: Pagina<ReservaDto> = await (
+    await page.request.get('/api/n/barberturno/reservas/mias?tamano=100')
+  ).json();
+  const restringida = citas.contenido.find((cita) => cita.codigo === cercana)!;
+  expect(restringida.permisos.cancelar).toBe(false);
+  expect(restringida.permisos.reprogramar).toBe(false);
   await expect(tarjeta.getByRole('link', { name: 'Reprogramar' })).toHaveCount(0);
   await expect(tarjeta.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
 });
@@ -443,7 +475,7 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
   page,
 }, testInfo) => {
   await ingresar(page, 'carlos@ejemplo.test');
-  await page.goto('/agenda');
+  await page.goto('/n/barberturno/agenda');
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-28');
   await page.getByRole('button', { name: 'Actualizar agenda' }).click();
   const fila = citaAgenda(page, atencion);
@@ -501,8 +533,8 @@ test('03 · Carlos inicia y completa la atención y confirma BT-100 en Semana', 
 test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia reportes', async ({
   page,
 }, testInfo) => {
-  await ingresar(page, 'admin-e2e@ejemplo.test');
-  await page.goto('/agenda');
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/agenda');
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-28');
   await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
   const cita = citaAgenda(page, cercana);
@@ -542,7 +574,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await revisar(page, testInfo, 'agenda-auditoria');
   await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.goto('/admin/servicios');
+  await page.goto('/n/barberturno/admin/servicios');
   await expect(
     page.getByRole('button', { name: 'Editar servicio Corte clásico', exact: true }),
   ).toBeVisible();
@@ -613,7 +645,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
       ? page.getByRole('table', { name: 'Servicios', exact: true })
       : page.getByRole('list', { name: 'Servicios', exact: true });
   await expect(catalogo).toContainText('Corte y acabado de demostración E2E');
-  await page.goto('/admin/barberos');
+  await page.goto('/n/barberturno/admin/barberos');
   await expect(
     page.getByRole('button', { name: 'Editar barbero Carlos', exact: true }),
   ).toHaveCount(1);
@@ -648,7 +680,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   expect(pieBarbero!.y + pieBarbero!.height).toBeLessThanOrEqual(page.viewportSize()!.height - 16);
   await revisar(page, testInfo, 'barbero-dialogo');
   await altaBarbero.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await page.goto('/admin/horarios');
+  await page.goto('/n/barberturno/admin/horarios');
   await expect(
     page.getByText('Elija un barbero para ver su semana y sus bloqueos.', { exact: true }),
   ).toBeVisible();
@@ -750,7 +782,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await page.getByRole('button', { name: 'Agregar bloqueo' }).click();
   await expect(page.getByRole('status').filter({ hasText: /creado|agregado/i })).toBeVisible();
   await revisar(page, testInfo, 'horarios-bloqueo-creado');
-  await page.goto('/admin/reportes');
+  await page.goto('/n/barberturno/admin/reportes');
   await page.getByLabel('Desde', { exact: true }).fill('2026-09-27');
   await page.getByLabel('Hasta', { exact: true }).fill('2026-10-01');
   await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
@@ -795,7 +827,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await page.getByRole('option', { name: 'Carlos', exact: true }).click();
   const resumenFiltrado = page.waitForResponse(
     (r) =>
-      new URL(r.url()).pathname === '/api/reportes/resumen' &&
+      new URL(r.url()).pathname === '/api/n/barberturno/reportes/resumen' &&
       new URL(r.url()).searchParams.has('barberoId'),
   );
   await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
@@ -803,7 +835,7 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await expect(page.locator('app-reportes [aria-busy="true"]')).toHaveCount(0);
   await page.getByLabel('Desde', { exact: true }).fill('2027-01-01');
   const respuestaExcel = page.waitForResponse(
-    (r) => new URL(r.url()).pathname === '/api/reportes/resumen.xlsx',
+    (r) => new URL(r.url()).pathname === '/api/n/barberturno/reportes/resumen.xlsx',
   );
   const descargado = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
@@ -827,13 +859,13 @@ test('04 · administrador edita servicio y jornada, prueba bloqueos y concilia r
   await expect(page.getByRole('button', { name: 'Descargar Excel', exact: true })).toBeEnabled();
 
   // Solo lectura: estas cuentas siguen disponibles para los casos siguientes.
-  await page.goto('/admin/usuarios');
+  await page.goto('/n/barberturno/admin/usuarios');
   await expect(page.locator('app-usuarios app-lista-adaptable')).toBeVisible();
   await page.getByRole('combobox', { name: 'Rol', exact: true }).click();
   await page.getByRole('option', { name: 'Barbero', exact: true }).click();
   const consultaUsuarios = page.waitForResponse(
     (r) =>
-      new URL(r.url()).pathname === '/api/usuarios' &&
+      new URL(r.url()).pathname === '/api/n/barberturno/usuarios' &&
       new URL(r.url()).searchParams.get('rol') === 'BARBERO',
   );
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
@@ -882,10 +914,11 @@ test('05 · cliente redirigido de administración y protegido después de logout
   page,
 }) => {
   await ingresar(page, 'cliente@ejemplo.test');
-  await page.goto('/admin/servicios');
-  await expect(page).toHaveURL(/\/reservar/);
+  await page.goto('/n/barberturno/admin/servicios');
+  await expect(page).toHaveURL(/\/sin-acceso/);
+  await expect(page.getByText('No tiene acceso a esta sección.', { exact: true })).toBeVisible();
   await salirConRespuesta(page);
-  await page.goto('/mis-citas');
+  await page.goto('/n/barberturno/mis-citas');
   await expect(page).toHaveURL(/\/ingresar/);
 });
 
@@ -895,7 +928,7 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
   const contextos = await Promise.all(
     ['ana', 'luis'].map(() =>
       browser.newContext({
-        baseURL: 'http://localhost:18034',
+        baseURL: 'http://localhost:8081',
         timezoneId: 'Europe/Madrid',
         locale: 'es-PE',
         viewport: testInfo.project.use.viewport,
@@ -911,7 +944,7 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
     }
     const respuestas = paginas.map((p) =>
       p.waitForResponse(
-        (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
+        (r) => r.url().endsWith('/api/n/barberturno/reservas') && r.request().method() === 'POST',
       ),
     );
     await Promise.all(
@@ -927,7 +960,7 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
     // CP-04: el fin del ganador es también un comienzo disponible y reservable.
     await perdedor.getByRole('button', { name: /^11:30–12:00/ }).click();
     const contigua = perdedor.waitForResponse(
-      (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
+      (r) => r.url().endsWith('/api/n/barberturno/reservas') && r.request().method() === 'POST',
     );
     await perdedor.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
     expect((await contigua).status()).toBe(201);
@@ -939,7 +972,7 @@ test('06 · dos contextos disputan la misma franja y el perdedor recarga la disp
 test('07 · registro con privacidad y edición persistente del perfil (CP-01)', async ({
   page,
 }, testInfo) => {
-  await page.goto('/registro');
+  await page.goto('/registro?returnUrl=/n/barberturno/reservar');
   const fotoRegistro = page.locator('app-composicion-acceso img');
   if ((page.viewportSize()?.width ?? 1440) >= 1024) {
     await expect(fotoRegistro).toBeVisible();
@@ -956,7 +989,15 @@ test('07 · registro con privacidad y edición persistente del perfil (CP-01)', 
     }, process.env['BT_DEMO_PASSWORD']!);
   }
   await page.getByRole('checkbox', { name: 'Acepto el aviso de privacidad' }).check();
+  const registro = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === '/api/n/barberturno/registro' &&
+      r.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
+  const registrada = await registro;
+  expect(registrada.status()).toBe(201);
+  cuentaRegistrada = (await registrada.json()).id;
   await expect(page).not.toHaveURL(/\/registro(?:\?|$)/);
   await comprobarSalida(page);
   await page.goto('/perfil');
@@ -1015,15 +1056,15 @@ async function salirConRespuesta(page: Page) {
   await expect(page).toHaveURL(/\/ingresar/);
 }
 
-test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no tiene acceso', async ({
+test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador consulta los suyos', async ({
   page,
 }, testInfo) => {
   // La atención del caso 03 genera COMPLETAR solo para Ana (RN-15).
   await ingresar(page, 'ana@ejemplo.test');
-  await page.goto('/mis-citas');
+  await page.goto('/n/barberturno/mis-citas');
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
   const avisosAna: Pagina<NotificacionDto> = await (
-    await page.request.get('/api/notificaciones?tamano=100')
+    await page.request.get('/api/n/barberturno/notificaciones?tamano=100')
   ).json();
   const exclusivoCliente = avisosAna.contenido.find(
     (a) => a.tipo === 'COMPLETAR' && a.mensaje.startsWith(`Reserva ${atencion}:`),
@@ -1033,7 +1074,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
     await expect(page.locator('app-avisos-panel')).toContainText(exclusivoCliente.mensaje);
     await expect(page.getByRole('button', { name: /^Avisos: \d+ sin leer$/ })).toHaveCount(0);
     // La cabecera ofrece el diálogo en el resto de pantallas de escritorio.
-    await page.goto('/reservar');
+    await page.goto('/n/barberturno/reservar');
   } else {
     await expect(page.locator('app-mis-citas app-avisos-panel')).toHaveCount(0);
   }
@@ -1048,7 +1089,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   const avisoCliente = avisosCliente.locator('li').filter({ hasText: exclusivoCliente.mensaje });
   const lecturaCliente = page.waitForResponse(
     (r) =>
-      r.url().endsWith(`/api/notificaciones/${exclusivoCliente.id}/lectura`) &&
+      r.url().endsWith(`/api/n/barberturno/notificaciones/${exclusivoCliente.id}/lectura`) &&
       r.request().method() === 'POST',
   );
   await avisoCliente.getByRole('button', { name: /^Marcar como leído/ }).click();
@@ -1059,18 +1100,22 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await avisosCliente.getByRole('button', { name: 'Cerrar', exact: true }).click();
   await expect(avisosCliente).toHaveCount(0);
   await expect(campanaCliente).toBeFocused();
-  if ((page.viewportSize()?.width ?? 1440) > 767) await page.goto('/mis-citas');
+  if ((page.viewportSize()?.width ?? 1440) > 767) await page.goto('/n/barberturno/mis-citas');
   await expect(page).toHaveURL(/\/mis-citas$/);
   await salirConRespuesta(page);
 
   await ingresar(page, 'cliente@ejemplo.test');
   await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
-  const servicios: ServicioDto[] = await (await page.request.get('/api/servicios')).json();
-  const barberos: BarberoDto[] = await (await page.request.get('/api/barberos')).json();
+  const servicios: ServicioDto[] = await (
+    await page.request.get('/api/n/barberturno/servicios')
+  ).json();
+  const barberos: BarberoDto[] = await (
+    await page.request.get('/api/n/barberturno/barberos')
+  ).json();
   expect(servicios.map((s) => s.nombre)).toContain('Corte clásico');
   expect(barberos.map((b) => b.nombre)).toContain('Carlos');
   const creada: ReservaDto = await (
-    await escribir(page.request, '/api/reservas', {
+    await escribir(page.request, '/api/n/barberturno/reservas', {
       servicioId: servicios.find((s) => s.nombre === 'Corte clásico')!.id,
       barberoId: barberos.find((b) => b.nombre === 'Carlos')!.id,
       inicio: '2026-10-02T15:00:00-05:00',
@@ -1079,29 +1124,33 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   // El autoservicio ya confirma por defecto (RN-21); no requiere otra transición.
   expect(creada.estado).toBe('CONFIRMADA');
   const cliente: Pagina<NotificacionDto> = await (
-    await page.request.get('/api/notificaciones?tamano=100')
+    await page.request.get('/api/n/barberturno/notificaciones?tamano=100')
   ).json();
   expect(cliente.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
-  await page.goto('/mis-citas');
+  await page.goto('/n/barberturno/mis-citas');
   await comprobarAvisoCliente(page, `Reserva ${creada.codigo} creada`);
   await salirConRespuesta(page);
 
   await ingresar(page, 'carlos@ejemplo.test');
   const propios: Pagina<NotificacionDto> = await (
-    await page.request.get('/api/notificaciones?tamano=100')
+    await page.request.get('/api/n/barberturno/notificaciones?tamano=100')
   ).json();
   expect(propios.contenido.some((a) => a.reservaId === creada.id && a.tipo === 'CREAR')).toBe(true);
   expect(propios.contenido.some((a) => a.mensaje === exclusivoCliente.mensaje)).toBe(false);
   const idsCliente = new Set([...avisosAna.contenido, ...cliente.contenido].map((a) => a.id));
   expect(propios.contenido.filter((a) => idsCliente.has(a.id))).toEqual([]);
-  const { noLeidas } = await (await page.request.get('/api/notificaciones/conteo')).json();
+  const { noLeidas } = await (
+    await page.request.get('/api/n/barberturno/notificaciones/conteo')
+  ).json();
   expect(noLeidas).toBeGreaterThan(0);
   const contador = page.locator('[data-contador-avisos]');
   await expect(contador).toHaveText(`Avisos sin leer: ${noLeidas}`);
   const abrir = page.getByRole('button', { name: `Ver avisos: ${noLeidas} sin leer`, exact: true });
   await abrir.focus();
   await expect(abrir).toBeFocused();
-  const listado = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/notificaciones');
+  const listado = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/n/barberturno/notificaciones',
+  );
   await abrir.press('Enter');
   const respuestaListado = await listado;
   expect(respuestaListado.status()).toBe(200);
@@ -1150,7 +1199,7 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
     r
       .url()
       .endsWith(
-        `/api/notificaciones/${
+        `/api/n/barberturno/notificaciones/${
           propios.contenido.find((a) => a.reservaId === creada.id && a.tipo === 'CREAR')!.id
         }/lectura`,
       ),
@@ -1168,8 +1217,57 @@ test('08 · Carlos lee solo sus avisos desde la cabecera y el administrador no t
   await expect(dialogo).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Ver avisos:/ })).toBeFocused();
   await salirConRespuesta(page);
-  await ingresar(page, 'admin-e2e@ejemplo.test');
-  await expect(page.getByRole('button', { name: /^Ver avisos/ })).toHaveCount(0);
+  await ingresar(page, 'multirol@ejemplo.test');
+  const adminApi = await sesionApi('multirol@ejemplo.test');
+  try {
+    const { noLeidas: noLeidasAdmin }: { noLeidas: number } = await (
+      await adminApi.get('/api/n/barberturno/notificaciones/conteo')
+    ).json();
+    const avisosAdmin: Pagina<NotificacionDto> = await (
+      await adminApi.get('/api/n/barberturno/notificaciones?tamano=100')
+    ).json();
+    const idsAjenos = new Set([...avisosAna.contenido, ...propios.contenido].map((a) => a.id));
+    expect(avisosAdmin.contenido.filter((a) => idsAjenos.has(a.id))).toEqual([]);
+    await expect(contador).toHaveText(`Avisos sin leer: ${noLeidasAdmin}`);
+    const campanaAdmin = page.getByRole('button', {
+      name: `Avisos: ${noLeidasAdmin} sin leer`,
+      exact: true,
+    });
+    await expect(campanaAdmin).toBeVisible();
+    const listadoAdmin = page.waitForResponse(
+      (r) => new URL(r.url()).pathname === '/api/n/barberturno/notificaciones',
+    );
+    await campanaAdmin.click();
+    const respuestaListadoAdmin = await listadoAdmin;
+    expect(respuestaListadoAdmin.status()).toBe(200);
+    const visiblesAdmin: Pagina<NotificacionDto> = await respuestaListadoAdmin.json();
+    expect(visiblesAdmin.contenido.filter((a) => idsAjenos.has(a.id))).toEqual([]);
+    const dialogoAdmin = page.getByRole('dialog', { name: 'Avisos', exact: true });
+    await expect(dialogoAdmin).toBeVisible();
+    await expect(dialogoAdmin.getByRole('heading', { name: 'Avisos', exact: true })).toHaveCount(1);
+    await expect(dialogoAdmin.locator('.insignia')).toHaveText(`${noLeidasAdmin} sin leer`);
+    await expect(dialogoAdmin.locator('[aria-busy="true"]')).toHaveCount(0);
+    await expect(dialogoAdmin.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+    if (visiblesAdmin.contenido.length === 0) {
+      await expect(dialogoAdmin.locator('app-avisos-panel li')).toHaveText(['No tiene avisos.']);
+    } else {
+      await expect(dialogoAdmin.locator('app-avisos-panel li')).toHaveCount(
+        visiblesAdmin.contenido.length,
+      );
+      for (const aviso of visiblesAdmin.contenido) {
+        expect(avisosAdmin.contenido.some((a) => a.id === aviso.id)).toBe(true);
+        await expect(dialogoAdmin).toContainText(aviso.mensaje);
+      }
+    }
+    for (const ajeno of [...avisosAna.contenido, ...propios.contenido]) {
+      await expect(dialogoAdmin).not.toContainText(ajeno.mensaje);
+    }
+    await dialogoAdmin.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await expect(dialogoAdmin).toHaveCount(0);
+    await expect(campanaAdmin).toBeFocused();
+  } finally {
+    await adminApi.dispose();
+  }
 });
 
 test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async ({ page }) => {
@@ -1219,8 +1317,8 @@ test('09 · salir y volver a entrar sin recargar renueva el token CSRF', async (
 test('10 · administrador reserva para el cliente elegido y conserva su identidad en los cuatro pasos', async ({
   page,
 }, testInfo) => {
-  await ingresar(page, 'admin-e2e@ejemplo.test');
-  await page.goto('/reservar');
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/reservar');
   await expect(page.locator('mat-step-header')).toHaveCount(4);
   await expect(page.locator('mat-step-header').first()).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reserva asistida');
@@ -1250,29 +1348,33 @@ test('10 · administrador reserva para el cliente elegido y conserva su identida
   ).toHaveCount(0);
   await revisar(page, testInfo, 'asistida-confirmacion');
   const respuesta = page.waitForResponse(
-    (r) => r.url().endsWith('/api/reservas') && r.request().method() === 'POST',
+    (r) => r.url().endsWith('/api/n/barberturno/reservas') && r.request().method() === 'POST',
   );
   await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
   const creada = await respuesta;
   expect(creada.status()).toBe(201);
+  expect(creada.request().postDataJSON().clienteId).toBe(cuentaRegistrada);
   const reserva = await creada.json();
-  expect(reserva.cliente.nombre).toBe('Cliente E2E actualizado');
+  // El perfil global cambió en 07; la ficha local conserva el nombre de su alta (V2-RN-16).
+  expect(reserva.cliente.nombre).toBe('Cliente E2E de registro');
+  // ReservaDto conserva el id de cuenta, no expone el id interno de ficha (V2-DA-29).
+  expect(reserva.cliente.id).toBe(cuentaRegistrada);
   await expect(page).toHaveURL(/\/agenda/);
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-10-03');
   await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
-  await expect(citaAgenda(page, reserva.codigo)).toContainText('Cliente E2E actualizado');
+  await expect(citaAgenda(page, reserva.codigo)).toContainText('Cliente E2E de registro');
 });
 
 test('11 · Mis citas conserva filtros al reintentar y presenta vacío e historial sin paginador innecesario', async ({
   page,
 }, testInfo) => {
   await ingresar(page, 'cliente@ejemplo.test');
-  await page.goto('/mis-citas');
+  await page.goto('/n/barberturno/mis-citas');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mis citas');
   const movil = (page.viewportSize()?.width ?? 1440) <= 767;
   const abrir = page.getByRole('button', { name: 'Filtros por fecha y estado', exact: true });
   if (movil) {
-    await expect(page.locator('.titulo-pagina')).toHaveText('Mis citas');
+    await expect(page.locator('.titulo-pagina')).toHaveText('Mis citas BarberTurno');
     await expect(abrir).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByLabel('Desde', { exact: true })).toBeHidden();
     await abrir.click();
@@ -1281,7 +1383,7 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
   await expect(page.getByLabel('Desde', { exact: true })).toBeVisible();
   await seleccionar(page, 'Estado', 'No asistió');
   let urlConsulta = '';
-  await page.route('**/api/reservas/mias?**', async (ruta) => {
+  await page.route('**/api/n/barberturno/reservas/mias?**', async (ruta) => {
     urlConsulta = ruta.request().url();
     await ruta.fulfill({
       status: 503,
@@ -1291,18 +1393,18 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
         codigo: 'RECURSO_OCUPADO',
       }),
     });
-    await page.unroute('**/api/reservas/mias?**');
+    await page.unroute('**/api/n/barberturno/reservas/mias?**');
   });
   await page.getByRole('button', { name: 'Filtrar', exact: true }).click();
   const alerta = page.locator('.alerta');
   await expect(alerta).toContainText('No se pudieron cargar las citas.');
   await expect(page.locator('.vacio')).toHaveCount(0);
-  const cerrarAviso = page
-    .locator('mat-snack-bar-container')
-    .getByRole('button', { name: 'Cerrar', exact: true });
-  if (await cerrarAviso.isVisible()) await cerrarAviso.click();
+  // El error se anuncia una sola vez, en la alerta junto a la acción (sin snackbar duplicado).
+  await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'mis-citas-error');
-  const consulta = page.waitForResponse((r) => r.url().includes('/api/reservas/mias?'));
+  const consulta = page.waitForResponse((r) =>
+    r.url().includes('/api/n/barberturno/reservas/mias?'),
+  );
   await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click();
   expect((await consulta).url()).toBe(urlConsulta);
   await expect(
@@ -1330,8 +1432,8 @@ test('11 · Mis citas conserva filtros al reintentar y presenta vacío e histori
 test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia a tabla desde 1200 px', async ({
   page,
 }, testInfo) => {
-  await ingresar(page, 'admin-e2e@ejemplo.test');
-  await page.goto('/agenda');
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/agenda');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Agenda');
   await seleccionar(page, 'Barbero', 'Carlos');
   await page.getByLabel('Fecha de Lima', { exact: true }).fill('2026-09-28');
@@ -1364,7 +1466,7 @@ test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia
   });
   let primera = true;
   let urlFallida = '';
-  await page.route('**/api/reservas?*', async (ruta) => {
+  await page.route('**/api/n/barberturno/reservas?*', async (ruta) => {
     if (primera) {
       primera = false;
       urlFallida = ruta.request().url();
@@ -1377,7 +1479,7 @@ test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia
     } else await ruta.continue();
   });
   const fallida = page.waitForResponse(
-    (r) => r.url().includes('/api/reservas?') && r.status() === 503,
+    (r) => r.url().includes('/api/n/barberturno/reservas?') && r.status() === 503,
   );
   await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
   await expect(page.locator('app-reserva-esqueleto')).toBeVisible();
@@ -1388,14 +1490,11 @@ test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia
     .getByRole('alert')
     .filter({ hasText: 'No pudimos completar la solicitud. Intente nuevamente.' });
   await expect(alerta).toBeVisible();
-  await page
-    .locator('mat-snack-bar-container')
-    .getByRole('button', { name: 'Cerrar', exact: true })
-    .click();
+  // El error se anuncia una sola vez, en la alerta junto a la acción (sin snackbar duplicado).
   await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   await revisar(page, testInfo, 'agenda-error');
   const reintento = page.waitForResponse(
-    (r) => r.url().includes('/api/reservas?') && r.status() === 200,
+    (r) => r.url().includes('/api/n/barberturno/reservas?') && r.status() === 200,
   );
   await alerta.getByRole('button', { name: 'Reintentar', exact: true }).click();
   expect((await reintento).url()).toBe(urlFallida);
@@ -1409,4 +1508,603 @@ test('12 · Agenda conserva filtros al reintentar, agrupa días vacíos y cambia
     /^Agenda del \d{4}-\d{2}-\d{2} al \d{4}-\d{2}-\d{2}$/,
   );
   await revisar(page, testInfo, 'agenda-semana-admin');
+});
+
+test('13 · selector y cambio con respuesta pendiente cancelan el ámbito anterior', async ({
+  page,
+}, testInfo) => {
+  await ingresar(page, 'multirol@ejemplo.test', false);
+  await expect(
+    page.getByRole('list', { name: 'Barberías', exact: true }).getByRole('listitem'),
+  ).toHaveCount(2);
+  await capturarNucleo(page, testInfo, 'selector');
+  await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  // Salto al contenido con el teclado: no navega (con <base href="/">, «#contenido» llevaría a la
+  // raíz) y deja el foco en el contenido de la página actual.
+  const agenda = page.url();
+  await page.locator('.saltar').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('main')).toBeFocused();
+  expect(page.url()).toBe(agenda);
+  const contexto = await abrirContexto(page);
+  await expect(contexto).toContainText('Propietario');
+  await capturarNucleo(page, testInfo, page.viewportSize()!.width === 360 ? 'cajon' : 'contexto');
+  if (page.viewportSize()!.width === 360) {
+    await page.keyboard.press('Escape');
+    // Con el menú abierto, Tab no alcanza el salto, pero un lector de pantalla en modo exploración
+    // puede activarlo: el menú se cierra y el foco queda en el contenido visible.
+    await abrirContexto(page);
+    await expect(page.locator('mat-sidenav')).toBeVisible();
+    await page.locator('.saltar').evaluate((enlace: HTMLElement) => enlace.click());
+    await expect(page.locator('mat-sidenav')).toBeHidden();
+    await expect(page.locator('main')).toBeFocused();
+    expect(page.url()).toBe(agenda);
+    // El fondo del menú termina de desvanecerse ~100 ms después del foco (medido en Firefox):
+    // se espera a que el contenido quede visible en lugar de medir en un instante fijo.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const caja = document.querySelector('main')!.getBoundingClientRect();
+            const punto = document.elementFromPoint(caja.left + 40, Math.max(caja.top, 0) + 40);
+            return !!punto?.closest('main');
+          }),
+        { message: 'El contenido debe quedar visible tras el salto con el menú abierto.' },
+      )
+      .toBe(true);
+  }
+  await seleccionar(page, 'Barbero', 'Carlos');
+  let soltar!: () => void;
+  const espera = new Promise<void>((resolver) => {
+    soltar = resolver;
+  });
+  let retenida!: () => void;
+  const preparada = new Promise<void>((resolver) => {
+    retenida = resolver;
+  });
+  let cancelada = false;
+  let terminada!: () => void;
+  const entregada = new Promise<void>((resolver) => {
+    terminada = resolver;
+  });
+  await page.route(
+    '**/api/n/barberturno/reservas?*',
+    async (ruta) => {
+      const solicitud = ruta.request();
+      page.on('requestfailed', (fallida) => {
+        if (fallida === solicitud) cancelada = true;
+      });
+      const respuesta = await ruta.fetch();
+      retenida();
+      await espera;
+      try {
+        await ruta.fulfill({ response: respuesta });
+      } catch {
+        /* El navegador puede haber abortado la petición al destruir la vista. */
+      } finally {
+        terminada();
+      }
+    },
+    { times: 1 },
+  );
+  const posteriores: string[] = [];
+  let cambiado = false;
+  page.on('request', (r) => {
+    if (cambiado && new URL(r.url()).pathname.startsWith('/api/n/'))
+      posteriores.push(new URL(r.url()).pathname);
+  });
+  await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+  try {
+    await preparada;
+    const bloque = await abrirContexto(page);
+    await bloque.getByRole('link', { name: 'Cambiar de barbería', exact: true }).click();
+    await expect(page).toHaveURL(/\/negocios$/);
+    cambiado = true;
+    await page.getByRole('button', { name: 'Entrar en Barbería Sur', exact: true }).click();
+    await expect(page).toHaveURL(/\/n\/sur\/agenda$/);
+    await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  } finally {
+    soltar();
+  }
+  await entregada;
+  await expect.poll(() => cancelada).toBe(true);
+  expect(posteriores.length).toBeGreaterThan(0);
+  expect(posteriores.every((ruta) => ruta.startsWith('/api/n/sur/'))).toBe(true);
+  await expect(page.locator('main')).not.toContainText('Ana');
+  await expect(page.locator('main')).not.toContainText(cercana);
+  const nuevo = await abrirContexto(page);
+  await expect(nuevo).toContainText('Barbería Sur');
+  await expect(nuevo).toContainText('Barbero');
+  await expect(nuevo).not.toContainText('Propietario');
+});
+
+test('14 · personal y cliente elige papel, reserva como cliente y vuelve al personal', async ({
+  page,
+}, testInfo) => {
+  const peticiones: { ruta: string; papel: string | null; metodo: string }[] = [];
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname.startsWith('/api/'))
+      peticiones.push({
+        ruta: new URL(r.url()).pathname,
+        papel: r.headers()['x-bt-papel'] ?? null,
+        metodo: r.method(),
+      });
+  });
+  await ingresar(page, 'personal-cliente@ejemplo.test', false);
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo).toContainText('¿Cómo quiere entrar en BarberTurno?');
+  await capturarNucleo(page, testInfo, 'papel');
+  await dialogo.getByRole('radio', { name: /^Como cliente/ }).check();
+  await dialogo.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/reservar\?papel=cliente$/);
+  await expect(page.locator('mat-step-header')).toHaveCount(3);
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
+  await seleccionar(page, 'Profesional', 'Carlos');
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
+  await fechaFranja(page, '2026-10-05', '11:00');
+  const respuesta = page.waitForResponse(
+    (r) => r.url().endsWith('/api/n/barberturno/reservas') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click();
+  const creada = await respuesta;
+  expect(creada.status()).toBe(201);
+  expect(creada.request().postDataJSON()).not.toHaveProperty('clienteId');
+  const reserva = await creada.json();
+  expect(reserva.estado).toBe('CONFIRMADA');
+  await expect(page).toHaveURL(/\/mis-citas\?papel=cliente$/);
+  await expect(
+    page.locator('app-reserva-tarjeta').filter({ hasText: reserva.codigo }),
+  ).toBeVisible();
+  expect(
+    peticiones.filter((r) => !r.ruta.startsWith('/api/n/')).every((r) => r.papel === null),
+  ).toBe(true);
+  const delCliente = peticiones.filter((r) => r.ruta.startsWith('/api/n/'));
+  expect(delCliente.length).toBeGreaterThan(0);
+  expect(delCliente.every((r) => r.papel === 'CLIENTE')).toBe(true);
+  const bloque = await abrirContexto(page);
+  await expect(bloque).toContainText('Cliente');
+  await bloque.getByRole('button', { name: 'Cambiar papel', exact: true }).click();
+  await expect(dialogo).toBeVisible();
+  peticiones.length = 0;
+  await dialogo.getByRole('radio', { name: /^Como personal/ }).check();
+  await dialogo.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  expect(peticiones.filter((r) => r.ruta.startsWith('/api/n/')).length).toBeGreaterThan(0);
+  expect(peticiones.every((r) => r.papel === null)).toBe(true);
+  await expect(page.locator('main')).not.toContainText(reserva.codigo);
+  await expect(await abrirContexto(page)).toContainText('Barbero');
+});
+
+test('15 · URL ajena, inexistente y antigua no muestran datos del negocio anterior', async ({
+  page,
+}) => {
+  await ingresar(page, 'personal-cliente@ejemplo.test', false);
+  await page.getByRole('dialog').getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  const ajena = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/n/sur/sesion');
+  await page.goto('/n/sur/agenda');
+  expect((await ajena).status()).toBe(200);
+  await expect(page.getByText('No tiene acceso a esta sección.', { exact: true })).toBeVisible();
+  await expect(page.locator('app-agenda')).toHaveCount(0);
+  await page.goto('/n/no-existe/agenda');
+  await expect(
+    page.getByText('No encontramos esa barbería. Revise la dirección.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('app-agenda')).toHaveCount(0);
+  const deNegocio: string[] = [];
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname.startsWith('/api/n/')) deNegocio.push(r.url());
+  });
+  await page.goto('/agenda');
+  // Una sola barbería abre el diálogo de papel desde el selector, sin un ámbito implícito.
+  await expect(page).toHaveURL(/\/negocios$/);
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(deNegocio).toEqual([]);
+});
+
+test('16 · logout y reingreso vacían el negocio y el papel anterior', async ({ page }) => {
+  await ingresar(page, 'multirol@ejemplo.test', false);
+  await page.getByRole('button', { name: 'Entrar en Barbería Sur', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/sur\/agenda$/);
+  await salirConRespuesta(page);
+  await expect(page.locator('app-barberia-actual section')).toHaveCount(0);
+  const rutas: string[] = [];
+  page.on('request', (r) => {
+    const ruta = new URL(r.url()).pathname;
+    if (ruta.startsWith('/api/n/')) rutas.push(ruta);
+  });
+  await ingresar(page, 'cliente@ejemplo.test', false);
+  await expect(page).toHaveURL(/\/negocios$/);
+  await expect(
+    page.getByRole('list', { name: 'Barberías', exact: true }).getByRole('listitem'),
+  ).toHaveCount(2);
+  await expect(page.locator('app-barberia-actual section')).toHaveCount(0);
+  expect(rutas).toEqual([]);
+  await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/reservar\?papel=cliente$/);
+  await expect(page.locator('mat-step-header')).toHaveCount(3);
+  await expect(page.getByRole('radio', { name: 'Corte clásico', exact: true })).not.toBeChecked();
+  expect(rutas.length).toBeGreaterThan(0);
+  expect(rutas.every((r) => r.startsWith('/api/n/barberturno/'))).toBe(true);
+  await salirConRespuesta(page);
+});
+
+async function capturarGestion(page: Page, info: TestInfo, nombre: string) {
+  await expect(
+    page.locator(
+      'main > app-negocio-vista, main > app-aceptacion, main > app-negocios, main > app-plataforma',
+    ),
+  ).toBeVisible();
+  await capturarV2(page, info, nombre);
+}
+
+test('17 · equipo e invitaciones: otra cuenta, aceptación, usada, caducada y revocada', async ({
+  page,
+}, info) => {
+  await ingresar(page, 'encargado@ejemplo.test', false);
+  await page.goto('/n/sur/equipo');
+  await expect(page.locator('main')).toContainText('Usted');
+  await capturarGestion(page, info, 'equipo');
+  // El servidor conserva la protección del último propietario y el diálogo muestra su detalle.
+  await page.getByRole('button', { name: 'Salir de la barbería', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Salir de la barbería', exact: true })
+    .click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText(/propietario/i);
+  await capturarGestion(page, info, 'ultimo-propietario');
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await test.step(
+    'Cerrar la sesión del propietario de Sur',
+    async () => {
+      await salirConRespuesta(page);
+    },
+    { timeout: 20_000 },
+  );
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/equipo');
+  await capturarGestion(page, info, 'equipo-inicial');
+  await page.goto('/n/barberturno/invitaciones');
+  await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
+  await seleccionar(page, 'Rol', 'Barbero');
+  const creada = page.waitForResponse(
+    (r) => r.url().endsWith('/api/n/barberturno/invitaciones') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Crear invitación', exact: true }).click();
+  expect((await creada).status()).toBe(201);
+  const emitida = await (await creada).json();
+  await expect(page.locator('app-enlace-invitacion')).toContainText('se muestra una sola vez');
+  await capturarGestion(page, info, 'invitaciones-enlace');
+  await page.reload();
+  await expect(page.locator('app-invitaciones')).toBeVisible();
+  await expect(page.locator('app-enlace-invitacion')).toHaveCount(0);
+  await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
+  const ajena = page.waitForResponse((r) => r.url().endsWith('/aceptacion'));
+  await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
+  expect((await ajena).status()).toBe(403);
+  await expect(page.locator('main')).toContainText('Esta invitación es para otra cuenta.');
+  await capturarGestion(page, info, 'invitacion-otra-cuenta');
+  await salirConRespuesta(page);
+  await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
+  await expect(page.locator('main')).toContainText('Ingrese o cree una cuenta');
+  await capturarGestion(page, info, 'aceptacion-sin-sesion');
+  await page.getByRole('link', { name: 'Ingresar', exact: true }).click();
+  await page.getByLabel('Correo', { exact: true }).fill('cliente@ejemplo.test');
+  await page.getByLabel('Contraseña', { exact: true }).evaluate((el, valor) => {
+    (el as HTMLInputElement).value = valor;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, process.env['BT_DEMO_PASSWORD']!);
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+  await expect(page.locator('app-aceptacion')).toBeVisible();
+  await capturarGestion(page, info, 'aceptacion-con-sesion');
+  await page.getByRole('button', { name: 'Aceptar invitación', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  await page.goto(emitida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
+  await expect(page.locator('main')).toContainText('Esta invitación ya se usó.');
+  await capturarGestion(page, info, 'invitacion-usada');
+  const gestor = await sesionApi('multirol@ejemplo.test');
+  try {
+    const vencida = await (
+      await escribir(gestor, '/api/n/barberturno/invitaciones', {
+        correo: 'caducada@ejemplo.test',
+        rol: 'BARBERO',
+      })
+    ).json();
+    // Excepción del encargo: adelantar la caducidad con el rol de aplicación y un id de esta prueba.
+    expect(Number.isSafeInteger(vencida.invitacion.id)).toBe(true);
+    const ajuste = sql(
+      `UPDATE invitacion SET expira_en = '2026-09-27T09:00:00-05:00' WHERE id = ${vencida.invitacion.id} AND estado = 'PENDIENTE' RETURNING id`,
+    );
+    expect(ajuste.status).toBe(0);
+    expect(ajuste.stdout).toContain(String(vencida.invitacion.id));
+    await page.goto(vencida.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
+    await expect(page.locator('main')).toContainText('Esta invitación caducó.');
+    await capturarGestion(page, info, 'invitacion-caducada');
+    const revocada = await (
+      await escribir(gestor, '/api/n/barberturno/invitaciones', {
+        correo: 'revocada@ejemplo.test',
+        rol: 'BARBERO',
+      })
+    ).json();
+    const cookies = (await gestor.storageState()).cookies;
+    expect(
+      (
+        await gestor.delete(`/api/n/barberturno/invitaciones/${revocada.invitacion.id}`, {
+          headers: {
+            'X-XSRF-TOKEN': decodeURIComponent(cookies.find((c) => c.name === 'XSRF-TOKEN')!.value),
+          },
+        })
+      ).status(),
+    ).toBe(200);
+    await page.goto(revocada.enlaceInvitacion.replace('/api/invitaciones/', '/invitacion/'));
+    await expect(page.locator('main')).toContainText('Esta invitación ya no es válida.');
+    await capturarGestion(page, info, 'invitacion-revocada');
+  } finally {
+    await gestor.dispose();
+  }
+});
+
+test('18 · revocación durante la sesión vuelve al selector aunque conserva ficha cliente', async ({
+  page,
+}, info) => {
+  await ingresar(page, 'cliente@ejemplo.test', false);
+  await page.getByRole('button', { name: 'Entrar en BarberTurno', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(/\/n\/barberturno\/agenda$/);
+  const gestor = await sesionApi('multirol@ejemplo.test');
+  try {
+    const equipo = await (await gestor.get('/api/n/barberturno/equipo')).json();
+    const miembro = equipo.find((f: { correo: string }) => f.correo === 'cliente@ejemplo.test');
+    expect(miembro).toBeDefined();
+    await escribir(gestor, `/api/n/barberturno/equipo/${miembro.id}/revocacion`, null);
+    await page.getByRole('button', { name: 'Actualizar agenda', exact: true }).click();
+    await expect(page).toHaveURL(/\/negocios$/);
+    await expect(page.locator('main')).toContainText(
+      'Ya no tiene acceso como personal a BarberTurno. Puede seguir entrando como cliente.',
+    );
+    await capturarGestion(page, info, 'acceso-revocado');
+    await page.goto('/n/barberturno/equipo');
+    await expect(page.locator('main')).toContainText('No tiene acceso a esta sección.');
+  } finally {
+    await gestor.dispose();
+  }
+});
+
+test('19 · configuración real aplica el horizonte en la siguiente petición del cliente', async ({
+  page,
+}, info) => {
+  await ingresar(page, 'multirol@ejemplo.test');
+  await page.goto('/n/barberturno/configuracion');
+  await expect(page.getByLabel('Horizonte en días', { exact: true })).toHaveValue('30');
+  await expect(page.locator('main')).toContainText('Límite técnico: Entre 1 y 32767.');
+  await page.getByLabel('Horizonte en días', { exact: true }).fill('12');
+  const respuesta = page.waitForResponse(
+    (r) => r.url().endsWith('/configuracion') && r.request().method() === 'PUT',
+  );
+  await page.getByRole('button', { name: 'Guardar configuración', exact: true }).click();
+  expect((await respuesta).status()).toBe(200);
+  await expect(page.locator('main')).toContainText('Configuración guardada.');
+  await capturarGestion(page, info, 'configuracion');
+  await salirConRespuesta(page);
+  await ingresar(page, 'cliente@ejemplo.test');
+  await page.getByRole('radio', { name: 'Corte clásico', exact: true }).check();
+  await page.getByRole('button', { name: 'Elegir fecha y hora', exact: true }).click();
+  await expect(page.getByLabel('Otra fecha, hasta 12 días', { exact: true })).toBeVisible();
+  await page.getByLabel('Otra fecha, hasta 12 días', { exact: true }).fill('11/10/2026');
+  await page.getByLabel('Otra fecha, hasta 12 días', { exact: true }).press('Tab');
+  await expect(page.locator('main')).toContainText(
+    'Elija una fecha válida dentro de los próximos 12 días.',
+  );
+  const gestor = await sesionApi('multirol@ejemplo.test');
+  try {
+    const datos = await (await gestor.get('/api/n/barberturno/configuracion')).json();
+    const cookies = (await gestor.storageState()).cookies;
+    const guardado = await gestor.put('/api/n/barberturno/configuracion', {
+      data: { ...datos, horizonteDias: 30 },
+      headers: {
+        'X-XSRF-TOKEN': decodeURIComponent(cookies.find((c) => c.name === 'XSRF-TOKEN')!.value),
+      },
+    });
+    expect(guardado.status()).toBe(200);
+  } finally {
+    await gestor.dispose();
+  }
+});
+
+test('20 · plataforma exige rol global, crea barbería y gestiona su invitación inicial una vez', async ({
+  page,
+}, info) => {
+  for (const correo of ['multirol@ejemplo.test', 'encargado@ejemplo.test']) {
+    await ingresar(page, correo, false);
+    await page.goto('/plataforma');
+    await expect(page.locator('main')).toContainText('No tiene acceso a esta sección.');
+    await expect(page.locator('app-plataforma')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Plataforma', exact: true })).toHaveCount(0);
+    // Login permite cambiar de identidad sin conservar la autoridad de la anterior.
+    await salirConRespuesta(page);
+  }
+  await ingresar(page, 'plataforma@ejemplo.test', false);
+  await expect(page.locator('main')).toContainText('Todavía no pertenece a ninguna barbería.');
+  await page.locator('main').getByRole('link', { name: 'Plataforma', exact: true }).click();
+  await expect(page).toHaveURL(/\/plataforma\/negocios$/);
+  await expect(page.locator('main')).toContainText('Barberías de la plataforma');
+  await expect(page.locator('app-barberia-actual section')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Agenda', exact: true })).toHaveCount(0);
+  await capturarGestion(page, info, 'plataforma');
+  await page.getByRole('button', { name: 'Nueva barbería', exact: true }).click();
+  const dialogo = page.getByRole('dialog');
+  await dialogo.getByLabel('Nombre', { exact: true }).fill('Barbería Prueba');
+  await dialogo.getByLabel('Dirección web', { exact: true }).fill('prueba-plataforma');
+  await dialogo
+    .getByLabel('Correo del propietario', { exact: true })
+    .fill('propietario-inicial@ejemplo.test');
+  await capturarGestion(page, info, 'alta');
+  const alta = page.waitForResponse(
+    (r) => r.url().endsWith('/api/plataforma/negocios') && r.request().method() === 'POST',
+  );
+  await dialogo.getByRole('button', { name: 'Crear barbería', exact: true }).click();
+  const respuesta = await alta;
+  expect(respuesta.status()).toBe(201);
+  const creada = await respuesta.json();
+  await expect(dialogo).toHaveCount(0);
+  await expect(page.locator('app-enlace-invitacion')).toContainText('una sola vez');
+  await expect(page.locator('app-enlace-invitacion')).toContainText('/invitacion/');
+  await capturarGestion(page, info, 'alta-enlace');
+  expect((await (await page.request.get(creada.enlaceInvitacion)).json()).estado).toBe('PENDIENTE');
+  await page.reload();
+  await expect(page.locator('app-plataforma')).toBeVisible();
+  await expect(page.locator('app-enlace-invitacion')).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Reenviar invitación de Barbería Prueba', exact: true })
+    .click();
+  const reenviada = page.waitForResponse(
+    (r) =>
+      r.url().endsWith(`/api/plataforma/negocios/${creada.id}/invitacion-propietario`) &&
+      r.request().method() === 'POST',
+  );
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Reenviar invitación', exact: true })
+    .click();
+  const nueva = await (await reenviada).json();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect((await (await page.request.get(creada.enlaceInvitacion)).json()).estado).toBe('REVOCADA');
+  await expect(page.locator('app-enlace-invitacion')).toContainText('hora de Lima');
+  await capturarGestion(page, info, 'invitacion-reenviada');
+  await page
+    .getByRole('button', { name: 'Revocar invitación de Barbería Prueba', exact: true })
+    .click();
+  const revocada = page.waitForResponse(
+    (r) =>
+      r.url().endsWith(`/api/plataforma/negocios/${creada.id}/invitacion-propietario`) &&
+      r.request().method() === 'DELETE',
+  );
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Revocar invitación', exact: true })
+    .click();
+  expect((await revocada).status()).toBe(200);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect((await (await page.request.get(nueva.enlaceInvitacion)).json()).estado).toBe('REVOCADA');
+  await page.locator('main').getByRole('link', { name: 'Ir a mis barberías', exact: true }).click();
+  await expect(page).toHaveURL(/\/negocios$/);
+  await expect(page.locator('main')).toContainText('Todavía no pertenece a ninguna barbería.');
+});
+
+test('21 · suspensión desde plataforma: público no disponible, personal consulta y no escribe; reactivación', async ({
+  page,
+  browser,
+}, info) => {
+  const opciones = {
+    baseURL: 'http://localhost:8081',
+    viewport: page.viewportSize()!,
+    timezoneId: 'Europe/Madrid',
+    locale: 'es-PE',
+  };
+  const contextoPersonal = await browser.newContext(opciones);
+  const contextoPublico = await browser.newContext(opciones);
+  try {
+    const personal = await contextoPersonal.newPage();
+    const publico = await contextoPublico.newPage();
+    await personal.clock.setFixedTime(new Date('2026-09-28T09:00:00-05:00'));
+    await publico.clock.setFixedTime(new Date('2026-09-28T09:00:00-05:00'));
+    await ingresar(personal, 'multirol@ejemplo.test');
+    await personal.goto('/n/barberturno/configuracion');
+    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
+    await ingresar(page, 'plataforma@ejemplo.test', false);
+    await page.goto('/plataforma/negocios');
+    await page.getByRole('button', { name: 'Suspender BarberTurno', exact: true }).click();
+    const suspension = page.waitForResponse(
+      (r) => r.url().endsWith('/estado') && r.request().method() === 'PATCH',
+    );
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Suspender barbería', exact: true })
+      .click();
+    expect((await suspension).status()).toBe(200);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Reactivar BarberTurno', exact: true }),
+    ).toBeVisible();
+    await capturarGestion(page, info, 'suspendida-plataforma');
+    // Suspensión con la sesión abierta: el rechazo del servidor muestra el aviso fijo sin recargar.
+    await expect(personal.locator('main')).not.toContainText('Barbería suspendida');
+    const enCurso = personal.waitForResponse(
+      (r) => r.url().endsWith('/configuracion') && r.request().method() === 'PUT',
+    );
+    await personal.getByRole('button', { name: 'Guardar configuración', exact: true }).click();
+    const rechazoEnCurso = await enCurso;
+    expect(rechazoEnCurso.status()).toBe(409);
+    expect((await rechazoEnCurso.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
+    const avisoSuspension =
+      'Barbería suspendida: puede consultar, pero no hacer cambios. Las acciones de cambio quedan desactivadas hasta que la plataforma la reactive.';
+    await expect(personal.locator('main')).toContainText(avisoSuspension);
+    await expect(personal.locator('main [role="alert"]')).toContainText(/suspendid/i);
+    await expect(personal.locator('main [role="alert"]')).toHaveCount(1);
+    expect(await personal.locator('mat-snack-bar-container').count()).toBe(0);
+    const boton = await personal
+      .getByRole('button', { name: 'Guardar configuración', exact: true })
+      .boundingBox();
+    const alerta = await personal.locator('main [role="alert"]').boundingBox();
+    expect(alerta!.y).toBeGreaterThanOrEqual(boton!.y + boton!.height);
+    // Desde el rechazo, la pantalla queda en solo lectura sin recargar.
+    await expect(
+      personal.getByRole('button', { name: 'Guardar configuración', exact: true }),
+    ).toBeDisabled();
+    await expect(personal.getByLabel('Nombre', { exact: true })).toBeDisabled();
+    await personal.reload();
+    await expect(personal.locator('main')).toContainText(avisoSuspension);
+    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
+    await expect(personal.getByLabel('Nombre', { exact: true })).toBeDisabled();
+    await expect(personal.getByLabel('Horizonte en días', { exact: true })).toBeDisabled();
+    await expect(
+      personal.getByRole('button', { name: 'Guardar configuración', exact: true }),
+    ).toBeDisabled();
+    // La protección sigue en el servidor: una escritura directa con la misma sesión da 409.
+    const vigente = await personal.request.get('/api/n/barberturno/configuracion');
+    expect(vigente.status()).toBe(200);
+    const xsrf = (await personal.context().cookies()).find((c) => c.name === 'XSRF-TOKEN')!;
+    const directa = await personal.request.put('/api/n/barberturno/configuracion', {
+      data: await vigente.json(),
+      headers: { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) },
+    });
+    expect(directa.status()).toBe(409);
+    expect((await directa.json()).codigo).toBe('NEGOCIO_SUSPENDIDO');
+    await personal.goto('/n/barberturno/equipo');
+    await expect(personal.locator('main')).toContainText(avisoSuspension);
+    await expect(personal.getByRole('button', { name: /^Cambiar rol de / }).first()).toBeDisabled();
+    await expect(personal.getByRole('switch', { name: 'Mostrar revocadas' })).toBeEnabled();
+    await personal.goto('/n/barberturno/configuracion');
+    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
+    await capturarGestion(personal, info, 'suspendida-personal');
+    const publica = publico.waitForResponse((r) => r.url().endsWith('/api/n/barberturno/negocio'));
+    await publico.goto('/n/barberturno/reservar');
+    expect((await publica).status()).toBe(404);
+    await expect(publico.locator('main')).toContainText(
+      'Esta barbería no está disponible por ahora.',
+    );
+    await expect(publico.locator('app-reservar')).toHaveCount(0);
+    await capturarGestion(publico, info, 'suspendida-publica');
+    await page.getByRole('button', { name: 'Reactivar BarberTurno', exact: true }).click();
+    const reactivacion = page.waitForResponse(
+      (r) => r.url().endsWith('/estado') && r.request().method() === 'PATCH',
+    );
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Reactivar barbería', exact: true })
+      .click();
+    expect((await reactivacion).status()).toBe(200);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await publico.reload();
+    await expect(publico.getByRole('radio', { name: 'Corte clásico', exact: true })).toBeVisible();
+    await personal.reload();
+    await expect(personal.getByLabel('Nombre', { exact: true })).toHaveValue('BarberTurno');
+    await expect(personal.locator('main')).not.toContainText('Barbería suspendida:');
+  } finally {
+    await contextoPersonal.close();
+    await contextoPublico.close();
+  }
 });

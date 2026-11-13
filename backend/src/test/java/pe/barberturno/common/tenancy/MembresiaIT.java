@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,7 @@ class MembresiaIT extends IdentidadPruebaBase {
                     datosB.servicio(), "CONFIRMADA", 60);
         });
         Cookie cookie = sesion(persona); // Mismo JWT, incluido su claim ADMIN heredado.
-        mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/usuarios")).cookie(cookie)).andExpect(status().isOk());
         assertThat(auth.autenticar(persona.getId(), 0).orElseThrow().rolNegocio()).contains(RolNegocio.PROPIETARIO);
         proveedor.fijar(b);
         try {
@@ -46,11 +48,11 @@ class MembresiaIT extends IdentidadPruebaBase {
         plataforma.habilitarAdministracionPlataforma();
         usuarios.saveAndFlush(plataforma);
         var cookie = sesion(plataforma);
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
-        for (String ruta : List.of("/api/usuarios", "/api/reservas", "/api/reportes/resumen")) {
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
+        for (String ruta : List.of(negocio("/api/usuarios"), negocio("/api/reservas"), negocio("/api/reportes/resumen"))) {
             mvc.perform(get(ruta).cookie(cookie)).andExpect(status().isForbidden());
         }
-        mvc.perform(csrf(post("/api/servicios").contentType("application/json").content("{}"), cookie))
+        mvc.perform(csrf(post(negocio("/api/servicios")).contentType("application/json").content("{}"), cookie))
                 .andExpect(status().isForbidden());
         var principal = auth.autenticar(plataforma.getId(), 0).orElseThrow();
         assertThat(principal.rol()).isNull();
@@ -59,20 +61,20 @@ class MembresiaIT extends IdentidadPruebaBase {
                 .extracting(org.springframework.security.core.GrantedAuthority::getAuthority)
                 .containsExactly("ROLE_ADMIN_PLATAFORMA");
         pertenencia(1L, plataforma, RolNegocio.BARBERO);
-        mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(jsonPath("$.rol").value("BARBERO"));
+        mvc.perform(get(negocio("/api/usuarios")).cookie(cookie)).andExpect(status().isForbidden());
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(jsonPath("$.rol").value("BARBERO"));
     }
 
     @Test void revocarMembresia_peticionSiguienteSinCambiarTokenPierdeAcceso() throws Exception {
         var usuario = propietario("revocable");
         var cookie = sesion(usuario);
-        mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/usuarios")).cookie(cookie)).andExpect(status().isOk());
         var anterior = huella(usuario);
         var pertenencia = membresias.findByNegocioIdAndUsuarioId(1L, usuario.getId()).orElseThrow();
         pertenencia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
         membresias.save(pertenencia);
-        mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
+        mvc.perform(get(negocio("/api/usuarios")).cookie(cookie)).andExpect(status().isForbidden());
+        mvc.perform(get(negocio("/api/sesion")).cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
         assertThat(huella(usuario)).isEqualTo(anterior);
     }
 
@@ -91,7 +93,7 @@ class MembresiaIT extends IdentidadPruebaBase {
         assertThat(listado.contenido()).isEmpty();
         assertThat(listado.totalElementos()).isZero();
         assertThat(profesionales.listar(true, true)).isEmpty();
-        mvc.perform(csrf(post("/api/barberos").contentType("application/json")
+        mvc.perform(csrf(post(negocio("/api/barberos")).contentType("application/json")
                 .content("{\"usuarioId\":" + usuario.getId() + ",\"especialidad\":\"Corte\"}"), sesion(admin))).andExpect(status().isNotFound());
     }
 
@@ -132,15 +134,15 @@ class MembresiaIT extends IdentidadPruebaBase {
         var previa = membresias.findByNegocioIdAndUsuarioId(1L, revocado.getId()).orElseThrow();
         previa.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant()); membresias.save(previa);
         var cookie = sesion(encargado);
-        mvc.perform(get("/api/usuarios").cookie(cookie)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/usuarios")).cookie(cookie)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElementos").value(2));
         for (var objetivo : List.of(propietario, encargado, revocado)) {
-            mvc.perform(csrf(post("/api/usuarios/" + objetivo.getId() + "/restablecer-password"), cookie))
+            mvc.perform(csrf(post(negocio("/api/usuarios/") + objetivo.getId() + "/restablecer-password"), cookie))
                     .andExpect(status().isNotFound());
             mvc.perform(csrf(estado(objetivo.getId(), false), cookie)).andExpect(status().isNotFound());
         }
         for (var objetivo : List.of(cliente, barbero)) {
-            mvc.perform(csrf(post("/api/usuarios/" + objetivo.getId() + "/restablecer-password"), cookie))
+            mvc.perform(csrf(post(negocio("/api/usuarios/") + objetivo.getId() + "/restablecer-password"), cookie))
                     .andExpect(status().isOk());
             mvc.perform(csrf(estado(objetivo.getId(), false), cookie)).andExpect(status().isOk());
         }

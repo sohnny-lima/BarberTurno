@@ -66,9 +66,12 @@ public class Reserva {
     @Column(name = "estado", nullable = false, length = 12)
     private EstadoReserva estado;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "creada_por", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creada_por")
     private Usuario creadaPor;
+
+    @Column(nullable = false, updatable = false, length = 10)
+    private String canal = "WEB";
 
     @Version
     @Column(name = "version", nullable = false)
@@ -115,6 +118,38 @@ public class Reserva {
     }
 
     /**
+     * Construye una reserva por WhatsApp atribuida a la propia ficha (V2-DA-64).
+     * El llamador valida todas las reglas antes de persistir.
+     * @param cliente ficha propietaria con consentimiento
+     * @param barbero profesional validado
+     * @param servicio catálogo del que se copian las referencias
+     * @param inicio instante solicitado
+     * @param estado estado inicial según el negocio
+     * @param ahora instante del reloj inyectado
+     * @return reserva sin cuenta creadora y con origen WHATSAPP
+     * @throws NullPointerException si falta un dato obligatorio
+     */
+    public static Reserva porFicha(Cliente cliente, Barbero barbero, Servicio servicio, Instant inicio,
+            EstadoReserva estado, Instant ahora) {
+        var reserva = new Reserva();
+        reserva.cliente = Objects.requireNonNull(cliente);
+        reserva.barbero = Objects.requireNonNull(barbero);
+        reserva.servicio = Objects.requireNonNull(servicio);
+        reserva.inicio = Objects.requireNonNull(inicio);
+        reserva.estado = Objects.requireNonNull(estado);
+        reserva.duracionRefMin = servicio.getDuracionMin();
+        reserva.precioRef = servicio.getPrecio();
+        reserva.fin = inicio.plus(reserva.duracionRefMin, ChronoUnit.MINUTES);
+        reserva.creadoEn = Objects.requireNonNull(ahora);
+        reserva.actualizadoEn = ahora;
+        reserva.canal = "WHATSAPP";
+        return reserva;
+    }
+
+    /** {@return origen inmutable de la creación, WEB o WHATSAPP} */
+    public String getCanal() { return canal; }
+
+    /**
      * Reprograma conservando servicio y referencias RN-09/13 y recalcula fin RN-01. El servicio toma los
      * bloqueos ① ② ③, valida disponibilidad y escribe auditoría y avisos RN-15 en la misma transacción.
      * @param barbero nuevo barbero
@@ -155,7 +190,7 @@ public class Reserva {
         return id;
     }
 
-    /** {@return ficha propietaria del negocio; su cuenta recibe avisos y autoriza al actor web} */
+    /** {@return ficha propietaria del negocio; su cuenta, si existe, recibe avisos y autoriza al actor web} */
     public Cliente getCliente() {
         return cliente;
     }
@@ -204,7 +239,7 @@ public class Reserva {
         return estado;
     }
 
-    /** {@return identidad del actor que creó la reserva, cliente o administrador; no nula} */
+    /** {@return cuenta creadora; nula para una creación por ficha de WhatsApp} */
     public Usuario getCreadaPor() {
         return creadaPor;
     }

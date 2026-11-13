@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ReporteExcelIT extends ReservaPruebaBase {
-    private static final String RUTA = "/api/reportes/resumen.xlsx";
+    private static final String RUTA = negocio("/api/reportes/resumen.xlsx");
     private static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     @Autowired ReporteService reportes;
     @MockitoSpyBean ReporteExcelService excel;
@@ -83,7 +85,7 @@ class ReporteExcelIT extends ReservaPruebaBase {
     @ParameterizedTest @ValueSource(ints = {0, 1, 2, 3})
     void adminDescargaMismasCifrasQueJsonConYSinFiltros(int filtros) throws Exception {
         var archivo = peticion();
-        var consulta = get("/api/reportes/resumen").cookie(sesion(admin))
+        var consulta = get(negocio("/api/reportes/resumen")).cookie(sesion(admin))
                 .param("desde", "2026-10-01").param("hasta", "2026-10-01");
         if ((filtros & 1) != 0) {
             archivo.param("servicioId", servicio.getId().toString());

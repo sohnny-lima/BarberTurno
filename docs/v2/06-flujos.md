@@ -74,11 +74,11 @@ sequenceDiagram
   O-->>C: continúa con la intención del primer mensaje
 ```
 - Sin aceptación no se crea la ficha ni se reserva; sí se puede consultar el catálogo y la disponibilidad. La conversación sin ficha solo guarda `wa_id` y los mensajes, y se purga a los 30 días.
-- El opt-in para **recordatorios** es una pregunta aparte después de la primera reserva («¿Quieres que te recordemos la cita un día antes?»); se guarda `whatsapp_optin_en`. «BAJA» o «STOP» lo retira (`whatsapp_optout_en`) y se confirma.
+- El opt-in para **recordatorios** es una pregunta aparte después de la primera reserva («¿Quieres que te recordemos la cita un día antes?»); se guarda `whatsapp_optin_en`. «BAJA» o «STOP» lo retira (`whatsapp_optout_en`) y se confirma. *(Precisión del 29/10/2026, V2-DA-63: el opt-in y la baja llegan con V2-14.)*
 
 ## 7. WhatsApp: reservar
 ### 7.1 Guiado (Fase 1, también respaldo de la IA)
-Menú principal (botones): **Reservar** · **Mis citas** · **Hablar con alguien**. Reservar → lista de servicios → lista de profesionales («Cualquiera» incluido, RF-21) → elegir día (hoy, mañana, próximos 5 días) → lista de franjas (máx. 10; «ver más») → **resumen + [Confirmar] [Cambiar]** → resultado.
+Menú principal (botones): **Reservar** · **Mis citas** · **Hablar con alguien**. Reservar → lista de servicios → lista de profesionales («Cualquiera» incluido, RF-21) → elegir día (hoy, mañana, próximos 5 días) → lista de franjas (máx. 10; «ver más») → **resumen + [Confirmar] [Cambiar]** → resultado. *(Precisión del 29/10/2026, V2-DA-63: en V2-10 el menú es **Reservar** · **Mis citas**; «Hablar con alguien» llega con V2-11. Sin ficha se recorre hasta la franja y entonces se pide el consentimiento.)*
 
 ### 7.2 Con IA (Fase 2)
 ```mermaid
@@ -94,9 +94,9 @@ sequenceDiagram
   O->>D: consultarFranjas(...) dentro del negocio
   D-->>O: 17:30, 18:00, 19:10
   O->>L: resultado de la herramienta
-  L-->>O: «Carlos tiene libre mañana jueves 23/10 a las 17:30, 18:00 y 19:10. ¿Cuál prefieres?»
-  O->>O: Guardas: horas ⊆ franjas devueltas ✔, sin confirmaciones ✔
-  O-->>C: texto + lista interactiva (generada por el servidor) con las 3 franjas
+  L-->>O: (texto libre, si lo hay: se descarta, V2-DA-86) + responder_al_cliente o fin del turno
+  O->>O: Respuesta determinista: efecto «franjas» → RespuestasAsistente.franjas
+  O-->>C: «Estos son los horarios disponibles. Elige uno:» + lista interactiva (servidor) con las 3 franjas
   C->>O: «la de las 6»
   O->>L: ... → proponer_reserva(Corte, Carlos, 2026-10-23T18:00-05:00)
   O->>D: validarFranja → libre
@@ -141,7 +141,7 @@ Claves: el modelo **nunca** ejecuta la reserva; la confirmación es la pulsació
 |---|---|
 | *Webhook* repetido por Meta | `evento_whatsapp_clave_uk` → se ignora; respuesta 200. |
 | Doble pulsación de [Confirmar] | La primera bloquea y ejecuta la operación (`EJECUTADA`); la segunda la encuentra ejecutada y repite la misma respuesta, sin crear otra reserva. |
-| Error transitorio de la Graph API (429, 5xx, red) | Reintento con espera exponencial (5 intentos en ~15 min). |
+| Error transitorio de la Graph API (429, 5xx, red) | Reintento con espera exponencial (5 intentos, unos 7 min 30 s de esperas). Si no se sabe si Meta lo aceptó (tiempo de respuesta agotado), se espera 2 min a que un aviso de estado lo concilie y se reenvía; el segundo desconocido contabilizado termina el mensaje. Tope absoluto: 5 POST por mensaje; sin garantía de llegada y con posibles duplicados (V2-DA-58, precisado el 29/10/2026; H-116-01/02 abiertos). |
 | Error permanente (número no válido, ventana cerrada, plantilla rechazada) | `FALLIDO` + aviso interno al personal con la reserva afectada. **La operación no se deshace.** |
 | Aviso de estado `failed` de Meta | Igual que un error permanente. |
 | Número receptor desconocido | Evento `DESCARTADO`, registro sin contenido. |

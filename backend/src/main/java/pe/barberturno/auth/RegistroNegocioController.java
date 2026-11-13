@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import pe.barberturno.auth.dto.*;
 
 /**
- * Registro público de cuenta y ficha en el negocio de la ruta, con el mismo contrato y cookies del alias.
+ * Registro público de cuenta y ficha exclusivamente en el negocio explícito de la ruta canónica.
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */

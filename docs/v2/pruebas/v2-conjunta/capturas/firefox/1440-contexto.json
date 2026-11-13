@@ -1,0 +1,98 @@
+{
+  "navegador": "firefox",
+  "version": "155.0",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 900
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mat-button-toggle-button mat-focus-indicator",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "-3px"
+  },
+  "contencion": null,
+  "ruta": "/n/barberturno/agenda",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 44,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 45
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": [
+          "#mat-button-toggle-0-button > .mat-button-toggle-label-content",
+          "#mat-button-toggle-1-button > .mat-button-toggle-label-content",
+          ".mat-mdc-select-min-line",
+          "#mat-input-2"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-button-toggle-0-button > .mat-button-toggle-label-content",
+        "componente": "Grupo conmutable",
+        "estado": "normal",
+        "color": "#ffffff",
+        "fondo": "#145c43",
+        "ratio": 7.95,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-button-toggle-1-button > .mat-button-toggle-label-content",
+        "componente": "Grupo conmutable",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#ffffff",
+        "ratio": 5.62,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": ".mat-mdc-select-min-line",
+        "componente": "Valor de selector",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#f6f8f7",
+        "ratio": 15.33,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-2",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#f6f8f7",
+        "ratio": 15.33,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      }
+    ]
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

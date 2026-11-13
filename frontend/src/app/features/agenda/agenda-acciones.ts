@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   input,
+  inject,
   output,
   viewChild,
 } from '@angular/core';
@@ -11,6 +12,7 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { EstadoTransicion, ReservaDto } from '../../core/modelos/reservas';
 import { ACCIONES_TRANSICION } from './transicion-dialogo';
 import { RegionMenu } from '../../shared/region-menu';
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 
 /** Distribuye los permisos recibidos entre la acción destacada y el menú Material. */
 @Component({
@@ -31,6 +33,8 @@ export class AgendaAcciones {
   readonly cancelar = output<void>();
   readonly reprogramar = output<void>();
   readonly cambios = output<void>();
+  /** Con la barbería suspendida solo se consulta (V2-DA-49): los permisos se muestran desactivados. */
+  readonly soloLectura = inject(NegocioActual).soloLectura;
   readonly acciones = Object.entries(ACCIONES_TRANSICION) as [EstadoTransicion, string][];
   readonly principal = computed(() => {
     const primera = this.acciones.find(([estado]) =>

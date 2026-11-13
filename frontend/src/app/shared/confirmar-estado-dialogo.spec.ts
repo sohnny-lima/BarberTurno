@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../core/negocio/negocio-prueba';
 import { MatButton } from '@angular/material/button';
 import { By } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
@@ -35,15 +36,16 @@ describe('Confirmación de desactivación de barbero', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   it('solo envía tras confirmar y muestra el aviso devuelto por el servidor', () => {
     const fixture = TestBed.createComponent(ConfirmarEstadoDialogo);
     fixture.detectChanges();
-    http.expectNone('/api/barberos/17/estado');
+    http.expectNone('/api/n/prueba/barberos/17/estado');
     fixture.componentInstance.confirmar();
     fixture.componentInstance.confirmar();
-    const peticion = http.expectOne('/api/barberos/17/estado');
+    const peticion = http.expectOne('/api/n/prueba/barberos/17/estado');
     expect(peticion.request.body).toEqual({ activo: false });
     peticion.flush({ barbero: { id: 17, activo: false }, reservasFuturasVigentes: 3 });
     fixture.detectChanges();
@@ -60,14 +62,14 @@ describe('Confirmación de desactivación de barbero', () => {
     const fixture = TestBed.createComponent(ConfirmarEstadoDialogo);
     fixture.componentInstance.confirmar();
     http
-      .expectOne('/api/barberos/17/estado')
+      .expectOne('/api/n/prueba/barberos/17/estado')
       .flush({ barbero: { id: 17 }, reservasFuturasVigentes: 0 });
     expect(referencia.close).toHaveBeenCalledWith(true);
   });
   it('muestra límite de activos y permite reintentar tras un 422', () => {
     const fixture = TestBed.createComponent(ConfirmarEstadoDialogo);
     fixture.componentInstance.confirmar();
-    http.expectOne('/api/barberos/17/estado').flush(
+    http.expectOne('/api/n/prueba/barberos/17/estado').flush(
       {
         codigo: 'LIMITE_BARBEROS_ACTIVOS',
         detail: 'Como máximo puede haber 10 barberos activos.',

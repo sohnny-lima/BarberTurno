@@ -1,11 +1,13 @@
-<label for="busqueda-cliente">Buscar cliente por nombre o correo</label>
 <mat-form-field appearance="outline">
+  <mat-label>Buscar cliente por nombre o correo</mat-label>
   <input
     matInput
     id="busqueda-cliente"
     type="search"
     [formControl]="control"
     [readonly]="deshabilitado()"
+    autocomplete="off"
+    enterkeyhint="search"
   />
   <mat-hint>Escriba para buscar y seleccione una cuenta registrada.</mat-hint>
 </mat-form-field>

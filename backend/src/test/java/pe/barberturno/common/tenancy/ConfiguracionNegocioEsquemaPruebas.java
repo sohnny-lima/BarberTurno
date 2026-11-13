@@ -15,7 +15,8 @@ final class ConfiguracionNegocioEsquemaPruebas {
         assertThat(jdbc.queryForObject("select current_user", String.class)).isEqualTo("barberturno_v2_app");
         assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'negocio','UPDATE')", Boolean.class)).isFalse();
         var permitidas = List.of("nombre", "estado", "anticipacion_cambio_cliente_min", "horizonte_dias",
-                "limite_reservas_activas", "limite_barberos_activos", "confirmacion_manual", "tolerancia_inicio_min", "actualizado_en");
+                "limite_reservas_activas", "limite_barberos_activos", "confirmacion_manual", "tolerancia_inicio_min", "actualizado_en",
+                "ia_habilitada", "ia_presupuesto_mensual_usd", "ia_llamadas_dia_conversacion", "ia_entradas_minuto", "ia_aviso_limite_en");
         for (String columna : jdbc.queryForList("select column_name from information_schema.columns where table_name='negocio' order by ordinal_position", String.class)) {
             assertThat(jdbc.queryForObject("select has_column_privilege(current_user,'negocio',?,'UPDATE')", Boolean.class, columna))
                     .as("UPDATE de %s", columna).isEqualTo(permitidas.contains(columna));

@@ -6,9 +6,7 @@ El repositorio y las bases locales están preparados (T-01). El backend ya arran
 
 ## BarberTurno v2 en local
 
-**V2-05 bloqueada por H-085-01:** una ruta global codificada puede evitar el rechazo del prefijo de negocio. Pasos 1–4 implementados; no se ha completado verify ni el cierre. Véase [la evidencia y la regresión](docs/v2/pruebas/v2-05.md). Sin integración ni publicación.
-
-Este worktree desarrolla V2-05 en `tarea/V2-05-negocio-por-peticion`, desde `v2`. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. V2 sigue pendiente de gestión, interfaz y validación de conjunto; no está preparada para desplegarse.
+Este worktree desarrolla V2-07 en `tarea/V2-07-interfaz-multinegocio`, desde `v2` con V2-01…V2-06 integradas. Para esta rama use esta sección; las instrucciones posteriores documentan la versión académica v1. Las operaciones de negocio usan `/api/n/{slug}/…`. Gestión, plataforma y estados multinegocio implementados; alias retirado y verificado, con la verificación visual final en curso ([evidencia](docs/v2/pruebas/v2-07.md)). El arnés E2E usa exclusivamente la base de pruebas de v2. Sin integración ni publicación.
 
 El responsable prepara el entorno una sola vez desde la raíz con `tools/preparar-entorno-v2.ps1` (PostgreSQL 18.6, puerto 5433). El script crea exclusivamente las bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`, propiedad de `barberturno_v2`, y el rol operativo `barberturno_v2_app`, sin privilegios administrativos ni propiedad. No reutilice bases o credenciales de v1. En este equipo ya está preparado.
 
@@ -24,7 +22,79 @@ cd backend
 
 `dev` usa `http://localhost:8081` y `barberturno_v2`; `test`, `barberturno_v2_test`. Flyway aplica V1 y las migraciones V100+ con el propietario y Hibernate valida con el rol operativo. Las pruebas de instalación y actualización limpian únicamente `barberturno_v2_migracion`, comprobando su nombre antes de hacerlo. Ejecute siempre una sola suite o aplicación contra PostgreSQL a la vez. La suite conserva el negocio único al limpiar los datos de prueba.
 
-El alias `barberturno.tenancy.alias-legado.slug=barberturno` permite al frontend actual usar las rutas de negocio sin prefijo en dev/test/demo; sin alias responden 404. Configurarlo con prod impide arrancar. Las rutas globales de identidad no reciben contexto de negocio. Cada transacción fija RLS localmente y lo pierde al terminar; no cambie de negocio dentro de una transacción. `barberturno.tenancy.negocio-inicial-slug` y `barberturno.demo.negocio-slug` delimitan los inicializadores mediante un slug explícito; si no existe, fallan sin elegir otro. El frontend no cambia en V2-05. Evidencia y criterios: [V2-05](docs/v2/pruebas/v2-05.md).
+Las rutas de negocio exigen `/api/n/{slug}/…`; las antiguas, incluido `/api/auth/registro`, devuelven 404 antes de los controladores. Cualquier propiedad `barberturno.tenancy.alias-legado.*` impide arrancar en todos los perfiles: elimínela de la configuración local. El registro de clientes se inicia desde la página de su barbería (`/registro?returnUrl=/n/{slug}/reservar`) y usa `/api/n/{slug}/registro`; el de personal usa el enlace de invitación, sin crear una ficha de cliente. Las rutas globales de identidad no reciben contexto de negocio. Cada transacción fija RLS localmente y lo pierde al terminar; no cambie de negocio dentro de una transacción. `barberturno.tenancy.negocio-inicial-slug` y `barberturno.demo.negocio-slug` delimitan los inicializadores mediante un slug explícito; si no existe, fallan sin elegir otro. Evidencia y criterios: [V2-05](docs/v2/pruebas/v2-05.md).
+
+Frontend v2: active Node 24.21.0 con fnm (estrategia `recursive`, instrucciones abajo), ejecute `cd frontend`, `npm ci` y `npm start`. El proxy de este worktree apunta a **8081**; entre por `http://localhost:4200`. `/negocios` muestra sus relaciones, con entrada directa cuando solo hay una; `/n/barberturno/reservar` y `/n/sur/reservar` permiten consultar sin sesión. Las rutas antiguas llevan al selector o al ingreso, sin barbería implícita. El bloque de barbería permite cambiar de negocio y elegir personal/cliente si la cuenta tiene ambos papeles. El papel cliente queda en la URL (`?papel=cliente`) y se envía al servidor mediante la cabecera aprobada; las rutas globales no la llevan.
+
+Calidad del frontend: `npm run lint`, `npm run format:check`, `npm test -- --watch=false` y `npm run build`. Para E2E, desde `frontend/` y con fnm activo, instale una vez los navegadores en la caché del worktree y ejecute:
+
+```powershell
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $PWD 'tmp/navegadores'
+npx playwright install chromium firefox
+npm run e2e
+```
+
+El arnés de esta rama usa exclusivamente **`barberturno_v2_test`** y rechaza cualquier otro `BT_E2E_DB`. Exige las credenciales del rol operativo y del propietario para Flyway/limpieza; genera claves demo, administrador y JWT aleatorios solo en el proceso. Arranca el jar `dev,demo` en **8081**, con reloj fijo 28/09/2026 09:00 Lima, sin Angular aparte. Ejecuta los proyectos Chromium/Firefox a 360/1440 px con un worker; limpia antes y después de cada proyecto, restaura el negocio inicial y conserva Flyway. Comprueba puertos y otras sesiones; **nunca a la vez que Maven, otro E2E o la aplicación**. El informe está en `frontend/tmp/e2e/informe/index.html`; las capturas de .1, en `docs/pruebas/v2-07/capturas/v2-07-1/`. Los comandos y capturas históricos de v1 de más abajo no se ejecutan en esta rama. Termine backend y Angular antes de ejecutar Maven.
+
+Con `dev,demo` y `BT_DEMO_PASSWORD` configurada en el entorno del proceso, el arranque carga también el escenario multinegocio idempotente. Desde `backend/`, después de terminar cualquier suite: `.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev,demo"`. Sin esa contraseña se omite la carga; los reinicios conservan claves, configuración y bajas existentes. La barbería inicial es `barberturno` (30 días, confirmación automática); `sur` tiene 14 días y confirmación manual. Ambas tienen catálogo y jornadas para reservar.
+
+| Cuenta ficticia (todas usan BT_DEMO_PASSWORD al crearse) | Papeles de la demo v2 |
+|---|---|
+| `plataforma@ejemplo.test` | ADMIN_PLATAFORMA, sin membresías |
+| `multirol@ejemplo.test` | Propietario en barberturno; barbero en sur |
+| `personal-cliente@ejemplo.test` | Barbero y cliente en barberturno |
+| `encargado@ejemplo.test` | Encargado en barberturno; propietario en sur para mantenerla operativa |
+| `cliente@ejemplo.test` | Cliente en las dos barberías; se conserva la cuenta de la demo académica |
+
+Para actuar como cliente, envíe `X-BT-Papel: CLIENTE` solo en `/api/n/{slug}/…`. Una ficha activa concede el papel CLIENTE y elimina los permisos de personal de esa petición; sin ficha no hay papel local. Otro valor o la cabecera fuera del prefijo da 400 `VALIDACION`. Sigue siendo obligatorio CSRF al escribir. `GET /api/n/{slug}/sesion` refleja el papel efectivo; `GET /api/mis-negocios` publica todos los `papeles` disponibles; `GET /api/n/{slug}/negocio` expone los seis parámetros públicos aprobados (suspendido → 404). [Contrato y pruebas de V2-07.0](docs/v2/pruebas/v2-07.md).
+
+## Twilio Sandbox local (V2-TW)
+
+Adaptador de pruebas en la rama `tarea/V2-TWILIO-sandbox`; contrato y recorrido manual en
+[20-v2-twilio-sandbox.md](docs/v2/20-v2-twilio-sandbox.md). Meta conserva su transporte habitual sin
+el perfil `twilio`. `prod,twilio` impide arrancar y, sin `twilio`, los dos callbacks nuevos dan 404.
+
+Para la prueba manual, el responsable prepara la base separada **`barberturno_v2_twilio`**, configura
+`BT_DB_URL` para ella y carga únicamente en el proceso las credenciales locales y las variables
+`BT_TWILIO_ACCOUNT_SID`, `BT_TWILIO_AUTH_TOKEN`, `BT_TWILIO_NUMERO` y `BT_TWILIO_URL_PUBLICA`
+([plantilla sin valores nuevos](tools/barberturno-v2.env.example)). `BT_TWILIO_URL_PUBLICA` debe ser
+la base HTTPS pública exacta, sin barra final. Desde `backend/`, con JDK 21 y sin otras suites activas:
+`.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev,demo,twilio"`. La demo requiere
+`BT_DEMO_PASSWORD`. Este encargo no prepara esa base ni arranca la aplicación ni abre un túnel.
+
+El arranque registra idempotentemente los canales de `barberturno.whatsapp.twilio.canales` después de
+la demo: `+14155238886` en `barberturno` y el número ficticio `+15005550006` en `sur`. Ambos negocios
+deben estar preparados (la demo multinegocio los crea). La lista vacía conserva el par histórico
+`numero`/`negocio-slug`; para cambiar el Sandbox con `BT_TWILIO_NUMERO`, vacíe la lista o ajuste sus pares.
+Números o slugs duplicados impiden arrancar. No sustituye un canal diferente.
+Sin credenciales o URL pública no se reclama la outbox y los callbacks dan 401.
+Los menús son texto numerado: su correspondencia caduca a las 24 h o al reiniciar; escriba «menú»
+para recuperarla. Por defecto, el webhook recoge hasta cinco respuestas por TwiML, con hasta 10 s
+para la primera, 1,5 s de silencio entre mensajes y un tope total de 12 s. Admite remitentes BSUID
+sin teléfono mediante una identidad sintética estable. Menús, esperas y respuestas retenidas se
+separan por número y persona. Una opción fuera de rango repite inmediatamente el menú actual;
+`menu`, `hola`, `inicio` y `0` vuelven al inicio, también tras la derivación a una persona.
+Sin espera abierta, un destino sintético retiene hasta cinco respuestas durante diez minutos,
+delante de las del siguiente webhook; si la persona no vuelve, caducan y se eliminan sin enviarse.
+Un teléfono E.164 conserva REST, con al menos 3 s entre solicitudes y el emisor de su negocio.
+`barberturno.whatsapp.twilio.respuesta-twiml=false` conserva REST para teléfonos y la traducción
+anterior de números fuera de rango; los sintéticos se retienen por V2-DA-108.
+Las plantillas y los textos de más de 1600 caracteres fallan permanentemente
+sin llamar al proveedor.
+
+En Agenda, el profesional con perfil y membresía activos puede generar un código desde la tarjeta
+«WhatsApp de la barbería» y enviarlo al número de ese negocio como `vincular XXXX-XXXX`. Caduca en
+diez minutos, es de un uso y permite `agenda hoy`, `agenda mañana` y `desvincular`, también con Meta.
+Cada consulta revalida el acceso. Las escrituras web conservan sesión y CSRF. El código se transforma
+en SHA-256 antes de persistir incluso el evento de entrada; no se muestra el WhatsApp en la web.
+
+Las verificaciones automatizadas usan el ejecutor serializado de este equipo, sin Twilio real:
+
+```powershell
+pwsh -File D:\Proyectos\BarberTurno-v2\.local\mvn-v2-test.ps1 -Worktree D:\Proyectos\BarberTurno-v2-twilio -Registro target\v2-twilio.log '-Dtest=*Twilio*' test
+```
+
+Ejecuciones y límites: [adaptador inicial](docs/v2/pruebas/v2-tw.md) y [BSUID/TwiML](docs/v2/pruebas/v2-tw-157.md).
 
 ## Entorno
 

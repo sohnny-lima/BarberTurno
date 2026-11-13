@@ -1,0 +1,66 @@
+<app-cabecera-pagina titulo="Configuración" subtitulo="Parámetros de esta barbería." />
+@if (errorCarga()) {
+  <app-estado-contenido tipo="error" [texto]="errorCarga()" />
+}
+@if (guardado()) {
+  <p role="status">Configuración guardada. Se aplicará en la siguiente carga.</p>
+}
+@if (cargando()) {
+  <app-estado-contenido tipo="carga" texto="Cargando configuración…" />
+} @else {
+  <form
+    class="formulario"
+    [formGroup]="formulario"
+    (ngSubmit)="guardar()"
+    [attr.aria-busy]="guardando()"
+  >
+    <app-seccion-formulario titulo="Barbería"
+      ><mat-form-field
+        ><mat-label>Nombre</mat-label
+        ><input
+          matInput
+          type="text"
+          formControlName="nombre"
+          maxlength="100"
+          autocomplete="off"
+          enterkeyhint="next"
+        /><mat-error>{{ errorCampo(formulario.controls.nombre) }}</mat-error></mat-form-field
+      >
+      <p class="ayuda">Dirección web: /n/{{ negocio.slug() }}</p>
+      <p class="ayuda">Zona horaria: América/Lima</p>
+      <p class="ayuda">Los cambia la plataforma.</p></app-seccion-formulario
+    ><app-seccion-formulario titulo="Reservas"
+      ><div class="campos">
+        @for (campo of campos; track campo.clave) {
+          <mat-form-field subscriptSizing="dynamic"
+            ><mat-label>{{ campo.etiqueta }}</mat-label
+            ><input
+              matInput
+              type="number"
+              inputmode="numeric"
+              [formControlName]="campo.clave"
+              [min]="campo.min"
+              max="32767"
+              step="1"
+              enterkeyhint="next"
+            /><mat-hint>{{ campo.ayuda }} Límite técnico: Entre {{ campo.min }} y 32767.</mat-hint
+            ><mat-error>{{
+              errorCampo(formulario.controls[campo.clave])
+            }}</mat-error></mat-form-field
+          >
+        }
+      </div>
+      <mat-slide-toggle formControlName="confirmacionManual"
+        >Confirmar manualmente las reservas</mat-slide-toggle
+      ></app-seccion-formulario
+    >
+    <div class="acciones-formulario">
+      <button mat-flat-button type="submit" [disabled]="guardando() || soloLectura()">
+        {{ guardando() ? 'Guardando…' : 'Guardar configuración' }}
+      </button>
+    </div>
+    @if (mensaje()) {
+      <app-estado-contenido tipo="error" [texto]="mensaje()" />
+    }
+  </form>
+}

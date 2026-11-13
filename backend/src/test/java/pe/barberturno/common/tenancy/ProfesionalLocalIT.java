@@ -1,5 +1,7 @@
 package pe.barberturno.common.tenancy;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.io.ByteArrayInputStream;
 import java.util.*;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -28,7 +30,7 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
         var primero = new Barbero(z, "Cortes", reloj.instant()); primero.editarPerfil("Alfa local", null, "Cortes", reloj.instant());
         var segundo = new Barbero(a, "Cortes", reloj.instant()); segundo.editarPerfil("Zeta local", null, "Cortes", reloj.instant());
         barberos.saveAndFlush(primero); barberos.saveAndFlush(segundo);
-        mvc.perform(get("/api/barberos")).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/barberos"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(primero.getId())).andExpect(jsonPath("$[0].nombre").value("Alfa local"))
                 .andExpect(jsonPath("$[1].id").value(segundo.getId())).andExpect(jsonPath("$[1].nombre").value("Zeta local"));
     }
@@ -41,22 +43,22 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
         assertThat(huella(e.usuario())).isEqualTo(cuenta);
         assertThat(perfil(e.b(), e.perfilB())).isEqualTo(perfilB);
         assertThat(historia(1)).isEqualTo(historia);
-        mvc.perform(get("/api/barberos")).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/barberos"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(e.a().barbero()))
                 .andExpect(jsonPath("$[0].nombre").value("Profesional local A"));
-        mvc.perform(get("/api/barberos").cookie(sesion(e.gestor()))).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/barberos")).cookie(sesion(e.gestor()))).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].telefono").value("999000009"));
-        mvc.perform(get("/api/reservas/" + e.a().reserva()).cookie(sesion(e.gestor())))
+        mvc.perform(get(negocio("/api/reservas/") + e.a().reserva()).cookie(sesion(e.gestor())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.barbero.nombre").value("Profesional local A"));
-        mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(sesion(e.gestor())))
+        mvc.perform(get(negocio("/api/reservas")).param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(sesion(e.gestor())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.contenido[0].barbero.nombre").value("Profesional local A"));
         // Disponibilidad conserva su contrato de ids; el catálogo que los rotula presenta el nombre local.
-        mvc.perform(get("/api/disponibilidad").param("servicioId", "" + e.a().servicio()).param("barberoId", "" + e.a().barbero()).param("fecha", "2026-10-01"))
+        mvc.perform(get(negocio("/api/disponibilidad")).param("servicioId", "" + e.a().servicio()).param("barberoId", "" + e.a().barbero()).param("fecha", "2026-10-01"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.franjas[0].barberoIds[0]").value(e.a().barbero()));
-        mvc.perform(reporte("/api/reportes/resumen", e, "2026-10-01"))
+        mvc.perform(reporte(negocio("/api/reportes/resumen"), e, "2026-10-01"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.porBarbero[0].nombre").value("Profesional local A"));
         for (String fecha : List.of("2026-10-01", "2026-10-02")) {
-            byte[] archivo = mvc.perform(reporte("/api/reportes/resumen.xlsx", e, fecha)).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+            byte[] archivo = mvc.perform(reporte(negocio("/api/reportes/resumen.xlsx"), e, fecha)).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
             try (var libro = new XSSFWorkbook(new ByteArrayInputStream(archivo))) {
                 var textos = new ArrayList<String>(); var formato = new DataFormatter();
                 for (var fila : libro.getSheetAt(0)) for (var celda : fila) textos.add(formato.formatCellValue(celda));
@@ -71,11 +73,11 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
         var e = escenario(); editarLocal(e);
         var cuenta = huella(e.usuario());
         var cliente = usuarios.findById(e.a().cliente()).orElseThrow();
-        var creada = mvc.perform(csrf(post("/api/reservas").contentType("application/json").content(
+        var creada = mvc.perform(csrf(post(negocio("/api/reservas")).contentType("application/json").content(
                 "{\"servicioId\":" + e.a().servicio() + ",\"barberoId\":" + e.a().barbero() + ",\"inicio\":\"2026-10-01T11:00:00-05:00\"}"), sesion(cliente)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.barbero.nombre").value("Profesional local A")).andReturn();
         long id = json.readTree(creada.getResponse().getContentAsString()).get("id").asLong();
-        mvc.perform(csrf(post("/api/reservas/" + id + "/reprogramacion").contentType("application/json")
+        mvc.perform(csrf(post(negocio("/api/reservas/") + id + "/reprogramacion").contentType("application/json")
                 .content("{\"inicio\":\"2026-10-01T12:00:00-05:00\",\"version\":0}"), sesion(cliente)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.barbero.nombre").value("Profesional local A"));
         assertThat(sql.queryForList("select mensaje from notificacion where reserva_id=?", String.class, id)).hasSize(4)
@@ -91,12 +93,12 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
         var miembroB = sql.queryForMap("select * from membresia where negocio_id=? and usuario_id=?", e.b(), e.usuario().getId());
         var historiaA = historia(1); var historiaB = historia(e.b());
         var cookie = sesion(e.usuario());
-        mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/reservas")).param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk());
         mvc.perform(csrf(estadoPerfil(e.a().barbero(), false), sesion(e.gestor()))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservasFuturasVigentes").value(1));
         assertThat(huella(e.usuario())).isEqualTo(cuenta);
         assertThat(membresias.findByNegocioIdAndUsuarioId(1L, e.usuario().getId()).orElseThrow().isActiva()).isFalse();
-        mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isForbidden());
+        mvc.perform(get(negocio("/api/reservas")).param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isForbidden());
         proveedor.fijar(e.b());
         try { mvc.perform(get("/api/n/negocio-b/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk()); }
         finally { proveedor.reiniciar(); }
@@ -106,7 +108,7 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
         editarLocal(e); // La baja debe permitir gestionar y reactivar su perfil local inactivo.
         mvc.perform(csrf(estadoPerfil(e.a().barbero(), true), sesion(e.gestor()))).andExpect(status().isOk());
         assertThat(membresias.findByNegocioIdAndUsuarioId(1L, e.usuario().getId()).orElseThrow().isActiva()).isTrue();
-        mvc.perform(get("/api/reservas").param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/reservas")).param("desde", "2026-10-01").param("hasta", "2026-10-01").cookie(cookie)).andExpect(status().isOk());
         assertThat(huella(e.usuario())).isEqualTo(cuenta);
         assertThat(perfil(e.b(), e.perfilB())).isEqualTo(perfilB);
         assertThat(sql.queryForMap("select * from membresia where negocio_id=? and usuario_id=?", e.b(), e.usuario().getId())).isEqualTo(miembroB);
@@ -122,7 +124,7 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
             mvc.perform(csrf(estadoPerfil(perfil.getId(), activo), sesion(gestor))).andExpect(status().isOk());
             assertThat(huella(gestor)).isEqualTo(cuenta);
             assertThat(sql.queryForMap("select * from membresia where negocio_id=1 and usuario_id=?", gestor.getId())).isEqualTo(pertenencia);
-            mvc.perform(get("/api/usuarios").cookie(sesion(gestor))).andExpect(status().isOk());
+            mvc.perform(get(negocio("/api/usuarios")).cookie(sesion(gestor))).andExpect(status().isOk());
         }
     }
 
@@ -182,8 +184,8 @@ class ProfesionalLocalIT extends IdentidadPruebaBase {
                 .andExpect(jsonPath("$.nombre").value("Profesional local A")).andExpect(jsonPath("$.telefono").value("999000009"))
                 .andExpect(jsonPath("$.especialidad").value("Cortes A"));
     }
-    private static MockHttpServletRequestBuilder edicion(long id) { return put("/api/barberos/" + id).contentType("application/json").content("{\"nombre\":\"Profesional local A\",\"telefono\":\"999000009\",\"especialidad\":\"Cortes A\"}"); }
-    private static MockHttpServletRequestBuilder estadoPerfil(long id, boolean activo) { return patch("/api/barberos/" + id + "/estado").contentType("application/json").content("{\"activo\":" + activo + "}"); }
+    private static MockHttpServletRequestBuilder edicion(long id) { return put(negocio("/api/barberos/") + id).contentType("application/json").content("{\"nombre\":\"Profesional local A\",\"telefono\":\"999000009\",\"especialidad\":\"Cortes A\"}"); }
+    private static MockHttpServletRequestBuilder estadoPerfil(long id, boolean activo) { return patch(negocio("/api/barberos/") + id + "/estado").contentType("application/json").content("{\"activo\":" + activo + "}"); }
     private MockHttpServletRequestBuilder reporte(String ruta, Escenario e, String fecha) { return get(ruta).param("desde", fecha).param("hasta", fecha).param("barberoId", "" + e.a().barbero()).cookie(sesion(e.gestor())); }
     private Map<String,Object> perfil(long negocio, long id) { return enNegocio(negocio, () -> jdbc.queryForMap("select * from barbero where id=?", id)); }
     private Map<String,Object> historia(long negocio) {

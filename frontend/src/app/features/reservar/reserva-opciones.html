@@ -103,4 +103,7 @@
     }
   </div>
 </fieldset>
-<p class="ayuda">Pago presencial en la barbería. Puede cambiar o cancelar hasta 2 horas antes.</p>
+<p class="ayuda">
+  Pago presencial en la barbería. Puede cambiar o cancelar hasta
+  {{ store.negocio.parametros()?.anticipacionCambioClienteMin }} minutos antes.
+</p>

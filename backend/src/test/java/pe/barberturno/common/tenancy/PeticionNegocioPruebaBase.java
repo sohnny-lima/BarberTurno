@@ -33,25 +33,25 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-abstract class PeticionNegocioPruebaBase {
-    @Autowired MockMvc mvc;
-    @Autowired ContextoNegocio contexto;
-    @Autowired EjecutorEnNegocio ejecutor;
-    @Autowired DirectorioNegocios directorio;
-    @Autowired PlatformTransactionManager gestor;
-    @Autowired Environment entorno;
-    @Autowired JdbcTemplate jdbc;
-    @Autowired JdbcNegocioPruebas sql;
-    @Autowired UsuarioRepository usuarios;
-    @Autowired MembresiaRepository membresias;
-    @Autowired ClienteRepository clientes;
-    @Autowired ServicioRepository servicios;
-    @Autowired BarberoRepository barberos;
-    @Autowired JornadaRepository jornadas;
-    @Autowired JwtService jwt;
-    @Autowired RelojAjustable reloj;
-    long a;
-    long b;
+public abstract class PeticionNegocioPruebaBase {
+    @Autowired protected MockMvc mvc;
+    @Autowired protected ContextoNegocio contexto;
+    @Autowired protected EjecutorEnNegocio ejecutor;
+    @Autowired protected DirectorioNegocios directorio;
+    @Autowired protected PlatformTransactionManager gestor;
+    @Autowired protected Environment entorno;
+    @Autowired protected JdbcTemplate jdbc;
+    @Autowired protected JdbcNegocioPruebas sql;
+    @Autowired protected UsuarioRepository usuarios;
+    @Autowired protected MembresiaRepository membresias;
+    @Autowired protected ClienteRepository clientes;
+    @Autowired protected ServicioRepository servicios;
+    @Autowired protected BarberoRepository barberos;
+    @Autowired protected JornadaRepository jornadas;
+    @Autowired protected JwtService jwt;
+    @Autowired protected RelojAjustable reloj;
+    protected long a;
+    protected long b;
 
     @BeforeEach void prepararPeticiones() throws Exception {
         LimpiezaBaseDatos.limpiar(sql);
@@ -74,29 +74,29 @@ abstract class PeticionNegocioPruebaBase {
         SqlPruebas.limpiar();
     }
 
-    <T> T en(String slug, Supplier<T> accion) {
+    protected <T> T en(String slug, Supplier<T> accion) {
         return ejecutor.ejecutar(slug, () -> new TransactionTemplate(gestor).execute(tx -> accion.get()));
     }
 
-    Usuario persona(String nombre) {
+    protected Usuario persona(String nombre) {
         return usuarios.saveAndFlush(new Usuario("Persona ficticia " + nombre, nombre + "@ejemplo.test", "999000001",
                 "hash-ficticio-no-utilizable", Rol.CLIENTE, reloj.instant(), reloj.instant()));
     }
 
-    Usuario personal(String nombre, String slug, RolNegocio rol) {
+    protected Usuario personal(String nombre, String slug, RolNegocio rol) {
         var usuario = persona(nombre);
         membresias.save(new Membresia(directorio.buscar(slug).orElseThrow(), usuario.getId(), rol, reloj.instant()));
         return usuario;
     }
 
-    Servicio servicio(String slug) {
+    protected Servicio servicio(String slug) {
         return en(slug, () -> servicios.saveAndFlush(new Servicio("Corte " + slug, "Ficticio", (short)30,
                 new java.math.BigDecimal("20.00"), reloj.instant())));
     }
 
-    Cookie sesion(Usuario usuario) { return new Cookie("BT_SESION", jwt.emitir(usuario)); }
+    protected Cookie sesion(Usuario usuario) { return new Cookie("BT_SESION", jwt.emitir(usuario)); }
 
-    MockHttpServletRequestBuilder csrf(MockHttpServletRequestBuilder solicitud, Cookie sesion) throws Exception {
+    protected MockHttpServletRequestBuilder csrf(MockHttpServletRequestBuilder solicitud, Cookie sesion) throws Exception {
         var token = mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN");
         if (sesion != null) solicitud.cookie(sesion);
         return solicitud.cookie(token).header("X-XSRF-TOKEN", token.getValue());

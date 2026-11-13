@@ -1,7 +1,10 @@
-<a class="saltar" href="#contenido">Saltar al contenido</a>
+<app-avisos-pwa />
+<a class="saltar" href="#contenido" (click)="saltarAlContenido($event)">Saltar al contenido</a>
 <mat-sidenav-container [class.con-barra-inferior]="tieneBarraInferior()">
   <mat-sidenav
     #menu
+    (openedStart)="cambioCajon(true)"
+    (closedStart)="cambioCajon(false)"
     id="menu-principal"
     role="complementary"
     aria-label="Navegación y cuenta"
@@ -13,11 +16,16 @@
       @if (movil()) {
         <button mat-button class="cerrar-menu" (click)="menu.close()">Cerrar menú</button>
       }
+      <app-barberia-actual />
+      @if (zonaPlataforma()) {
+        <h2>Plataforma</h2>
+      }
       <nav aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
           <a
             class="enlace"
             [routerLink]="enlace.ruta"
+            [queryParams]="parametrosEnlace(enlace.ruta)"
             routerLinkActive="activo"
             ariaCurrentWhenActive="page"
             (click)="movil() && menu.close()"
@@ -36,12 +44,35 @@
           </a>
         }
       </nav>
+      @if (puedePlataforma()) {
+        <nav class="border-t border-linea pt-4" aria-label="Plataforma">
+          <a
+            class="enlace"
+            routerLink="/plataforma/negocios"
+            routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
+            (click)="movil() && menu.close()"
+            ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                [attr.d]="icono('/plataforma')"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            >Plataforma</a
+          >
+        </nav>
+      }
       @if (sesion.usuario(); as usuario) {
         <div class="usuario">
           <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
           <div>
-            <strong>{{ usuario.nombre }}</strong
-            ><span>{{ nombreRol() }}</span>
+            <strong>{{ usuario.nombre }}</strong>
+            @if (nombreRol()) {
+              <span>{{ nombreRol() }}</span>
+            }
           </div>
           <button mat-button (click)="salir()" [disabled]="saliendo()">
             {{ saliendo() ? 'Saliendo…' : 'Salir' }}
@@ -51,9 +82,19 @@
     </div>
   </mat-sidenav>
   <mat-sidenav-content>
-    @if (movil() || !navegacionCompleta() || sesion.rol() !== 'ADMIN') {
-      <header class="cabecera" [class.cabecera-pagina]="!movil() && navegacionCompleta()">
-        @if (movil() && navegacionCompleta() && sesion.rol() === 'ADMIN') {
+    @if (
+      movil() ||
+      !navegacionCompleta() ||
+      (negocio.rol() && !ruta().split('?')[0].endsWith('/mis-citas'))
+    ) {
+      <header
+        class="cabecera"
+        [class.cabecera-pagina]="!movil() && navegacionCompleta()"
+        [class.cabecera-flujo]="
+          !movil() && navegacionCompleta() && (negocio.rol() === 'ADMIN' || negocio.soloLectura())
+        "
+      >
+        @if (movil() && navegacionCompleta() && usaCajon()) {
           <button
             mat-button
             (click)="menu.toggle()"
@@ -72,9 +113,24 @@
           </button>
         }
         @if (!navegacionCompleta()) {
-          <span class="marca"><span aria-hidden="true" class="simbolo">✂</span> BarberTurno</span>
+          <span class="marca"
+            ><span aria-hidden="true" class="simbolo">✂</span>
+            <span class="titulo-marca" [title]="negocio.nombre() ?? 'BarberTurno'"
+              >BarberTurno
+              @if (negocio.nombre()) {
+                <small class="nombre-barberia">{{ negocio.nombre() }}</small>
+              }
+            </span>
+          </span>
         } @else if (movil()) {
-          <span class="titulo-pagina">{{ tituloPagina() }}</span>
+          <span
+            class="titulo-pagina"
+            [title]="tituloPagina() + (negocio.nombre() ? ' · ' + negocio.nombre() : '')"
+            >{{ tituloPagina() }}
+            @if (negocio.nombre()) {
+              <small class="nombre-barberia">{{ negocio.nombre() }}</small>
+            }
+          </span>
         }
         @if (movil() && tituloVista.actualizarAgenda(); as actualizar) {
           <button
@@ -95,15 +151,15 @@
         }
         @if (
           navegacionCompleta() &&
-          sesion.rol() !== 'ADMIN' &&
-          (movil() || ruta().split('?')[0] !== '/mis-citas')
+          negocio.rol() &&
+          (movil() || !ruta().split('?')[0].endsWith('/mis-citas'))
         ) {
           <button
             mat-button
             class="campana"
             (click)="abrirAvisos()"
             [attr.aria-label]="
-              (sesion.rol() === 'BARBERO' ? 'Ver avisos: ' : 'Avisos: ') +
+              (negocio.rol() === 'BARBERO' ? 'Ver avisos: ' : 'Avisos: ') +
               avisos.noLeidas() +
               ' sin leer'
             "
@@ -140,9 +196,15 @@
           </button>
           <mat-menu #cuenta="matMenu" aria-label="Cuenta"
             ><div class="identidad-menu">
-              <strong>{{ sesion.usuario()?.nombre }}</strong
-              ><span>{{ nombreRol() }}</span>
+              <strong>{{ sesion.usuario()?.nombre }}</strong>
+              @if (nombreRol()) {
+                <span>{{ nombreRol() }}</span>
+              }
             </div>
+            <app-barberia-actual />
+            @if (puedePlataforma()) {
+              <a mat-menu-item routerLink="/plataforma/negocios">Plataforma</a>
+            }
             <a mat-menu-item routerLink="/perfil">Mi cuenta</a
             ><button mat-menu-item class="riesgo" (click)="salir()" [disabled]="saliendo()">
               {{ saliendo() ? 'Saliendo…' : 'Salir' }}
@@ -161,7 +223,11 @@
     @if (tieneBarraInferior()) {
       <nav class="barra-inferior" aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
-          <a [routerLink]="enlace.ruta" routerLinkActive="activo" ariaCurrentWhenActive="page"
+          <a
+            [routerLink]="enlace.ruta"
+            [queryParams]="parametrosEnlace(enlace.ruta)"
+            routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
             ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 [attr.d]="icono(enlace.ruta)"

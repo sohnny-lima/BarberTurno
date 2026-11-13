@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public final class ContextoNegocio implements ProveedorNegocioActual {
     private final ThreadLocal<OptionalLong> actual = new ThreadLocal<>();
+    private final ThreadLocal<Boolean> cliente = new ThreadLocal<>();
 
     /** Crea un holder vacío, compartido sin compartir valores entre hilos. */
     public ContextoNegocio() { }
@@ -32,6 +33,14 @@ public final class ContextoNegocio implements ProveedorNegocioActual {
         return valor == null ? OptionalLong.empty() : valor;
     }
 
+    /**
+     * Consulta la reducción de privilegios validada por el resolutor, sin conservarla entre peticiones.
+     * @return true cuando la petición solicitó exclusivamente el papel CLIENTE
+     */
+    @Override
+    public boolean clienteSolicitado() { return Boolean.TRUE.equals(cliente.get()); }
+
+    void solicitarCliente() { cliente.set(true); }
     void fijar(OptionalLong id) { actual.set(id); }
-    void limpiar() { actual.remove(); }
+    void limpiar() { actual.remove(); cliente.remove(); }
 }

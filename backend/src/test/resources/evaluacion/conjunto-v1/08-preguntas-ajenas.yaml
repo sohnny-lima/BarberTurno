@@ -1,0 +1,72 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "preguntas-ajenas"
+conversaciones:
+  - id: "AJE-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, ¿ustedes venden repuestos de moto lineal o llantas?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, ¿sabes a qué hora sale el bus para Lima en el terminal de Huamanga?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas maestro, ¿quién ganó el clásico de fútbol peruano el domingo?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "¿Me puedes enseñar una receta para preparar puca picante ayacuchana?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola, ¿cuánto cuesta el menú en el restaurante del frente?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, ¿aquí hacen recargas de celular Entel o Claro?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Oye chochera, ¿dónde queda el mirador de Acuchimay?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, ¿ustedes arreglan pantallas de celular rotas?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, ¿a cómo está el cambio de dólar a soles hoy día?"
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "AJE-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola maestro, ¿saben si mañana hay paro de transportistas en Ayacucho?"
+    esperado:
+      tipo: "SIN_OPERACION"

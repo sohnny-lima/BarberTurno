@@ -1,0 +1,267 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 926
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mat-button-toggle-button mat-focus-indicator",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "-3px"
+  },
+  "contencion": null,
+  "ruta": "/n/barberturno/agenda",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 40,
+      "violadas": 0,
+      "incompletas": 1,
+      "inaplicables": 49
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": [
+          "#mat-button-toggle-0-button > .mat-button-toggle-label-content",
+          "#mat-button-toggle-1-button > .mat-button-toggle-label-content",
+          "#mat-input-0",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > strong",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > strong",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > a[href=\"tel:999000000\"]",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]:nth-child(1)",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > .codigo[_ngcontent-ng-c3077740109=\"\"]",
+          "app-agenda-cita[aria-label=\"BT-101\"] > .estado[_ngcontent-ng-c3077740109=\"\"] > app-estado-reserva-chip > .chip[_ngcontent-ng-c1387214518=\"\"][data-estado=\"CONFIRMADA\"]",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > strong",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > strong",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > a[href=\"tel:999000000\"]",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]:nth-child(1)",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > .codigo[_ngcontent-ng-c3077740109=\"\"]",
+          "app-agenda-cita[aria-label=\"BT-103\"] > .estado[_ngcontent-ng-c3077740109=\"\"] > app-estado-reserva-chip > .chip[_ngcontent-ng-c1387214518=\"\"][data-estado=\"CONFIRMADA\"]"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-button-toggle-0-button > .mat-button-toggle-label-content",
+        "componente": "Grupo conmutable",
+        "estado": "normal",
+        "color": "#ffffff",
+        "fondo": "#145c43",
+        "ratio": 7.95,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-button-toggle-1-button > .mat-button-toggle-label-content",
+        "componente": "Grupo conmutable",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#ffffff",
+        "ratio": 5.62,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "#mat-input-0",
+        "componente": "Valor de campo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#f6f8f7",
+        "ratio": 15.33,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > strong",
+        "componente": "strong.",
+        "estado": "normal",
+        "color": "#191c1a",
+        "fondo": "#f6f8f7",
+        "ratio": 16.11,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]",
+        "componente": "span.",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#f6f8f7",
+        "ratio": 5.27,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > strong",
+        "componente": "strong.",
+        "estado": "normal",
+        "color": "#191c1a",
+        "fondo": "#f6f8f7",
+        "ratio": 16.11,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > a[href=\"tel:999000000\"]",
+        "componente": "a.",
+        "estado": "normal",
+        "color": "#145c43",
+        "fondo": "#f6f8f7",
+        "ratio": 7.45,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]:nth-child(1)",
+        "componente": "span.",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#f6f8f7",
+        "ratio": 5.27,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > .codigo[_ngcontent-ng-c3077740109=\"\"]",
+        "componente": "span.codigo",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#f6f8f7",
+        "ratio": 5.27,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-101\"] > .estado[_ngcontent-ng-c3077740109=\"\"] > app-estado-reserva-chip > .chip[_ngcontent-ng-c1387214518=\"\"][data-estado=\"CONFIRMADA\"]",
+        "componente": "span.chip",
+        "estado": "normal",
+        "color": "#0f4d37",
+        "fondo": "#e3f1ea",
+        "ratio": 8.44,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > strong",
+        "componente": "strong.",
+        "estado": "normal",
+        "color": "#191c1a",
+        "fondo": "#f6f8f7",
+        "ratio": 16.11,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .intervalo[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]",
+        "componente": "span.",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#f6f8f7",
+        "ratio": 5.27,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > strong",
+        "componente": "strong.",
+        "estado": "normal",
+        "color": "#191c1a",
+        "fondo": "#f6f8f7",
+        "ratio": 16.11,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .cliente[_ngcontent-ng-c3077740109=\"\"] > a[href=\"tel:999000000\"]",
+        "componente": "a.",
+        "estado": "normal",
+        "color": "#145c43",
+        "fondo": "#f6f8f7",
+        "ratio": 7.45,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > span[_ngcontent-ng-c3077740109=\"\"]:nth-child(1)",
+        "componente": "span.",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#f6f8f7",
+        "ratio": 5.27,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .servicio[_ngcontent-ng-c3077740109=\"\"] > .codigo[_ngcontent-ng-c3077740109=\"\"]",
+        "componente": "span.codigo",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#f6f8f7",
+        "ratio": 5.27,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": "app-agenda-cita[aria-label=\"BT-103\"] > .estado[_ngcontent-ng-c3077740109=\"\"] > app-estado-reserva-chip > .chip[_ngcontent-ng-c1387214518=\"\"][data-estado=\"CONFIRMADA\"]",
+        "componente": "span.chip",
+        "estado": "normal",
+        "color": "#0f4d37",
+        "fondo": "#e3f1ea",
+        "ratio": 8.44,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      }
+    ]
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}
