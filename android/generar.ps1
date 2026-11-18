@@ -14,7 +14,7 @@
 #      con apksigner leyendo la contraseña de una variable de entorno (nunca como argumento: un fallo de
 #      Bubblewrap al firmar podía imprimir la orden con la contraseña; hallazgo T1 de Codex 145).
 #      Imprime la huella SHA-256 del certificado (dato público, necesario para BT_TWA_HUELLAS).
-# No publica nada, no usa cuentas ni dominios: el host del manifiesto es «localhost» (valor de prueba).
+# No publica nada ni usa cuentas: el host del manifiesto es el de la demo v2 en Azure (*.azurewebsites.net), con clave de PRUEBA.
 # El puerto del servidor temporal es fijo (8790) porque así figura en twa-manifest.json (hallazgo T2).
 param([string]$Salida = 'D:\Android\barberturno-twa',
       [string]$Publico = (Join-Path $PSScriptRoot '..\frontend\public'))
