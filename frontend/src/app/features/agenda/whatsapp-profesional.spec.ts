@@ -1,15 +1,30 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideRouter } from '@angular/router';
+import { erroresInterceptor } from '../../core/auth/errores-interceptor';
 import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { WhatsAppProfesional } from './whatsapp-profesional';
 
 describe('WhatsAppProfesional', () => {
   let http: HttpTestingController;
+  const abrir = vi.fn();
+  const operaciones = [
+    ['cargar', 'GET'],
+    ['generar', 'POST'],
+    ['desvincular', 'DELETE'],
+  ] as const;
 
   beforeEach(() => {
+    abrir.mockClear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(withInterceptors([erroresInterceptor])),
+        provideHttpClientTesting(),
+        { provide: MatSnackBar, useValue: { open: abrir } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     prepararNegocio();
@@ -102,13 +117,53 @@ describe('WhatsAppProfesional', () => {
     expect(botones).not.toContain('Desvincular');
   });
 
-  it('se oculta si la API responde 404 (sin perfil profesional en el negocio)', () => {
-    const fixture = TestBed.createComponent(WhatsAppProfesional);
-    const req = http.expectOne('/api/n/prueba/whatsapp/vinculo-profesional');
-    req.flush('No encontrado', { status: 404, statusText: 'Not Found' });
-    fixture.detectChanges();
+  it.each(operaciones)(
+    '%s: un 404 oculta el panel sin mostrar alerta ni snackbar',
+    async (accion, metodo) => {
+      const fixture =
+        accion === 'cargar' ? TestBed.createComponent(WhatsAppProfesional) : crear(true);
+      if (accion !== 'cargar') fixture.componentInstance[accion]();
+      const req = http.expectOne('/api/n/prueba/whatsapp/vinculo-profesional');
+      expect(req.request.method).toBe(metodo);
+      req.flush(
+        { detail: 'No se encontró el perfil profesional.' },
+        { status: 404, statusText: 'Not Found' },
+      );
+      fixture.detectChanges();
+      // El interceptor decide el snackbar después del manejador de la vista.
+      await new Promise<void>((resolver) => queueMicrotask(resolver));
 
-    expect(fixture.componentInstance.disponible()).toBe(false);
-    expect(fixture.nativeElement.querySelector('section')).toBeNull();
-  });
+      expect(fixture.componentInstance.disponible()).toBe(false);
+      expect(fixture.componentInstance.ocupado()).toBe(false);
+      expect(fixture.componentInstance.error()).toBe('');
+      expect(fixture.nativeElement.querySelector('section')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+      expect(abrir).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(operaciones)(
+    '%s: un 500 conserva el error junto a la acción sin duplicarlo en snackbar',
+    async (accion, metodo) => {
+      const fixture =
+        accion === 'cargar' ? TestBed.createComponent(WhatsAppProfesional) : crear(true);
+      if (accion !== 'cargar') fixture.componentInstance[accion]();
+      const req = http.expectOne('/api/n/prueba/whatsapp/vinculo-profesional');
+      expect(req.request.method).toBe(metodo);
+      req.flush(
+        { detail: 'Detalle técnico que no debe mostrarse.' },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+      fixture.detectChanges();
+      await new Promise<void>((resolver) => queueMicrotask(resolver));
+
+      expect(fixture.componentInstance.disponible()).toBe(true);
+      expect(fixture.componentInstance.ocupado()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toBe(
+        'No pudimos actualizar el vínculo. Vuelve a intentarlo.',
+      );
+      expect(fixture.nativeElement.textContent).not.toContain('Detalle técnico');
+      expect(abrir).not.toHaveBeenCalled();
+    },
+  );
 });

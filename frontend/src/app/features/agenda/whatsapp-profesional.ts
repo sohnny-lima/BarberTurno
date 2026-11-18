@@ -9,6 +9,7 @@ import {
   EstadoVinculoProfesionalDto,
 } from '../../core/modelos/vinculo-profesional';
 import { NegocioActual } from '../../core/negocio/negocio-actual';
+import { marcarPresentado } from '../../core/notificaciones/errores-presentados';
 
 @Component({
   selector: 'app-whatsapp-profesional',
@@ -86,6 +87,8 @@ export class WhatsAppProfesional {
       });
   }
   private fallar(error: HttpErrorResponse) {
+    // El 404 es esperado; los demás errores se muestran junto a la acción.
+    marcarPresentado(error);
     this.codigo.set(null);
     if (error.status === 404) this.disponible.set(false);
     else this.error.set('No pudimos actualizar el vínculo. Vuelve a intentarlo.');
