@@ -5,7 +5,9 @@ process.env['PLAYWRIGHT_BROWSERS_PATH'] ??= resolve('tmp/navegadores');
 
 const baseURL = process.env['BT_DEMO_URL'];
 if (!baseURL || baseURL.trim() === '') {
-  throw new Error('La variable de entorno BT_DEMO_URL es obligatoria para las pruebas de aceptación de la demo.');
+  throw new Error(
+    'La variable de entorno BT_DEMO_URL es obligatoria para las pruebas de aceptación de la demo.',
+  );
 }
 
 const password = process.env['BT_DEMO_PASSWORD'];

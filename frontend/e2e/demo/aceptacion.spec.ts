@@ -137,7 +137,9 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     await cerrarSesion(page);
   });
 
-  test('03 · Acceso del cliente por la pantalla «Ingresar» y cierre de sesión', async ({ page }) => {
+  test('03 · Acceso del cliente por la pantalla «Ingresar» y cierre de sesión', async ({
+    page,
+  }) => {
     await iniciarSesion(page, 'cliente@ejemplo.test', 'barberturno');
     await expect(page).toHaveURL(/\/n\/barberturno\//);
     await expect(page.locator('main')).toBeVisible();
@@ -304,7 +306,9 @@ test.describe('Aceptación Demo v2 en Azure', () => {
 
       // Debe navegar a Mis citas y mostrar la reserva creada
       await expect(page).toHaveURL(/\/n\/barberturno\/mis-citas/);
-      const tarjeta = page.locator('app-reserva-tarjeta').filter({ hasText: reservaCreada!.codigo });
+      const tarjeta = page
+        .locator('app-reserva-tarjeta')
+        .filter({ hasText: reservaCreada!.codigo });
       // Recorrer las páginas de la UI evita depender de cuántas canceladas dejaron otros pases.
       // Se conservan todos los estados para comprobar «Cancelada» en la misma tarjeta después.
       const listaCitas = page.locator('app-mis-citas .lista-citas');
@@ -333,9 +337,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
           r.request().method() === 'POST',
       );
 
-      await dialogo
-        .getByRole('button', { name: /Cancelar cita|Confirmar cancelación/ })
-        .click();
+      await dialogo.getByRole('button', { name: /Cancelar cita|Confirmar cancelación/ }).click();
       const resCancel = await respuestaCancelacion;
       expect(resCancel.status(), 'La cancelación debe responder 200').toBe(200);
       cancelada = true;
@@ -398,9 +400,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
         }
         await cerrarSesion(page);
       } catch (errLogout) {
-        erroresLimpieza.push(
-          errLogout instanceof Error ? errLogout : new Error(String(errLogout)),
-        );
+        erroresLimpieza.push(errLogout instanceof Error ? errLogout : new Error(String(errLogout)));
       }
     }
 
@@ -553,8 +553,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     // 2. Completar la carga privada de «Mis citas» y «Reservar» con usuario cliente esperando sus respuestas /api
     await iniciarSesion(page, correo, 'barberturno');
     const respuestaMisCitas = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/n/barberturno/reservas/mias') && r.request().method() === 'GET',
+      (r) => r.url().includes('/api/n/barberturno/reservas/mias') && r.request().method() === 'GET',
     );
     await page.goto('/n/barberturno/mis-citas');
     const resMisCitas = await respuestaMisCitas;
@@ -563,8 +562,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 
     const respuestaServicios = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/n/barberturno/servicios') && r.request().method() === 'GET',
+      (r) => r.url().includes('/api/n/barberturno/servicios') && r.request().method() === 'GET',
     );
     await page.goto('/n/barberturno/reservar');
     const resServicios = await respuestaServicios;
@@ -577,9 +575,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
     await expect
       .poll(
         async () =>
-          page.evaluate(
-            () => 'serviceWorker' in navigator && !!navigator.serviceWorker.controller,
-          ),
+          page.evaluate(() => 'serviceWorker' in navigator && !!navigator.serviceWorker.controller),
         {
           message: 'El service worker debe estar registrado y controlar la página',
           timeout: 15_000,
@@ -724,7 +720,9 @@ test.describe('Aceptación Demo v2 en Azure', () => {
           '/api/n/barberturno/reservas/mias?tamano=100',
         );
         if (!respMiasInicial.ok()) {
-          throw new Error(`La consulta inicial de reservas devolvió HTTP ${respMiasInicial.status()}`);
+          throw new Error(
+            `La consulta inicial de reservas devolvió HTTP ${respMiasInicial.status()}`,
+          );
         }
         const cuerpoMias = await respMiasInicial.json();
         if (!Array.isArray(cuerpoMias?.contenido)) {
@@ -932,9 +930,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
       // y cancelar cualquiera creada durante la prueba comparando con las que había antes de desconectar
       if (instantaneaInicialValida && huboEscrituraSinRespuesta) {
         try {
-          const respMias = await page.request.get(
-            '/api/n/barberturno/reservas/mias?tamano=100',
-          );
+          const respMias = await page.request.get('/api/n/barberturno/reservas/mias?tamano=100');
           if (!respMias.ok()) {
             erroresLimpieza.push(
               new Error(
@@ -959,9 +955,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
             }
           }
         } catch (errMias) {
-          erroresLimpieza.push(
-            errMias instanceof Error ? errMias : new Error(String(errMias)),
-          );
+          erroresLimpieza.push(errMias instanceof Error ? errMias : new Error(String(errMias)));
         }
       }
 
@@ -1026,9 +1020,7 @@ test.describe('Aceptación Demo v2 en Azure', () => {
         }
         await cerrarSesion(page);
       } catch (errLogout) {
-        erroresLimpieza.push(
-          errLogout instanceof Error ? errLogout : new Error(String(errLogout)),
-        );
+        erroresLimpieza.push(errLogout instanceof Error ? errLogout : new Error(String(errLogout)));
       }
     }
 

@@ -192,4 +192,3 @@ export async function cerrarContexto(page: Page) {
     await expect(menuCuenta).toBeHidden();
   }
 }
-
