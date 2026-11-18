@@ -97,7 +97,7 @@
         @if (movil() && navegacionCompleta() && usaCajon()) {
           <button
             mat-button
-            (click)="menu.toggle()"
+            (click)="cambioCajon(!menu.opened); menu.toggle()"
             aria-label="Abrir menú"
             [attr.aria-expanded]="menu.opened"
             aria-controls="menu-principal"
@@ -219,9 +219,7 @@
       >
     }
     <main #contenido id="contenido" tabindex="-1"><router-outlet /></main>
-    <footer>
-      BarberTurno · Reservas y turnos para barberías · Proyecto académico con datos ficticios
-    </footer>
+    <footer>BarberTurno · Reservas y turnos para barberías</footer>
     @if (tieneBarraInferior()) {
       <nav class="barra-inferior" aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {
