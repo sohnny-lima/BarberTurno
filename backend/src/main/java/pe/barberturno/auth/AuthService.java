@@ -184,9 +184,10 @@ public class AuthService {
     }
 
     /**
-     * Crea o completa la cuenta configurada con administración global y propiedad del negocio único.
+     * Crea o completa la cuenta configurada con administración global y, si hay ámbito, su propiedad.
      * No habilita cuentas inactivas ni cambia sus credenciales al completar permisos (RN-26).
-     * Crea la membresía si falta; conserva toda revocación y emite un aviso sin datos personales.
+     * Sin ámbito no crea membresías. Con negocio crea la membresía si falta, conserva toda revocación
+     * y emite un aviso sin datos personales.
      * @param correo correo inicial configurado; vacío indica configuración incompleta
      * @param password contraseña inicial configurada; vacía omite la cuenta, nunca se registra
      * @param nombre nombre inicial configurado; vacío omite la cuenta
@@ -205,6 +206,10 @@ public class AuthService {
                     passwords.encode(password), Rol.ADMIN, null, ahora));
         });
         admin.habilitarAdministracionPlataforma();
+        if (negocio.negocioActual().isEmpty()) {
+            LOG.info("Registro de administrador inicial de plataforma id={}.", admin.getId());
+            return;
+        }
         long negocioId = negocio.negocioActual().orElseThrow();
         var propiedad = membresias.findByNegocioIdAndUsuarioId(negocioId, admin.getId())
                 .orElseGet(() -> new Membresia(negocioId, admin.getId(), RolNegocio.PROPIETARIO, ahora));
