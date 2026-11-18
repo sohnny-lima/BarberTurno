@@ -1,0 +1,185 @@
+package pe.barberturno.common.tenancy;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
+import java.io.IOException;
+import java.util.Locale;
+import java.util.OptionalLong;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ServletRequestPathUtils;
+import org.springframework.web.util.UrlPathHelper;
+import pe.barberturno.common.error.ErrorCodigo;
+import pe.barberturno.common.security.RespuestaSeguridad;
+
+/**
+ * Resuelve la ruta después de StrictHttpFirewall y antes de SecurityContextHolderFilter (Security 7.1).
+ * StrictHttpFirewall 7.1.1 rechaza, sin corregirlos, segmentos punto, barras dobles o invertidas,
+ * punto y barra codificados, porcentajes codificados y parámetros con punto y coma. No decodifica
+ * letras ni cambia mayúsculas o barras finales. Por V2-DA-36 se rechaza todo porcentaje de la ruta API
+ * antes de clasificar; la consulta no interviene. UrlPathHelper de Framework 7.0.9 obtiene la ruta
+ * decodificada dentro de la aplicación; tras esos rechazos coincide con los segmentos de PathPattern
+ * de MVC, sin quitar barras finales ni cambiar mayúsculas (variantes que aquí terminan en 404).
+ * La cadena única de SecurityConfig ve esa misma ruta en los tres getters. Se recalcula RequestPath,
+ * que FilterChainProxy puede haber cacheado antes; se restaura al salir. El reset del firewall no
+ * altera los getters del envoltorio exterior. CSRF y DA-22 reciben así la misma ruta que el controlador.
+ * La respuesta conserva el prefijo en Location; ninguna ruta local sin slug alcanza la cadena posterior.
+ * No es un bean Filter: solo se registra dentro de Spring Security, nunca en el contenedor.
+ * @author Sohnny Walter Lima Infanzón
+ * @version 2.0
+ */
+public class ResolutorNegocio extends OncePerRequestFilter {
+    private final ContextoNegocio contexto;
+    private final DirectorioNegocios directorio;
+    private final RespuestaSeguridad errores;
+    private final boolean twilioActivo;
+
+    /**
+     * Recibe contexto, búsqueda y escritor común de errores RFC 9457.
+     * @param contexto holder que se elimina en finally en todas las salidas
+     * @param directorio resolución exacta de slugs sin caché
+     * @param errores respuesta ProblemDetail sin trazas
+     */
+    public ResolutorNegocio(ContextoNegocio contexto, DirectorioNegocios directorio,
+            RespuestaSeguridad errores) {
+        this(contexto, directorio, errores, false);
+    }
+
+    /**
+     * Habilita exclusivamente los dos POST globales de Twilio cuando su perfil está activo.
+     * @param contexto ámbito que se elimina al terminar la petición
+     * @param directorio resolución de slugs sin caché
+     * @param errores respuesta pública sin trazas
+     * @param twilioActivo presencia del perfil de pruebas; false mantiene las rutas en 404
+     */
+    public ResolutorNegocio(ContextoNegocio contexto, DirectorioNegocios directorio,
+            RespuestaSeguridad errores, boolean twilioActivo) {
+        this.contexto = contexto;
+        this.directorio = directorio;
+        this.errores = errores;
+        this.twilioActivo = twilioActivo;
+    }
+
+    /**
+     * Rechaza variantes no canónicas y operaciones locales sin el prefijo obligatorio /api/n/{slug}.
+     * Mantiene plataforma y capacidades de invitación (consulta, aceptación y registro) fuera del contexto local.
+     * Solo el segmento del token Base64URL distingue mayúsculas; los tramos fijos siguen canónicos.
+     * Oculta las rutas públicas suspendidas con 404.
+     * X-BT-Papel solo admite CLIENTE y solo en /api/n/{slug}/…; cualquier otro valor,
+     * repetición o uso fuera de esa ruta devuelve 400 VALIDACION. La cabecera reduce el principal
+     * a cliente con ficha activa (sin ficha queda sin rol), nunca concede membresía ni perfil.
+     * Se elimina junto con el contexto en finally y no sustituye la protección CSRF.
+     * @param request petición ya validada por el cortafuegos
+     * @param response salida HTTP
+     * @param chain resto de seguridad y MVC, con una única ruta normalizada
+     * @throws ServletException si falla el procesamiento posterior
+     * @throws IOException si falla la escritura HTTP
+     */
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+            FilterChain chain) throws ServletException, IOException {
+        var anterior = ServletRequestPathUtils.hasParsedRequestPath(request)
+                ? ServletRequestPathUtils.getParsedRequestPath(request) : null;
+        try {
+            String cruda = request.getRequestURI().substring(request.getContextPath().length());
+            String ruta = esRutaApi(cruda) ? null : UrlPathHelper.defaultInstance.getPathWithinApplication(request);
+            boolean api = esRutaApi(cruda) || esRutaApi(ruta);
+            if (api && cruda.contains("%")) {
+                errores.escribir(request, response, ErrorCodigo.VALIDACION,
+                        "La ruta de la API no admite codificación porcentual.");
+                return;
+            }
+            if (ruta == null) ruta = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
+            var papeles = java.util.Collections.list(request.getHeaders("X-BT-Papel"));
+            if (!papeles.isEmpty()) {
+                if (papeles.size() != 1 || !"CLIENTE".equals(papeles.getFirst())
+                        || !ruta.matches("/api/n/[^/]+/.+")) {
+                    errores.escribir(request, response, ErrorCodigo.VALIDACION,
+                            "X-BT-Papel solo admite CLIENTE en una ruta de negocio.");
+                    return;
+                }
+                contexto.solicitarCliente();
+            }
+            boolean capacidad = ruta.matches("/api/invitaciones/[A-Za-z0-9_-]+(/aceptacion|/registro)?");
+            if (api && ((!capacidad && !ruta.equals(ruta.toLowerCase(Locale.ROOT))) || ruta.endsWith("/"))) {
+                noEncontrado(request, response);
+                return;
+            }
+            HttpServletRequest efectiva = api ? new PeticionNegocio(request, ruta) : request;
+            HttpServletResponse salida = response;
+            OptionalLong id = OptionalLong.empty();
+            contexto.fijar(id);
+            if (ruta.equals("/api/n") || ruta.startsWith("/api/n/")) {
+                String[] partes = ruta.split("/", 5);
+                if (partes.length < 5 || partes[4].isEmpty() || (partes[4].equals("auth") || partes[4].startsWith("auth/") || esGlobal("/api/" + partes[4], request.getMethod()))) {
+                    noEncontrado(request, response);
+                    return;
+                }
+                efectiva = new PeticionNegocio(request, "/api/" + partes[4]);
+                id = esPublica(efectiva) ? directorio.buscarActivo(partes[3]) : directorio.buscar(partes[3]);
+                if (id.isEmpty()) { noEncontrado(request, response); return; }
+                salida = new RespuestaNegocio(response, request.getContextPath() + "/api/n/" + partes[3] + "/");
+            } else if (ruta.equals("/api/auth/registro")
+                    || ruta.startsWith("/api/") && !esGlobal(ruta, request.getMethod())) {
+                noEncontrado(request, response);
+                return;
+            }
+            contexto.fijar(id);
+            ServletRequestPathUtils.parseAndCache(efectiva);
+            chain.doFilter(efectiva, salida);
+        } finally {
+            contexto.limpiar();
+            ServletRequestPathUtils.setParsedRequestPath(anterior, request);
+        }
+    }
+
+    private boolean esRutaApi(String ruta) {
+        return ruta != null && (ruta.equalsIgnoreCase("/api") || ruta.regionMatches(true, 0, "/api/", 0, 5));
+    }
+
+    private boolean esGlobal(String ruta, String metodo) {
+        return (ruta.equals("/api/auth") || ruta.startsWith("/api/auth/"))
+                || ruta.equals("/api/perfil") || ruta.startsWith("/api/perfil/")
+                || ruta.equals("/api/mis-negocios") || ruta.startsWith("/api/mis-negocios/")
+                || ruta.equals("/api/plataforma") || ruta.startsWith("/api/plataforma/")
+                || ruta.equals("/api/whatsapp/webhook")
+                || twilioActivo && metodo.equals("POST")
+                        && (ruta.equals("/api/twilio/webhook") || ruta.equals("/api/twilio/estado"))
+                || (metodo.equals("GET") || metodo.equals("HEAD")) && ruta.matches("/api/invitaciones/[^/]+")
+                || ruta.matches("/api/invitaciones/[^/]+/(aceptacion|registro)");
+    }
+
+    private boolean esPublica(HttpServletRequest peticion) {
+        String ruta = peticion.getServletPath();
+        return (peticion.getMethod().equals("GET") || peticion.getMethod().equals("HEAD"))
+                && (ruta.equals("/api/negocio") || ruta.equals("/api/servicios") || ruta.equals("/api/barberos") || ruta.equals("/api/disponibilidad"))
+                || peticion.getMethod().equals("POST") && (ruta.equals("/api/registro")
+                || ruta.equals("/api/clientes/alta"));
+    }
+
+    private void noEncontrado(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        errores.escribir(request, response, ErrorCodigo.NO_ENCONTRADO, "No se encontró la ruta del negocio.");
+    }
+
+    private static final class PeticionNegocio extends HttpServletRequestWrapper {
+        private final String ruta;
+        PeticionNegocio(HttpServletRequest request, String ruta) { super(request); this.ruta = ruta; }
+        @Override public String getRequestURI() { return getContextPath() + ruta; }
+        @Override public String getServletPath() { return ruta; }
+        @Override public String getPathInfo() { return null; }
+    }
+
+    private static final class RespuestaNegocio extends HttpServletResponseWrapper {
+        private final String prefijo;
+        RespuestaNegocio(HttpServletResponse response, String prefijo) { super(response); this.prefijo = prefijo; }
+        private String localizar(String nombre, String valor) {
+            return nombre.equalsIgnoreCase("Location") && valor != null && valor.startsWith("/api/")
+                    ? prefijo + valor.substring("/api/".length()) : valor;
+        }
+        @Override public void setHeader(String nombre, String valor) { super.setHeader(nombre, localizar(nombre, valor)); }
+        @Override public void addHeader(String nombre, String valor) { super.addHeader(nombre, localizar(nombre, valor)); }
+    }
+}

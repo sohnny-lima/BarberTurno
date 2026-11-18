@@ -1,0 +1,27 @@
+nombre: "11-turno-descartado-mensaje-nuevo"
+negocio: "A"
+reloj: "2026-11-04T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Hola, quisiera saber a qué hora atienden"
+    durante:
+      texto: "Mejor dicho, quiero reservar para mañana"
+    modelo:
+      - texto: "Horario que no debe salir porque el turno se descarta."
+        parada: "end_turn"
+    espera:
+      estadoTurno: "DESCARTADO"
+      salientesNuevos: 0
+  - modelo:
+      - texto: "Con gusto te ayudo con tu reserva."
+        parada: "end_turn"
+    espera:
+      estadoTurno: "HECHO"
+      salientesNuevos: 1
+      textoDescartado: "Con gusto te ayudo con tu reserva."
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["Horario que no debe salir", "Con gusto te ayudo"]

@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -24,6 +26,7 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.scheduling.Jornada;
 import pe.barberturno.support.*;
 import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
@@ -55,7 +58,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
     }
 
     private Usuario admin() {
-        return usuarios.saveAndFlush(new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
     }
 
@@ -64,7 +67,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
     }
 
     private MockHttpServletRequestBuilder peticion(long id, ReprogramarReservaDto cmd) {
-        return post("/api/reservas/{id}/reprogramacion", id).contentType("application/json")
+        return post(negocio("/api/reservas/{id}/reprogramacion"), id).contentType("application/json")
                 .content(json.writeValueAsString(cmd));
     }
 
@@ -149,15 +152,19 @@ class ReprogramacionIT extends ReservaPruebaBase {
         avisos(cliente.getId(), barbero.getUsuario().getId());
         var sql = SqlPruebas.sentencias().stream().filter(s -> s.contains("for no key update")).toList();
         assertThat(sql).hasSize(3);
-        assertThat(sql.get(0)).contains("from usuario");
+        assertThat(sql.get(0)).contains("from cliente");
         assertThat(sql.get(1)).contains("from barbero", "order by");
         assertThat(sql.get(2)).contains("from reserva");
     }
 
     @Test void adminConPerfil_noRecibeAutoaviso() throws Exception {
-        var dto = crear();
         var actor = admin();
-        jdbc.update("update barbero set usuario_id=? where id=?", actor.getId(), barbero.getId());
+        // El perfil nace con su cuenta definitiva; nunca se reasigna una agenda (V2-DA-39).
+        barbero = barberos.saveAndFlush(new Barbero(actor, "Cortes", reloj.instant()));
+        for (short dia = 1; dia <= 7; dia++) {
+            jornadas.saveAndFlush(new Jornada(barbero, dia, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        var dto = crear();
         var nuevo = perfil("nuevo");
         reprogramar(dto, actor, mover("11:00", nuevo.getId(), 0, "Cambio solicitado"));
         avisos(cliente.getId(), nuevo.getUsuario().getId());
@@ -302,7 +309,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
         "{\"inicio\":\"2026-10-01T11:00:00\",\"version\":0}"})
     void cuerpoInvalido400(String cuerpo) throws Exception {
         var dto = crear();
-        mvc.perform(conCsrf(post("/api/reservas/{id}/reprogramacion", dto.id())
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/reprogramacion"), dto.id())
                 .contentType("application/json").content(cuerpo), sesion(cliente)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
@@ -365,7 +372,7 @@ class ReprogramacionIT extends ReservaPruebaBase {
 
     @RepeatedTest(20) void reprogramacionFrenteCancelacion_unaGanaOtra409SinEstadoMixto() throws Exception {
         var dto = crear();
-        var cancelar = post("/api/reservas/{id}/cancelacion", dto.id()).contentType("application/json")
+        var cancelar = post(negocio("/api/reservas/{id}/cancelacion"), dto.id()).contentType("application/json")
                 .content(json.writeValueAsString(new CancelarReservaDto(0, null)));
         var respuestas = simultaneas(conCsrf(peticion(dto.id(), mover("11:00", null, 0, null)), sesion(cliente)),
                 conCsrf(cancelar, sesion(cliente)));

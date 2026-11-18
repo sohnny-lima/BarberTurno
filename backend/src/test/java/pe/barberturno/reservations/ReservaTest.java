@@ -46,6 +46,6 @@ class ReservaTest {
         assertThat(reserva.getPrecioRef()).isEqualByComparingTo("20.00");
     }
     private Reserva reserva(EstadoReserva estado) {
-        return new Reserva(cliente, barbero, servicio, ahora.plusSeconds(7200), estado, cliente, ahora);
+        return new Reserva(new pe.barberturno.customers.Cliente(cliente, ahora), barbero, servicio, ahora.plusSeconds(7200), estado, cliente, ahora);
     }
 }

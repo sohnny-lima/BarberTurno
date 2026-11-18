@@ -28,6 +28,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @Import(EsquemaIT.RelojFijoConfig.class)
 class EsquemaIT {
@@ -42,7 +43,7 @@ class EsquemaIT {
     private Clock clock;
 
     @Test
-    void migrar_aplicaVersionUnoYCreaLasOchoTablasConBtreeGist() {
+    void migrar_aplicaVersionUnoYCreaLasVeintidosTablasConBtreeGist() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM flyway_schema_history
@@ -53,8 +54,11 @@ class EsquemaIT {
                 WHERE schemaname = 'public' AND tablename <> 'flyway_schema_history'
                 ORDER BY tablename
                 """, String.class)).containsExactly(
-                "auditoria_reserva", "barbero", "bloqueo", "jornada",
-                "notificacion", "reserva", "servicio", "usuario");
+                "auditoria_plataforma", "auditoria_reserva", "barbero", "bloqueo", "canal_whatsapp", "cliente",
+                "codigo_vinculo_whatsapp",
+                "conversacion", "evento_whatsapp_entrante", "invitacion", "jornada", "llamada_ia", "membresia",
+                "mensaje_whatsapp", "negocio", "notificacion", "operacion_pendiente", "reserva", "servicio",
+                "turno_ia", "uso_ia", "usuario", "vinculo_cliente", "vinculo_whatsapp_profesional");
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist'
                 """, Integer.class)).isEqualTo(1);
@@ -234,19 +238,26 @@ class EsquemaIT {
         }
 
         private long usuario(String correo, String rol, String telefono, Timestamp consentimiento) {
-            return jdbc.queryForObject("""
+            long id = jdbc.queryForObject("""
                     INSERT INTO usuario (nombre, correo, telefono, password_hash, rol,
                         privacidad_aceptada_en, creado_en, actualizado_en)
                     VALUES ('Persona ficticia', ?, ?, 'hash-ficticio-no-utilizable', ?, ?, ?, ?)
                     RETURNING id
                     """, Long.class, correo, telefono, rol, consentimiento, ahora, ahora);
+            if (rol.equals("CLIENTE")) {
+                jdbc.update("""
+                        INSERT INTO cliente (usuario_id, nombre, telefono, privacidad_aceptada_en, creado_en, actualizado_en)
+                        SELECT id, nombre, telefono, privacidad_aceptada_en, creado_en, actualizado_en FROM usuario WHERE id=?
+                        """, id);
+            }
+            return id;
         }
 
         private long barbero(long usuario) {
             return jdbc.queryForObject("""
-                    INSERT INTO barbero (usuario_id, creado_en, actualizado_en)
-                    VALUES (?, ?, ?) RETURNING id
-                    """, Long.class, usuario, ahora, ahora);
+                    INSERT INTO barbero (usuario_id, nombre_visible, telefono_contacto, creado_en, actualizado_en)
+                    SELECT id, nombre, telefono, ?, ? FROM usuario WHERE id=? RETURNING id
+                    """, Long.class, ahora, ahora, usuario);
         }
 
         private long servicio(String nombre, int duracion) {
@@ -262,7 +273,7 @@ class EsquemaIT {
                     INSERT INTO reserva (cliente_id, barbero_id, servicio_id, inicio, fin,
                         duracion_ref_min, precio_ref, estado, creada_por, creado_en, actualizado_en)
                     VALUES (?, ?, ?, ?, ?, ?, 20.00, ?, ?, ?, ?) RETURNING id
-                    """, Long.class, clienteId, barberoId, servicio,
+                    """, Long.class, jdbc.queryForObject("select id from cliente where usuario_id=?", Long.class, clienteId), barberoId, servicio,
                     instante(inicio), instante(fin), duracion, estado, clienteId, ahora, ahora);
         }
 

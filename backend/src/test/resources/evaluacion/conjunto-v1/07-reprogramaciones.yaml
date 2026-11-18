@@ -1,0 +1,84 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "reprogramaciones"
+conversaciones:
+  - id: "REP-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, tengo una cita mañana a las 10 am y quisiera moverla para las 4 pm de ese mismo día."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-03 16:00"
+
+  - id: "REP-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, pásame la cita del miércoles para el viernes a las 11 am por favor."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-06 11:00"
+
+  - id: "REP-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas maestro, no podré ir el jueves, cámbiame el turno para el sábado a las 10 am con Carlos."
+    esperado:
+      tipo: "OPERACION"
+      profesional: "Carlos"
+      inicio: "2026-11-07 10:00"
+
+  - id: "REP-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Qué tal, quisiera reprogramar mi cita de corte de mañana para el lunes a las 12 pm."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-09 12:00"
+
+  - id: "REP-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, mueve mi cita de hoy que es en 20 minutos para mañana."
+    esperado:
+      tipo: "SIN_OPERACION"
+
+  - id: "REP-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quiero cambiar mi turno del viernes a las 3 pm para las 5 pm."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-06 17:00"
+
+  - id: "REP-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola chochera, reagéndame el corte del sábado para el martes a las 11 am con Miguel."
+    esperado:
+      tipo: "OPERACION"
+      profesional: "Miguel"
+      inicio: "2026-11-10 11:00"
+
+  - id: "REP-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, quisiera posponer mi cita de mañana dos horas más tarde, a las 12."
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-03 12:00"
+
+  - id: "REP-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola maestro, cámbiame la cita de corte del jueves para el viernes a las 4 pm con Carlos."
+    esperado:
+      tipo: "OPERACION"
+      profesional: "Carlos"
+      inicio: "2026-11-06 16:00"
+
+  - id: "REP-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, mi turno es mañana a las 9 am, ¿lo pueden pasar para las 3 pm de la tarde?"
+    esperado:
+      tipo: "OPERACION"
+      inicio: "2026-11-03 15:00"

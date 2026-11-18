@@ -1,5 +1,7 @@
 package pe.barberturno.scheduling;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -12,7 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.*;
@@ -29,6 +31,7 @@ import static org.mockito.Mockito.mockingDetails;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false",
@@ -36,9 +39,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class JornadaIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClaveJornada123";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @MockitoSpyBean BarberoRepository barberos;
     @Autowired JornadaRepository jornadas;
@@ -57,7 +62,7 @@ class JornadaIT {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
         hash = passwords.encode(PASSWORD);
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         admin = login(usuario("admin", Rol.ADMIN));
         barbero = guardar("profesional");
         jornadas.saveAndFlush(new Jornada(barbero, (short) 4, LocalTime.of(9, 0), LocalTime.of(18, 0)));
@@ -81,7 +86,7 @@ class JornadaIT {
         assertThat(filas(otro.getId())).isEqualTo(anteriorOtro);
         mvc.perform(get(ruta(barbero.getId())).cookie(admin)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(4));
-        assertThat(jornadas.listarPorBarbero(barbero.getId())).noneMatch(j -> j.getDiaSemana() == 4);
+        assertThat(jdbc.enTransaccion(() -> jornadas.listarPorBarbero(barbero.getId()))).noneMatch(j -> j.getDiaSemana() == 4);
         SqlPruebas.limpiar();
         escribir(barbero.getId(), admin, semana).andExpect(status().isOk());
         var sql = SqlPruebas.sentencias();
@@ -136,9 +141,9 @@ class JornadaIT {
     void cp07_bt101NoCabeEntera_conflictoConIdSinCambios(String caso) throws Exception {
         Usuario cliente = datos.cliente("cliente");
         var servicio = datos.servicio();
-        reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, reloj.instant().minusSeconds(3600),
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, reloj.instant().minusSeconds(3600),
                 EstadoReserva.COMPLETADA, cliente, reloj.instant()));
-        Reserva bt101 = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+        Reserva bt101 = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                 Instant.parse("2026-10-01T15:00:00Z"), EstadoReserva.CONFIRMADA, cliente, reloj.instant()));
         assertThat(bt101.getId()).isEqualTo(101L);
         var semana = switch (caso) {
@@ -204,7 +209,7 @@ class JornadaIT {
         Reserva segunda = reservar("2026-10-02T15:00:00Z", EstadoReserva.CONFIRMADA);
         var otro = guardar("otro");
         var cliente = datos.cliente("otro-cliente");
-        reservas.saveAndFlush(new Reserva(cliente, otro, servicios.findAll().getFirst(), primera.getInicio(),
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), otro, servicios.findAll().getFirst(), primera.getInicio(),
                 EstadoReserva.CONFIRMADA, cliente, reloj.instant()));
         escribir(barbero.getId(), admin, List.of()).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.reservas.length()").value(2))
@@ -323,7 +328,7 @@ class JornadaIT {
         try (var ejecutor = Executors.newFixedThreadPool(2)) {
             Future<?> reserva = ejecutor.submit(() -> new TransactionTemplate(transacciones).executeWithoutResult(tx -> {
                 barberos.bloquearPorIds(List.of(barbero.getId()));
-                idReserva.set(reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+                idReserva.set(reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                         Instant.parse("2026-10-01T15:00:00Z"), EstadoReserva.CONFIRMADA, cliente, reloj.instant())).getId());
                 insertada.countDown(); esperar(liberar);
             }));
@@ -373,17 +378,17 @@ class JornadaIT {
     private Reserva reservar(String inicio, EstadoReserva estado) {
         Usuario cliente = usuarios.findByCorreo("reserva@ejemplo.test").orElseGet(() -> datos.cliente("reserva"));
         var servicio = servicios.findAll().stream().findFirst().orElseGet(datos::servicio);
-        return reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, Instant.parse(inicio), estado, cliente, reloj.instant()));
+        return reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, Instant.parse(inicio), estado, cliente, reloj.instant()));
     }
 
     private Barbero guardar(String nombre) { return barberos.saveAndFlush(new Barbero(usuario(nombre, Rol.BARBERO), "Cortes", reloj.instant())); }
     private Usuario usuario(String nombre, Rol rol) {
-        return usuarios.saveAndFlush(new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Nombre ficticio", nombre + "@ejemplo.test", "999000001", hash,
                 rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private Map<String, Object> intervalo(int dia, String inicio, String fin) { return Map.of("diaSemana", dia, "horaInicio", inicio, "horaFin", fin); }
     private List<?> filas(long id) { return jdbc.queryForList("select * from jornada where barbero_id = ? order by id", id); }
-    private String ruta(long id) { return "/api/barberos/" + id + "/jornadas"; }
+    private String ruta(long id) { return negocio("/api/barberos/") + id + "/jornadas"; }
     private Cookie csrf() throws Exception { return mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN"); }
     private ResultActions escribir(long id, Cookie sesion, Object semana) throws Exception {
         Cookie token = csrf();

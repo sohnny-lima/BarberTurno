@@ -6,7 +6,13 @@
       <mat-label>{{
         reserva.motivoObligatorio ? 'Motivo obligatorio' : 'Motivo (opcional)'
       }}</mat-label>
-      <textarea matInput formControlName="motivo" maxlength="300" rows="3"></textarea>
+      <textarea
+        matInput
+        formControlName="motivo"
+        maxlength="300"
+        rows="3"
+        enterkeyhint="done"
+      ></textarea>
       <mat-hint>{{
         reserva.motivoObligatorio
           ? 'Entre 5 y 300 caracteres; se registrará en la auditoría.'

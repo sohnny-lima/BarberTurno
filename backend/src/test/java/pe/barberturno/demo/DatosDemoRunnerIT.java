@@ -1,5 +1,7 @@
 package pe.barberturno.demo;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -11,7 +13,7 @@ import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import pe.barberturno.BarberTurnoApplication;
 import pe.barberturno.common.config.ConfiguracionProduccion;
@@ -34,12 +36,13 @@ class DatosDemoRunnerIT {
                 "--barberturno.reloj-fijo=2026-09-28T09:00:00-05:00", "--BT_DEMO_PASSWORD=" + password);
     }
 
-    private Map<String, List<Map<String, Object>>> instantanea(JdbcTemplate jdbc) {
+    private Map<String, List<Map<String, Object>>> instantanea(JdbcNegocioPruebas jdbc) {
         var resultado = new java.util.LinkedHashMap<String, List<Map<String, Object>>>();
-        for (String tabla : List.of("usuario", "barbero", "servicio", "jornada", "bloqueo",
-                "reserva", "auditoria_reserva", "notificacion")) {
+        for (String tabla : List.of("usuario", "membresia", "barbero", "servicio", "jornada", "bloqueo",
+                "reserva", "auditoria_reserva", "notificacion", "cliente")) {
             resultado.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
         }
+        resultado.put("vinculo_cliente", jdbc.queryForList("select * from vinculo_cliente order by negocio_id, usuario_id"));
         return resultado;
     }
 
@@ -47,7 +50,7 @@ class DatosDemoRunnerIT {
         Map<String, List<Map<String, Object>>> antes;
         // Contexto de preparación: también comprueba la ausencia de contraseña y los rollbacks.
         try (var contexto = arrancar("")) {
-            var jdbc = contexto.getBean(JdbcTemplate.class);
+            var jdbc = contexto.getBean(JdbcNegocioPruebas.class);
             LimpiezaBaseDatos.limpiar(jdbc);
             try {
                 var servicio = contexto.getBean(DatosDemoService.class);
@@ -81,11 +84,15 @@ class DatosDemoRunnerIT {
 
                 // Un administrador inicial ya configurado prevalece; no se crea admin-demo.
                 var usuarios = contexto.getBean(UsuarioRepository.class);
-                usuarios.saveAndFlush(new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
+                pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, contexto.getBean(pe.barberturno.platform.MembresiaRepository.class), contexto.getBean(pe.barberturno.customers.ClienteRepository.class), new Usuario("Admin inicial ficticio", "inicial@ejemplo.test", null,
                         contexto.getBean(PasswordEncoder.class).encode(PASSWORD), Rol.ADMIN, null, FIJO));
                 servicio.cargar(PASSWORD);
                 assertThat(usuarios.findByCorreo("admin-demo@ejemplo.test")).isEmpty();
                 assertThat(jdbc.queryForObject("select count(*) from usuario where rol='ADMIN'", Integer.class)).isOne();
+                comprobarEscenario(contexto);
+                new DatosDemoMultinegocioRunner(contexto.getBean(DatosDemoMultinegocioService.class),
+                        contexto.getBean(pe.barberturno.common.tenancy.EjecutorEnNegocio.class),
+                        "barberturno", PASSWORD).run(new DefaultApplicationArguments());
                 antes = instantanea(jdbc);
             } catch (RuntimeException | Error e) {
                 LimpiezaBaseDatos.limpiar(jdbc);
@@ -95,9 +102,8 @@ class DatosDemoRunnerIT {
         // Dos arranques completos: el runner automático encuentra el marcador persistido.
         for (int i = 0; i < 2; i++) {
             try (var contexto = arrancar(PASSWORD)) {
-                var jdbc = contexto.getBean(JdbcTemplate.class);
+                var jdbc = contexto.getBean(JdbcNegocioPruebas.class);
                 try {
-                    comprobarEscenario(contexto);
                     assertThat(instantanea(jdbc)).isEqualTo(antes);
                 } finally {
                     if (i == 1) LimpiezaBaseDatos.limpiar(jdbc);
@@ -107,15 +113,20 @@ class DatosDemoRunnerIT {
     }
 
     private void comprobarEscenario(ConfigurableApplicationContext contexto) {
-        JdbcTemplate jdbc = contexto.getBean(JdbcTemplate.class);
+        JdbcNegocioPruebas jdbc = contexto.getBean(JdbcNegocioPruebas.class);
         assertThat(contexto.getBean(Clock.class).instant()).isEqualTo(FIJO);
         assertThat(jdbc.queryForObject("select count(*) from usuario", Integer.class)).isEqualTo(6);
+        assertThat(jdbc.queryForObject("select count(*) from cliente", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select count(*) from vinculo_cliente", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select count(*) from reserva r join cliente c on c.id=r.cliente_id join usuario u on u.id=c.usuario_id where u.rol='CLIENTE'", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select count(*) from barbero", Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject("select count(*) from jornada", Integer.class)).isEqualTo(24);
         assertThat(jdbc.queryForObject("select count(*) from bloqueo", Integer.class)).isOne();
         assertThat(jdbc.queryForObject("select count(*) from reserva", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select count(*) from auditoria_reserva", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select count(*) from notificacion", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForList("select rol from membresia where negocio_id=1 and estado='ACTIVA' order by rol", String.class))
+                .containsExactly("BARBERO", "BARBERO", "PROPIETARIO");
         assertThat(jdbc.queryForList("select nombre from usuario where rol='CLIENTE' order by id", String.class))
                 .containsExactly("Cliente de demostración", "Ana", "Luis");
         assertThat(jdbc.queryForList("select especialidad from barbero", String.class)).containsOnly("Corte y barba");
@@ -147,7 +158,7 @@ class DatosDemoRunnerIT {
         long corte = jdbc.queryForObject("select id from servicio where nombre='Corte clásico'", Long.class);
         String respuesta = org.springframework.web.client.RestClient.create("http://localhost:"
                 + contexto.getEnvironment().getProperty("local.server.port")).get()
-                .uri("/api/disponibilidad?fecha=2026-10-01&servicioId=" + corte + "&barberoId=" + carlos)
+                .uri(negocio("/api/disponibilidad?fecha=2026-10-01&servicioId=") + corte + "&barberoId=" + carlos)
                 .retrieve().body(String.class);
         var horas = new java.util.ArrayList<String>();
         contexto.getBean(tools.jackson.databind.json.JsonMapper.class).readTree(respuesta).get("franjas")

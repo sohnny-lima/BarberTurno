@@ -1,0 +1,71 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 800
+  },
+  "superpuesta": true,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": {
+    "ambito": "[role=\"dialog\"]",
+    "pulsaciones": 6
+  },
+  "ruta": "/negocios",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 32,
+      "violadas": 0,
+      "incompletas": 2,
+      "inaplicables": 57
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-hidden-focus",
+        "impacto": "serious",
+        "nodos": [
+          "app-root",
+          ".cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(1)",
+          ".cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(3)"
+        ]
+      },
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": [
+          "#mat-mdc-dialog-title-0"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "#mat-mdc-dialog-title-0",
+        "componente": "Título de diálogo",
+        "estado": "normal",
+        "color": "#17221e",
+        "fondo": "#ffffff",
+        "ratio": 16.36,
+        "minimo": 3,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      }
+    ]
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

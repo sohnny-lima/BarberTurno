@@ -1,3 +1,5 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -27,7 +29,7 @@ export const franjaPrueba = {
 export const reservaPrueba: ReservaDto = {
   id: 7,
   codigo: 'BT-7',
-  cliente: { id: 9, nombre: 'Cliente ficticio' },
+  cliente: { id: 9, fichaId: 9, nombre: 'Cliente ficticio' },
   servicio: { id: 1, nombre: 'Corte original' },
   barbero: { id: 2, nombre: 'Ficticio A' },
   inicio: franjaPrueba.inicio,
@@ -55,6 +57,7 @@ describe('Store de reserva guiada', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
     store = TestBed.inject(ReservaStore);
   });
   afterEach(() => {
@@ -64,9 +67,9 @@ describe('Store de reserva guiada', () => {
   });
   function catalogos() {
     http
-      .expectOne('/api/servicios?incluirInactivos=false')
+      .expectOne('/api/n/prueba/servicios?incluirInactivos=false')
       .flush([servicioPrueba, { ...servicioPrueba, id: 10, activo: false }]);
-    http.expectOne('/api/barberos?incluirInactivos=false').flush(barberosPrueba);
+    http.expectOne('/api/n/prueba/barberos?incluirInactivos=false').flush(barberosPrueba);
   }
   function sesion(rol = 'CLIENTE') {
     TestBed.inject(SesionService).cargar().subscribe();
@@ -77,9 +80,10 @@ describe('Store de reserva guiada', () => {
       rol,
       debeCambiarPassword: false,
     });
+    TestBed.inject(NegocioActual).actualizarSesion(TestBed.inject(SesionService).usuario());
   }
   function franjas(duracionMin = 30) {
-    const r = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const r = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     r.flush({
       servicioId: 1,
       fecha: store.fecha(),
@@ -98,6 +102,44 @@ describe('Store de reserva guiada', () => {
     store.irPaso(1);
     store.elegirFranja(store.franjas()[0]);
   }
+  it.each(['slug', 'papel'] as const)(
+    'vacía todo el store y la selección persistida al cambiar %s',
+    (cambio) => {
+      seleccion();
+      store.cliente.set({
+        id: 9,
+        nombre: 'Ficticio',
+        correo: 'reserva@ejemplo.test',
+        telefono: null,
+        rol: 'CLIENTE',
+        activo: true,
+        debeCambiarPassword: false,
+      });
+      store.motivo.set('Motivo anterior');
+      store.resultado.set(reservaPrueba);
+      store.reserva.set(reservaPrueba);
+      sessionStorage.setItem('barberturno.reserva', 'selección anterior');
+      TestBed.inject(NegocioActual).seleccionar(
+        cambio === 'slug' ? 'sur' : 'prueba',
+        cambio === 'papel' ? 'CLIENTE' : 'PERSONAL',
+      );
+      expect(store.servicios()).toEqual([]);
+      expect(store.barberos()).toEqual([]);
+      expect(store.servicioId()).toBeNull();
+      expect(store.preferencia()).toBeNull();
+      expect(store.franjas()).toEqual([]);
+      expect(store.franja()).toBeNull();
+      expect(store.barberoId()).toBeNull();
+      expect(store.cliente()).toBeNull();
+      expect(store.reserva()).toBeNull();
+      expect(store.resultado()).toBeNull();
+      expect(store.motivo()).toBe('');
+      expect(store.paso()).toBe(0);
+      expect(sessionStorage.getItem('barberturno.reserva')).toBeNull();
+      store.confirmar();
+      http.expectNone((r) => r.method === 'POST');
+    },
+  );
   it('bloquea avanzar sin selección y recorre tres pasos con el primer profesional por defecto', () => {
     store.irPaso(2);
     expect(store.paso()).toBe(0);
@@ -132,11 +174,22 @@ describe('Store de reserva guiada', () => {
     expect(store.paso()).toBe(0);
     franjas();
   });
+  it('tras cambiar de barbería y volver, el store sigue cargando y consultando franjas', () => {
+    // Regresión de V2-18: cancelar al cambiar de barbería no debe completar los flujos del store.
+    const negocio = TestBed.inject(NegocioActual);
+    negocio.seleccionar('sur', 'PERSONAL');
+    negocio.seleccionar('prueba', 'PERSONAL');
+    store.inicializar();
+    catalogos();
+    store.elegirServicio(1);
+    franjas();
+    expect(store.franjas()).toHaveLength(1);
+  });
   it('cancela consultas antiguas para evitar publicar franjas de otra fecha', () => {
     store.inicializar();
     catalogos();
     store.elegirServicio(1);
-    const anterior = http.expectOne((r) => r.url === '/api/disponibilidad');
+    const anterior = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
     store.elegirFecha(fechaHoyLima(2));
     expect(anterior.cancelled).toBe(true);
     franjas();
@@ -147,7 +200,7 @@ describe('Store de reserva guiada', () => {
     store.elegirBarbero(3);
     store.confirmar();
     expect(router.navigate).toHaveBeenCalledWith(['/ingresar'], {
-      queryParams: { returnUrl: '/reservar' },
+      queryParams: { returnUrl: '/n/prueba/reservar' },
     });
     const guardada = sessionStorage.getItem('barberturno.reserva')!;
     expect(guardada).not.toContain('nombre');
@@ -166,7 +219,7 @@ describe('Store de reserva guiada', () => {
     store.confirmar();
     store.inicializar();
     catalogos();
-    http.expectOne((r) => r.url === '/api/disponibilidad').flush({ franjas: [] });
+    http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad').flush({ franjas: [] });
     expect(store.paso()).toBe(1);
     expect(store.franja()).toBeNull();
     expect(store.mensaje()).toContain('ya no está disponible');
@@ -176,7 +229,7 @@ describe('Store de reserva guiada', () => {
     store.inicializar();
     catalogos();
     expect(store.paso()).toBe(0);
-    http.expectNone((r) => r.url === '/api/disponibilidad');
+    http.expectNone((r) => r.url === '/api/n/prueba/disponibilidad');
   });
   it('tolera sessionStorage inaccesible y permite ingresar', () => {
     seleccion();
@@ -193,7 +246,7 @@ describe('Store de reserva guiada', () => {
       seleccion();
       sesion();
       store.confirmar();
-      const r = http.expectOne('/api/reservas');
+      const r = http.expectOne('/api/n/prueba/reservas');
       expect(r.request.body).toEqual({ servicioId: 1, barberoId: 2, inicio: franjaPrueba.inicio });
       r.flush(
         { codigo, detail: 'Conflicto del servidor' },
@@ -212,7 +265,7 @@ describe('Store de reserva guiada', () => {
     sesion();
     store.confirmar();
     http
-      .expectOne('/api/reservas')
+      .expectOne('/api/n/prueba/reservas')
       .flush(
         { codigo: 'LIMITE_RESERVAS_ACTIVAS', detail: 'Tiene tres reservas activas.' },
         { status: 422, statusText: 'Unprocessable Content' },
@@ -225,7 +278,7 @@ describe('Store de reserva guiada', () => {
     sesion();
     store.confirmar();
     http
-      .expectOne('/api/reservas')
+      .expectOne('/api/n/prueba/reservas')
       .flush(
         { codigo: 'INICIO_EN_PASADO', detail: 'El inicio ya pasó.' },
         { status: 422, statusText: 'Unprocessable Content' },
@@ -240,9 +293,10 @@ describe('Store de reserva guiada', () => {
     store.confirmar();
     expect(store.enviando()).toBe(true);
     expect(store.puedeConfirmar()).toBe(false);
-    http.expectOne('/api/reservas').flush(reservaPrueba);
+    http.expectOne('/api/n/prueba/reservas').flush(reservaPrueba);
     expect(store.enviando()).toBe(false);
-    expect(router.navigate).toHaveBeenCalledWith(['/mis-citas'], {
+    expect(router.navigate).toHaveBeenCalledWith(['/n/prueba/mis-citas'], {
+      queryParams: {},
       state: { avisoReserva: 'Reserva creada.' },
     });
   });
@@ -251,13 +305,13 @@ describe('Store de reserva guiada', () => {
     sesion('BARBERO');
     store.confirmar();
     expect(store.puedeConfirmar()).toBe(false);
-    http.expectNone('/api/reservas');
+    http.expectNone('/api/n/prueba/reservas');
   });
   function reprogramar(permitida = true) {
     store.inicializar(7);
     catalogos();
     http
-      .expectOne('/api/reservas/7')
+      .expectOne('/api/n/prueba/reservas/7')
       .flush({ ...reservaPrueba, permisos: { ...reservaPrueba.permisos, reprogramar: permitida } });
     store.elegirServicio(10);
     expect(store.servicioId()).toBe(1);
@@ -272,7 +326,7 @@ describe('Store de reserva guiada', () => {
     expect(store.servicio()?.precio).toBe(22);
     expect(store.servicio()?.duracionMin).toBe(40);
     store.confirmar();
-    const r = http.expectOne('/api/reservas/7/reprogramacion');
+    const r = http.expectOne('/api/n/prueba/reservas/7/reprogramacion');
     expect(r.request.method).toBe('POST');
     expect(r.request.body).toEqual({ inicio: franjaPrueba.inicio, barberoId: 2, version: 4 });
     r.flush(reservaPrueba);
@@ -283,12 +337,12 @@ describe('Store de reserva guiada', () => {
       sesion();
       store.inicializar(7);
       http
-        .expectOne('/api/servicios?incluirInactivos=false')
+        .expectOne('/api/n/prueba/servicios?incluirInactivos=false')
         .flush([{ ...servicioPrueba, duracionMin: 60, precio: 99, activo }]);
-      http.expectOne('/api/barberos?incluirInactivos=false').flush(barberosPrueba);
-      http.expectOne('/api/reservas/7').flush(reservaPrueba);
+      http.expectOne('/api/n/prueba/barberos?incluirInactivos=false').flush(barberosPrueba);
+      http.expectOne('/api/n/prueba/reservas/7').flush(reservaPrueba);
       store.cargarFranjas();
-      const consulta = http.expectOne((r) => r.url === '/api/disponibilidad');
+      const consulta = http.expectOne((r) => r.url === '/api/n/prueba/disponibilidad');
       expect(consulta.request.params.get('servicioId')).toBe('1');
       expect(consulta.request.params.get('excluirReservaId')).toBe('7');
       const franja = { ...franjaPrueba, fin: fechaHoyLima(1) + 'T10:40:00-05:00' };
@@ -300,7 +354,7 @@ describe('Store de reserva guiada', () => {
       store.elegirFranja(store.franjas()[0]);
       expect(store.franja()?.fin).toBe(franja.fin);
       store.confirmar();
-      const envio = http.expectOne('/api/reservas/7/reprogramacion');
+      const envio = http.expectOne('/api/n/prueba/reservas/7/reprogramacion');
       expect(envio.request.body).toEqual({ inicio: franja.inicio, barberoId: 2, version: 4 });
       envio.flush(reservaPrueba);
     },
@@ -309,10 +363,10 @@ describe('Store de reserva guiada', () => {
     sesion('ADMIN');
     reprogramar();
     store.confirmar();
-    http.expectNone('/api/reservas/7/reprogramacion');
+    http.expectNone('/api/n/prueba/reservas/7/reprogramacion');
     store.motivo.set('  Ajuste solicitado por cliente  ');
     store.confirmar();
-    const r = http.expectOne('/api/reservas/7/reprogramacion');
+    const r = http.expectOne('/api/n/prueba/reservas/7/reprogramacion');
     expect(r.request.body.motivo).toBe('Ajuste solicitado por cliente');
     r.flush(reservaPrueba);
   });
@@ -321,13 +375,13 @@ describe('Store de reserva guiada', () => {
     reprogramar(false);
     store.confirmar();
     expect(store.puedeConfirmar()).toBe(false);
-    http.expectNone('/api/reservas/7/reprogramacion');
+    http.expectNone('/api/n/prueba/reservas/7/reprogramacion');
   });
   it('404 de detalle se muestra sin simular reserva', () => {
     store.inicializar(7);
     catalogos();
     http
-      .expectOne('/api/reservas/7')
+      .expectOne('/api/n/prueba/reservas/7')
       .flush({ detail: 'Reserva no encontrada.' }, { status: 404, statusText: 'Not Found' });
     expect(store.reserva()).toBeNull();
     expect(store.mensaje()).toBe('Reserva no encontrada.');
@@ -337,7 +391,7 @@ describe('Store de reserva guiada', () => {
     seleccion();
     expect(store.puedeConfirmar()).toBe(false);
     store.confirmar();
-    http.expectNone('/api/reservas');
+    http.expectNone('/api/n/prueba/reservas');
     store.elegirCliente({
       id: 77,
       nombre: 'Asistido ficticio',
@@ -350,7 +404,7 @@ describe('Store de reserva guiada', () => {
     expect(store.puedeConfirmar()).toBe(true);
     store.confirmar();
     store.confirmar();
-    const req = http.expectOne('/api/reservas');
+    const req = http.expectOne('/api/n/prueba/reservas');
     expect(req.request.body.clienteId).toBe(77);
     expect(req.request.body.servicioId).toBe(1);
     req.flush(reservaPrueba);

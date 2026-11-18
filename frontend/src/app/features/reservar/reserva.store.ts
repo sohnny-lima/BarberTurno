@@ -1,8 +1,9 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { catchError, EMPTY, finalize, forkJoin, of, Subject, switchMap } from 'rxjs';
+import { catchError, EMPTY, finalize, forkJoin, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { BarberosApi } from '../../core/api/barberos-api';
 import { DisponibilidadApi } from '../../core/api/disponibilidad-api';
 import { ReservasApi } from '../../core/api/reservas-api';
@@ -10,12 +11,15 @@ import { ServiciosApi } from '../../core/api/servicios-api';
 import { SesionService } from '../../core/auth/sesion-service';
 import { BarberoDto, ServicioDto } from '../../core/modelos/catalogo';
 import { ProblemDetail } from '../../core/modelos/identidad';
+import { marcarPresentado } from '../../core/notificaciones/errores-presentados';
 import { UsuarioAdminDto } from '../../core/modelos/usuarios';
 import { FranjaDto, ReservaDto } from '../../core/modelos/reservas';
 import { fechaHoyLima } from '../../core/tiempo/instante-lima';
 
 const CLAVE = 'barberturno.reserva';
 interface SeleccionGuardada {
+  slug: string;
+  papel: string;
   servicioId: number;
   preferencia: number | null;
   fecha: string;
@@ -26,6 +30,8 @@ interface SeleccionGuardada {
 /** Estado de presentación: las franjas, permisos y políticas proceden del servidor. */
 @Injectable()
 export class ReservaStore {
+  readonly negocio = inject(NegocioActual);
+  private readonly origen = this.negocio.ambito()!;
   private readonly serviciosApi = inject(ServiciosApi);
   private readonly barberosApi = inject(BarberosApi);
   private readonly disponibilidadApi = inject(DisponibilidadApi);
@@ -47,7 +53,7 @@ export class ReservaStore {
   readonly reserva = signal<ReservaDto | null>(null);
   readonly paso = signal(0);
   readonly cliente = signal<UsuarioAdminDto | null>(null);
-  readonly asistida = computed(() => this.sesion.rol() === 'ADMIN' && !this.reserva());
+  readonly asistida = computed(() => this.negocio.rol() === 'ADMIN' && !this.reserva());
   readonly cargando = signal(false);
   readonly consultando = signal(false);
   readonly enviando = signal(false);
@@ -74,13 +80,14 @@ export class ReservaStore {
     () =>
       this.pasoDosCompleto() &&
       !this.enviando() &&
-      this.sesion.rol() !== 'BARBERO' &&
+      this.negocio.rol() !== 'BARBERO' &&
       (!this.asistida() || !!this.cliente()) &&
       (!this.reserva() || this.reserva()!.permisos.reprogramar) &&
-      (!this.reserva() || this.sesion.rol() !== 'ADMIN' || !!this.motivo().trim()),
+      (!this.reserva() || this.negocio.rol() !== 'ADMIN' || !!this.motivo().trim()),
   );
 
   constructor() {
+    this.negocio.cambios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.vaciar());
     this.inicializaciones
       .pipe(
         switchMap((id) => {
@@ -90,7 +97,7 @@ export class ReservaStore {
           this.servicioId.set(null);
           this.preferencia.set(null);
           this.cliente.set(null);
-          this.paso.set(id === undefined && this.sesion.rol() === 'ADMIN' ? -1 : 0);
+          this.paso.set(id === undefined && this.negocio.rol() === 'ADMIN' ? -1 : 0);
           this.fecha.set(fechaHoyLima());
           this.limpiarFranja();
           // Cancela también una consulta pendiente de la selección anterior.
@@ -100,6 +107,8 @@ export class ReservaStore {
             barberos: this.barberosApi.listar(),
             reserva: id === undefined ? of(null) : this.reservasApi.obtener(id),
           }).pipe(
+            // Cancela solo la carga en curso si cambia la barbería; el flujo sigue vivo (V2-DA-93).
+            takeUntil(this.negocio.cambios$),
             catchError((error: HttpErrorResponse) => {
               this.mostrarError(error);
               return EMPTY;
@@ -141,6 +150,7 @@ export class ReservaStore {
               ...(this.reserva() ? { excluirReservaId: this.reserva()!.id } : {}),
             })
             .pipe(
+              takeUntil(this.negocio.cambios$),
               catchError((error: HttpErrorResponse) => {
                 this.mostrarError(error);
                 return EMPTY;
@@ -220,10 +230,12 @@ export class ReservaStore {
       this.paso.set(paso);
   }
   confirmar() {
-    if (!this.puedeConfirmar()) return;
+    if (!this.negocio.vigente(this.origen) || !this.puedeConfirmar()) return;
     if (!this.sesion.autenticado()) {
       this.guardarSeleccion();
-      void this.router.navigate(['/ingresar'], { queryParams: { returnUrl: '/reservar' } });
+      void this.router.navigate(['/ingresar'], {
+        queryParams: { returnUrl: this.negocio.enlace('reservar') },
+      });
       return;
     }
     this.enviando.set(true);
@@ -237,7 +249,7 @@ export class ReservaStore {
           inicio,
           barberoId,
           version: reserva.version,
-          ...(this.sesion.rol() === 'ADMIN' ? { motivo: this.motivo().trim() } : {}),
+          ...(this.negocio.rol() === 'ADMIN' ? { motivo: this.motivo().trim() } : {}),
         })
       : this.reservasApi.crear({
           servicioId: this.servicioId()!,
@@ -247,6 +259,7 @@ export class ReservaStore {
         });
     peticion
       .pipe(
+        takeUntil(this.negocio.cambios$),
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.enviando.set(false)),
       )
@@ -254,9 +267,13 @@ export class ReservaStore {
         next: (datos) => {
           this.borrarSeleccion();
           this.resultado.set(datos);
-          void this.router.navigate([this.sesion.rol() === 'ADMIN' ? '/agenda' : '/mis-citas'], {
-            state: { avisoReserva: reserva ? 'Reserva reprogramada.' : 'Reserva creada.' },
-          });
+          void this.router.navigate(
+            [this.negocio.ruta(this.negocio.rol() === 'ADMIN' ? 'agenda' : 'mis-citas')],
+            {
+              queryParams: this.negocio.papel() === 'CLIENTE' ? { papel: 'cliente' } : {},
+              state: { avisoReserva: reserva ? 'Reserva reprogramada.' : 'Reserva creada.' },
+            },
+          );
         },
         error: (error: HttpErrorResponse) => {
           const codigo = (error.error as Partial<ProblemDetail> | null)?.codigo;
@@ -271,9 +288,25 @@ export class ReservaStore {
             this.cargarFranjas();
           }
           this.limiteReservas.set(codigo === 'LIMITE_RESERVAS_ACTIVAS');
-          if (error.status === 401 && !reserva) this.guardarSeleccion();
         },
       });
+  }
+  private vaciar() {
+    this.servicios.set([]);
+    this.barberos.set([]);
+    this.servicioId.set(null);
+    this.preferencia.set(null);
+    this.reserva.set(null);
+    this.cliente.set(null);
+    this.resultado.set(null);
+    this.motivo.set('');
+    this.mensaje.set('');
+    this.limiteReservas.set(false);
+    this.paso.set(0);
+    this.fecha.set(fechaHoyLima());
+    this.limpiarFranja();
+    // Salir a ingresar conserva la selección pública; limpiar identidad borra todas las claves.
+    if (this.negocio.slug()) this.borrarSeleccion();
   }
   private limpiarFranja() {
     this.duracionDisponibilidad.set(null);
@@ -282,6 +315,7 @@ export class ReservaStore {
     this.barberoId.set(null);
   }
   private mostrarError(error: HttpErrorResponse) {
+    marcarPresentado(error);
     const problema = error.error as Partial<ProblemDetail> | null;
     this.mensaje.set(
       problema?.detail ||
@@ -292,6 +326,8 @@ export class ReservaStore {
   private guardarSeleccion() {
     try {
       const datos: SeleccionGuardada = {
+        slug: this.negocio.slug()!,
+        papel: this.negocio.papel(),
         servicioId: this.servicioId()!,
         preferencia: this.preferencia(),
         fecha: this.fecha(),
@@ -312,10 +348,12 @@ export class ReservaStore {
       const datos = JSON.parse(texto) as SeleccionGuardada;
       this.borrarSeleccion();
       if (
+        datos.slug !== this.negocio.slug() ||
+        datos.papel !== this.negocio.papel() ||
         !this.servicios().some((s) => s.id === datos.servicioId) ||
         typeof datos.fecha !== 'string' ||
         datos.fecha < fechaHoyLima() ||
-        datos.fecha > fechaHoyLima(30) ||
+        datos.fecha > fechaHoyLima(this.negocio.parametros()?.horizonteDias ?? 0) ||
         !/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha) ||
         typeof datos.inicio !== 'string' ||
         !Number.isInteger(datos.barberoId) ||

@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -46,13 +48,17 @@ class ReporteIT extends ReservaPruebaBase {
     Servicio barba;
 
     @BeforeEach void escenarioConocido() {
-        admin = usuarios.saveAndFlush(new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Admin ficticio", "admin-reportes@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
-        barbero.getUsuario().actualizarPerfil("Zeta ficticio", null, reloj.instant());
-        usuarios.saveAndFlush(barbero.getUsuario());
+        var cuentaZeta = jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId());
+        barbero.editarPerfil("Zeta ficticio", null, barbero.getEspecialidad(), reloj.instant());
+        barberos.saveAndFlush(barbero);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(cuentaZeta);
         alfa = datos.barbero("alfa");
-        alfa.getUsuario().actualizarPerfil("Alfa ficticio", null, reloj.instant());
-        usuarios.saveAndFlush(alfa.getUsuario());
+        var cuentaAlfa = jdbc.queryForMap("select * from usuario where id=?", alfa.getUsuario().getId());
+        alfa.editarPerfil("Alfa ficticio", null, alfa.getEspecialidad(), reloj.instant());
+        barberos.saveAndFlush(alfa);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", alfa.getUsuario().getId())).isEqualTo(cuentaAlfa);
         barba = servicios.saveAndFlush(new Servicio("Barba ficticia", "Prueba", (short) 20,
                 BigDecimal.TEN, reloj.instant()));
         var horas = List.of("00:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "23:30");
@@ -66,7 +72,7 @@ class ReporteIT extends ReservaPruebaBase {
 
     private void insertar(String fecha, String hora, Barbero perfil, Servicio contratado, EstadoReserva estado) {
         var inicio = TiempoNegocio.inicioDelDia(LocalDate.parse(fecha)).plusSeconds(LocalTime.parse(hora).toSecondOfDay());
-        reservas.saveAndFlush(new Reserva(cliente, perfil, contratado, inicio, estado, cliente, reloj.instant()));
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), perfil, contratado, inicio, estado, cliente, reloj.instant()));
     }
 
     private MockHttpServletRequestBuilder peticion(String ruta, String desde, String hasta, Long servicioId, Long barberoId) {
@@ -77,7 +83,7 @@ class ReporteIT extends ReservaPruebaBase {
     }
 
     private ResumenReporteDto conciliar(String desde, String hasta, Long servicioId, Long barberoId, long total) throws Exception {
-        var respuesta = mvc.perform(peticion("/api/reportes/resumen", desde, hasta, servicioId, barberoId))
+        var respuesta = mvc.perform(peticion(negocio("/api/reportes/resumen"), desde, hasta, servicioId, barberoId))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         var resumen = json.readValue(respuesta, ResumenReporteDto.class);
         var nodo = json.readTree(respuesta);
@@ -87,7 +93,7 @@ class ReporteIT extends ReservaPruebaBase {
         assertThat(resumen.porEstado().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(total);
         assertThat(resumen.porServicio().stream().mapToLong(r -> r.total()).sum()).isEqualTo(total);
         assertThat(resumen.porBarbero().stream().mapToLong(r -> r.total()).sum()).isEqualTo(total);
-        mvc.perform(peticion("/api/reservas", desde, hasta, servicioId, barberoId).param("tamano", "1"))
+        mvc.perform(peticion(negocio("/api/reservas"), desde, hasta, servicioId, barberoId).param("tamano", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(total));
         return resumen;
     }
@@ -164,13 +170,13 @@ class ReporteIT extends ReservaPruebaBase {
 
     @ParameterizedTest @CsvSource({"2026-10-02,2026-10-01", "2026-01-01,2027-01-02", "2026-10-01,+999999999-12-31"})
     void rangoInvalidoDevuelve400(String desde, String hasta) throws Exception {
-        mvc.perform(peticion("/api/reportes/resumen", desde, hasta, null, null))
+        mvc.perform(peticion(negocio("/api/reportes/resumen"), desde, hasta, null, null))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("RANGO_FECHAS_INVALIDO"));
     }
 
     @ParameterizedTest @ValueSource(strings = {"desde", "hasta", "ambas"})
     void fechasAusentesDevuelvenRangoInvalido(String omitir) throws Exception {
-        var peticion = get("/api/reportes/resumen").cookie(sesion(admin));
+        var peticion = get(negocio("/api/reportes/resumen")).cookie(sesion(admin));
         if (omitir.equals("desde")) peticion.param("hasta", "2026-10-01");
         if (omitir.equals("hasta")) peticion.param("desde", "2026-10-01");
         mvc.perform(peticion).andExpect(status().isBadRequest())
@@ -179,7 +185,7 @@ class ReporteIT extends ReservaPruebaBase {
 
     @ParameterizedTest @CsvSource({"desde,texto", "hasta,2026-02-30", "servicioId,texto", "barberoId,texto"})
     void formatoInvalidoDevuelveValidacion(String parametro, String valor) throws Exception {
-        var peticion = get("/api/reportes/resumen").cookie(sesion(admin));
+        var peticion = get(negocio("/api/reportes/resumen")).cookie(sesion(admin));
         if (!parametro.equals("desde")) peticion.param("desde", "2026-10-01");
         if (!parametro.equals("hasta")) peticion.param("hasta", "2026-10-01");
         mvc.perform(peticion.param(parametro, valor)).andExpect(status().isBadRequest())
@@ -188,7 +194,7 @@ class ReporteIT extends ReservaPruebaBase {
 
     @ParameterizedTest @ValueSource(strings = {"desde", "hasta", "servicioId", "barberoId"})
     void parametrosVaciosDevuelvenValidacion(String parametro) throws Exception {
-        var peticion = get("/api/reportes/resumen").cookie(sesion(admin));
+        var peticion = get(negocio("/api/reportes/resumen")).cookie(sesion(admin));
         if (!parametro.equals("desde")) peticion.param("desde", "2026-10-01");
         if (!parametro.equals("hasta")) peticion.param("hasta", "2026-10-01");
         mvc.perform(peticion.param(parametro, " ")).andExpect(status().isBadRequest())
@@ -197,18 +203,18 @@ class ReporteIT extends ReservaPruebaBase {
 
     @Test void soloAdminEnHttpYEnServicio() throws Exception {
         for (var usuario : List.of(cliente, barbero.getUsuario())) {
-            mvc.perform(get("/api/reportes/resumen").cookie(sesion(usuario))
+            mvc.perform(get(negocio("/api/reportes/resumen")).cookie(sesion(usuario))
                     .param("desde", "2026-10-01").param("hasta", "2026-10-01"))
                     .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
             assertThatThrownBy(() -> reportes.resumen(actor(usuario), LocalDate.of(2026, 10, 1),
                     LocalDate.of(2026, 10, 1), null, null)).isInstanceOf(NegocioException.class)
                     .extracting(e -> ((NegocioException) e).codigo()).isEqualTo(ErrorCodigo.PROHIBIDO);
         }
-        mvc.perform(get("/api/reportes/resumen")).andExpect(status().isUnauthorized())
+        mvc.perform(get(negocio("/api/reportes/resumen"))).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
         admin.cambiarPassword("hash-ficticio-no-utilizable", true, reloj.instant());
         usuarios.saveAndFlush(admin);
-        mvc.perform(peticion("/api/reportes/resumen", "2026-10-01", "2026-10-01", null, null))
+        mvc.perform(peticion(negocio("/api/reportes/resumen"), "2026-10-01", "2026-10-01", null, null))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
     }
 
@@ -220,10 +226,13 @@ class ReporteIT extends ReservaPruebaBase {
             reportes.resumen(actor(admin), LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 1), servicioId, barberoId);
             assertThat(SqlPruebas.sentencias()).hasSize(3).allSatisfy(s -> assertThat(s).contains("count(", "group by"));
             SqlPruebas.limpiar();
-            mvc.perform(peticion("/api/reportes/resumen", "2026-10-01", "2026-10-01", servicioId, barberoId))
+            mvc.perform(peticion(negocio("/api/reportes/resumen"), "2026-10-01", "2026-10-01", servicioId, barberoId))
                     .andExpect(status().isOk());
-            var sql = SqlPruebas.sentencias();
-            assertThat(sql).hasSize(5); // Dos revalidaciones preexistentes: usuario y perfil; tres agregaciones.
+            assertThat(SqlPruebas.sentencias().stream().filter(s -> s.startsWith("select id from negocio where slug="))).hasSize(1);
+            var sql = SqlPruebas.sentencias().stream().filter(s -> !s.startsWith("select id from negocio where slug=")).toList();
+            assertThat(sql).hasSize(6); // Usuario, membresía y perfil; las mismas tres agregaciones de v1.
+            assertThat(sql.stream().filter(s -> s.contains("from membresia"))).hasSize(1);
+            assertThat(sql.stream().filter(s -> !s.contains("from membresia"))).hasSize(5);
             assertThat(sql.stream().filter(s -> s.contains("from reserva"))).hasSize(3)
                     .allSatisfy(s -> assertThat(s).contains("count(", "group by").doesNotContain("fetch first"));
         }

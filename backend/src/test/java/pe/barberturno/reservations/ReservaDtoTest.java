@@ -30,12 +30,15 @@ class ReservaDtoTest {
         var barbero = mock(Barbero.class);
         when(barbero.getId()).thenReturn(2L);
         when(barbero.getUsuario()).thenReturn(usuarioBarbero);
+        when(barbero.getNombreVisible()).thenReturn("Barbero ficticio");
         var servicio = mock(Servicio.class);
         when(servicio.getId()).thenReturn(3L);
         when(servicio.getNombre()).thenReturn("Corte ficticio");
         reserva = mock(Reserva.class);
         when(reserva.getId()).thenReturn(100L);
-        when(reserva.getCliente()).thenReturn(cliente);
+        var ficha = new pe.barberturno.customers.Cliente(cliente, inicio);
+        org.springframework.test.util.ReflectionTestUtils.setField(ficha, "id", 77L);
+        when(reserva.getCliente()).thenReturn(ficha);
         when(reserva.getBarbero()).thenReturn(barbero);
         when(reserva.getServicio()).thenReturn(servicio);
         when(reserva.getInicio()).thenReturn(inicio);

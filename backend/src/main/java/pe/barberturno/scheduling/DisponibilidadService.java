@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.barberturno.catalog.ServicioRepository;
 import pe.barberturno.common.config.ParametrosReserva;
+import pe.barberturno.common.config.ReglasNegocioService;
 import pe.barberturno.common.error.*;
 import pe.barberturno.common.security.UsuarioActual;
 import pe.barberturno.common.time.TiempoNegocio;
@@ -25,37 +26,40 @@ import pe.barberturno.users.Rol;
  */
 @Service
 public class DisponibilidadService {
+    private final pe.barberturno.common.tenancy.ProveedorNegocioActual negocio;
     private final ServicioRepository servicios;
     private final BarberoRepository barberos;
     private final JornadaRepository jornadas;
     private final BloqueoRepository bloqueos;
     private final ReservaRepository reservas;
     private final Clock clock;
-    private final ParametrosReserva parametros;
+    private final ReglasNegocioService reglasNegocio;
     private final UsuarioActual actual;
     private final CalculadoraFranjas calculadora = new CalculadoraFranjas();
 
     /**
      * Recibe persistencia, parámetros y reloj sin modificar la agenda.
+     * @param negocio ámbito de la petición, adicional a la barrera RLS
      * @param servicios catálogo de duración y estado RN-06
      * @param barberos perfiles y estado RN-06
      * @param jornadas intervalos del día ISO
      * @param bloqueos indisponibilidades que se cruzan con el día
      * @param reservas ocupaciones, propiedad de la exclusión y referencia RN-13
      * @param clock reloj del servidor inyectado
-     * @param parametros horizonte y rejilla RN-05
+     * @param reglasNegocio horizonte local y rejilla global RN-05, leídos en la transacción
      * @param actual identidad revalidada; solo se exige al excluir una reserva
      */
     public DisponibilidadService(ServicioRepository servicios, BarberoRepository barberos,
             JornadaRepository jornadas, BloqueoRepository bloqueos, ReservaRepository reservas,
-            Clock clock, ParametrosReserva parametros, UsuarioActual actual) {
+            Clock clock, ReglasNegocioService reglasNegocio, UsuarioActual actual, pe.barberturno.common.tenancy.ProveedorNegocioActual negocio) {
+        this.negocio = negocio;
         this.servicios = servicios;
         this.barberos = barberos;
         this.jornadas = jornadas;
         this.bloqueos = bloqueos;
         this.reservas = reservas;
         this.clock = clock;
-        this.parametros = parametros;
+        this.reglasNegocio = reglasNegocio;
         this.actual = actual;
     }
 
@@ -71,10 +75,32 @@ public class DisponibilidadService {
      * @throws NegocioException si falta un recurso o la reserva es ajena (404), el servicio no coincide (400),
      * o el barbero o un servicio requerido para crear está inactivo (422)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = NegocioException.class)
     public DisponibilidadDto consultarFranjas(long servicioId, Optional<Long> barberoId,
             LocalDate fecha, Optional<Long> excluirReservaId) {
         excluirReservaId.ifPresent(this::autorizarExclusion);
+        return calcularFranjas(servicioId, barberoId, fecha, excluirReservaId);
+    }
+
+    /**
+     * Consulta DA-21 para una ficha verificada, sin exigir sesión web.
+     * @param fichaId ficha propietaria
+     * @param reservaId cita cuya ocupación se excluye
+     * @param fecha día de Lima
+     * @return franjas del mismo profesional con duración de referencia
+     * @throws NegocioException si la cita no pertenece a la ficha
+     */
+    @Transactional(readOnly = true, noRollbackFor = NegocioException.class)
+    public DisponibilidadDto consultarCambioFicha(long fichaId, long reservaId, LocalDate fecha) {
+        var lectura = reservas.leerParaReprogramar(reservaId).orElseThrow(this::noEncontrado);
+        if (lectura.clienteId() != fichaId) throw noEncontrado();
+        var referencia = reservas.leerReferenciaDisponibilidad(reservaId).orElseThrow(this::noEncontrado);
+        return calcularFranjas(referencia.servicioId(), Optional.of(lectura.barberoId()), fecha, Optional.of(reservaId));
+    }
+
+    private DisponibilidadDto calcularFranjas(long servicioId, Optional<Long> barberoId,
+            LocalDate fecha, Optional<Long> excluirReservaId) {
+        var parametros = reglasNegocio.reservas();
         var referencia = excluirReservaId.map(id ->
                 reservas.leerReferenciaDisponibilidad(id).orElseThrow(this::noEncontrado));
         if (referencia.isPresent() && referencia.get().servicioId() != servicioId) {
@@ -86,10 +112,10 @@ public class DisponibilidadService {
                 "El servicio está inactivo.");
         int duracion = referencia.map(r -> (int) r.duracionRefMin()).orElse((int) servicio.getDuracionMin());
         List<Barbero> perfiles = barberoId.map(id -> List.of(barberoActivo(id)))
-                .orElseGet(barberos::findByActivoTrueOrderByIdAsc);
+                .orElseGet(() -> barberos.findByActivoTrueOrderByIdAsc(negocio.negocioActual().orElseThrow()));
         Instant ahora = clock.instant();
-        Instant limite = limiteHorizonte(ahora);
-        if (fueraDeHorizonte(fecha, ahora) || perfiles.isEmpty()) {
+        Instant limite = limiteHorizonte(ahora, parametros);
+        if (fueraDeHorizonte(fecha, ahora, parametros) || perfiles.isEmpty()) {
             return new DisponibilidadDto(fecha, servicioId, duracion, List.of());
         }
         var datos = cargarDia(perfiles.stream().map(Barbero::getId).toList(), fecha,
@@ -106,7 +132,7 @@ public class DisponibilidadService {
                         inicio = inicio.plus(parametros.rejillaMin(), ChronoUnit.MINUTES)) {
                     var candidata = new Franja(inicio, inicio.plus(duracion, ChronoUnit.MINUTES));
                     if (evaluar(fecha, intervalos, ocupaciones, candidata, duracion,
-                            ahora, limite).isEmpty()) {
+                            ahora, limite, parametros).isEmpty()) {
                         fusion.computeIfAbsent(inicio, clave -> new ArrayList<>()).add(id);
                     }
                 }
@@ -130,13 +156,14 @@ public class DisponibilidadService {
      * @return primer código incumplido, o vacío si la franja pertenece a la disponibilidad
      * @throws NegocioException si el perfil no existe (404)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = NegocioException.class)
     public Optional<ErrorCodigo> validarFranja(long barberoId, Instant inicio, Instant fin, long excluirReservaId) {
+        var parametros = reglasNegocio.reservas();
         var perfil = barberos.findById(barberoId).orElseThrow(this::noEncontrado);
         if (!perfil.isActivo()) return Optional.of(ErrorCodigo.RECURSO_INACTIVO);
         Instant ahora = clock.instant();
         LocalDate fecha = TiempoNegocio.fechaLima(inicio);
-        if (fueraDeHorizonte(fecha, ahora)) return Optional.of(ErrorCodigo.FUERA_DE_HORIZONTE);
+        if (fueraDeHorizonte(fecha, ahora, parametros)) return Optional.of(ErrorCodigo.FUERA_DE_HORIZONTE);
         if (!inicio.isAfter(ahora)) return Optional.of(ErrorCodigo.INICIO_EN_PASADO);
         Duration duracion = Duration.between(inicio, fin);
         if (duracion.isNegative() || duracion.isZero() || duracion.getNano() != 0
@@ -146,11 +173,12 @@ public class DisponibilidadService {
         var datos = cargarDia(List.of(barberoId), fecha, excluirReservaId);
         return evaluar(fecha, datos.jornadas().getOrDefault(barberoId, List.of()),
                 datos.ocupaciones().getOrDefault(barberoId, List.of()), new Franja(inicio, fin),
-                (int) duracion.toMinutes(), ahora, limiteHorizonte(ahora));
+                (int) duracion.toMinutes(), ahora, limiteHorizonte(ahora, parametros), parametros);
     }
 
     private Optional<ErrorCodigo> evaluar(LocalDate fecha, List<IntervaloJornada> intervalos,
-            List<Franja> ocupaciones, Franja candidata, int duracion, Instant ahora, Instant limite) {
+            List<Franja> ocupaciones, Franja candidata, int duracion, Instant ahora, Instant limite,
+            ParametrosReserva parametros) {
         if (!candidata.inicio().isAfter(ahora)) return Optional.of(ErrorCodigo.INICIO_EN_PASADO);
         if (!calculadora.esFranjaValida(fecha, intervalos, List.of(), candidata, duracion,
                 ahora, limite, parametros.rejillaMin())) return Optional.of(ErrorCodigo.FUERA_DE_HORARIO);
@@ -187,8 +215,8 @@ public class DisponibilidadService {
             throw error;
         }
         if (rol != Rol.ADMIN && rol != Rol.CLIENTE) throw noEncontrado();
-        long propietario = reservas.buscarClienteId(id).orElseThrow(this::noEncontrado);
-        if (rol != Rol.ADMIN && propietario != actorId) throw noEncontrado();
+        var lectura = reservas.leerParaReprogramar(id).orElseThrow(this::noEncontrado);
+        if (rol != Rol.ADMIN && !Objects.equals(lectura.usuarioId(), actorId)) throw noEncontrado();
     }
 
     private Barbero barberoActivo(long id) {
@@ -198,12 +226,12 @@ public class DisponibilidadService {
         return perfil;
     }
 
-    private boolean fueraDeHorizonte(LocalDate fecha, Instant ahora) {
+    private boolean fueraDeHorizonte(LocalDate fecha, Instant ahora, ParametrosReserva parametros) {
         LocalDate hoy = TiempoNegocio.fechaLima(ahora);
         return fecha.isBefore(hoy) || fecha.isAfter(hoy.plusDays(parametros.horizonteDias()));
     }
 
-    private Instant limiteHorizonte(Instant ahora) {
+    private Instant limiteHorizonte(Instant ahora, ParametrosReserva parametros) {
         return TiempoNegocio.inicioDelDia(TiempoNegocio.fechaLima(ahora)
                 .plusDays(parametros.horizonteDias() + 1L)).minusNanos(1);
     }

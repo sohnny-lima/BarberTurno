@@ -17,7 +17,7 @@ export const test = base.extend<object, { servidor: string }>({
           '-jar',
           jar,
           '--spring.profiles.active=dev,demo',
-          '--server.port=18034',
+          '--server.port=8081',
           '--barberturno.reloj-fijo=2026-09-28T09:00:00-05:00',
           '--logging.level.pe.barberturno=INFO',
         ],
@@ -37,13 +37,13 @@ export const test = base.extend<object, { servidor: string }>({
         while (true) {
           if (terminado) throw new Error('El jar E2E terminó antes de estar listo.');
           try {
-            const respuesta = await fetch('http://localhost:18034/actuator/health', {
+            const respuesta = await fetch('http://localhost:8081/actuator/health', {
               headers: { Accept: 'application/json' },
             });
             if (respuesta.ok) {
-              const catalogo = await fetch('http://localhost:18034/api/barberos');
+              const catalogo = await fetch('http://localhost:8081/api/n/sur/barberos');
               // health responde mientras los ApplicationRunner siguen cargando.
-              if (catalogo.ok && (await catalogo.json()).length === 2) break;
+              if (catalogo.ok && (await catalogo.json()).length === 1) break;
             }
           } catch {
             /* El puerto aún no está listo. */
@@ -51,7 +51,7 @@ export const test = base.extend<object, { servidor: string }>({
           if (Date.now() > limite) throw new Error('El jar E2E no estuvo listo en 90 s.');
           await new Promise((continuar) => setTimeout(continuar, 300));
         }
-        await use('http://localhost:18034');
+        await use('http://localhost:8081');
       } finally {
         if (!terminado) {
           const salida = once(proceso, 'exit');
@@ -64,7 +64,7 @@ export const test = base.extend<object, { servidor: string }>({
     { scope: 'worker', timeout: 120_000 },
   ],
   page: async ({ page, servidor }, use) => {
-    expect(servidor).toBe('http://localhost:18034');
+    expect(servidor).toBe('http://localhost:8081');
     // Solo Date: animaciones, temporizadores y peticiones continúan funcionando.
     await page.clock.setFixedTime(new Date('2026-09-28T09:00:00-05:00'));
     await use(page);
@@ -73,7 +73,7 @@ export const test = base.extend<object, { servidor: string }>({
 export { expect };
 
 export async function sesionApi(correo: string) {
-  const api = await request.newContext({ baseURL: 'http://localhost:18034' });
+  const api = await request.newContext({ baseURL: 'http://localhost:8081' });
   await api.get('/api/auth/sesion');
   await escribir(api, '/api/auth/login', { correo, password: process.env['BT_DEMO_PASSWORD'] });
   await api.get('/api/auth/sesion');

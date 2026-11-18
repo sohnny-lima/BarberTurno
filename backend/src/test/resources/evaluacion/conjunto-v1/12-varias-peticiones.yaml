@@ -1,0 +1,86 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "varias-peticiones"
+conversaciones:
+  - id: "VAR-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes maestro, ¿cuánto cuesta el corte clásico y tienes cita mañana a las 10 am con Carlos?"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-03 10:00"
+
+  - id: "VAR-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola causa, quiero reservar un corte para mí a las 10 y otro corte para mi primo a las 11."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "VAR-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, dígame el precio de barba y corte clásico, y si Miguel está libre el viernes a las 3 pm."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "VAR-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, quiero saber si atienden hoy hasta tarde y si puedo reservar corte a las 5 pm."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      inicio: "2026-11-02 17:00"
+
+  - id: "VAR-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Qué tal compadre, quiero cancelar mi cita de mañana y reservar una nueva para el sábado a las 11 am."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "VAR-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "¿Dónde queda su local en Huamanga y sepárame cita para el jueves a las 4 pm con Carlos?"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Carlos"
+      inicio: "2026-11-05 16:00"
+
+  - id: "VAR-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola, quiero saber si Carlos atiende barba y si tiene libre mañana a las 3 pm."
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Barba"
+      profesional: "Carlos"
+      inicio: "2026-11-03 15:00"
+
+  - id: "VAR-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quisiera reservar corte a las 10 am y barba a las 4 pm el mismo día."
+    esperado:
+      tipo: "ACLARACION"
+
+  - id: "VAR-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola chochera, ¿cuánto demora el corte clásico y me puedes agendar para el miércoles a las 11 am con Miguel?"
+    esperado:
+      tipo: "OPERACION"
+      servicio: "Corte clásico"
+      profesional: "Miguel"
+      inicio: "2026-11-04 11:00"
+
+  - id: "VAR-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Buenas noches, quiero que me reserves dos citas simultáneas con Carlos y Miguel para mañana a las 4 pm."
+    esperado:
+      tipo: "ACLARACION"

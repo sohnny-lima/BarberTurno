@@ -1,0 +1,4 @@
+[ERROR] Tests run: 12, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 1.054 s <<< FAILURE! -- in pe.barberturno.common.security.ExencionCsrfWebhookTest
+[ERROR]   ExencionCsrfWebhookTest.esWebhookWhatsApp_soloElPostExacto:37 
+[ERROR]   ExencionCsrfWebhookTest.esWebhookWhatsApp_soloElPostExacto:37 
+[ERROR]   ExencionCsrfWebhookTest.esWebhookWhatsApp_soloElPostExacto:37 

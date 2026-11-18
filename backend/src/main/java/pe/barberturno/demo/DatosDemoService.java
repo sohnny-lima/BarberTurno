@@ -19,6 +19,10 @@ import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.*;
 import pe.barberturno.scheduling.*;
 import pe.barberturno.users.*;
+import pe.barberturno.platform.*;
+import pe.barberturno.common.tenancy.ProveedorNegocioActual;
+import pe.barberturno.customers.*;
+import pe.barberturno.common.config.ReglasNegocioService;
 
 /**
  * Importa las instantáneas académicas sin modificar reglas, catálogo ajeno ni identidades existentes.
@@ -39,11 +43,15 @@ public class DatosDemoService {
     private final NotificacionService avisos;
     private final PasswordEncoder encoder;
     private final Clock clock;
+    private final MembresiaRepository membresias;
+    private final ProveedorNegocioActual negocio;
+    private final ClienteRepository clientes;
+    private final ReglasNegocioService reglasNegocio;
 
     /**
      * Recibe los repositorios del escenario, los servicios RN-15 y la seguridad del entorno.
      * @param usuarios persistencia de identidades y marcador cliente@ejemplo.test
-     * @param barberos persistencia y bloqueo global de cupo RN-19
+     * @param barberos persistencia y bloqueo por negocio de cupo RN-19
      * @param servicios catálogo con instantáneas de duración y precio
      * @param jornadas intervalos semanales de atención
      * @param bloqueos excepciones de disponibilidad
@@ -52,11 +60,16 @@ public class DatosDemoService {
      * @param avisos avisos internos transaccionales RN-15
      * @param encoder BCrypt configurado por la aplicación
      * @param clock reloj inyectado para marcas temporales
+     * @param membresias pertenencias del personal del escenario
+     * @param negocio negocio único de la carga
+     * @param clientes fichas locales del escenario y bloqueo ①
+     * @param reglasNegocio cupo leído del negocio de la carga
      */
     public DatosDemoService(UsuarioRepository usuarios, BarberoRepository barberos,
             ServicioRepository servicios, JornadaRepository jornadas, BloqueoRepository bloqueos,
             ReservaRepository reservas, AuditoriaService auditoria, NotificacionService avisos,
-            PasswordEncoder encoder, Clock clock) {
+            PasswordEncoder encoder, Clock clock, MembresiaRepository membresias, ProveedorNegocioActual negocio,
+            ClienteRepository clientes, ReglasNegocioService reglasNegocio) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.servicios = servicios;
@@ -67,11 +80,15 @@ public class DatosDemoService {
         this.avisos = avisos;
         this.encoder = encoder;
         this.clock = clock;
+        this.membresias = membresias;
+        this.negocio = negocio;
+        this.clientes = clientes;
+        this.reglasNegocio = reglasNegocio;
     }
 
     /**
      * Importa BT-100…BT-104 y K1 una vez; omite si ya existe el primer cliente demo.
-     * Usa el bloqueo global de altas y luego clientes ① y barberos ② antes de disponibilidad.
+     * Usa el bloqueo de altas del negocio y luego clientes ① y barberos ② antes de disponibilidad.
      * Las fechas originales se conservan incluso históricas: son datos iniciales, no reservas nuevas.
      * @param password contraseña externa válida según RN-25 para todas las cuentas demo
      * @throws IllegalStateException si la clave es inválida, falta cupo o el catálogo existente difiere
@@ -79,12 +96,12 @@ public class DatosDemoService {
      */
     @Transactional
     public void cargar(String password) {
-        barberos.bloquearLimiteActivos();
+        barberos.bloquearLimiteActivos(negocio.negocioActual().orElseThrow());
         if (usuarios.findByCorreo("cliente@ejemplo.test").isPresent()) return;
         if (!new PoliticaPassword().validar(password).isEmpty()) {
             throw new IllegalStateException("BT_DEMO_PASSWORD debe cumplir RN-25.");
         }
-        if (barberos.countByActivoTrue() + 2 > 10) {
+        if (barberos.countByActivoTrue(negocio.negocioActual().orElseThrow()) + 2 > reglasNegocio.limiteBarberosActivos()) {
             throw new IllegalStateException("La demo necesita cupo para dos barberos activos.");
         }
         String hash = encoder.encode(password);
@@ -93,13 +110,17 @@ public class DatosDemoService {
         Usuario luis = usuario("Luis", "luis", Rol.CLIENTE, hash);
         Usuario carlos = usuario("Carlos", "carlos", Rol.BARBERO, hash);
         Usuario miguel = usuario("Miguel", "miguel", Rol.BARBERO, hash);
-        Usuario admin = usuarios.findAll().stream().filter(u -> u.getRol() == Rol.ADMIN && u.isActivo())
+        Usuario admin = usuarios.findAll().stream().filter(u -> u.isActivo()
+                && membresias.findByNegocioIdAndUsuarioId(negocio.negocioActual().orElseThrow(), u.getId())
+                        .filter(Membresia::isActiva).map(m -> m.getRol() == RolNegocio.PROPIETARIO).orElse(false))
                 .findFirst().orElseGet(() -> usuario("Administrador de demostración", "admin-demo", Rol.ADMIN, hash));
         Barbero b1 = barberos.saveAndFlush(new Barbero(carlos, "Corte y barba", clock.instant()));
         Barbero b2 = barberos.saveAndFlush(new Barbero(miguel, "Corte y barba", clock.instant()));
         Servicio corte = catalogo("Corte clásico", "Corte y acabado", (short) 30, "25.00");
         Servicio barba = catalogo("Barba", "Perfilado de barba", (short) 20, "20.00");
-        for (Usuario u : List.of(cliente, ana, luis)) usuarios.bloquearPorId(u.getId()).orElseThrow();
+        for (Usuario u : List.of(cliente, ana, luis)) {
+            clientes.bloquearPorId(clientes.buscarIdPorUsuario(u.getId()).orElseThrow()).orElseThrow();
+        }
         barberos.bloquearPorIds(List.of(b1.getId(), b2.getId()));
         for (Barbero b : List.of(b1, b2)) {
             for (short dia = 1; dia <= 6; dia++) {
@@ -118,13 +139,17 @@ public class DatosDemoService {
 
     private Usuario usuario(String nombre, String correo, Rol rol, String hash) {
         Instant ahora = clock.instant();
-        return usuarios.saveAndFlush(new Usuario(nombre, correo + "@ejemplo.test",
+        Usuario usuario = usuarios.saveAndFlush(new Usuario(nombre, correo + "@ejemplo.test",
                 rol == Rol.CLIENTE ? "999000000" : null, hash, rol,
                 rol == Rol.CLIENTE ? ahora : null, ahora));
+        if (rol != Rol.CLIENTE) membresias.save(new Membresia(negocio.negocioActual().orElseThrow(), usuario.getId(),
+                rol == Rol.ADMIN ? RolNegocio.PROPIETARIO : RolNegocio.BARBERO, ahora));
+        else clientes.saveAndFlush(new Cliente(usuario, ahora));
+        return usuario;
     }
 
     private Servicio catalogo(String nombre, String descripcion, short duracion, String precio) {
-        Servicio existente = servicios.buscarPorNombre(nombre).orElse(null);
+        Servicio existente = servicios.buscarPorNombre(negocio.negocioActual().orElseThrow(), nombre).orElse(null);
         if (existente == null) {
             return servicios.saveAndFlush(new Servicio(nombre, descripcion, duracion,
                     new BigDecimal(precio), clock.instant()));
@@ -139,7 +164,7 @@ public class DatosDemoService {
 
     private void importar(Usuario cliente, Barbero barbero, Servicio servicio, String fecha, String hora,
             EstadoReserva estado, String referencia) {
-        Reserva reserva = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio,
+        Reserva reserva = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio,
                 instante(fecha, hora), estado, cliente, clock.instant()));
         auditoria.registrarCambio(reserva, cliente, AccionAuditoria.CREAR, null, null,
                 Map.of("inicio", TiempoNegocio.aLima(reserva.getInicio()).toString(),

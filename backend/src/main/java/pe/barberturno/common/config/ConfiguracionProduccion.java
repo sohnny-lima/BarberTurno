@@ -32,7 +32,7 @@ public class ConfiguracionProduccion {
             "BT_ADMIN_CORREO", "BT_ADMIN_PASSWORD", "BT_ADMIN_NOMBRE", "BT_COOKIE_SECURE");
 
     /**
-     * Valida la configuración antes de abrir conexiones a la base de datos.
+     * Valida la configuración antes de abrir conexiones y prohíbe perfiles locales, incluido twilio.
      * @param entorno configuración externa del proceso
      * @return comprobación previa a la creación de los beans
      * @throws IllegalStateException si faltan variables o la configuración es insegura
@@ -42,6 +42,9 @@ public class ConfiguracionProduccion {
         return fabrica -> {
             if (entorno.containsProperty("barberturno.reloj-fijo")) {
                 throw new IllegalStateException("barberturno.reloj-fijo no está permitido en prod.");
+            }
+            if (Arrays.asList(entorno.getActiveProfiles()).contains("twilio")) {
+                throw new IllegalStateException("El perfil prod no puede combinarse con twilio.");
             }
             if (Arrays.stream(entorno.getActiveProfiles()).anyMatch(perfil ->
                     List.of("dev", "test", "demo").contains(perfil))) {

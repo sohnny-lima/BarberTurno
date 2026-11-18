@@ -50,7 +50,7 @@
         El descanso es el hueco entre dos intervalos. Un día sin intervalos es un día libre.
       </p>
       <form [formGroup]="editor.formulario" (ngSubmit)="guardarSemana()">
-        <fieldset [disabled]="ocupado()" aria-describedby="ayuda-descanso">
+        <fieldset [disabled]="ocupado() || soloLectura()" aria-describedby="ayuda-descanso">
           <legend class="sr-only">Intervalos de la semana en Lima</legend>
           <button type="button" mat-stroked-button class="copiar" (click)="editor.copiarLunes()">
             Copiar el lunes a martes–sábado
@@ -81,7 +81,12 @@
             @for (campo of ['desde', 'hasta']; track campo) {
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>{{ campo === 'desde' ? 'Desde' : 'Hasta' }}</mat-label>
-                <input matInput type="date" [formControlName]="campo" />
+                <input
+                  matInput
+                  type="date"
+                  [formControlName]="campo"
+                  [attr.enterkeyhint]="campo === 'desde' ? 'next' : 'done'"
+                />
                 @if (rango.get(campo)!.invalid && rango.get(campo)!.touched) {
                   <mat-error>{{ errorCampo(rango.get(campo)!) }}</mat-error>
                 }
@@ -90,12 +95,16 @@
             <button mat-button type="submit">Consultar bloqueos</button>
           </fieldset>
         </form>
-        <app-lista-bloqueos [bloqueos]="bloqueos()" (eliminar)="eliminar($event)" />
+        <app-lista-bloqueos
+          [bloqueos]="bloqueos()"
+          [soloLectura]="soloLectura()"
+          (eliminar)="eliminar($event)"
+        />
       </section>
       <section class="tarjeta" aria-labelledby="titulo-alta">
         <h2 id="titulo-alta">Nuevo bloqueo</h2>
         <form #altaForm="ngForm" [formGroup]="alta" (ngSubmit)="crearBloqueo(altaForm)">
-          <fieldset [disabled]="ocupado()">
+          <fieldset [disabled]="ocupado() || soloLectura()">
             <legend class="sr-only">Fecha, intervalo y motivo del bloqueo en Lima</legend>
             <div class="campos">
               @for (campo of ['fecha', 'horaInicio', 'horaFin', 'motivo']; track campo) {
@@ -113,6 +122,7 @@
                     matInput
                     [type]="campo === 'fecha' ? 'date' : campo === 'motivo' ? 'text' : 'time'"
                     [formControlName]="campo"
+                    [attr.enterkeyhint]="campo === 'motivo' ? 'done' : 'next'"
                   />
                   @if (alta.get(campo)!.invalid && alta.get(campo)!.touched) {
                     <mat-error>{{ errorCampo(alta.get(campo)!) }}</mat-error>

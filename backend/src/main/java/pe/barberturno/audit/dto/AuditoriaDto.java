@@ -10,7 +10,7 @@ import pe.barberturno.reservations.EstadoReserva;
 /**
  * Cambio histórico RF-17 sin identidades internas del actor ni datos de sesión.
  * @param accion operación que produjo el cambio
- * @param actorNombre nombre público del usuario que ejecutó la operación
+ * @param actorNombre nombre público de la cuenta o ficha que ejecutó la operación
  * @param creadoEn fecha del cambio con desfase de Lima
  * @param estadoAnterior estado previo, nulo al crear
  * @param estadoNuevo estado resultante
@@ -30,7 +30,9 @@ public record AuditoriaDto(AccionAuditoria accion, String actorNombre, OffsetDat
      * @return datos del contrato RF-17 con fecha de Lima
      */
     public static AuditoriaDto desde(AuditoriaReserva auditoria) {
-        return new AuditoriaDto(auditoria.getAccion(), auditoria.getActor().getNombre(),
+        String actorNombre = auditoria.getActor() == null
+                ? auditoria.getActorCliente().getNombre() : auditoria.getActor().getNombre();
+        return new AuditoriaDto(auditoria.getAccion(), actorNombre,
                 TiempoNegocio.aLima(auditoria.getCreadoEn()), auditoria.getEstadoAnterior(),
                 auditoria.getEstadoNuevo(), auditoria.getDatosAnteriores(), auditoria.getDatosNuevos(),
                 auditoria.getMotivo(), auditoria.isExcepcional());

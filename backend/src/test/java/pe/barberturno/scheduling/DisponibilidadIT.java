@@ -1,5 +1,7 @@
 package pe.barberturno.scheduling;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -11,7 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -27,6 +29,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false",
@@ -34,10 +37,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class DisponibilidadIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final LocalDate FECHA = LocalDate.of(2026, 10, 1);
     private static final String PASSWORD = "ClaveDisponible123";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @Autowired BarberoRepository barberos;
     @Autowired JornadaRepository jornadas;
@@ -57,7 +62,7 @@ class DisponibilidadIT {
     @BeforeEach void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         carlos = datos.barbero("carlos");
         cliente = datos.cliente("cliente");
         servicio = datos.servicio();
@@ -76,7 +81,7 @@ class DisponibilidadIT {
     @Test void corrida_publicaSinSesion_intervalosCompletosContiguosYDesfaseLima() throws Exception {
         assertThat(bt101.getId()).isEqualTo(101L);
         assertThat(jdbc.queryForObject("select hora_inicio::text from jornada order by id limit 1", String.class)).isEqualTo("09:00:00");
-        assertThat(jornadas.listarPorBarbero(carlos.getId()).getFirst().getHoraInicio()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(jdbc.enTransaccion(() -> jornadas.listarPorBarbero(carlos.getId()).getFirst().getHoraInicio())).isEqualTo(LocalTime.of(9, 0));
         var antes = jdbc.queryForList("select * from reserva order by id");
         var resultado = consultar(peticion(FECHA));
         assertThat(resultado.fecha()).isEqualTo(FECHA);
@@ -157,7 +162,7 @@ class DisponibilidadIT {
 
     @ParameterizedTest @ValueSource(strings = {"servicioId", "barberoId"})
     void consulta_recursoInexistente_404(String parametro) throws Exception {
-        var peticion = get("/api/disponibilidad").param("servicioId", parametro.equals("servicioId") ? "999999" : servicio.getId().toString())
+        var peticion = get(negocio("/api/disponibilidad")).param("servicioId", parametro.equals("servicioId") ? "999999" : servicio.getId().toString())
                 .param("barberoId", parametro.equals("barberoId") ? "999999" : carlos.getId().toString())
                 .param("fecha", FECHA.toString());
         mvc.perform(peticion).andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));
@@ -181,17 +186,19 @@ class DisponibilidadIT {
         semana(inactivo, 4, "09:00", "18:00");
         inactivo.desactivar(reloj.instant()); barberos.saveAndFlush(inactivo);
         SqlPruebas.limpiar();
-        var resultado = consultar(get("/api/disponibilidad").param("servicioId", servicio.getId().toString()).param("fecha", FECHA.toString()));
+        var resultado = consultar(get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString()).param("fecha", FECHA.toString()));
         assertThat(resultado.franjas()).filteredOn(f -> f.inicio().toLocalTime().equals(LocalTime.of(9, 30)))
                 .singleElement().satisfies(f -> assertThat(f.barberoIds()).containsExactly(carlos.getId(), miguel.getId()));
         assertThat(resultado.franjas()).filteredOn(f -> f.inicio().toLocalTime().equals(LocalTime.of(10, 0)))
                 .singleElement().satisfies(f -> assertThat(f.barberoIds()).containsExactly(miguel.getId()));
         assertThat(resultado.franjas()).noneMatch(f -> f.barberoIds().contains(inactivo.getId()));
-        var sql = SqlPruebas.sentencias();
+        assertThat(SqlPruebas.sentencias().stream().filter(s -> s.startsWith("select id from negocio where slug="))).hasSize(1);
+        var sql = SqlPruebas.sentencias().stream().filter(s -> !s.startsWith("select id from negocio where slug=")).toList();
         for (String tabla : List.of("servicio", "barbero", "jornada", "bloqueo", "reserva")) {
             assertThat(sql.stream().filter(s -> s.contains(" from " + tabla + " ")).count()).as(tabla).isEqualTo(1);
         }
-        assertThat(sql).hasSize(5).noneMatch(s -> s.contains("for no key update") || s.startsWith("insert") || s.startsWith("update"));
+        assertThat(sql.stream().filter(s -> s.contains("from negocio ")).count()).isEqualTo(1);
+        assertThat(sql).hasSize(6).noneMatch(s -> s.contains("for no key update") || s.startsWith("insert") || s.startsWith("update"));
     }
 
     @Test void consulta_sinJornadaOSinPerfiles_disponibilidadVacia() throws Exception {
@@ -203,7 +210,7 @@ class DisponibilidadIT {
     @ParameterizedTest @EnumSource(value = Rol.class, names = {"CLIENTE", "ADMIN"})
     void exclusion_propietarioOAdmin_liberaFranjaYCoincideValidacion(Rol rol) throws Exception {
         Usuario actor = rol == Rol.CLIENTE ? cliente : datos.cliente("admin");
-        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol.name(), passwords.encode(PASSWORD), actor.getId());
+        prepararRol(actor, rol.name());
         var resultado = consultar(peticion(FECHA).param("excluirReservaId", bt101.getId().toString()).cookie(login(actor)));
         assertThat(horas(resultado)).contains("09:40", "09:50", "10:00", "10:10", "10:20");
         for (var f : resultado.franjas()) {
@@ -219,7 +226,7 @@ class DisponibilidadIT {
         if (!caso.equals("anonimo")) {
             var actor = datos.cliente("actor");
             String rol = caso.equals("barbero") ? "BARBERO" : caso.equals("adminInexistente") ? "ADMIN" : "CLIENTE";
-            jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol, passwords.encode(PASSWORD), actor.getId());
+            prepararRol(actor, rol);
             peticion.cookie(login(actor));
         }
         mvc.perform(peticion).andExpect(status().isNotFound())
@@ -234,7 +241,7 @@ class DisponibilidadIT {
         "excluirReservaId=", "excluirReservaId=abc", "excluirReservaId=0", "excluirReservaId=-1"})
     void parametros_malFormados_400Validacion(String caso) throws Exception {
         String[] partes = caso.split("=", -1);
-        var peticion = get("/api/disponibilidad");
+        var peticion = get(negocio("/api/disponibilidad"));
         peticion.param("servicioId", partes[0].equals("servicioId") ? partes[1] : servicio.getId().toString());
         peticion.param("fecha", partes[0].equals("fecha") ? partes[1] : FECHA.toString());
         if (!partes[0].equals("servicioId") && !partes[0].equals("fecha")) peticion.param(partes[0], partes[1]);
@@ -243,7 +250,7 @@ class DisponibilidadIT {
 
     @ParameterizedTest @ValueSource(strings = {"servicioId", "fecha"})
     void parametros_obligatoriosAusentes_400Validacion(String ausente) throws Exception {
-        var p = get("/api/disponibilidad");
+        var p = get(negocio("/api/disponibilidad"));
         if (!ausente.equals("servicioId")) p.param("servicioId", servicio.getId().toString());
         if (!ausente.equals("fecha")) p.param("fecha", FECHA.toString());
         mvc.perform(p).andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
@@ -319,18 +326,18 @@ class DisponibilidadIT {
                 semana.add(new Jornada(perfil, (short) dia, LocalTime.of(14, 0), LocalTime.of(18, 0)));
             }
             for (int dia = 0; dia < 30; dia++) {
-                citas.add(new Reserva(propietario, perfil, servicio, FECHA.plusDays(dia).atTime(10, 0)
+                citas.add(new Reserva(clientes.findByUsuarioId(propietario.getId()).orElseThrow(), perfil, servicio, FECHA.plusDays(dia).atTime(10, 0)
                         .atZone(TiempoNegocio.ZONA).toInstant(), EstadoReserva.CONFIRMADA, propietario, reloj.instant()));
             }
         }
         jornadas.saveAllAndFlush(semana);
         reservas.saveAllAndFlush(citas);
         assertThat(reservas.count()).isEqualTo(300);
-        for (int n = 0; n < 5; n++) consultar(get("/api/disponibilidad").param("servicioId", servicio.getId().toString()).param("fecha", FECHA.toString()));
+        for (int n = 0; n < 5; n++) consultar(get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString()).param("fecha", FECHA.toString()));
         List<Double> tiempos = new ArrayList<>();
         for (int n = 0; n < 50; n++) {
             long inicio = System.nanoTime();
-            var r = consultar(get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
+            var r = consultar(get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString())
                     .param("fecha", FECHA.plusDays(n % 27).toString()));
             tiempos.add((System.nanoTime() - inicio) / 1_000_000.0);
             assertThat(r.franjas()).isNotEmpty().allSatisfy(f -> assertThat(f.barberoIds()).hasSize(10));
@@ -392,7 +399,7 @@ class DisponibilidadIT {
         for (var f : resultado.franjas()) {
             assertThat(disponibilidad.validarFranja(carlos.getId(), f.inicio().toInstant(),
                     f.fin().toInstant(), bt101.getId())).as(f.inicio().toString()).isEmpty();
-            var respuesta = mvc.perform(post("/api/reservas/{id}/reprogramacion", bt101.getId())
+            var respuesta = mvc.perform(post(negocio("/api/reservas/{id}/reprogramacion"), bt101.getId())
                     .cookie(sesion, csrf).header("X-XSRF-TOKEN", csrf.getValue())
                     .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
                             Map.of("inicio", f.inicio(), "barberoId", carlos.getId(), "version", version))))
@@ -407,7 +414,7 @@ class DisponibilidadIT {
         var antes = jdbc.queryForList("select * from reserva where id = ?", bt101.getId());
         assertThat(disponibilidad.validarFranja(carlos.getId(), instante(FECHA, "16:00"),
                 instante(FECHA, "16:30"), bt101.getId())).contains(ErrorCodigo.FRANJA_NO_DISPONIBLE);
-        mvc.perform(post("/api/reservas/{id}/reprogramacion", bt101.getId())
+        mvc.perform(post(negocio("/api/reservas/{id}/reprogramacion"), bt101.getId())
                 .cookie(sesion, csrf).header("X-XSRF-TOKEN", csrf.getValue())
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
                         Map.of("inicio", TiempoNegocio.aLima(instante(FECHA, "16:00")), "version", version))))
@@ -420,7 +427,7 @@ class DisponibilidadIT {
         var sesion = sesionExclusion(rol);
         var otro = servicios.saveAndFlush(new Servicio("Otro ficticio", "Servicio distinto", (short) 30,
                 servicio.getPrecio(), reloj.instant()));
-        mvc.perform(get("/api/disponibilidad").param("servicioId", otro.getId().toString())
+        mvc.perform(get(negocio("/api/disponibilidad")).param("servicioId", otro.getId().toString())
                 .param("barberoId", carlos.getId().toString())
                 .param("fecha", (fueraHorizonte ? FECHA.plusDays(60) : FECHA).toString())
                 .param("excluirReservaId", bt101.getId().toString()).cookie(sesion))
@@ -433,7 +440,7 @@ class DisponibilidadIT {
         jdbc.update("update usuario set password_hash = ? where id = ?", passwords.encode(PASSWORD), actor.getId());
         var sesion = login(actor);
         SqlPruebas.limpiar();
-        mvc.perform(get("/api/disponibilidad").param("servicioId", "999999")
+        mvc.perform(get(negocio("/api/disponibilidad")).param("servicioId", "999999")
                 .param("fecha", FECHA.plusDays(60).toString()).param("barberoId", carlos.getId().toString())
                 .param("excluirReservaId", bt101.getId().toString()).cookie(sesion))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"))
@@ -475,18 +482,18 @@ class DisponibilidadIT {
 
     private Cookie sesionExclusion(Rol rol) throws Exception {
         Usuario actor = rol == Rol.CLIENTE ? cliente : datos.cliente("admin-referencia");
-        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol.name(), passwords.encode(PASSWORD), actor.getId());
+        prepararRol(actor, rol.name());
         return login(actor);
     }
 
     private MockHttpServletRequestBuilder consultaModo(boolean especifico, LocalDate fecha) {
-        var consulta = get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
+        var consulta = get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString())
                 .param("fecha", fecha.toString());
         return especifico ? consulta.param("barberoId", carlos.getId().toString()) : consulta;
     }
 
     private MockHttpServletRequestBuilder peticion(LocalDate fecha) {
-        return get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
+        return get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString())
                 .param("fecha", fecha.toString()).param("barberoId", carlos.getId().toString());
     }
     private DisponibilidadDto consultar(MockHttpServletRequestBuilder peticion) throws Exception {
@@ -505,7 +512,7 @@ class DisponibilidadIT {
                 LocalTime.parse(horas[i]), LocalTime.parse(horas[i + 1])));
     }
     private Reserva reservar(Barbero perfil, Usuario propietario, LocalDate fecha, String hora, EstadoReserva estado) {
-        return reservas.saveAndFlush(new Reserva(propietario, perfil, servicio, instante(fecha, hora),
+        return reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(propietario.getId()).orElseThrow(), perfil, servicio, instante(fecha, hora),
                 estado, propietario, reloj.instant()));
     }
     private Cookie login(Usuario actor) throws Exception {
@@ -515,4 +522,8 @@ class DisponibilidadIT {
                         Map.of("correo", actor.getCorreo(), "password", PASSWORD))))
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie("BT_SESION");
     }
-}
+    private void prepararRol(Usuario actor, String rol) {
+        jdbc.update("update usuario set rol = ?, password_hash = ? where id = ?", rol, passwords.encode(PASSWORD), actor.getId());
+        if (!rol.equals("CLIENTE")) membresias.save(new pe.barberturno.platform.Membresia(1L, actor.getId(),
+                rol.equals("ADMIN") ? pe.barberturno.platform.RolNegocio.PROPIETARIO : pe.barberturno.platform.RolNegocio.BARBERO, reloj.instant()));
+    }}

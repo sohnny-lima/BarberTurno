@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -24,6 +26,8 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.support.*;
+import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.scheduling.Jornada;
 import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -44,22 +48,22 @@ class TransicionesIT extends ReservaPruebaBase {
     @Autowired PlatformTransactionManager transacciones;
 
     private Usuario admin() {
-        return usuarios.saveAndFlush(new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
     }
 
     // Fixture de estados iniciales: reutiliza el contexto sin cambiar la confirmación del producto.
     private ReservaDto reserva(EstadoReserva estado, String hora) throws Exception {
-        var entidad = reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, instante(hora),
+        var entidad = reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante(hora),
                 estado, cliente, reloj.instant()));
-        return json.readValue(mvc.perform(get("/api/reservas/{id}", entidad.getId()).cookie(sesion(barbero.getUsuario())))
+        return json.readValue(mvc.perform(get(negocio("/api/reservas/{id}"), entidad.getId()).cookie(sesion(barbero.getUsuario())))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), ReservaDto.class);
     }
 
     private void hasta(String hora) { reloj.adelantar(Duration.between(reloj.instant(), instante(hora))); }
 
     private MockHttpServletRequestBuilder peticion(long id, EstadoReserva estado, Integer version) {
-        return post("/api/reservas/{id}/transiciones", id).contentType("application/json")
+        return post(negocio("/api/reservas/{id}/transiciones"), id).contentType("application/json")
                 .content(json.writeValueAsString(new TransicionarReservaDto(estado, version)));
     }
 
@@ -146,7 +150,7 @@ class TransicionesIT extends ReservaPruebaBase {
         var dto = reserva(EstadoReserva.CONFIRMADA, "10:00");
         var actor = esAdmin ? admin() : barbero.getUsuario();
         hasta(hora);
-        var visible = json.readTree(mvc.perform(get("/api/reservas/{id}", dto.id()).cookie(sesion(actor)))
+        var visible = json.readTree(mvc.perform(get(negocio("/api/reservas/{id}"), dto.id()).cookie(sesion(actor)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(visible.get("permisos").get("transiciones").values().stream()
                 .anyMatch(v -> v.asString().equals(destino.name()))).isEqualTo(permitida);
@@ -233,15 +237,20 @@ class TransicionesIT extends ReservaPruebaBase {
     @ParameterizedTest @ValueSource(strings = {"{}", "{\"estado\":\"DESCONOCIDO\",\"version\":0}", "{\"estado\":\"CONFIRMADA\"}", "{\"estado\":\"CONFIRMADA\",\"version\":\"abc\"}", "{"})
     void cuerpoInvalido_400(String cuerpo) throws Exception {
         var dto = reserva(EstadoReserva.PENDIENTE, "10:00");
-        mvc.perform(conCsrf(post("/api/reservas/{id}/transiciones", dto.id()).contentType("application/json")
+        mvc.perform(conCsrf(post(negocio("/api/reservas/{id}/transiciones"), dto.id()).contentType("application/json")
                 .content(cuerpo), sesion(barbero.getUsuario()))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"));
         assertThat(cantidad("auditoria_reserva")).isZero();
     }
 
     @Test void adminConPerfilAsignado_noRecibeAvisoPropio() throws Exception {
-        var dto = reserva(EstadoReserva.PENDIENTE, "10:00"); var admin = admin();
-        jdbc.update("update barbero set usuario_id=? where id=?", admin.getId(), barbero.getId());
+        var admin = admin();
+        // El perfil nace con su cuenta definitiva; nunca se reasigna una agenda (V2-DA-39).
+        barbero = barberos.saveAndFlush(new Barbero(admin, "Cortes", reloj.instant()));
+        for (short dia = 1; dia <= 7; dia++) {
+            jornadas.saveAndFlush(new Jornada(barbero, dia, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        var dto = reserva(EstadoReserva.PENDIENTE, "10:00");
         leer(transicionar(dto, EstadoReserva.CONFIRMADA, admin));
         assertThat(jdbc.queryForList("select usuario_id from notificacion", Long.class)).containsExactly(cliente.getId());
     }

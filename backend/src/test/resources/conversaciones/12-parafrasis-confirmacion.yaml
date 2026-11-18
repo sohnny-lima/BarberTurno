@@ -1,0 +1,44 @@
+nombre: "12-parafrasis-confirmacion"
+negocio: "A"
+reloj: "2026-11-04T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Hola, ¿Carlos tiene espacio para un corte hoy?"
+    modelo:
+      - texto: "Carlos ya te tiene un hueco"
+        parada: "end_turn"
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["Carlos ya te tiene un hueco", "tiene un hueco", "hueco"]
+      reservasCreadas: 0
+      operacionVigente: false
+      estadoTurno: "HECHO"
+      textoDescartado: "Carlos ya te tiene un hueco"
+  - cliente:
+      texto: "Búscame horarios con Carlos para hoy por la tarde"
+    modelo:
+      - llamadas:
+          - herramienta: "buscar_disponibilidad"
+            argumentos:
+              servicio: "s1"
+              profesional: "p1"
+              desde: "2026-11-04"
+              hasta: "2026-11-04"
+              horaDesde: "14:00"
+              horaHasta: "18:00"
+              cita: null
+      - texto: "Carlos ya te tiene un hueco"
+        parada: "end_turn"
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Estos son los horarios disponibles. Elige uno:"]
+          noContiene: ["Carlos ya te tiene un hueco", "tiene un hueco", "hueco"]
+      reservasCreadas: 0
+      operacionVigente: false
+      estadoTurno: "HECHO"
+      textoDescartado: "Carlos ya te tiene un hueco"

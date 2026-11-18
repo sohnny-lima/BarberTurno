@@ -1,0 +1,22 @@
+nombre: "09-derivacion-por-herramienta"
+negocio: "A"
+reloj: "2026-11-04T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Tengo un reclamo grave sobre mi corte anterior y quiero hablar con el encargado."
+    modelo:
+      - texto: "Te estoy comunicando de inmediato con nuestro equipo."
+        llamadas:
+          - herramienta: "derivar_a_persona"
+            argumentos:
+              motivo: "QUEJA"
+    espera:
+      mensajes:
+        - tipo: "TEXTO"
+          contiene: ["Te paso con el equipo", "Te responderán por aquí"]
+          noContiene: ["Te estoy comunicando"]
+      modoConversacion: "HUMANO"
+      estadoTurno: "HECHO"
+      textoDescartado: "Te estoy comunicando de inmediato con nuestro equipo."

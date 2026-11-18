@@ -2,7 +2,9 @@
   titulo="Barberos"
   subtitulo="Administre profesionales, especialidades y acceso. El historial se conserva al desactivar."
 >
-  <button mat-flat-button [disabled]="cargando()" (click)="editar()">Nuevo barbero</button>
+  <button mat-flat-button [disabled]="cargando() || soloLectura()" (click)="editar()">
+    Nuevo barbero
+  </button>
 </app-cabecera-pagina>
 <div class="herramientas">
   <mat-slide-toggle
@@ -24,7 +26,7 @@
   />
 } @else if (!filas().length) {
   <app-estado-contenido tipo="vacio" texto="No hay barberos para mostrar.">
-    <button mat-flat-button (click)="editar()">Nuevo barbero</button>
+    <button mat-flat-button [disabled]="soloLectura()" (click)="editar()">Nuevo barbero</button>
   </app-estado-contenido>
 } @else {
   <app-lista-adaptable nombre="Barberos" [tabla]="tabla" [tarjetas]="tarjetas" />
@@ -91,7 +93,7 @@
 <ng-template #accionesFila let-fila>
   <button
     mat-stroked-button
-    [disabled]="cargando()"
+    [disabled]="cargando() || soloLectura()"
     [attr.aria-label]="'Editar barbero ' + fila.nombre"
     (click)="editar(fila)"
   >
@@ -100,7 +102,7 @@
   <button
     mat-stroked-button
     [class.riesgo]="fila.activo"
-    [disabled]="cargando()"
+    [disabled]="cargando() || soloLectura()"
     [attr.aria-label]="(fila.activo ? 'Desactivar ' : 'Activar ') + fila.nombre"
     (click)="cambiarEstado(fila)"
   >

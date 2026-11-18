@@ -1,0 +1,82 @@
+# BORRADOR pendiente de revisión del responsable (V2-13). Datos ficticios.
+categoria: "peticion-persona"
+conversaciones:
+  - id: "PER-01"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, quiero hablar con una persona de verdad por favor, no con un robot."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-02"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola chochera, comunícame con Carlos directamente que tengo que hacerle una consulta personal."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-03"
+    particion: "AJUSTE"
+    mensajes:
+      - "Quiero presentar un reclamo formal por un cobro indebido, pásame con el dueño."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "QUEJA"
+
+  - id: "PER-04"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas, ¿hay alguna persona que me pueda atender por WhatsApp?"
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-05"
+    particion: "AJUSTE"
+    mensajes:
+      - "Tengo una queja del corte que me hicieron ayer, quedó disparejo, pásenme con el administrador."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "QUEJA"
+
+  - id: "PER-06"
+    particion: "AJUSTE"
+    mensajes:
+      - "Hola amigo, pásame con alguien del local para coordinar un servicio especial para novios."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-07"
+    particion: "AJUSTE"
+    mensajes:
+      - "No entiendo tu sistema, quiero hablar con una persona ya mismo."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-08"
+    particion: "AJUSTE"
+    mensajes:
+      - "Buenas tardes, comunícame con atención al cliente por favor."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-09"
+    particion: "PRUEBA"
+    mensajes:
+      - "Hola maestro, quiero hablar con alguien del equipo de barberos."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"
+
+  - id: "PER-10"
+    particion: "PRUEBA"
+    mensajes:
+      - "Tengo un problema urgente con mi cita y necesito que una persona me responda."
+    esperado:
+      tipo: "DERIVACION"
+      motivoDerivacion: "PETICION"

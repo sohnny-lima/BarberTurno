@@ -1,0 +1,4 @@
+[ERROR] Tests run: 22, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 2.803 s <<< FAILURE! -- in pe.barberturno.conversation.OrquestadorConversacionTest
+[ERROR]   OrquestadorConversacionTest.confirmacionConNonceIncorrecto_respondeSoloTextoYConservaLaVigente:239 
+[ERROR]   OrquestadorConversacionTest.confirmacionSinFicha_respondeNoVigenteSinTocarOperaciones:226 
+[ERROR]   OrquestadorConversacionTest.repetirUnaEjecutadaConOtraVigente_anulaLaVigenteAlMostrarElMenu:254 

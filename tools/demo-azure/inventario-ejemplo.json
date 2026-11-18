@@ -1,0 +1,7 @@
+{
+  "outboundIpAddresses": "192.0.2.5,198.51.100.9,203.0.113.7,203.0.113.7",
+  "reglas": [
+    { "name": "v1-ejemplo", "startIpAddress": "192.0.2.5", "endIpAddress": "192.0.2.5" },
+    { "name": "rango-ejemplo", "startIpAddress": "198.51.100.0", "endIpAddress": "198.51.100.255" }
+  ]
+}

@@ -1,0 +1,5 @@
+[ERROR] pe.barberturno.common.tenancy.WebhookWhatsAppIT.exencionDeCsrf_soloEnElPostDelWebhook -- Time elapsed: 2.240 s <<< FAILURE!
+[ERROR] pe.barberturno.reservations.ConversacionOperacionesIT.web_adminConsultaReprogramaYCancelaUnaCitaSinCuenta_sinAvisoAlCliente -- Time elapsed: 0.642 s <<< FAILURE!
+[ERROR] Tests run: 2939, Failures: 2, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+[INFO] Total time:  39:28 min

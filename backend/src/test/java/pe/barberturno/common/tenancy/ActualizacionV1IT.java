@@ -1,0 +1,467 @@
+package pe.barberturno.common.tenancy;
+
+import java.sql.Connection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.postgresql.util.PSQLException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import static org.assertj.core.api.Assertions.*;
+
+class ActualizacionV1IT extends MigracionPruebaBase {
+    @Test void v116_aV117_conservaDatosYDesactivaIaInicialmente() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("116").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long conversacion;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "pre-v117");
+            jdbc.update("update cliente set wa_id='51900000117' where id=?", datos.ficha());
+            conversacion = jdbc.queryForObject("""
+                    insert into conversacion(wa_id,cliente_id,estado,ultima_entrada_en,creado_en,actualizado_en)
+                    values ('51900000117',?,'{"paso":"CITAS"}',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id
+                    """, Long.class, datos.ficha());
+            for (String tabla : List.of("negocio", "cliente", "conversacion", "reserva", "auditoria_reserva", "notificacion"))
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            ConversacionIAEsquemaPruebas.comprobar(jdbc);
+            assertThat(jdbc.queryForObject("select ia_habilitada from negocio where id=1", Boolean.class)).isFalse();
+            assertThat(jdbc.queryForObject("select revision from conversacion where id=?", Long.class, conversacion)).isZero();
+            jdbc.update("update conversacion set estado=estado where id=?", conversacion);
+            assertThat(jdbc.queryForObject("select revision from conversacion where id=?", Long.class, conversacion)).isEqualTo(1L);
+            aplicacion.commit();
+        }
+    }
+    @Test void v115_aV116_conDatos_conservaTodasLasColumnasAnteriores_yAnadeDestinosYDerivacion() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("115").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long conversacion;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "pre-v116");
+            jdbc.update("update cliente set wa_id='51900000116' where id=?", datos.ficha());
+            conversacion = jdbc.queryForObject("""
+                    insert into conversacion(wa_id,cliente_id,ultima_entrada_en,creado_en,actualizado_en)
+                    values ('51900000116',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id
+                    """, Long.class, datos.ficha());
+            jdbc.update("""
+                    insert into mensaje_whatsapp(conversacion_id,reserva_id,direccion,origen,tipo,contenido,estado,error_codigo,creado_en,actualizado_en)
+                    values (?,?,'SALIENTE','SISTEMA','TEXTO','{"texto":"conservado"}','FALLIDO','VENTANA_CERRADA',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    """, conversacion, datos.reserva());
+            jdbc.update("""
+                    insert into operacion_pendiente(conversacion_id,cliente_id,tipo,datos,nonce,expira_en,creado_en,actualizado_en)
+                    values (?,?,'CREAR','{}',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    """, conversacion, datos.ficha(), new byte[16]);
+            for (String tabla : List.of("cliente", "conversacion", "mensaje_whatsapp", "operacion_pendiente",
+                    "reserva", "auditoria_reserva", "notificacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            assertThat(jdbc.queryForObject("select modo from conversacion where id=?", String.class, conversacion)).isEqualTo("ASISTENTE");
+            assertThat(jdbc.queryForObject("select count(*) from mensaje_whatsapp where enviado_por is not null", Long.class)).isZero();
+            WhatsAppSalidaEsquemaPruebas.comprobar(jdbc);
+            aplicacion.commit();
+        }
+    }
+    @Test void v111_aV112_conservaDatos_yRestringeUpdateAColumnasPermitidas() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("111").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            DatosNegocioPrueba.crear(jdbc, "pre-v112");
+            assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'negocio','UPDATE')", Boolean.class)).isTrue();
+            for (String tabla : List.of("negocio", "usuario", "membresia", "cliente", "servicio", "barbero",
+                    "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "auditoria_plataforma", "invitacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            ConfiguracionNegocioEsquemaPruebas.comprobarPermisos(jdbc);
+            ConfiguracionNegocioEsquemaPruebas.rechazarColumnasReservadas(aplicacion);
+            assertThat(jdbc.update("update negocio set nombre='Nombre permitido', estado='SUSPENDIDO', actualizado_en=CURRENT_TIMESTAMP where id=1")).isEqualTo(1);
+            aplicacion.commit();
+        }
+    }
+    @Test void v110_aV111_conservaDatos_yAdmiteLosDosEventosDeInvitacionInicial() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("110").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long cuenta;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            cuenta = DatosNegocioPrueba.crear(jdbc, "pre-v111").admin();
+            jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,'CREAR_NEGOCIO',1,CURRENT_TIMESTAMP)", cuenta);
+            for (String tabla : List.of("negocio", "usuario", "membresia", "cliente", "servicio", "barbero",
+                    "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "auditoria_plataforma", "invitacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
+            for (String accion : List.of("REENVIAR_INVITACION_PROPIETARIO", "REVOCAR_INVITACION_PROPIETARIO")) {
+                assertThat(jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,?,1,CURRENT_TIMESTAMP)", cuenta, accion)).isEqualTo(1);
+            }
+            aplicacion.commit();
+        }
+    }
+    @Test void v109_aV110_conservaTodasLasFilas_yPermiteInvitarSinPrivilegiosAdministrativos() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("109").migrate();
+        var antes = new LinkedHashMap<String, Object>();
+        long cuenta;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            cuenta = DatosNegocioPrueba.crear(jdbc, "pre-v110").admin();
+            for (String tabla : List.of("negocio", "usuario", "membresia", "cliente", "servicio", "barbero",
+                    "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion", "auditoria_plataforma")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L); var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            assertThat(jdbc.queryForObject("select count(*) from invitacion", Long.class)).isZero();
+            InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
+            aplicacion.commit();
+        }
+    }
+    private static final List<String> TABLAS = List.of("usuario", "servicio", "barbero", "jornada", "bloqueo", "reserva", "auditoria_reserva", "notificacion");
+
+    @Test void v108_aV109_conservaNegociosCuentasYDatos_yPermiteAuditoriaComoAplicacion() throws Exception {
+        var completa = flyway(null);
+        completa.clean(); flyway("108").migrate();
+        Map<String, Object> antes = new LinkedHashMap<>();
+        long cuenta;
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L);
+            var jdbc = jdbc(aplicacion);
+            var datos = DatosNegocioPrueba.crear(jdbc, "v109"); cuenta = datos.admin();
+            for (String tabla : List.of("negocio", "usuario", "membresia", "servicio", "barbero", "cliente", "reserva", "auditoria_reserva", "notificacion")) {
+                antes.put(tabla, jdbc.queryForList("select * from " + tabla + " order by id"));
+            }
+            aplicacion.commit();
+        }
+        completa.migrate(); comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L);
+            var jdbc = jdbc(aplicacion);
+            comprobarConservados(jdbc, antes);
+            AuditoriaPlataformaEsquemaPruebas.comprobar(jdbc);
+            InvitacionEsquemaPruebas.comprobar(jdbc, cuenta);
+            assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma", Long.class)).isZero();
+            jdbc.update("insert into auditoria_plataforma(actor_id,accion,negocio_id,creado_en) values (?,'CREAR_NEGOCIO',1,CURRENT_TIMESTAMP)", cuenta);
+            assertThat(jdbc.queryForObject("select count(*) from auditoria_plataforma where actor_id=? and negocio_id=1", Long.class, cuenta)).isEqualTo(1);
+            aplicacion.commit();
+        }
+    }
+
+    @Test
+    void datosV1_conservaHuellasIdentidadesYExclusionesYAislaLasRelaciones() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        var ultimaV1 = ultimaV1(completa);
+        var v1 = flyway(ultimaV1.toString());
+        v1.migrate();
+        assertThat(v1.info().current().getVersion()).isEqualTo(ultimaV1);
+        assertThat(v1.info().pending()).isEmpty();
+        DatosNegocioPrueba a;
+        Map<String, String> huellas;
+        Map<String, Long> maximos = new LinkedHashMap<>();
+        try (var propietario = conexion(true)) {
+            var jdbc = jdbc(propietario);
+            // Antes de V100 el propietario representa a la aplicación v1 sin RLS.
+            a = DatosNegocioPrueba.crear(jdbc, "actualizacion");
+            var estados = List.of("PENDIENTE", "EN_ATENCION", "COMPLETADA", "NO_ASISTIO", "CANCELADA");
+            for (int i = 0; i < estados.size(); i++) {
+                // Cancelada solapada y las demás contiguas, sin modificar las EXCLUDE de v1.
+                DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), a.barbero(), a.servicio(), estados.get(i), i == 4 ? 0 : (i + 1) * 30);
+            }
+            long profesional = jdbc.queryForObject("""
+                    INSERT INTO usuario (nombre, correo, password_hash, rol, creado_en, actualizado_en)
+                    VALUES ('Barbero ficticio', 'barbero-v1@ejemplo.test', 'hash-ficticio', 'BARBERO',
+                        '2026-09-28T14:00Z', '2026-09-28T14:00Z') RETURNING id
+                    """, Long.class);
+            long segundoBarbero = jdbc.queryForObject("INSERT INTO barbero (usuario_id, creado_en, actualizado_en) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id", Long.class, profesional);
+            jdbc.update("INSERT INTO jornada (barbero_id, dia_semana, hora_inicio, hora_fin) VALUES (?, 1, '09:00', '13:00')", segundoBarbero);
+            jdbc.update("""
+                    INSERT INTO usuario (nombre, correo, telefono, password_hash, rol, privacidad_aceptada_en, creado_en, actualizado_en)
+                    VALUES ('Otra persona ficticia', 'cliente-dos-v1@ejemplo.test', '999000002', 'hash-ficticio',
+                        'CLIENTE', '2026-09-28T14:00Z', '2026-09-28T14:00Z', '2026-09-28T14:00Z')
+                    """);
+            jdbc.update("""
+                    INSERT INTO servicio (nombre, duracion_min, precio, creado_en, actualizado_en)
+                    VALUES ('Barba de v1', 20, 15, '2026-09-28T14:00Z', '2026-09-28T14:00Z')
+                    """);
+            jdbc.update("update usuario set activo=false where correo='cliente-dos-v1@ejemplo.test'");
+            huellas = huellas(jdbc);
+            for (String tabla : TABLAS) maximos.put(tabla, jdbc.queryForObject("select max(id) from " + tabla, Long.class));
+        }
+        flyway("102").migrate();
+        try (var aplicacion = conexion(false)) {
+            contexto(aplicacion, 1L);
+            // Reproduce la pérdida de ámbito del relleno original antes de la corrección aditiva.
+            assertThat(jdbc(aplicacion).queryForObject("select count(*) from usuario u join cliente c on c.usuario_id=u.id where u.correo='cliente-dos-v1@ejemplo.test' and c.activo", Integer.class)).isZero();
+            aplicacion.commit();
+        }
+        completa.migrate();
+        comprobarMigracionCompleta(completa);
+        long b;
+        // Excepción de plataforma de V2-DA-20: solo la fila negocio B, nunca sus datos de negocio.
+        try (var propietario = conexion(true); var consulta = propietario.createStatement(); var resultado = consulta.executeQuery("""
+                INSERT INTO negocio (slug, nombre, creado_en, actualizado_en)
+                VALUES ('negocio-b', 'Negocio B ficticio', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id
+                """)) {
+            resultado.next();
+            b = resultado.getLong(1);
+        }
+        DatosNegocioPrueba datosB;
+        try (var aplicacion = conexion(false)) {
+            var jdbc = jdbc(aplicacion);
+            contexto(aplicacion, 1L);
+            assertThat(huellas(jdbc)).isEqualTo(huellas);
+            assertThat(jdbc.queryForObject("select tolerancia_inicio_min from negocio where id=1", Integer.class)).isEqualTo(15);
+            assertThat(jdbc.queryForObject("select count(*) from barbero b join usuario u on u.id=b.usuario_id where b.nombre_visible is distinct from u.nombre or b.telefono_contacto is distinct from u.telefono", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from barbero", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForObject("select count(*) from cliente", Integer.class))
+                    .isEqualTo(jdbc.queryForObject("select count(*) from usuario where rol='CLIENTE'", Integer.class));
+            assertThat(jdbc.queryForObject("select count(*) from cliente c join usuario u on u.id=c.usuario_id where c.id<>u.id or c.nombre<>u.nombre or c.telefono is distinct from u.telefono or not c.activo or c.privacidad_aceptada_en is distinct from u.privacidad_aceptada_en or c.creado_en<>u.creado_en or c.actualizado_en<>u.actualizado_en", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from usuario u join cliente c on c.usuario_id=u.id where u.correo='cliente-dos-v1@ejemplo.test' and not u.activo and c.activo", Integer.class)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("select count(*) from reserva r join cliente c on c.id=r.cliente_id where c.id<>c.usuario_id", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select nextval(pg_get_serial_sequence('cliente', 'id'))", Long.class))
+                    .isGreaterThan(jdbc.queryForObject("select max(id) from cliente", Long.class));
+            assertThat(jdbc.queryForObject("select count(*) from membresia", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForObject("select count(*) from membresia m join usuario u on u.id=m.usuario_id where m.negocio_id=1 and m.estado='ACTIVA' and m.rol=case u.rol when 'ADMIN' then 'PROPIETARIO' else 'BARBERO' end and u.rol in ('ADMIN','BARBERO')", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForList("select distinct rol_plataforma from usuario", String.class)).containsExactly("NINGUNO");
+            IdentidadEsquemaPruebas.comprobar(jdbc, a.cliente());
+            MotivoRevocacionEsquemaPruebas.comprobar(jdbc, a.cliente());
+            VinculoActivoEsquemaPruebas.comprobar(jdbc, a.cliente());
+            IndicesNegocioEsquemaPruebas.comprobar(jdbc);
+            for (String tabla : EsquemaV2IT.TABLAS) {
+                assertThat(jdbc.queryForList("select distinct negocio_id from " + tabla, Long.class)).as(tabla).containsExactly(1L);
+            }
+            assertThat(jdbc.queryForList("select distinct estado from reserva", String.class)).containsExactlyInAnyOrder(
+                    "PENDIENTE", "CONFIRMADA", "EN_ATENCION", "COMPLETADA", "CANCELADA", "NO_ASISTIO");
+            assertThat(jdbc.queryForList("select distinct canal from reserva", String.class)).containsExactly("WEB");
+            assertThat(jdbc.queryForObject("select count(*) from reserva where creada_por is null", Integer.class)).isZero();
+            for (String tabla : TABLAS) {
+                assertThat(jdbc.queryForObject("select nextval(pg_get_serial_sequence(?, 'id'))", Long.class, tabla))
+                        .as("identidad de " + tabla).isGreaterThan(maximos.get(tabla));
+            }
+            aplicacion.commit();
+            for (String tabla : EsquemaV2IT.TABLAS) assertThat(jdbc.queryForObject("select count(*) from " + tabla, Integer.class)).as(tabla).isZero();
+            contexto(aplicacion, b);
+            datosB = DatosNegocioPrueba.crear(jdbc, "b");
+            jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Perfil local B', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a.admin());
+            assertThat(jdbc.queryForObject("select count(*) from barbero where usuario_id=?", Integer.class, a.admin())).isEqualTo(1);
+            aplicacion.commit();
+            contexto(aplicacion, 1L);
+            assertThat(huellas(jdbc).entrySet()).containsAll(huellas.entrySet().stream().filter(e -> !e.getKey().equals("usuario")).toList());
+            aplicacion.rollback();
+
+            rechazar(aplicacion, "23505", "barbero_usuario_uk", () -> jdbc.update("insert into barbero (usuario_id, nombre_visible, creado_en, actualizado_en) values (?, 'Duplicado A', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", a.admin()));
+            rechazar(aplicacion, "23P01", "reserva_sin_solape_barbero", () ->
+                    DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), a.barbero(), a.servicio(), "CONFIRMADA", 0));
+            rechazar(aplicacion, "23503", "reserva_barbero_fk", () ->
+                    DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), datosB.barbero(), a.servicio(), "CANCELADA", 0));
+            rechazar(aplicacion, "23503", "reserva_servicio_fk", () ->
+                    DatosNegocioPrueba.reservar(jdbc, a.cliente(), a.admin(), a.barbero(), datosB.servicio(), "CANCELADA", 0));
+            rechazar(aplicacion, "23503", "reserva_cliente_fk", () ->
+                    DatosNegocioPrueba.reservar(jdbc, datosB.ficha(), a.admin(), a.barbero(), a.servicio(), "CANCELADA", 0));
+            rechazar(aplicacion, "23505", "cliente_usuario_uk", () -> jdbc.update("""
+                    INSERT INTO cliente (usuario_id, nombre, creado_en, actualizado_en)
+                    VALUES (?, 'Ficha duplicada', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, a.cliente()));
+            rechazar(aplicacion, "23503", "jornada_barbero_fk", () -> jdbc.update("INSERT INTO jornada (barbero_id, dia_semana, hora_inicio, hora_fin) VALUES (?, 1, '09:00', '18:00')", datosB.barbero()));
+            rechazar(aplicacion, "23503", "bloqueo_barbero_fk", () -> jdbc.update("""
+                    INSERT INTO bloqueo (barbero_id, inicio, fin, motivo, creado_por, creado_en)
+                    VALUES (?, '2026-10-01T17:00-05:00', '2026-10-01T17:30-05:00', 'Prueba', ?, CURRENT_TIMESTAMP)
+                    """, datosB.barbero(), a.admin()));
+            rechazar(aplicacion, "23503", "auditoria_reserva_reserva_fk", () -> jdbc.update("""
+                    INSERT INTO auditoria_reserva (reserva_id, actor_id, accion, estado_nuevo, datos_nuevos, creado_en)
+                    VALUES (?, ?, 'CREAR', 'CONFIRMADA', '{}', CURRENT_TIMESTAMP)
+                    """, datosB.reserva(), a.admin()));
+            rechazar(aplicacion, "23503", "notificacion_reserva_fk", () -> jdbc.update("""
+                    INSERT INTO notificacion (usuario_id, reserva_id, tipo, mensaje, creado_en)
+                    VALUES (?, ?, 'CREAR', 'Prueba', CURRENT_TIMESTAMP)
+                    """, a.cliente(), datosB.reserva()));
+        }
+    }
+
+    @Test void reservaConCuentaNoCliente_laMigracionFallaSinCorregirEnSilencio() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        flyway(ultimaV1(completa).toString()).migrate();
+        try (var propietario = conexion(true)) {
+            var jdbc = jdbc(propietario);
+            var datos = DatosNegocioPrueba.crear(jdbc, "invalida");
+            jdbc.update("update reserva set cliente_id=? where id=?", datos.admin(), datos.reserva());
+        }
+        assertThatThrownBy(completa::migrate).hasStackTraceContaining("V102: hay reservas cuyo cliente no es una cuenta CLIENTE");
+    }
+
+    @Test void v106_rellenaFichasActivasEInactivasDeCadaNegocioSinEludirForce() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        flyway("105").migrate();
+        long b;
+        try (var propietario = conexion(true)) {
+            b = jdbc(propietario).queryForObject("insert into negocio(slug,nombre,creado_en,actualizado_en) values ('b','Ficticio B',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id", Long.class);
+        }
+        long[] cuentas = new long[2];
+        long[] ambitos = {1L, b};
+        try (var aplicacion = conexion(false)) {
+            for (int i = 0; i < ambitos.length; i++) {
+                contexto(aplicacion, ambitos[i]);
+                var datos = DatosNegocioPrueba.crear(jdbc(aplicacion), "pre-v106-" + i);
+                cuentas[i] = datos.cliente();
+                jdbc(aplicacion).update("update cliente set activo=? where id=?", i == 0, datos.ficha());
+                aplicacion.commit();
+            }
+        }
+        completa.migrate();
+        comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            for (int i = 0; i < ambitos.length; i++) {
+                contexto(aplicacion, ambitos[i]);
+                assertThat(jdbc(aplicacion).queryForObject("select activo from vinculo_cliente where negocio_id=? and usuario_id=?", Boolean.class, ambitos[i], cuentas[i])).isEqualTo(i == 0);
+                VinculoActivoEsquemaPruebas.comprobar(jdbc(aplicacion), cuentas[i]);
+                aplicacion.commit();
+            }
+        }
+    }
+
+    @Test void v108_rellenaLasBajasDePerfilDeV204SinCambiarCuentaNiMembresiasActivas() throws Exception {
+        var completa = flyway(null);
+        completa.clean();
+        flyway("107").migrate();
+        long b;
+        try (var propietario = conexion(true)) {
+            b = jdbc(propietario).queryForObject("insert into negocio(slug,nombre,creado_en,actualizado_en) values ('b','Ficticio B',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) returning id", Long.class);
+        }
+        long[] negocios = {1L, b};
+        long[] cuentas = new long[2];
+        var huellas = new java.util.ArrayList<Map<String, Object>>();
+        var membresias = new java.util.ArrayList<List<Map<String, Object>>>();
+        try (var aplicacion = conexion(false)) {
+            var jdbc = jdbc(aplicacion);
+            for (int i = 0; i < negocios.length; i++) {
+                contexto(aplicacion, negocios[i]);
+                var datos = DatosNegocioPrueba.crear(jdbc, "pre-v108-" + i);
+                cuentas[i] = datos.admin();
+                jdbc.update("insert into membresia(negocio_id,usuario_id,rol,creado_en,actualizado_en) values (?,?,'BARBERO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", negocios[i], cuentas[i]);
+                // Estado exacto de V2-04: baja del perfil y de su membresía; identidad intacta.
+                jdbc.update("update barbero set activo=false where id=?", datos.barbero());
+                jdbc.update("update membresia set estado='REVOCADA' where negocio_id=? and usuario_id=?", negocios[i], cuentas[i]);
+                jdbc.update("insert into membresia(negocio_id,usuario_id,rol,creado_en,actualizado_en) values (?,?,'PROPIETARIO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", negocios[i], datos.cliente());
+                huellas.add(jdbc.queryForMap("select * from usuario where id=?", cuentas[i]));
+                membresias.add(jdbc.queryForList("select * from membresia where negocio_id=? order by id", negocios[i]));
+                aplicacion.commit();
+            }
+        }
+        completa.migrate();
+        comprobarMigracionCompleta(completa);
+        try (var aplicacion = conexion(false)) {
+            var jdbc = jdbc(aplicacion);
+            for (int i = 0; i < negocios.length; i++) {
+                contexto(aplicacion, negocios[i]);
+                assertThat(jdbc.queryForMap("select * from usuario where id=?", cuentas[i])).isEqualTo(huellas.get(i));
+                assertThat(jdbc.queryForObject("select motivo_revocacion from membresia where negocio_id=? and usuario_id=?", String.class, negocios[i], cuentas[i])).isEqualTo("PERFIL_DESACTIVADO");
+                assertThat(jdbc.queryForObject("select count(*) from membresia where negocio_id=? and estado='ACTIVA' and motivo_revocacion is null", Integer.class, negocios[i])).isEqualTo(1);
+                assertThat(jdbc.queryForList("select id,negocio_id,usuario_id,rol,estado,creado_en,actualizado_en from membresia where negocio_id=? order by id", negocios[i])).isEqualTo(membresias.get(i));
+                assertThat(jdbc.queryForObject("select activo from barbero where usuario_id=?", Boolean.class, cuentas[i])).isFalse();
+                aplicacion.commit();
+            }
+        }
+    }
+
+    private static Map<String, String> huellas(JdbcTemplate jdbc) {
+        var resultado = new LinkedHashMap<String, String>();
+        for (String tabla : TABLAS) {
+            resultado.put(tabla, jdbc.queryForObject("select count(*)::text || ':' || md5(string_agg((to_jsonb(t) - 'negocio_id' - 'rol_plataforma' - 'nombre_visible' - 'telefono_contacto' - 'canal' - 'actor_cliente_id' - 'conversacion_id')::text, ',' order by id)) from " + tabla + " t", String.class));
+        }
+        return resultado;
+    }
+
+    private static void rechazar(Connection aplicacion, String estado, String restriccion, Runnable accion) throws Exception {
+        contexto(aplicacion, 1L);
+        try {
+            var error = catchThrowableOfType(DataAccessException.class, accion::run);
+            assertThat(error).isNotNull();
+            var causa = (PSQLException) error.getMostSpecificCause();
+            assertThat(causa.getSQLState()).isEqualTo(estado);
+            assertThat(causa.getServerErrorMessage().getConstraint()).isEqualTo(restriccion);
+        } finally {
+            aplicacion.rollback();
+        }
+    }
+
+    /** Columnas añadidas por migraciones posteriores a las versiones de partida; nacen nulas o con valor por defecto ('WEB' en reserva). */
+    static final java.util.Map<String, java.util.Set<String>> COLUMNAS_NUEVAS = java.util.Map.of(
+            "negocio", java.util.Set.of("ia_habilitada", "ia_presupuesto_mensual_usd", "ia_llamadas_dia_conversacion", "ia_entradas_minuto", "ia_aviso_limite_en"),
+            "cliente", java.util.Set.of("wa_id", "anonimizada_en"),
+            "notificacion", java.util.Set.of("conversacion_id"),
+            "conversacion", java.util.Set.of("derivada_en", "motivo_derivacion", "ultima_respuesta_personal_en", "revision", "minuto_entradas", "entradas_minuto"),
+            "mensaje_whatsapp", java.util.Set.of("enviado_por"),
+            "reserva", java.util.Set.of("canal"),
+            "auditoria_reserva", java.util.Set.of("actor_cliente_id"));
+
+    /** Cada fila conserva todas sus columnas originales y comprueba los valores iniciales de V113…V117. */
+    @SuppressWarnings("unchecked")
+    static void comprobarConservados(org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.Map<String, Object> antes) {
+        for (var tabla : antes.entrySet()) {
+            var previas = (List<java.util.Map<String, Object>>) tabla.getValue();
+            var actuales = jdbc.queryForList("select * from " + tabla.getKey() + " order by id");
+            assertThat(actuales).as(tabla.getKey()).hasSameSizeAs(previas);
+            for (int i = 0; i < previas.size(); i++) {
+                var actual = new LinkedHashMap<>(actuales.get(i));
+                for (var columna : previas.get(i).entrySet()) {
+                    assertThat(actual).as("%s fila %d", tabla.getKey(), i).containsEntry(columna.getKey(), columna.getValue());
+                }
+                actual.keySet().removeAll(previas.get(i).keySet());
+                assertThat(actual.keySet()).as("columnas nuevas de %s", tabla.getKey())
+                        .isSubsetOf(COLUMNAS_NUEVAS.getOrDefault(tabla.getKey(), java.util.Set.of()));
+                if ("reserva".equals(tabla.getKey())) {
+                    if (actual.containsKey("canal")) {
+                        assertThat(actual.get("canal")).as("canal en reserva migrada fila %d", i).isEqualTo("WEB");
+                    }
+                    assertThat(previas.get(i).get("creada_por")).as("creada_por previo en reserva fila %d", i).isNotNull();
+                    assertThat(actuales.get(i).get("creada_por")).as("creada_por conservado en reserva fila %d", i).isEqualTo(previas.get(i).get("creada_por"));
+                } else if ("conversacion".equals(tabla.getKey())) {
+                    if (actual.containsKey("revision")) assertThat(actual.remove("revision")).isEqualTo(0L);
+                    if (actual.containsKey("entradas_minuto")) assertThat(((Number) actual.remove("entradas_minuto")).intValue()).isZero();
+                    assertThat(actual.values()).allMatch(java.util.Objects::isNull);
+                } else if ("negocio".equals(tabla.getKey())) {
+                    if (actual.containsKey("ia_habilitada")) assertThat(actual.remove("ia_habilitada")).isEqualTo(false);
+                    assertThat(actual.values()).allMatch(java.util.Objects::isNull);
+                } else {
+                    assertThat(actual.values()).as("columnas nuevas nulas en %s", tabla.getKey()).allMatch(java.util.Objects::isNull);
+                }
+            }
+        }
+    }
+}

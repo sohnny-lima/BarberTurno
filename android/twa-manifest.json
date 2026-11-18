@@ -1,0 +1,42 @@
+{
+  "packageId": "pe.barberturno.app",
+  "host": "barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net",
+  "name": "BarberTurno",
+  "launcherName": "BarberTurno",
+  "display": "standalone",
+  "orientation": "default",
+  "themeColor": "#145C43",
+  "themeColorDark": "#145C43",
+  "navigationColor": "#145C43",
+  "navigationColorDark": "#145C43",
+  "navigationDividerColor": "#145C43",
+  "navigationDividerColorDark": "#145C43",
+  "backgroundColor": "#F6F8F7",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "http://127.0.0.1:8790/iconos/icono-512.png",
+  "maskableIconUrl": "http://127.0.0.1:8790/iconos/icono-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "D:\\Proyectos\\BarberTurno\\.local\\android\\distribucion\\barberturno-distribucion.keystore",
+    "alias": "barberturno"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "http://127.0.0.1:8790/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net/",
+  "minSdkVersion": 24,
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}

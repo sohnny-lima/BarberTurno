@@ -1,11 +1,13 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.json.JsonMapper;
@@ -21,8 +23,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 abstract class ReservaPruebaBase {
+    @Autowired pe.barberturno.customers.ClienteRepository clientes;
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @Autowired JwtService jwt;
     @Autowired UsuarioRepository usuarios;
@@ -41,7 +45,7 @@ abstract class ReservaPruebaBase {
         LimpiezaBaseDatos.limpiar(jdbc);
         reloj.reiniciar();
         SqlPruebas.limpiar();
-        datos = new DatosPrueba(usuarios, barberos, servicios);
+        datos = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         cliente = datos.cliente("cliente");
         barbero = perfil("uno");
         servicio = datos.servicio();
@@ -73,7 +77,7 @@ abstract class ReservaPruebaBase {
     }
 
     MockHttpServletRequestBuilder peticion(CrearReservaDto cmd) {
-        return post("/api/reservas").contentType("application/json").content(json.writeValueAsString(cmd));
+        return post(negocio("/api/reservas", jdbc.entorno().getProperty("pruebas.negocio-slug", "barberturno"))).contentType("application/json").content(json.writeValueAsString(cmd));
     }
 
     Cookie sesion(Usuario usuario) { return new Cookie("BT_SESION", jwt.emitir(usuario)); }

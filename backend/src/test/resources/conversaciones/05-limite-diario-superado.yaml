@@ -1,0 +1,32 @@
+nombre: "05-limite-diario-superado"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+limiteLlamadasDia: 2 # el primer turno hace 2 llamadas (herramienta + texto); el segundo texto ya no llama
+pasos:
+  - cliente:
+      texto: "Hola, qué servicios tienen en la barbería?"
+    modelo:
+      - llamadas:
+          - herramienta: "listar_servicios"
+            argumentos: {}
+      - texto: "Ofrecemos corte clásico y perfilado de barba."
+        parada: "end_turn"
+    espera:
+      estadoTurno: "HECHO"
+      llamadasModelo: 2
+      salientesNuevos: 1
+      textoDescartado: "Ofrecemos corte clásico y perfilado de barba."
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["Ofrecemos corte clásico", "perfilado de barba"]
+  - cliente:
+      texto: "A qué hora atienden mañana?"
+    modelo: []
+    espera:
+      llamadasModelo: 0
+      salientesNuevos: 1
+      mensajes:
+        - contiene: ["No entendí ese mensaje"]

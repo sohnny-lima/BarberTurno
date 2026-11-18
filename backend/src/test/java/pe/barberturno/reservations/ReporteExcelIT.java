@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(RelojAjustable.Configuracion.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ReporteExcelIT extends ReservaPruebaBase {
-    private static final String RUTA = "/api/reportes/resumen.xlsx";
+    private static final String RUTA = negocio("/api/reportes/resumen.xlsx");
     private static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     @Autowired ReporteService reportes;
     @MockitoSpyBean ReporteExcelService excel;
@@ -54,14 +56,14 @@ class ReporteExcelIT extends ReservaPruebaBase {
     Barbero otro;
 
     @BeforeEach void escenario() {
-        admin = usuarios.saveAndFlush(new Usuario("Admin ficticio", "excel@ejemplo.test", null,
+        admin = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Admin ficticio", "excel@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
         servicio.editar("=Corte ficticio", "Prueba", (short) 30, BigDecimal.TEN, reloj.instant());
         servicios.saveAndFlush(servicio);
         segundo = servicios.saveAndFlush(new Servicio("Barba ficticia", "Prueba", (short) 20, BigDecimal.TEN, reloj.instant()));
         otro = datos.barbero("otro");
         for (int i = 0; i < 6; i++) {
-            reservas.saveAndFlush(new Reserva(cliente, i % 2 == 0 ? barbero : otro,
+            reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), i % 2 == 0 ? barbero : otro,
                     i % 3 == 0 ? segundo : servicio, instante(String.format("%02d:00", 9 + i)), EstadoReserva.values()[i], cliente, reloj.instant()));
         }
     }
@@ -83,7 +85,7 @@ class ReporteExcelIT extends ReservaPruebaBase {
     @ParameterizedTest @ValueSource(ints = {0, 1, 2, 3})
     void adminDescargaMismasCifrasQueJsonConYSinFiltros(int filtros) throws Exception {
         var archivo = peticion();
-        var consulta = get("/api/reportes/resumen").cookie(sesion(admin))
+        var consulta = get(negocio("/api/reportes/resumen")).cookie(sesion(admin))
                 .param("desde", "2026-10-01").param("hasta", "2026-10-01");
         if ((filtros & 1) != 0) {
             archivo.param("servicioId", servicio.getId().toString());

@@ -1,3 +1,4 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -45,7 +46,7 @@ export class ReprogramarDialogo {
   private readonly destroyRef = inject(DestroyRef);
   private peticion?: Subscription;
   readonly min = fechaHoyLima();
-  readonly max = fechaHoyLima(30);
+  readonly max = fechaHoyLima(inject(NegocioActual).parametros()?.horizonteDias ?? 0);
   readonly formulario = new FormGroup({
     fecha: new FormControl(fechaHoyLima(0, new Date(this.datos.reserva.inicio)), {
       nonNullable: true,

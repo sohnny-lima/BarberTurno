@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -11,19 +12,22 @@ describe('Contratos de consultas propias y avisos', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   it('omite filtros opcionales vacíos y conserva la página', () => {
     TestBed.inject(ReservasApi)
       .mias({ pagina: 2, tamano: 20, desde: '', hasta: undefined })
       .subscribe();
-    const solicitud = http.expectOne('/api/reservas/mias?pagina=2&tamano=20');
+    const solicitud = http.expectOne('/api/n/prueba/reservas/mias?pagina=2&tamano=20');
     expect(solicitud.request.method).toBe('GET');
     solicitud.flush({ contenido: [], totalElementos: 0 });
   });
   it('consulta avisos no leídos con paginación exacta', () => {
     TestBed.inject(NotificacionesApi).listar(3, 50, true).subscribe();
-    const solicitud = http.expectOne('/api/notificaciones?pagina=3&tamano=50&soloNoLeidas=true');
+    const solicitud = http.expectOne(
+      '/api/n/prueba/notificaciones?pagina=3&tamano=50&soloNoLeidas=true',
+    );
     expect(solicitud.request.method).toBe('GET');
     solicitud.flush({ contenido: [], totalElementos: 0 });
   });

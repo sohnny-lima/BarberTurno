@@ -3,7 +3,7 @@ package pe.barberturno.scheduling.dto;
 import jakarta.validation.constraints.*;
 
 /**
- * Edición RF-05 de identidad visible y especialidad; conserva correo, rol y acceso.
+ * Edición RF-05 del nombre, contacto y especialidad locales; conserva íntegra la cuenta global.
  * @param nombre nombre obligatorio de 2 a 100 caracteres sin espacios sobrantes
  * @param telefono nueve dígitos opcionales para personal
  * @param especialidad descripción obligatoria de hasta 100 caracteres

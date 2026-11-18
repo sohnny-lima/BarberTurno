@@ -1,0 +1,204 @@
+# Informe de Implementación V2-18 · M: Adaptación móvil, formularios, accesibilidad, manifest e iconos de la PWA
+
+- **Fecha:** 2026-11-05
+- **Implementador:** Gemini (Antigravity CLI) — Bloque M (Adaptación móvil y presentación)
+- **Worktree:** `D:\Proyectos\BarberTurno-v2-pwa-movil`
+- **Rama:** `tarea/V2-PWA-movil`
+- **Coordinador:** Claude Code
+- **Estado general:** Completado para revisión y ejecución de pruebas por el coordinador (incluye correcciones M1 y M2 del encargo g113)
+
+---
+
+## Encargo g113 · Correcciones de la revisión de Codex (145) en movil.spec.ts (05/11/2026)
+
+- **Objetivo:** Subsanar los dos hallazgos de severidad media (M1 y M2) señalados por Codex y validados por Claude Code sobre la suite de pruebas PWA móvil [`frontend/e2e/pwa/movil.spec.ts`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/e2e/pwa/movil.spec.ts).
+
+### M1 (media) · Instalabilidad Chromium vía CDP sin errores
+- **Problema detectado:** El bloque `try/catch` envolvía tanto la comunicación CDP como la aserción `expect(installabilityErrors).toEqual([])`. En caso de que Chromium reportara errores reales de instalabilidad, la prueba no fallaba y terminaba en verde registrando una anotación.
+- **Corrección aplicada:**
+  1. Se aísla el bloque `try/catch` para capturar exclusivamente la creación de la sesión CDP (`page.context().newCDPSession(page)`) y la llamada al método `Page.getInstallabilityErrors`.
+  2. Si CDP no está disponible en el entorno o la llamada arroja error, se invoca `test.skip(true, 'Page.getInstallabilityErrors no disponible en este entorno: ...')`, dejando la prueba como **omitida** (skipped), no aprobada.
+  3. La aserción `expect(installabilityErrors).toEqual([])` se traslada **fuera** del bloque `try/catch`. De esta forma, si Chromium retorna errores reales de instalabilidad PWA, la prueba fallará de manera estricta y visible.
+
+### M2 (media) · Zum del navegador al 200% (`comprobarZoom200`)
+- **Problema detectado:** `comprobarZoom200` aplicaba únicamente `document.documentElement.style.fontSize = '200%'` y verificaba `scrollWidth <= window.innerWidth + 1`. Esto no ampliaba textos con tamaños fijados en píxeles (p. ej. cabeceras de 28 px o 16 px) ni controles interactivos, ni detectaba contenido recortado o acciones principales inaccesibles.
+- **Corrección aplicada:**
+  1. **Simulación real de zum:** Se aplica `document.documentElement.style.zoom = '2'` (equivalente a zum del 200% en el navegador, reduciendo a la mitad el área visible efectiva y escalando texto y controles). Se verifica que el estilo se aplicó mediante `getComputedStyle(document.documentElement).zoom === '2'`.
+  2. **Ausencia de desbordamiento horizontal:** Con el zum activo, se comprueba que `document.documentElement.scrollWidth <= window.innerWidth + 1`.
+  3. **Encabezado `h1` visible y contenido:** Se localiza el encabezado `h1` de la pantalla, se verifica `toBeVisible()`, y se valida que su caja delimitadora (`boundingBox()`) comience dentro de la pantalla (`boxH1.x >= 0`, admitiendo tolerancia a subpíxel) y no exceda el ancho disponible (`boxH1.x + boxH1.width <= innerWidth + 1`).
+  4. **Acción principal alcanzable y visible en viewport:** Se identifica la acción principal de la pantalla (el botón «Ingresar» en `/ingresar`, o el primer botón visible dentro de `main` en las demás pantallas). Se ejecuta `scrollIntoViewIfNeeded()` y se aserta `toBeVisible()` y `toBeInViewport()`.
+  5. **Restauración garantizada:** Todo el proceso se ejecuta dentro de una estructura `try ... finally` para asegurar que `document.documentElement.style.zoom = ''` se restablezca siempre, incluso ante cualquier fallo en las aserciones.
+  6. **Sin relajación de pruebas:** Se mantienen las 5 pantallas (`/ingresar`, `reservar`, `mis-citas`, `agenda`, `bandeja`) y los 4 viewports (`320x640`, `360x800`, `412x915`, `800x360-horizontal`). Se deja constancia de posibles consideraciones en `bandeja.html` por `.titulo-movil h1` en vista móvil para validación por el coordinador.
+
+---
+
+## Encargo g112 · Presupuesto de estilo de shell.scss (05/11/2026)
+
+- **Problema:** En el build de integración con `npm run build`, `src/app/layout/shell.scss` excedió el presupuesto `anyComponentStyle` (4.00 kB) por 488 bytes con un total de 4.49 kB. El presupuesto por componente no se puede ampliar según V2-DA-96.
+- **Objetivo:** Reducir ≥ 0,5 kB (meta de margen ~0,7 kB a ~1.0 kB por debajo del límite de 4.00 kB) garantizando un aspecto en pantalla 100% idéntico.
+- **Acciones implementadas:**
+  1. [`frontend/src/styles.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/styles.scss) (estilos globales, sin presupuesto de componente):
+     - Declaración de variables CSS de bordes seguros en `:root`:
+       - `--borde-sup: env(safe-area-inset-top, 0px);`
+       - `--borde-der: env(safe-area-inset-right, 0px);`
+       - `--borde-inf: env(safe-area-inset-bottom, 0px);`
+       - `--borde-izq: env(safe-area-inset-left, 0px);`
+     - Traslado de `@include mat.sidenav-overrides(...)` al bloque global `html` (donde convive con las demás configuraciones de tema de Material 3).
+     - Traslado de la regla de forma circular `.cuenta { @include mat.button-overrides((text-container-shape: 50%)); }`.
+     - Definición de bordes seguros del shell desacoplados del encapsulado de componente:
+       - `app-shell .barra-inferior`: `min-height: calc(72px + var(--borde-inf));` y `padding: 8px calc(12px + var(--borde-der)) calc(8px + var(--borde-inf)) calc(12px + var(--borde-izq));`.
+       - `app-shell .con-barra-inferior` (dentro de `@media (max-width: 767.98px)`): `--espacio-navegacion-inferior: calc(72px + var(--borde-inf)); height: 100dvh; padding-bottom: var(--espacio-navegacion-inferior);`.
+     - Simplificación de reglas preexistentes de diálogos, avisos transitorios y scroll-padding usando las nuevas variables `--borde-*`.
+  2. [`frontend/src/app/layout/shell.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/layout/shell.scss) (estilos encapsulados de componente):
+     - Retirada de `@use '@angular/material' as mat;`, eliminando la importación y generación de mixins de tema de Material dentro del componente.
+     - Retirada de `mat-sidenav-container { @include mat.sidenav-overrides(...); }`.
+     - Retirada de `.cuenta { @include mat.button-overrides(...); }`.
+     - Eliminación de `min-height` y `padding` en `.barra-inferior`, delegándolos limpiamente a `app-shell .barra-inferior` en `styles.scss` sin conflicto de especificidad.
+     - Eliminación total del bloque `.con-barra-inferior` dentro de `@media (max-width: 767.98px)`, servido ahora por `app-shell .con-barra-inferior` en `styles.scss`.
+     - Simplificación de las reglas responsivas de bordes seguros en `.cabecera`, `.riel`, `main` y `footer` sustituyendo las extensas expresiones `env(safe-area-inset-*)` por `var(--borde-*)`.
+     - Deduplicación de la clase `.nombre-barberia` (unificada en el bloque de títulos superiores).
+     - Mantenimiento estricto del comportamiento de teclado virtual: no se reintroduce `.teclado-abierto` en `shell.scss` (el shell ya gestiona la ocultación vía señal y `styles.scss` gestiona `body.teclado-abierto`).
+- **Estimación de bytes ahorrados en `shell.scss`:**
+  - `mat.sidenav-overrides` + import `@use mat`: ahorro de ~335 bytes de CSS compilado con variables de tema.
+  - `.cuenta` botón circular override: ahorro de ~150 bytes de CSS compilado.
+  - `.barra-inferior` (min-height y padding): ahorro de ~185 bytes.
+  - `.con-barra-inferior` (variables y padding): ahorro de ~175 bytes.
+  - Variables compactas `var(--borde-*)` en `.cabecera`, `.riel`, `main`, `footer`: ahorro de ~140 bytes.
+  - Deduplicación `.nombre-barberia`: ahorro de ~40 bytes.
+  - **Ahorro total estimado en el CSS compilado de `shell.scss`:** **~1.025 bytes (~1,03 kB)**.
+  - **Tamaño proyectado:** ~3,46 kB (por debajo del límite de 4,00 kB, con ~0,54 kB de margen de seguridad).
+
+---
+
+## 1. Qué se hizo, por archivo
+
+### Ejecución (Claude) y Correcciones Aplicadas (Gemini)
+Tras la ejecución y revisión del coordinador Claude Code (05/11/2026):
+1. **Iconos:** `node tools/generar-iconos.mjs` generó los 4 PNGs (192, 512, maskable 512 y apple-touch 180) correctamente.
+2. **Presupuesto y build:** El build inicial reportó 500,73 kB (aviso superado por 0,73 kB). Para recuperar presupuesto:
+   - Se eliminó el bloque duplicado de `:host-context(.teclado-abierto)` en [`frontend/src/app/layout/shell.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/layout/shell.scss) (ahorro de ~270 bytes en SCSS y en la cadena JS del componente `shell`).
+   - Se simplificó la regla base de `.cabecera` en `shell.scss` (restringiendo `env(safe-area-inset-top)` únicamente al interior de `@media (max-width: 767.98px)`).
+   - En [`frontend/src/styles.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/styles.scss), se redujo el selector a `body.teclado-abierto`, se retiraron los `!important` prescindibles y se colapsó el relleno de `mat-dialog-container` en una sola declaración abreviada (ahorro estimado global de ~550 bytes).
+3. **Lint (Playwright):** Se corrigió el error `TS2339` en [`frontend/e2e/pwa/movil.spec.ts`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/e2e/pwa/movil.spec.ts) cambiando `async ({ page, testInfo })` por `async ({ page }, testInfo) => ...`, ya que `testInfo` es el segundo argumento del ejecutor de pruebas de Playwright.
+4. **Formularios de acceso y cuenta propia:**
+   - En [`frontend/src/app/features/auth/ingresar.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/auth/ingresar.html) y [`frontend/src/app/features/auth/registro.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/auth/registro.html), el campo de correo volvió a `autocomplete="username"` (resolviendo el fallo de la prueba unitaria `ingresar.spec.ts`), conservando `inputmode="email"` y `enterkeyhint="next"`.
+   - Se actualizó `movil.spec.ts` para exigir `autocomplete="username"` en `/ingresar`.
+5. **Formularios de terceros:**
+   - En [`frontend/src/app/features/admin/barbero-dialogo.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/barbero-dialogo.html), se configuró `autocomplete="off"` en nombre, correo, teléfono y contraseña temporal.
+   - En [`frontend/src/app/features/gestion/invitaciones.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/gestion/invitaciones.html), se configuró `autocomplete="off"` en el campo de correo de invitación.
+   - En [`frontend/src/app/features/gestion/configuracion.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/gestion/configuracion.html), se configuró `autocomplete="off"` en el nombre del negocio.
+6. **Descripción multinegocio v2:**
+   - En [`frontend/src/index.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/index.html) y [`frontend/public/manifest.webmanifest`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/public/manifest.webmanifest), la descripción se actualizó a «Reservas y turnos para barberías» (sin referencia exclusiva a Huamanga).
+   - Se incorporó la validación exacta de esta descripción en `movil.spec.ts`.
+7. **Reglas de diálogo en móvil:** Se aseguró que `.cdk-overlay-pane:has(mat-dialog-container)` y `mat-dialog-container` en `styles.scss` apliquen única y estrictamente dentro del bloque `@media (max-width: 767.98px)`.
+
+---
+
+### Configuración PWA, Manifest e Iconos
+- [`frontend/src/index.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/index.html):
+  - Añadido `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">` permitiendo zum de usuario (sin `maximum-scale` ni `user-scalable=no`).
+  - Añadido enlace `<link rel="manifest" href="manifest.webmanifest">`.
+  - Configurado `<meta name="theme-color" content="#145c43">` y `<meta name="description" content="Sistema web de reservas y turnos para barberías en Huamanga">`.
+  - Añadidos `<link rel="apple-touch-icon" sizes="180x180" href="iconos/apple-touch-icon.png">` y favicon vectorial `<link rel="icon" type="image/svg+xml" href="iconos/icono.svg">`.
+- [`frontend/public/manifest.webmanifest`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/public/manifest.webmanifest):
+  - Creado según V2-DA-94 con `id: "/"`, `start_url: "/"`, `scope: "/"`, `name: "BarberTurno"`, `short_name: "BarberTurno"`, `description`, `display: "standalone"`, `orientation: "any"`, `lang: "es-PE"`, `dir: "ltr"`.
+  - Colores de la fase verde: `theme_color: "#145c43"` y `background_color: "#f6f8f7"`.
+  - Iconos registrados: `iconos/icono-192.png` (192, any), `iconos/icono-512.png` (512, any), `iconos/icono-maskable-512.png` (512, maskable), todos `image/png`. Sin capturas ni accesos directos.
+- [`frontend/public/iconos/icono.svg`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/public/iconos/icono.svg):
+  - Icono vectorial SVG de alta definición (512x512) con motivo de tijeras estilizadas de barbería en verde de marca `#145c43` sobre fondo claro `#f6f8f7` con esquinas suaves.
+- [`frontend/public/iconos/icono-maskable.svg`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/public/iconos/icono-maskable.svg):
+  - Icono adaptable (maskable) con fondo a sangre completo (sin esquinas redondeadas) y motivo centrado y acotado estrictamente dentro de la zona segura del 80% (círculo de radio 204.8 px en el centro 256, 256).
+- [`frontend/tools/generar-iconos.mjs`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/tools/generar-iconos.mjs):
+  - Script Node ESM sin dependencias adicionales que aprovecha `@playwright/test` (`chromium`) para rasterizar con precisión los SVG a PNG:
+    - `icono-192.png` (192x192, fondo opaco).
+    - `icono-512.png` (512x512, fondo opaco).
+    - `icono-maskable-512.png` (512x512, fondo a sangre opaco).
+    - `apple-touch-icon.png` (180x180, fondo opaco).
+  - Respeta `process.env['PLAYWRIGHT_BROWSERS_PATH']` (o `tmp/navegadores`).
+
+### Estilos, Safe Areas y Teclado Virtual
+- [`frontend/src/app/layout/shell.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/layout/shell.scss):
+  - Márgenes de seguridad `env(safe-area-inset-top|bottom|left|right)` aplicados en `.cabecera`, `.barra-inferior`, `.riel`, `main` y `footer` móvil.
+  - Objetivos táctiles mínimos: botones de cabecera con `min-width: 44px; min-height: 44px;`, enlaces de barra inferior con `min-height: 48px; min-width: 64px;`.
+  - Regla que oculta `.barra-inferior` (`display: none !important`) y anula `--espacio-navegacion-inferior: 0px !important; padding-bottom: 0 !important;` ante la presencia de la clase `.teclado-abierto`.
+- [`frontend/src/styles.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/styles.scss):
+  - Márgenes seguros en diálogos móviles (`.cdk-overlay-pane:has(mat-dialog-container)` y `mat-dialog-container`).
+  - Regla global para `body.teclado-abierto, .teclado-abierto` que oculta la barra inferior y reinicia el scroll-padding del contenido.
+- [`frontend/src/app/shared/_dialogo.scss`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/shared/_dialogo.scss):
+  - Ajuste de `max-height` y `max-width` deduciendo `env(safe-area-inset-*)`.
+
+### Optimización Móvil de Formularios
+- [`frontend/src/app/features/auth/ingresar.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/auth/ingresar.html): correo con `autocomplete="email" inputmode="email" enterkeyhint="next"`; contraseña con `autocomplete="current-password" enterkeyhint="done"`.
+- [`frontend/src/app/features/auth/registro.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/auth/registro.html): nombre (`autocomplete="name" enterkeyhint="next"`), correo (`autocomplete="email" inputmode="email" enterkeyhint="next"`), teléfono (`autocomplete="tel" inputmode="tel" enterkeyhint="next"`), contraseñas (`autocomplete="new-password"` con `enterkeyhint="next"` y `"done"`).
+- [`frontend/src/app/features/auth/cambiar-password.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/auth/cambiar-password.html): contraseña actual (`enterkeyhint="next"`) y nueva (`enterkeyhint="done"`).
+- [`frontend/src/app/features/perfil/perfil.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/perfil/perfil.html): nombre, teléfono (`inputmode="tel"`), correo de solo lectura.
+- [`frontend/src/app/features/reservar/reservar.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/reservar/reservar.html): fecha y motivo de reprogramación con `enterkeyhint="done"`.
+- [`frontend/src/app/features/agenda/agenda.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/agenda/agenda.html) y [`reprogramar-dialogo.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/agenda/reprogramar-dialogo.html): fecha y motivo con `enterkeyhint`.
+- [`frontend/src/app/features/mis-citas/mis-citas.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/mis-citas/mis-citas.html) y [`cancelar-dialogo.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/mis-citas/cancelar-dialogo.html): fechas con `enterkeyhint="next"`/`"done"`, motivo con `enterkeyhint="done"`.
+- [`frontend/src/app/features/bandeja-whatsapp/bandeja.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/bandeja-whatsapp/bandeja.html): textarea de respuesta con `enterkeyhint="send"`.
+- [`frontend/src/app/features/admin/barbero-dialogo.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/barbero-dialogo.html): usuarioId (`inputmode="numeric"`), nombre, correo, teléfono (`inputmode="tel"`), especialidad, contraseña temporal (`enterkeyhint="done"`).
+- [`frontend/src/app/features/admin/servicio-dialogo.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/servicio-dialogo.html): duración (`inputmode="numeric"`), precio (`inputmode="decimal"`).
+- [`frontend/src/app/features/admin/dia-semana.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/dia-semana.html) y [`horarios.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/horarios.html): intervalos y bloqueos con `enterkeyhint`.
+- [`frontend/src/app/features/admin/reportes.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/reportes.html): rango de fechas con `enterkeyhint`.
+- [`frontend/src/app/features/admin/usuarios.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/admin/usuarios.html): búsqueda con `type="search" autocomplete="off" enterkeyhint="search"`.
+- [`frontend/src/app/features/gestion/configuracion.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/gestion/configuracion.html): parámetros numéricos con `inputmode="numeric"`.
+- [`frontend/src/app/features/gestion/invitaciones.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/gestion/invitaciones.html) y [`aceptacion.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/features/gestion/aceptacion.html): correo y campos de registro.
+- [`frontend/src/app/shared/selector-cliente.html`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/src/app/shared/selector-cliente.html): campo de búsqueda con `mat-label`, `type="search"`, `autocomplete="off"`, `enterkeyhint="search"`.
+
+### Pruebas E2E PWA Móvil
+- [`frontend/e2e/pwa/movil.spec.ts`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/e2e/pwa/movil.spec.ts):
+  - Pruebas Playwright integradas con Chromium.
+  - Cobertura de CP-7, CP-6 visual y CP-8.
+
+---
+
+## 2. Correspondencia criterio → prueba
+
+| Criterio | Descripción | Prueba en `frontend/e2e/pwa/movil.spec.ts` |
+|---|---|---|
+| **CP-6 (visual)** | La barra inferior no estorba ni reserva espacio con teclado abierto | `CP-6 (visual) · con clase teclado-abierto la barra inferior se oculta y no reserva espacio` comprueba que con `.teclado-abierto` en `body` la barra inferior queda oculta y `paddingBottom` de `.con-barra-inferior` es `0`. |
+| **CP-7** | Manifest válido y completo | `GET /manifest.webmanifest responde 200 con campos completos según V2-DA-94` comprueba status 200, Content-Type manifest/json, campos obligatorios y lista de 3 iconos. |
+| **CP-7** | Iconos servidos con dimensiones reales exactas | `cada icono PNG responde 200 y sus dimensiones IHDR son exactas` verifica HTTP 200, Content-Type `image/png`, y decodifica el chunk IHDR para validar exactamente 192x192, 512x512, 512x512 y 180x180 px. |
+| **CP-7** | Metadatos y enlaces en HTML | `HTML principal enlaza el manifest y contiene viewport-fit=cover y theme-color` comprueba `link[rel="manifest"]`, `meta[name="theme-color"]`, `meta[name="viewport"]` y `link[rel="apple-touch-icon"]`. |
+| **CP-7** | Instalabilidad Chromium | `instalabilidad Chromium vía CDP sin errores` consulta `Page.getInstallabilityErrors` vía CDP. Si CDP no está disponible se omite con `test.skip(true, ...)`; la aserción `expect(installabilityErrors).toEqual([])` queda fuera del bloque `try/catch` para fallar ante errores reales (corrección M1 g113). |
+| **CP-8** | Reflujo sin scroll horizontal a 320, 360, 412 y horizontal 800×360 px | Pruebas de reflujo en `/ingresar`, `/n/barberturno/reservar`, `/n/barberturno/mis-citas`, `/n/barberturno/agenda` y `/n/barberturno/whatsapp` validando `document.documentElement.scrollWidth <= window.innerWidth + 1`. |
+| **CP-8** | Escalado con zum al 200% sin pérdida de contenido | Pruebas con `document.documentElement.style.zoom = '2'` en las 5 pantallas clave comprobando ausencia de scroll horizontal (`scrollWidth <= innerWidth + 1`), encabezado `h1` visible y contenido en el ancho de pantalla (`x >= 0` y `x + width <= innerWidth + 1`), y acción principal alcanzable (`scrollIntoViewIfNeeded()`, `toBeVisible()`, `toBeInViewport()`) (corrección M2 g113). |
+| **CP-8** | Objetivos táctiles interactivos ≥ 44×44 px | Pruebas de objetivos táctiles en las 5 pantallas comprobando boundingBox ≥ 44×44 px en botones principales y enlaces de navegación inferior. |
+| **CP-8** | Formularios optimizados para teclado móvil | Pruebas en `/ingresar` comprobando `autocomplete="username"`, `inputmode="email"`, `enterkeyhint="next"` y `autocomplete="current-password"`, `enterkeyhint="done"`. |
+| **CP-8** | Auditoría axe en móvil a 360 px | Análisis con AxeBuilder a 360×800 px en las 5 pantallas clave comprobando 0 infracciones de impacto `serious` o `critical`. |
+
+---
+
+## 3. Supuestos sobre el contrato
+- Codex añade en `<body>` o en el host del shell la clase `.teclado-abierto` cuando el teclado virtual esté visible por JS. En M proveemos las reglas CSS para `.teclado-abierto .barra-inferior` y `.con-barra-inferior`.
+- Claude ejecutará `node tools/generar-iconos.mjs` para rasterizar los SVG a los archivos PNG físicos en `frontend/public/iconos/`.
+- La configuración de Playwright PWA creada por Codex (`playwright.pwa.config.ts`) incluye `testMatch: ['**/pwa/**/*.spec.ts']` y baseURL `http://localhost:8081`.
+
+---
+
+## 4. Peticiones a Codex / Claude
+- **Para Claude (coordinador):**
+  1. Ejecutar las pruebas E2E PWA móviles con Playwright: `npx playwright test --config=playwright.pwa.config.ts e2e/pwa/movil.spec.ts`.
+  2. En caso de que Chromium lance alguna incompatibilidad con CDP, la prueba de instalabilidad se registrará como omitida (`skipped`), y si hay errores reales en el manifest fallará fuera del `try`.
+  3. En la prueba `comprobarZoom200`, si alguna pantalla en resoluciones muy compactas (p. ej. `800x360` apaisado o `320x640` con zum al 200%) o `bandeja.html` (por la clase `.titulo-movil h1`) presenta alguna discrepancia visual real, el coordinador evaluará si ajustar los estilos del componente o el alcance según lo acordado en g113.
+- **Para Codex:** Asegurar que cuando su detector JS de teclado virtual detecte la apertura del teclado, añada la clase `teclado-abierto` a `document.body` (o al contenedor host del shell). Con ello, las reglas CSS implementadas ocultarán la barra y anularán el padding inferior automáticamente sin necesidad de manipulación de estilos en línea.
+
+---
+
+## 5. Lo que no se pudo cubrir
+- No se ejecutaron órdenes de consola (`npm run lint`, `npx playwright test`) en cumplimiento estricto de las directrices no interactivas del encargo. La ejecución y verificación E2E quedan delegadas al coordinador Claude.
+
+---
+
+## 6. Traspaso: archivos completos y siguiente paso concreto
+- **Archivos implementados / modificados en g113 (completos):**
+  1. [`frontend/e2e/pwa/movil.spec.ts`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/frontend/e2e/pwa/movil.spec.ts):
+     - M1: `try/catch` acotado a la apertura de sesión CDP y `send`. Aserción `expect(installabilityErrors).toEqual([])` fuera del `try`. Salida con `test.skip(true, ...)` si CDP no está disponible.
+     - M2: `comprobarZoom200` simula zum real con `document.documentElement.style.zoom = '2'`, verifica aplicación del zum (`getComputedStyle().zoom === '2'`), comprueba `scrollWidth <= innerWidth + 1`, visibilidad y contención de `h1` (`boxH1.x >= 0` y `boxH1.x + boxH1.width <= innerWidth + 1`), y alcanzabilidad de la acción principal («Ingresar» en acceso; primer botón visible de `main` en las demás) con `scrollIntoViewIfNeeded()`, `toBeVisible()` y `toBeInViewport()`. Estructura con `try ... finally` para restauración garantizada del zum.
+     - CP-6 intacto según la integración de Claude (`30a1533`).
+  2. [`docs/v2/pruebas/v2-18-movil.md`](file:///D:/Proyectos/BarberTurno-v2-pwa-movil/docs/v2/pruebas/v2-18-movil.md):
+     - Registro detallado de g113, correspondencias de prueba y notas técnicas de traspaso.
+- **Siguiente paso concreto para Claude:**
+  1. Ejecutar `npm run lint` para verificar la corrección estática en `movil.spec.ts`.
+  2. Ejecutar `npx playwright test --config=playwright.pwa.config.ts e2e/pwa/movil.spec.ts` para verificar la suite completa de PWA móvil (CP-6, CP-7 y CP-8 con las correcciones M1 y M2).
+  3. Ejecutar `prettier --write frontend/e2e/pwa/movil.spec.ts docs/v2/pruebas/v2-18-movil.md`.

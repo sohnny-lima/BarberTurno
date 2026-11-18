@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.*;
 import java.util.*;
@@ -21,6 +23,7 @@ import pe.barberturno.common.time.TiempoNegocio;
 import pe.barberturno.notifications.NotificacionService;
 import pe.barberturno.reservations.dto.*;
 import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.scheduling.Jornada;
 import pe.barberturno.support.*;
 import pe.barberturno.users.*;
 import static org.assertj.core.api.Assertions.*;
@@ -52,13 +55,13 @@ class CancelacionIT extends ReservaPruebaBase {
     }
 
     private Usuario admin() {
-        return usuarios.saveAndFlush(new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Administrador ficticio", "admin@ejemplo.test", null,
                 "hash-ficticio-no-utilizable", Rol.ADMIN, null, reloj.instant()));
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder peticion(
             long id, Integer version, String motivo) {
-        return post("/api/reservas/{id}/cancelacion", id).contentType("application/json")
+        return post(negocio("/api/reservas/{id}/cancelacion"), id).contentType("application/json")
                 .content(json.writeValueAsString(new CancelarReservaDto(version, motivo)));
     }
 
@@ -123,7 +126,7 @@ class CancelacionIT extends ReservaPruebaBase {
     }
 
     private tools.jackson.databind.JsonNode disponibilidad() throws Exception {
-        return json.readTree(mvc.perform(get("/api/disponibilidad").param("servicioId", servicio.getId().toString())
+        return json.readTree(mvc.perform(get(negocio("/api/disponibilidad")).param("servicioId", servicio.getId().toString())
                 .param("fecha", "2026-10-01").param("barberoId", barbero.getId().toString()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
@@ -207,9 +210,13 @@ class CancelacionIT extends ReservaPruebaBase {
     }
 
     @Test void adminConPerfilAsignado_noSeNotificaASiMismo() throws Exception {
-        var dto = crear();
         var admin = admin();
-        jdbc.update("update barbero set usuario_id=? where id=?", admin.getId(), barbero.getId());
+        // El perfil nace con su cuenta definitiva; nunca se reasigna una agenda (V2-DA-39).
+        barbero = barberos.saveAndFlush(new Barbero(admin, "Cortes", reloj.instant()));
+        for (short dia = 1; dia <= 7; dia++) {
+            jornadas.saveAndFlush(new Jornada(barbero, dia, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        var dto = crear();
         leer(cancelar(dto, admin, "Ausencia justificada"));
         comprobarAvisos(cliente.getId());
         comprobarAuditoria(dto, admin, "Ausencia justificada", false);

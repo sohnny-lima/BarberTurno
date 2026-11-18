@@ -45,6 +45,7 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 > **Modo freeze desde el 05/10/2026** (decisión del responsable, tras completar T-01…T-47 y el primer CI verde): solo se admiten correcciones de bugs reproducibles, problemas de CI, requisitos pendientes o defectos necesarios para el cierre. Nada de funcionalidades nuevas ni refactorizaciones sin ese motivo.
 > **Excepción autorizada el 05/10/2026:** T-48 (interfaz con Tailwind, MJ-19, DA-24), limitada a la capa visual del frontend; el freeze se mantiene para lógica, backend y funcionalidades. T-48 se revisa con el responsable antes de integrarse en `main`. **Ampliada el 08/10/2026:** T-55 (dirección «verde» de la fase 1, MJ-20, DA-27, `docs/diseno/t-55.md`) sustituye la capa visual de T-48 en Reservar, Mis citas, Agenda y la navegación; mismas limitaciones. **Ampliada el 17/10/2026:** T-57 (fase 2 de la dirección verde, MJ-21, DA-28, `docs/diseno/t-57.md`) extiende esa identidad al resto de pantallas y diálogos; mismas limitaciones (solo presentación, sin funciones nuevas). Integración en `main`, push y CI autorizados por el responsable al cumplirse los criterios.
 > **Excepción puntual autorizada el 21/10/2026:** T-58 (exportación del reporte a Excel, MJ-22, DA-29) para acreditar el uso real de Apache POI, Apache Commons Lang, Google Guava y Logback que exige la rúbrica del APF3. Limitada a esa función (solo ADMIN, solo datos agregados ya calculados por RF-14). Revisada por el coordinador y Gemini; **integrada en `main` el 21/10/2026** (merge `3bcd5d0`) con autorización del responsable. **Sin redespliegue:** Azure sigue con `d2f3107`.
+> **Consolidación autorizada el 18/11/2026 (V2-CONS, `docs/v2/21-v2-consolidacion.md`, V2-DA-110…113):** `main` pasa a ser la V2 multibarbería (antes en `v2`), con las correcciones de cierre; Azure (`barberturno-web-202610`, base `barberturno_v2_demo`) se alinea con `main`. La base V1 `barberturno_prod` queda intacta como punto de reversión. El freeze sigue vigente: solo correcciones.
 
 1. Elegir la primera tarea `Pendiente` cuyas dependencias estén en `Hecha`. Marcarla `En curso`.
 2. Releer la tarea, las RF/RN/CP que cita y las secciones de la arquitectura a las que enlaza.
@@ -55,6 +56,13 @@ Si dos documentos se contradicen, el orden de precedencia es: **requisitos.md > 
 7. Actualizar `docs/tareas.md` (estado `Hecha`, fecha, hash del commit, notas de cierre) y el README si cambió el arranque.
 8. Integrar en `main` localmente (`git merge --no-ff`) cuando se cumpla la Definición de Hecho. **No hacer push** sin autorización.
 9. Informar: qué se hizo, pruebas ejecutadas y su resultado (con la salida si algo falló), desviaciones y la siguiente tarea.
+
+### 5.1 BarberTurno v2 (rama `v2`; dirección aprobada el 22/10/2026)
+Especificación en `docs/v2/` (empezar por `docs/v2/00-README.md`). **Solo se implementan las tareas que el responsable autoriza una a una** (a 24/10/2026: V2-01…V2-05 integradas en `v2`; V2-06 autorizada por subtareas, sin integrar).
+- v2 vive en la rama de integración `v2` (worktree `D:\Proyectos\BarberTurno-v2`); las tareas `V2-NN` usan ramas `tarea/V2-NN-…` desde `v2` y se integran en `v2` **solo cuando el responsable lo autoriza**, **nunca en `main`**. Los pasos 1, 3, 7 y 8 de §5 se leen con `v2` en lugar de `main` y con `docs/v2/10-backlog.md` en lugar de `docs/tareas.md`.
+- El freeze de §5 sigue en `main` (v1 académica, etiqueta `v1.0-apf3`); se levanta solo para las tareas aprobadas de v2.
+- Migraciones de v2 en el rango `V100+`, con la política de V2-DA-21 (sin `outOfOrder` ni editar migraciones); bases `barberturno_v2`, `barberturno_v2_test` y `barberturno_v2_migracion`; roles `barberturno_v2` (migraciones) y `barberturno_v2_app` (aplicación, V2-DA-20); puerto 8081; secretos en el `.local/` del worktree.
+- Desde v2 no se modifican `docs/apf2/`, `entregables/`, las evidencias de v1, Azure ni las bases locales de v1.
 
 ## 6. Convenciones
 ### Idioma

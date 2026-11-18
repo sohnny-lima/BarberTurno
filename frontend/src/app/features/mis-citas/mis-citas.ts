@@ -1,3 +1,4 @@
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 import { RouterLink } from '@angular/router';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
@@ -51,6 +52,7 @@ export const rangoFechas: ValidatorFn = (grupo) => {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MisCitas {
+  readonly negocio = inject(NegocioActual);
   private readonly api = inject(ReservasApi);
   private readonly dialogos = inject(MatDialog);
   private readonly snackbar = inject(MatSnackBar);

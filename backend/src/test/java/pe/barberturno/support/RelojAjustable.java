@@ -19,6 +19,8 @@ public final class RelojAjustable extends Clock {
     }
     public void reiniciar() { ahora.set(INICIAL); }
     public void adelantar(Duration duracion) { ahora.updateAndGet(instante -> instante.plus(duracion)); }
+    /** Fija el instante actual (guiones de V2-12 con reloj de partida absoluto). @param instante instante nuevo */
+    public void fijar(Instant instante) { ahora.set(instante); }
     @Override public Instant instant() { return ahora.get(); }
     @Override public ZoneId getZone() { return zona; }
     @Override public Clock withZone(ZoneId zone) { return new RelojAjustable(ahora, zone); }

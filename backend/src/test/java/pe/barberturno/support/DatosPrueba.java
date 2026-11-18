@@ -9,6 +9,8 @@ import pe.barberturno.scheduling.BarberoRepository;
 import pe.barberturno.users.Rol;
 import pe.barberturno.users.Usuario;
 import pe.barberturno.users.UsuarioRepository;
+import pe.barberturno.platform.*;
+import pe.barberturno.customers.*;
 
 /** Fábrica reutilizable de datos ficticios; no necesita una API ni servicios de negocio. */
 public final class DatosPrueba {
@@ -18,22 +20,49 @@ public final class DatosPrueba {
     private final UsuarioRepository usuarios;
     private final BarberoRepository barberos;
     private final ServicioRepository servicios;
+    private final MembresiaRepository membresias;
+    private final ClienteRepository clientes;
+    private final long negocioId;
 
-    public DatosPrueba(UsuarioRepository usuarios, BarberoRepository barberos, ServicioRepository servicios) {
+    public DatosPrueba(UsuarioRepository usuarios, BarberoRepository barberos, ServicioRepository servicios,
+            MembresiaRepository membresias, ClienteRepository clientes) {
+        this(usuarios, barberos, servicios, membresias, clientes, 1L);
+    }
+
+    public DatosPrueba(UsuarioRepository usuarios, BarberoRepository barberos, ServicioRepository servicios,
+            MembresiaRepository membresias, ClienteRepository clientes, long negocioId) {
         this.usuarios = usuarios;
         this.barberos = barberos;
         this.servicios = servicios;
+        this.membresias = membresias;
+        this.clientes = clientes;
+        this.negocioId = negocioId;
+    }
+
+    /** Traduce explícitamente los fixtures del negocio único de v1 a las pertenencias de v2. */
+    public static Usuario guardarPersonalV1(UsuarioRepository usuarios, MembresiaRepository membresias, ClienteRepository clientes, Usuario usuario) {
+        return guardarPersonalV1(usuarios, membresias, clientes, usuario, 1L);
+    }
+
+    public static Usuario guardarPersonalV1(UsuarioRepository usuarios, MembresiaRepository membresias, ClienteRepository clientes, Usuario usuario, long negocioId) {
+        usuarios.saveAndFlush(usuario);
+        if (usuario.getRol() != Rol.CLIENTE) {
+            membresias.save(new Membresia(negocioId, usuario.getId(),
+                    usuario.getRol() == Rol.ADMIN ? RolNegocio.PROPIETARIO : RolNegocio.BARBERO, usuario.getCreadoEn()));
+        }
+        else clientes.saveAndFlush(new Cliente(usuario, usuario.getCreadoEn()));
+        return usuario;
     }
 
     public Usuario cliente(String identificador) {
-        return usuarios.saveAndFlush(new Usuario("Cliente ficticio", identificador + "@ejemplo.test",
-                "999000001", "hash-ficticio-no-utilizable", Rol.CLIENTE, AHORA, AHORA));
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Cliente ficticio", identificador + "@ejemplo.test",
+                "999000001", "hash-ficticio-no-utilizable", Rol.CLIENTE, AHORA, AHORA), negocioId);
     }
 
     public Barbero barbero(String identificador) {
-        Usuario usuario = usuarios.saveAndFlush(new Usuario("Barbero ficticio",
+        Usuario usuario = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Barbero ficticio",
                 "barbero-" + identificador + "@ejemplo.test", null, "hash-ficticio-no-utilizable",
-                Rol.BARBERO, null, AHORA));
+                Rol.BARBERO, null, AHORA), negocioId);
         return barberos.saveAndFlush(new Barbero(usuario, "Cortes", AHORA));
     }
 

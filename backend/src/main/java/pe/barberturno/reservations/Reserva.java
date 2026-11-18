@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import pe.barberturno.users.Usuario;
+import pe.barberturno.customers.Cliente;
 import pe.barberturno.catalog.Servicio;
 import pe.barberturno.scheduling.Barbero;
 
@@ -33,9 +34,13 @@ public class Reserva {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Solo lectura: el INSERT conserva DEFAULT app_negocio_actual() y RLS WITH CHECK.
+    @jakarta.persistence.Column(name = "negocio_id", insertable = false, updatable = false, nullable = false)
+    private Long negocioId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
-    private Usuario cliente;
+    private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barbero_id", nullable = false)
@@ -61,9 +66,12 @@ public class Reserva {
     @Column(name = "estado", nullable = false, length = 12)
     private EstadoReserva estado;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "creada_por", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creada_por")
     private Usuario creadaPor;
+
+    @Column(nullable = false, updatable = false, length = 10)
+    private String canal = "WEB";
 
     @Version
     @Column(name = "version", nullable = false)
@@ -84,7 +92,7 @@ public class Reserva {
     /**
      * Crea una reserva RN-02 y copia precio y duración del servicio (RN-13); calcula fin exclusivo RN-01. El
      * servicio decide estado RN-21 y comprueba disponibilidad, permisos y política antes de persistir.
-     * @param cliente usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02)
+     * @param cliente ficha del negocio, enlazada por cliente_id; no nula (RN-02, V2-RN-08)
      * @param barbero perfil de atención al que pertenece el intervalo, enlazado por barbero_id; no nulo
      * @param servicio servicio enlazado por servicio_id; no nulo; sus cambios no alteran las referencias RN-13
      * @param inicio inicio inclusivo del intervalo semiabierto RN-01, como instante absoluto timestamptz; no
@@ -95,7 +103,7 @@ public class Reserva {
      * timestamptz; no nulo
      * @throws NullPointerException si falta un dato obligatorio.
      */
-    public Reserva(Usuario cliente, Barbero barbero, Servicio servicio, Instant inicio, EstadoReserva estado, Usuario creadaPor, Instant creadoEn) {
+    public Reserva(Cliente cliente, Barbero barbero, Servicio servicio, Instant inicio, EstadoReserva estado, Usuario creadaPor, Instant creadoEn) {
         this.cliente = Objects.requireNonNull(cliente, "cliente");
         this.barbero = Objects.requireNonNull(barbero, "barbero");
         this.servicio = Objects.requireNonNull(servicio, "servicio");
@@ -108,6 +116,38 @@ public class Reserva {
         this.creadoEn = Objects.requireNonNull(creadoEn, "creadoEn");
         this.actualizadoEn = creadoEn;
     }
+
+    /**
+     * Construye una reserva por WhatsApp atribuida a la propia ficha (V2-DA-64).
+     * El llamador valida todas las reglas antes de persistir.
+     * @param cliente ficha propietaria con consentimiento
+     * @param barbero profesional validado
+     * @param servicio catálogo del que se copian las referencias
+     * @param inicio instante solicitado
+     * @param estado estado inicial según el negocio
+     * @param ahora instante del reloj inyectado
+     * @return reserva sin cuenta creadora y con origen WHATSAPP
+     * @throws NullPointerException si falta un dato obligatorio
+     */
+    public static Reserva porFicha(Cliente cliente, Barbero barbero, Servicio servicio, Instant inicio,
+            EstadoReserva estado, Instant ahora) {
+        var reserva = new Reserva();
+        reserva.cliente = Objects.requireNonNull(cliente);
+        reserva.barbero = Objects.requireNonNull(barbero);
+        reserva.servicio = Objects.requireNonNull(servicio);
+        reserva.inicio = Objects.requireNonNull(inicio);
+        reserva.estado = Objects.requireNonNull(estado);
+        reserva.duracionRefMin = servicio.getDuracionMin();
+        reserva.precioRef = servicio.getPrecio();
+        reserva.fin = inicio.plus(reserva.duracionRefMin, ChronoUnit.MINUTES);
+        reserva.creadoEn = Objects.requireNonNull(ahora);
+        reserva.actualizadoEn = ahora;
+        reserva.canal = "WHATSAPP";
+        return reserva;
+    }
+
+    /** {@return origen inmutable de la creación, WEB o WHATSAPP} */
+    public String getCanal() { return canal; }
 
     /**
      * Reprograma conservando servicio y referencias RN-09/13 y recalcula fin RN-01. El servicio toma los
@@ -150,8 +190,8 @@ public class Reserva {
         return id;
     }
 
-    /** {@return usuario propietario de la reserva, enlazado por cliente_id; no nulo (RN-02)} */
-    public Usuario getCliente() {
+    /** {@return ficha propietaria del negocio; su cuenta, si existe, recibe avisos y autoriza al actor web} */
+    public Cliente getCliente() {
         return cliente;
     }
 
@@ -199,7 +239,7 @@ public class Reserva {
         return estado;
     }
 
-    /** {@return identidad del actor que creó la reserva, cliente o administrador; no nula} */
+    /** {@return cuenta creadora; nula para una creación por ficha de WhatsApp} */
     public Usuario getCreadaPor() {
         return creadaPor;
     }

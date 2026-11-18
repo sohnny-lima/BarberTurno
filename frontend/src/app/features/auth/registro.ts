@@ -9,10 +9,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { SesionService } from '../../core/auth/sesion-service';
 import { confirmarPassword, errorCampo, mostrarErrores } from '../../shared/formulario';
+import { NegocioActual } from '../../core/negocio/negocio-actual';
 
 @Component({
   selector: 'app-registro',
@@ -36,6 +37,9 @@ export class Registro {
   private readonly sesion = inject(SesionService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly negocio = inject(NegocioActual);
+  private readonly retorno = inject(ActivatedRoute).snapshot.queryParamMap.get('returnUrl');
+  readonly slugRegistro = this.barberiaDeRetorno();
   readonly cargando = signal(false);
   readonly mensaje = signal('');
   readonly errorCampo = errorCampo;
@@ -62,14 +66,21 @@ export class Registro {
     },
     { validators: confirmarPassword },
   );
+  private barberiaDeRetorno() {
+    if (!this.retorno?.startsWith('/n/')) return null;
+    const segmentos = this.router.parseUrl(this.retorno).root.children['primary']?.segments;
+    return segmentos?.[1]?.path || null;
+  }
   enviar() {
     if (this.cargando()) return;
+    if (!this.slugRegistro) return;
     this.formulario.markAllAsTouched();
     if (this.formulario.invalid) return;
     const { nombre, correo, telefono, password, aceptaPrivacidad } = this.formulario.getRawValue();
     const datos = { nombre, correo, telefono, password, aceptaPrivacidad };
     this.cargando.set(true);
     this.mensaje.set('');
+    this.negocio.seleccionar(this.slugRegistro, 'CLIENTE');
     this.sesion
       .registrar(datos)
       .pipe(

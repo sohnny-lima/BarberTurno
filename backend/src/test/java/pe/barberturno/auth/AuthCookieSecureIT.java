@@ -1,11 +1,13 @@
 package pe.barberturno.auth;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.test.web.servlet.MockMvc;
 import pe.barberturno.support.LimpiezaBaseDatos;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class AuthCookieSecureIT {
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
 
     @BeforeEach void preparar() { LimpiezaBaseDatos.limpiar(jdbc); }
     @AfterEach void limpiar() { LimpiezaBaseDatos.limpiar(jdbc); }
@@ -38,7 +40,7 @@ class AuthCookieSecureIT {
         assertThat(borrada.getPath()).isEqualTo("/");
         assertThat(borrada.getDomain()).isNull();
         assertThat(borrada.getAttribute("SameSite")).isEqualTo("Strict");
-        mvc.perform(get("/api/servicios").secure(true)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/servicios")).secure(true)).andExpect(status().isOk());
         mvc.perform(get("/api/perfil").secure(true)).andExpect(status().isUnauthorized())
                 .andExpect(result -> assertThat(result.getResponse().getCookie("BT_SESION")).isNull());
     }
@@ -49,7 +51,7 @@ class AuthCookieSecureIT {
         assertThat(xsrf).isNotNull();
         assertThat(xsrf.getSecure()).isTrue();
         assertThat(xsrf.isHttpOnly()).isFalse();
-        var r = mvc.perform(post("/api/auth/registro").secure(true).cookie(xsrf)
+        var r = mvc.perform(post(negocio("/api/registro")).secure(true).cookie(xsrf)
                 .header("X-XSRF-TOKEN", xsrf.getValue()).contentType("application/json")
                 .content("""
                         {"nombre":"Cliente de prueba","correo":"seguro@ejemplo.test","telefono":"999111222",

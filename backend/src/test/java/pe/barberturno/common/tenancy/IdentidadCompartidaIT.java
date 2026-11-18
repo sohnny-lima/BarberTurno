@@ -1,0 +1,146 @@
+package pe.barberturno.common.tenancy;
+
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import pe.barberturno.platform.*;
+import pe.barberturno.scheduling.Barbero;
+import pe.barberturno.users.*;
+import static org.assertj.core.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+class IdentidadCompartidaIT extends IdentidadPruebaBase {
+    private static final String MENSAJE = "La cuenta pertenece también a otro negocio; el cambio lo hace la plataforma";
+
+    @ParameterizedTest @ValueSource(strings = {"password", "estado", "nombre", "telefono", "perfil"})
+    void fichaEnOtroNegocio_aunInactivaProtegeTodasLasColumnasDeLaCuenta(String operacion) throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var usuario = persona("compartida-por-ficha", Rol.BARBERO);
+        pertenencia(1L, usuario, RolNegocio.BARBERO);
+        var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
+        var fichaB = ficha(b, usuario);
+        fichaB.desactivar(reloj.instant());
+        enNegocio(b, () -> clientes.saveAndFlush(fichaB));
+        var anterior = huella(usuario);
+        var solicitud = switch (operacion) {
+            case "password" -> post(negocio("/api/usuarios/") + usuario.getId() + "/restablecer-password");
+            case "estado" -> estado(usuario.getId(), false);
+            case "perfil" -> patch(negocio("/api/barberos/") + perfil.getId() + "/estado").contentType("application/json")
+                    .content("{\"activo\":false}");
+            default -> put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
+                    .content("{\"nombre\":\"" + (operacion.equals("nombre") ? "Nuevo" : usuario.getNombre())
+                            + "\",\"telefono\":\"" + (operacion.equals("telefono") ? "999000002" : usuario.getTelefono())
+                            + "\",\"especialidad\":\"Barba\"}");
+        };
+        if (operacion.equals("perfil")) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk());
+            assertThat(barberos.findById(perfil.getId()).orElseThrow().isActivo()).isFalse();
+        } else if (operacion.equals("nombre") || operacion.equals("telefono")) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+            var local = barberos.findById(perfil.getId()).orElseThrow();
+            assertThat(local.getNombreVisible()).isEqualTo(operacion.equals("nombre") ? "Nuevo" : usuario.getNombre());
+            assertThat(local.getTelefonoContacto()).isEqualTo(operacion.equals("telefono") ? "999000002" : usuario.getTelefono());
+            assertThat(local.getEspecialidad()).isEqualTo("Barba");
+        } else {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
+                    .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+        }
+        assertThat(huella(usuario)).isEqualTo(anterior);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"password", "estado", "nombre", "telefono"})
+    void identidadCompartida_cambiosGlobales409YEdicionLocal200_sinModificarLaCuenta(String operacion) throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var usuario = persona("compartida", Rol.BARBERO);
+        pertenencia(1L, usuario, RolNegocio.BARBERO);
+        pertenencia(b, usuario, RolNegocio.PROPIETARIO);
+        var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
+        var anterior = huella(usuario);
+        var solicitud = switch (operacion) {
+            case "password" -> post(negocio("/api/usuarios/") + usuario.getId() + "/restablecer-password");
+            case "estado" -> estado(usuario.getId(), false);
+            default -> put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
+                    .content("{\"nombre\":\"" + (operacion.equals("nombre") ? "Nombre nuevo" : usuario.getNombre())
+                            + "\",\"telefono\":\"" + (operacion.equals("telefono") ? "999000002" : usuario.getTelefono())
+                            + "\",\"especialidad\":\"Barba\"}");
+        };
+        boolean global = operacion.equals("password") || operacion.equals("estado");
+        if (global) {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.codigo").value("IDENTIDAD_COMPARTIDA"))
+                    .andExpect(jsonPath("$.detail").value(MENSAJE));
+        } else {
+            mvc.perform(csrf(solicitud, sesion(actor))).andExpect(status().isOk());
+            var local = barberos.findById(perfil.getId()).orElseThrow();
+            assertThat(local.getNombreVisible()).isEqualTo(operacion.equals("nombre") ? "Nombre nuevo" : usuario.getNombre());
+            assertThat(local.getTelefonoContacto()).isEqualTo(operacion.equals("telefono") ? "999000002" : usuario.getTelefono());
+        }
+        assertThat(huella(usuario)).isEqualTo(anterior);
+        assertThat(barberos.findById(perfil.getId()).orElseThrow().getEspecialidad()).isEqualTo(global ? "Corte" : "Barba");
+    }
+
+    @Test void perfilCompartido_desactivacionYReactivacionSoloLocales_especialidadEditable() throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var usuario = persona("compartida", Rol.BARBERO);
+        pertenencia(1L, usuario, RolNegocio.BARBERO);
+        pertenencia(b, usuario, RolNegocio.BARBERO);
+        var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
+        var anterior = huella(usuario);
+        var cookie = sesion(usuario);
+        for (boolean activo : List.of(false, true)) {
+            mvc.perform(csrf(patch(negocio("/api/barberos/") + perfil.getId() + "/estado").contentType("application/json")
+                    .content("{\"activo\":" + activo + "}"), sesion(actor))).andExpect(status().isOk());
+            assertThat(barberos.findById(perfil.getId()).orElseThrow().isActivo()).isEqualTo(activo);
+            assertThat(huella(usuario)).isEqualTo(anterior);
+            mvc.perform(get("/api/auth/sesion").cookie(cookie)).andExpect(status().isOk());
+        }
+        mvc.perform(csrf(put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
+                .content("{\"nombre\":\"" + usuario.getNombre() + "\",\"telefono\":\"" + usuario.getTelefono()
+                        + "\",\"especialidad\":\"Barba\"}"), sesion(actor))).andExpect(status().isOk());
+        assertThat(huella(usuario)).isEqualTo(anterior);
+        assertThat(barberos.findById(perfil.getId()).orElseThrow().getEspecialidad()).isEqualTo("Barba");
+    }
+
+    @Test void personaNoCompartida_conservaRestablecimientoEdicionEstadoYRevocacionV1() throws Exception {
+        var actor = propietario("titular");
+        var usuario = persona("local", Rol.BARBERO);
+        pertenencia(1L, usuario, RolNegocio.BARBERO);
+        var perfil = barberos.saveAndFlush(new Barbero(usuario, "Corte", reloj.instant()));
+        var cookie = sesion(actor);
+        mvc.perform(csrf(post(negocio("/api/usuarios/") + usuario.getId() + "/restablecer-password"), cookie)).andExpect(status().isOk());
+        mvc.perform(csrf(estado(usuario.getId(), false), cookie)).andExpect(status().isOk());
+        mvc.perform(csrf(estado(usuario.getId(), true), cookie)).andExpect(status().isOk());
+        var cuentaAntes = huella(usuario);
+        mvc.perform(csrf(put(negocio("/api/barberos/") + perfil.getId()).contentType("application/json")
+                .content("{\"nombre\":\"Nuevo nombre\",\"telefono\":\"999000002\",\"especialidad\":\"Barba\"}"), cookie))
+                .andExpect(status().isOk());
+        assertThat(usuarios.findById(usuario.getId()).orElseThrow().getNombre()).isEqualTo(usuario.getNombre());
+        assertThat(barberos.findById(perfil.getId()).orElseThrow().getNombreVisible()).isEqualTo("Nuevo nombre");
+        assertThat(huella(usuario)).isEqualTo(cuentaAntes);
+        mvc.perform(csrf(patch(negocio("/api/barberos/") + perfil.getId() + "/estado").contentType("application/json")
+                .content("{\"activo\":false}"), cookie)).andExpect(status().isOk());
+        assertThat(usuarios.findById(usuario.getId()).orElseThrow().isActivo()).isTrue();
+        assertThat(huella(usuario)).isEqualTo(cuentaAntes);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, usuario.getId()).orElseThrow().isActiva()).isFalse();
+    }
+
+    @Test void pertenenciaRevocadaEnOtroNegocio_noHaceCompartidaALaPersona() throws Exception {
+        long b = negocioB();
+        var actor = propietario("titular");
+        var usuario = persona("local", Rol.BARBERO);
+        pertenencia(1L, usuario, RolNegocio.BARBERO);
+        var otra = pertenencia(b, usuario, RolNegocio.BARBERO);
+        otra.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
+        membresias.save(otra);
+        mvc.perform(csrf(estado(usuario.getId(), false), sesion(actor))).andExpect(status().isOk());
+    }
+}

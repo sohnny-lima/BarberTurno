@@ -1,3 +1,5 @@
+import { prepararNegocio } from '../negocio/negocio-prueba';
+import { NegocioActual } from '../negocio/negocio-actual';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -9,7 +11,7 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import { Rol } from '../modelos/identidad';
-import { authGuard, passwordGuard, rolGuard } from './guards';
+import { authGuard, gestionGuard, passwordGuard, plataformaGuard, rolGuard } from './guards';
 import { SesionService } from './sesion-service';
 
 describe('Guards de identidad', () => {
@@ -23,6 +25,8 @@ describe('Guards de identidad', () => {
     sesion = TestBed.inject(SesionService);
     http = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
+    prepararNegocio();
+    TestBed.inject(NegocioActual).actualizarSesion(null);
   });
   afterEach(() => http.verify());
   function entrar(rol: Rol, temporal = false) {
@@ -34,6 +38,7 @@ describe('Guards de identidad', () => {
       rol,
       debeCambiarPassword: temporal,
     });
+    TestBed.inject(NegocioActual).actualizarSesion(sesion.usuario());
   }
   function ejecutar(guard: CanActivateFn, url = '/perfil') {
     return TestBed.runInInjectionContext(() =>
@@ -45,9 +50,47 @@ describe('Guards de identidad', () => {
       router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: '/perfil' } }),
     );
   });
+  it.each(['PROPIETARIO', 'ENCARGADO', 'BARBERO'] as const)(
+    'configuración exige rol de negocio PROPIETARIO frente a %s',
+    (rolNegocio) => {
+      entrar('ADMIN');
+      const negocio = TestBed.inject(NegocioActual);
+      negocio.actualizarSesion({ ...negocio.usuario()!, rolNegocio });
+      const resultado = ejecutar(gestionGuard(['PROPIETARIO']));
+      expect(resultado).toEqual(
+        rolNegocio === 'PROPIETARIO' ? true : router.parseUrl('/n/prueba/sin-acceso'),
+      );
+    },
+  );
   it('authGuard con sesión permite el acceso', () => {
     entrar('CLIENTE');
     expect(ejecutar(authGuard)).toBe(true);
+  });
+  it.each([null, 'ADMIN_PLATAFORMA'] as const)(
+    'plataforma exige el rol global %s, independiente del propietario local',
+    (rolPlataforma) => {
+      sesion.cargar().subscribe();
+      http
+        .expectOne('/api/auth/sesion')
+        .flush({ id: 1, rol: null, rolPlataforma, debeCambiarPassword: false });
+      const negocio = TestBed.inject(NegocioActual);
+      negocio.actualizarSesion({
+        id: 1,
+        nombre: 'Ficticio',
+        correo: 'guard@ejemplo.test',
+        rol: 'ADMIN',
+        rolNegocio: 'PROPIETARIO',
+        debeCambiarPassword: false,
+      });
+      expect(ejecutar(plataformaGuard, '/plataforma/negocios')).toEqual(
+        rolPlataforma ? true : router.parseUrl('/sin-acceso'),
+      );
+    },
+  );
+  it('plataforma sin sesión pide ingresar con retorno', () => {
+    expect(ejecutar(plataformaGuard, '/plataforma/negocios')).toEqual(
+      router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: '/plataforma/negocios' } }),
+    );
   });
   it.each(['CLIENTE', 'BARBERO', 'ADMIN'] as Rol[])(
     'rolGuard permite el rol %s autorizado',
@@ -57,15 +100,17 @@ describe('Guards de identidad', () => {
     },
   );
   it.each([
-    ['CLIENTE', '/reservar'],
-    ['BARBERO', '/agenda'],
-    ['ADMIN', '/agenda'],
+    ['CLIENTE', '/n/prueba/sin-acceso'],
+    ['BARBERO', '/n/prueba/sin-acceso'],
+    ['ADMIN', '/n/prueba/sin-acceso'],
   ] as const)('rolGuard redirige %s a su inicio', (rol, inicio) => {
     entrar(rol);
     expect(ejecutar(rolGuard([]))).toEqual(router.parseUrl(inicio));
   });
   it('rolGuard sin sesión redirige al ingreso', () => {
-    expect(ejecutar(rolGuard(['ADMIN']))).toEqual(router.parseUrl('/ingresar'));
+    expect(ejecutar(rolGuard(['ADMIN']))).toEqual(
+      router.createUrlTree(['/ingresar'], { queryParams: { returnUrl: '/perfil' } }),
+    );
   });
   it('passwordGuard temporal impide incluso páginas públicas', () => {
     entrar('BARBERO', true);

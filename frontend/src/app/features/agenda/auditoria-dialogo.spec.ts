@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -17,11 +18,12 @@ describe('Historial de cambios', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   it('muestra actor, acción, anterior → nuevo, motivo y excepción con fecha de Lima', () => {
     const fixture = TestBed.createComponent(AuditoriaDialogo);
-    http.expectOne('/api/reservas/101/auditoria').flush([
+    http.expectOne('/api/n/prueba/reservas/101/auditoria').flush([
       {
         accion: 'REPROGRAMAR',
         actorNombre: 'Administrador ficticio',
@@ -57,7 +59,7 @@ describe('Historial de cambios', () => {
   });
   it('creación sin datos previos y motivo no muestra valores indefinidos', () => {
     const fixture = TestBed.createComponent(AuditoriaDialogo);
-    http.expectOne('/api/reservas/101/auditoria').flush([
+    http.expectOne('/api/n/prueba/reservas/101/auditoria').flush([
       {
         accion: 'CREAR',
         actorNombre: 'Cliente ficticio',
@@ -77,7 +79,7 @@ describe('Historial de cambios', () => {
   });
   it('transiciones con instantáneas de solo estado no inventan horas ni barbero', () => {
     const fixture = TestBed.createComponent(AuditoriaDialogo);
-    http.expectOne('/api/reservas/101/auditoria').flush([
+    http.expectOne('/api/n/prueba/reservas/101/auditoria').flush([
       {
         accion: 'INICIAR',
         actorNombre: 'Barbero ficticio',
@@ -97,12 +99,12 @@ describe('Historial de cambios', () => {
   it('maneja vacío y un fallo recuperable', () => {
     const fixture = TestBed.createComponent(AuditoriaDialogo);
     http
-      .expectOne('/api/reservas/101/auditoria')
+      .expectOne('/api/n/prueba/reservas/101/auditoria')
       .flush({}, { status: 503, statusText: 'Unavailable' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Reintentar');
     fixture.componentInstance.cargar();
-    http.expectOne('/api/reservas/101/auditoria').flush([]);
+    http.expectOne('/api/n/prueba/reservas/101/auditoria').flush([]);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No hay cambios registrados');
   });

@@ -15,9 +15,9 @@ export function fechaCivil(fecha: Date): string {
   ].join('-');
 }
 
-export function limitesDatepicker(ahora = new Date()) {
+export function limitesDatepicker(ahora = new Date(), horizonteDias = 30) {
   return {
     min: fechaDatepicker(fechaHoyLima(0, ahora)),
-    max: fechaDatepicker(fechaHoyLima(30, ahora)),
+    max: fechaDatepicker(fechaHoyLima(horizonteDias, ahora)),
   };
 }

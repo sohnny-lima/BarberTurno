@@ -1,0 +1,38 @@
+{
+  "navegador": "firefox",
+  "version": "155.0",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "captura": {
+    "width": 1440,
+    "height": 900
+  },
+  "superpuesta": false,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-switch mdc-switch--unselected",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": null,
+  "ruta": "/n/sur/equipo",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 41,
+      "violadas": 0,
+      "incompletas": 0,
+      "inaplicables": 48
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [],
+    "contrasteManual": []
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

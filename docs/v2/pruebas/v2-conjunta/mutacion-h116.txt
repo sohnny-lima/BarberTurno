@@ -1,0 +1,13 @@
+[ERROR] Tests run: 14, Failures: 12, Errors: 0, Skipped: 0, Time elapsed: 29.77 s <<< FAILURE! -- in pe.barberturno.whatsapp.PresupuestoEnvioWhatsAppIT
+[ERROR]   PresupuestoEnvioWhatsAppIT.aceptacion_aLaPrimeraOEnElAdicional_noReenviaNiAfirmaEntrega:86 
+[ERROR]   PresupuestoEnvioWhatsAppIT.aceptacion_aLaPrimeraOEnElAdicional_noReenviaNiAfirmaEntrega:86 
+[ERROR]   PresupuestoEnvioWhatsAppIT.adicionalNoEnviado_noDevuelvePermiso:148 
+[ERROR]   PresupuestoEnvioWhatsAppIT.caidaAntesDelHttp_preparacionConfirmadaConsumeAmbosPresupuestosSinSolicitudes:175->lambda$caidaAntesDelHttp_preparacionConfirmadaConsumeAmbosPresupuestosSinSolicitudes$4:172 
+[ERROR]   PresupuestoEnvioWhatsAppIT.cierrePerdidoTrasHttp_reinicioRespetaEsperaYUnSoloAdicionalAunqueSea429:102 
+[ERROR]   PresupuestoEnvioWhatsAppIT.concurrencia_reclamoVencidoYCierreAntiguo_noRestablecenElPresupuesto:241 
+[ERROR]   PresupuestoEnvioWhatsAppIT.concurrencia_reclamoVencidoYCierreAntiguo_noRestablecenElPresupuesto:241 
+[ERROR]   PresupuestoEnvioWhatsAppIT.desconocido_reinicioYAdicionalNoAceptado_soloDosSolicitudes:135 
+[ERROR]   PresupuestoEnvioWhatsAppIT.desconocido_reinicioYAdicionalNoAceptado_soloDosSolicitudes:135 
+[ERROR]   PresupuestoEnvioWhatsAppIT.desconocido_reinicioYAdicionalNoAceptado_soloDosSolicitudes:135 
+[ERROR]   PresupuestoEnvioWhatsAppIT.dosCierresPerdidos_recuperacionNoHaceUnaTerceraSolicitud:161 
+[ERROR]   PresupuestoEnvioWhatsAppIT.quintoIntentoConCierrePerdido_recuperaSinReservarNiEnviarUnSexto:214 

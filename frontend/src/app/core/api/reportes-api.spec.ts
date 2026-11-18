@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../negocio/negocio-prueba';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -10,6 +11,7 @@ describe('Exportación Excel del API de reportes', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
 
@@ -23,7 +25,7 @@ describe('Exportación Excel del API de reportes', () => {
         nombre = r.headers.get('Content-Disposition') ?? '';
         cuerpo = r.body;
       });
-    const r = http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx');
+    const r = http.expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx');
     expect(r.request.method).toBe('GET');
     expect(r.request.responseType).toBe('blob');
     expect(r.request.headers.get('Accept')).toBe(
@@ -43,7 +45,7 @@ describe('Exportación Excel del API de reportes', () => {
     TestBed.inject(ReportesApi)
       .excel({ desde: '2026-10-01', hasta: '2026-10-03', servicioId: undefined })
       .subscribe();
-    const r = http.expectOne((r) => r.url === '/api/reportes/resumen.xlsx');
+    const r = http.expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx');
     expect(r.request.params.keys().sort()).toEqual(['desde', 'hasta']);
     r.flush(new Blob());
   });
@@ -58,7 +60,7 @@ describe('Exportación Excel del API de reportes', () => {
         },
       });
     http
-      .expectOne((r) => r.url === '/api/reportes/resumen.xlsx')
+      .expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx')
       .flush(
         new Blob(
           [JSON.stringify({ codigo: 'VALIDACION', detail: 'Revise el periodo.', errores: [] })],
@@ -80,7 +82,7 @@ describe('Exportación Excel del API de reportes', () => {
         },
       });
     http
-      .expectOne((r) => r.url === '/api/reportes/resumen.xlsx')
+      .expectOne((r) => r.url === '/api/n/prueba/reportes/resumen.xlsx')
       .flush(new Blob(['error']), { status: 503, statusText: 'Service Unavailable' });
     await vi.waitFor(() => expect(error?.status).toBe(503));
   });

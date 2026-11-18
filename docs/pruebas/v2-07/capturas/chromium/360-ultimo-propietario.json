@@ -1,0 +1,84 @@
+{
+  "navegador": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": {
+    "width": 360,
+    "height": 800
+  },
+  "captura": {
+    "width": 360,
+    "height": 800
+  },
+  "superpuesta": true,
+  "foco": {
+    "etiqueta": "BUTTON",
+    "clase": "mdc-button mat-mdc-button-base mat-mdc-button mat-unthemed cdk-focused cdk-keyboard-focused",
+    "visible": true,
+    "estilo": "solid",
+    "ancho": "3px",
+    "desfase": "2px"
+  },
+  "contencion": {
+    "ambito": "[role=\"dialog\"]",
+    "pulsaciones": 4
+  },
+  "ruta": "/n/sur/equipo",
+  "axe": {
+    "version": "4.13.0",
+    "reglas": {
+      "superadas": 29,
+      "violadas": 0,
+      "incompletas": 2,
+      "inaplicables": 60
+    },
+    "seriasOCriticas": 0,
+    "total": 0,
+    "otras": [],
+    "incompletas": [
+      {
+        "id": "aria-hidden-focus",
+        "impacto": "serious",
+        "nodos": [
+          "app-root",
+          ".cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(1)",
+          ".cdk-focus-trap-anchor.cdk-visually-hidden[aria-hidden=\"true\"]:nth-child(3)"
+        ]
+      },
+      {
+        "id": "color-contrast",
+        "impacto": "serious",
+        "nodos": [
+          "p:nth-child(1)",
+          ".mensaje"
+        ]
+      }
+    ],
+    "contrasteManual": [
+      {
+        "selector": "p:nth-child(1)",
+        "componente": "p.",
+        "estado": "normal",
+        "color": "#5b6b65",
+        "fondo": "#ffffff",
+        "ratio": 5.62,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      },
+      {
+        "selector": ".mensaje",
+        "componente": "p.mensaje",
+        "estado": "normal",
+        "color": "#7a1f17",
+        "fondo": "#fbe6e4",
+        "ratio": 8.62,
+        "minimo": 4.5,
+        "exento": false,
+        "cumple": true,
+        "imagen": false
+      }
+    ]
+  },
+  "disposicion": "sin desbordamiento; escritorio sin barra móvil ni superposición del riel"
+}

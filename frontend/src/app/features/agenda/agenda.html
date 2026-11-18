@@ -41,7 +41,13 @@
     </button>
     <mat-form-field subscriptSizing="dynamic">
       <mat-label>Fecha de Lima</mat-label>
-      <input matInput type="date" formControlName="fecha" (change)="cargar()" />
+      <input
+        matInput
+        type="date"
+        formControlName="fecha"
+        (change)="cargar()"
+        enterkeyhint="search"
+      />
       <mat-error>Seleccione una fecha válida.</mat-error>
     </mat-form-field>
     <button
@@ -85,7 +91,7 @@
   </p>
 }
 @if (!cargando() && !mensaje()) {
-  <p class="resumen-conteos" aria-label="Resumen de citas">{{ resumen() }}</p>
+  <p class="resumen-conteos"><span class="sr-only">Resumen de citas: </span>{{ resumen() }}</p>
 }
 <div class="linea-tiempo" aria-live="polite" [attr.aria-busy]="cargando()">
   @if (cargando()) {
@@ -143,10 +149,10 @@
             }
             @for (reserva of bloque.filas; track reserva.id; let indice = $index) {
               @if (posicionAhora() === indice) {
-                <div [attr.role]="escritorio() ? 'row' : null">
+                <div [attr.role]="escritorio() && bloque.filas.length ? 'row' : null">
                   <div
-                    [attr.role]="escritorio() ? 'cell' : null"
-                    [attr.aria-colspan]="escritorio() ? 6 : null"
+                    [attr.role]="escritorio() && bloque.filas.length ? 'cell' : null"
+                    [attr.aria-colspan]="escritorio() && bloque.filas.length ? 6 : null"
                   >
                     <div class="ahora" role="status">Ahora</div>
                   </div>
@@ -166,10 +172,10 @@
               />
             }
             @if (posicionAhora() === bloque.filas.length) {
-              <div [attr.role]="escritorio() ? 'row' : null">
+              <div [attr.role]="escritorio() && bloque.filas.length ? 'row' : null">
                 <div
-                  [attr.role]="escritorio() ? 'cell' : null"
-                  [attr.aria-colspan]="escritorio() ? 6 : null"
+                  [attr.role]="escritorio() && bloque.filas.length ? 'cell' : null"
+                  [attr.aria-colspan]="escritorio() && bloque.filas.length ? 6 : null"
                 >
                   <div class="ahora" role="status">Ahora</div>
                 </div>
@@ -181,3 +187,7 @@
     }
   }
 </div>
+
+@if (negocio.usuario()?.barberoId) {
+  <app-whatsapp-profesional />
+}

@@ -1,7 +1,9 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { AvisosService } from '../../core/notificaciones/avisos-service';
 import { AvisosPanel } from './avisos-panel';
 
@@ -12,6 +14,7 @@ describe('Panel de avisos', () => {
     {
       id: 8,
       reservaId: 101,
+      conversacionId: null,
       tipo: 'CANCELAR',
       mensaje: 'BT-101 cancelada',
       leida: false,
@@ -20,6 +23,7 @@ describe('Panel de avisos', () => {
     {
       id: 7,
       reservaId: 101,
+      conversacionId: null,
       tipo: 'CREAR',
       mensaje: 'BT-101 creada',
       leida: false,
@@ -30,18 +34,20 @@ describe('Panel de avisos', () => {
     actualizar.mockClear();
     TestBed.configureTestingModule({
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: AvisosService, useValue: { noLeidas: signal(2), actualizar } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function crear() {
     const fixture = TestBed.createComponent(AvisosPanel);
     fixture.detectChanges();
-    const solicitud = http.expectOne((r) => r.url === '/api/notificaciones');
+    const solicitud = http.expectOne((r) => r.url === '/api/n/prueba/notificaciones');
     expect(solicitud.request.params.get('soloNoLeidas')).toBe('false');
     solicitud.flush({
       contenido: avisos,
@@ -66,12 +72,14 @@ describe('Panel de avisos', () => {
     fixture.componentInstance.marcar(id);
     fixture.componentInstance.marcar(id);
     const lectura = http.expectOne(
-      id === undefined ? '/api/notificaciones/lectura' : '/api/notificaciones/8/lectura',
+      id === undefined
+        ? '/api/n/prueba/notificaciones/lectura'
+        : '/api/n/prueba/notificaciones/8/lectura',
     );
     expect(lectura.request.method).toBe('POST');
     lectura.flush(null, { status: 204, statusText: 'No Content' });
     http
-      .expectOne((r) => r.url === '/api/notificaciones')
+      .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
       .flush({ contenido: avisos.map((a) => ({ ...a, leida: true })), totalElementos: 2 });
     fixture.detectChanges();
     expect(actualizar).toHaveBeenCalledOnce();
@@ -82,20 +90,20 @@ describe('Panel de avisos', () => {
     const fixture = crear();
     fixture.componentInstance.paginar({ pageIndex: 1, pageSize: 10, length: 20 });
     fixture.detectChanges();
-    const pagina = http.expectOne((r) => r.url === '/api/notificaciones');
+    const pagina = http.expectOne((r) => r.url === '/api/n/prueba/notificaciones');
     expect(pagina.request.params.get('pagina')).toBe('1');
     pagina.flush({ contenido: [], totalElementos: 20 });
     fixture.componentRef.setInput('revision', 1);
     fixture.detectChanges();
     http
-      .expectOne((r) => r.url === '/api/notificaciones')
+      .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
       .flush({ contenido: avisos, totalElementos: 20 });
   });
   it('conserva el aviso y permite reintentar un error de lectura', () => {
     const fixture = crear();
     fixture.componentInstance.marcar(8);
     http
-      .expectOne('/api/notificaciones/8/lectura')
+      .expectOne('/api/n/prueba/notificaciones/8/lectura')
       .flush({ detail: 'El aviso no existe.' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('El aviso no existe.');
@@ -141,5 +149,41 @@ describe('Panel de avisos', () => {
     expect(lectura.getAttribute('aria-label')).toBe('Marcar como leído el aviso de BT-101');
     expect(lectura.textContent).toContain('Marcar como leído');
     expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
+  });
+  it('un aviso DERIVACION muestra su mensaje, enlace a la conversación y aria-label sin BT-null', () => {
+    const avisoDerivacion = {
+      id: 99,
+      reservaId: null,
+      conversacionId: 42,
+      tipo: 'DERIVACION',
+      mensaje: 'Cliente solicita atención humana',
+      leida: false,
+      creadoEn: '2026-10-04T11:00:00-05:00',
+    };
+    const fixture = TestBed.createComponent(AvisosPanel);
+    fixture.detectChanges();
+    const solicitud = http.expectOne((r) => r.url === '/api/n/prueba/notificaciones');
+    solicitud.flush({
+      contenido: [avisoDerivacion],
+      totalElementos: 1,
+      pagina: 0,
+      tamano: 10,
+      totalPaginas: 1,
+    });
+    fixture.detectChanges();
+
+    const li = fixture.nativeElement.querySelector('li') as HTMLElement;
+    expect(li.textContent).toContain('Cliente solicita atención humana');
+
+    const enlace = li.querySelector('a') as HTMLAnchorElement;
+    expect(enlace).not.toBeNull();
+    expect(enlace.textContent?.trim()).toBe('Abrir conversación');
+    expect(enlace.getAttribute('href')).toBe('/n/prueba/whatsapp/42');
+
+    const botonLectura = li.querySelector('button') as HTMLButtonElement;
+    expect(botonLectura.getAttribute('aria-label')).not.toContain('BT-null');
+    expect(botonLectura.getAttribute('aria-label')).toBe(
+      'Marcar como leído el aviso de derivación',
+    );
   });
 });

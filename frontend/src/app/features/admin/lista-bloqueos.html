@@ -11,6 +11,7 @@
       <button
         mat-stroked-button
         class="riesgo"
+        [disabled]="soloLectura()"
         (click)="eliminar.emit(bloqueo)"
         [attr.aria-label]="'Eliminar bloqueo: ' + bloqueo.motivo"
       >

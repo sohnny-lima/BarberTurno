@@ -13,5 +13,6 @@ import { FechaLimaPipe } from '../../core/tiempo/fecha-lima-pipe';
 })
 export class ListaBloqueos {
   readonly bloqueos = input.required<BloqueoDto[]>();
+  readonly soloLectura = input(false);
   readonly eliminar = output<BloqueoDto>();
 }

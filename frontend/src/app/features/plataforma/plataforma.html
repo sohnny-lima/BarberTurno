@@ -1,0 +1,109 @@
+<app-cabecera-pagina
+  titulo="Barberías de la plataforma"
+  subtitulo="Administración de la disponibilidad y del acceso inicial."
+  ><button mat-flat-button [disabled]="operando()" (click)="crear()">
+    Nueva barbería
+  </button></app-cabecera-pagina
+>
+<a mat-button routerLink="/negocios">Ir a mis barberías</a>
+@if (enlace(); as dato) {
+  <app-enlace-invitacion
+    [enlace]="dato.valor"
+    [expiraEn]="dato.expiraEn"
+    [titulo]="'Invitación inicial de ' + dato.para"
+  /><button mat-button (click)="enlace.set(null)">Ocultar enlace</button>
+}
+@if (mensaje()) {
+  <app-estado-contenido
+    tipo="error"
+    [texto]="mensaje()"
+    reintento="Reintentar"
+    (reintentar)="cargar()"
+  />
+}
+@if (cargando()) {
+  <app-estado-contenido tipo="carga" texto="Cargando barberías de la plataforma…" />
+} @else if (!filas().length) {
+  <app-estado-contenido tipo="vacio" texto="Todavía no hay barberías en la plataforma." />
+} @else {
+  <app-lista-adaptable nombre="Barberías de la plataforma" [tabla]="tabla" [tarjetas]="tarjetas" />
+}
+<ng-template #tabla
+  ><table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Estado</th>
+        <th>Miembros activos</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (fila of filas(); track fila.id) {
+        <tr>
+          <td>
+            <strong>{{ fila.nombre }}</strong>
+            <p class="ayuda">/n/{{ fila.slug }}</p>
+          </td>
+          <td>
+            <span class="estado" [class.suspendido]="fila.estado === 'SUSPENDIDO'">{{
+              fila.estado === 'ACTIVO' ? 'Activo' : 'Suspendido'
+            }}</span>
+          </td>
+          <td>{{ fila.miembrosActivos }}</td>
+          <td>
+            <ng-container
+              [ngTemplateOutlet]="acciones"
+              [ngTemplateOutletContext]="{ $implicit: fila }"
+            />
+          </td>
+        </tr>
+      }
+    </tbody></table
+></ng-template>
+<ng-template #tarjetas>
+  @for (fila of filas(); track fila.id) {
+    <div class="ficha" role="listitem">
+      <div class="ficha-cabecera">
+        <h2>{{ fila.nombre }}</h2>
+        <span class="estado" [class.suspendido]="fila.estado === 'SUSPENDIDO'">{{
+          fila.estado === 'ACTIVO' ? 'Activo' : 'Suspendido'
+        }}</span>
+      </div>
+      <p class="ayuda">/n/{{ fila.slug }}</p>
+      <p>Miembros activos: {{ fila.miembrosActivos }}</p>
+      <div class="acciones-fila">
+        <ng-container
+          [ngTemplateOutlet]="acciones"
+          [ngTemplateOutletContext]="{ $implicit: fila }"
+        />
+      </div>
+    </div>
+  }
+</ng-template>
+<ng-template #acciones let-fila
+  ><button
+    mat-stroked-button
+    [class.riesgo]="fila.estado === 'ACTIVO'"
+    [disabled]="operando()"
+    [attr.aria-label]="(fila.estado === 'ACTIVO' ? 'Suspender ' : 'Reactivar ') + fila.nombre"
+    (click)="cambiarEstado(fila)"
+  >
+    {{ fila.estado === 'ACTIVO' ? 'Suspender' : 'Reactivar' }}</button
+  ><button
+    mat-stroked-button
+    [disabled]="operando()"
+    [attr.aria-label]="'Reenviar invitación de ' + fila.nombre"
+    (click)="reenviar(fila)"
+  >
+    Reenviar invitación</button
+  ><button
+    mat-stroked-button
+    class="riesgo"
+    [disabled]="operando()"
+    [attr.aria-label]="'Revocar invitación de ' + fila.nombre"
+    (click)="revocar(fila)"
+  >
+    Revocar invitación
+  </button></ng-template
+>

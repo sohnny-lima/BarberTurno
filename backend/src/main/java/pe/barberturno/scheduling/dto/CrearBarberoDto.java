@@ -3,8 +3,9 @@ package pe.barberturno.scheduling.dto;
 import jakarta.validation.constraints.*;
 
 /**
- * Alta RF-05: cuenta BARBERO temporal o vínculo exclusivo a un ADMIN; el servicio valida la variante.
- * @param usuarioId ADMIN activo existente; excluye los campos de cuenta nueva
+ * Alta RF-05: cuenta temporal con membresía BARBERO o vínculo a un gestor del negocio actual.
+ * El servicio valida la variante y exige membresía activa PROPIETARIO o ENCARGADO para el vínculo.
+ * @param usuarioId gestor activo del negocio; excluye los campos de cuenta nueva
  * @param nombre nombre de la cuenta nueva de 2 a 100 caracteres sin espacios sobrantes
  * @param correo correo de la cuenta nueva, normalizado a minúsculas por el servicio
  * @param telefono nueve dígitos opcionales de la cuenta nueva

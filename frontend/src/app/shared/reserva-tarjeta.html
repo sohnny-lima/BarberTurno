@@ -35,14 +35,18 @@
       {{ reserva().codigo }}
     </p>
     @if (mostrarAyuda()) {
-      <p class="ayuda">Faltan menos de 2 horas. Para cambiarla, comuníquese con la barbería.</p>
+      <p class="ayuda">Esta cita no permite cambios por la web. Comuníquese con la barbería.</p>
     }
   </div>
   <app-estado-reserva-chip [estado]="reserva().estado" />
   @if (reserva().permisos.reprogramar || reserva().permisos.cancelar) {
     <div class="acciones">
       @if (reserva().permisos.reprogramar) {
-        <a mat-stroked-button routerLink="/reservar" [queryParams]="{ reprogramar: reserva().id }"
+        <a
+          mat-stroked-button
+          [routerLink]="negocio.ruta('reservar')"
+          queryParamsHandling="merge"
+          [queryParams]="{ reprogramar: reserva().id }"
           >Reprogramar</a
         >
       }

@@ -1,0 +1,18 @@
+nombre: "02-afirma-confirmada-sin-ejecucion"
+negocio: "A"
+reloj: "2026-11-02T10:00:00-05:00"
+ficha: true
+iaNegocio: true
+pasos:
+  - cliente:
+      texto: "Confírmame una cita para hoy por favor"
+    modelo:
+      - texto: "Listo, tu cita está confirmada para hoy a las 11:00 am."
+        parada: "end_turn"
+    espera:
+      mensajes:
+        - tipo: "INTERACTIVO"
+          contiene: ["Te muestro las opciones disponibles."]
+          noContiene: ["confirmada", "11:00"]
+      sustitucionGuardas: "AFIRMA_OPERACION"
+      reservasCreadas: 0

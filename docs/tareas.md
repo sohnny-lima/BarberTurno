@@ -1,5 +1,36 @@
 # BarberTurno — Plan de tareas de implementación
 
+> V2-CONS · Encargo 161: **Hecha en local; pendiente de revisión** (18/11/2026),
+> en `tarea/V2-CONS-consolidacion`. Frontend: 404 del vínculo profesional silencioso
+> en GET/POST/DELETE; 500 junto a la acción sin snackbar duplicado; pie multinegocio;
+> favicon de tijeras verdes 16/32/48 px y marca del manifest coherente.
+> Commits: `02fb81bf8788e81148fdb7de4cf730a4a5f1edd6`,
+> `0daa44380a08088832b466421c49ad41c281b97f`,
+> `b8244610d00528e1e43888a08c7bfbaae8f13598`.
+> Lint y Prettier correctos; Vitest **652/652, 56 archivos**, con `maxWorkers: 4`
+> tras SIGTERM del primer intento; build **509,09 kB**, sin avisos.
+> Desviación menor: formato de tres archivos de la demo para corregir el control
+> obligatorio de CI. Sin dependencias nuevas, cambios de contrato ni código Java.
+> Hallazgos sin corregir: nombre Android «BarberTurno (demo)» (fuera de alcance);
+> privacidad aún describe una barbería de Huamanga. README sin cambios.
+> Evidencia: `docs/v2/pruebas/v2-cons-161.md`. Cierre documental por asunto
+> `docs: registrar correcciones y verificación del encargo 161 [V2-CONS]`
+> (hash propio en el informe final). **Merge: ninguno**, por instrucción expresa.
+> Sin push ni cambios de rama; sin procesos propios al terminar.
+
+> V2-TW · Encargo 159: **Producción Hecha en local** (12/11/2026), en `tarea/V2-TWILIO-sandbox`.
+> Contrato y seguimiento: `docs/v2/20-v2-twilio-sandbox.md` §13 y `docs/v2/10-backlog.md` §11.
+> Excepción de ejecución: solo regresión afectada, pruebas nuevas por Gemini; sin merge ni push.
+> Cierre: `5267d8f68401ea2d33189c95b68f9bd343cdb14e` y `07049b292582305cdd0f62ba2c1e04f788b25dd2`.
+> Regresión 639 (15 fallos/1 error por aserciones anteriores); focal final 47/0; Javadoc sin avisos;
+> lint/build correctos y frontend aislado 609/639, 30 fallos por el GET nuevo de Agenda sin resolver
+> en su fixture. Pendientes CT-14…CT-20 y revisión; evidencia: `docs/v2/pruebas/v2-tw-159.md`.
+> Decisiones/hallazgos: hash antes de la cola, comprobación de permisos en cada agenda, claves por
+> número/persona, retención 5/10 min con limpieza, contador en memoria; conservar IA existente
+> pendiente de precisión del coordinador. Cierre documental por asunto
+> `docs(whatsapp): cerrar implementación y evidencias del encargo 159 [V2-TW]` (hash propio en informe).
+> Merge: ninguno. Sin procesos propios de pruebas al terminar.
+
 > Versión 1.0 · 01/10/2026 · Preparado por Claude Code (arquitecto) para Codex (implementación y pruebas)
 > Antes de cada tarea, leer: [../AGENTS.md](../AGENTS.md), [requisitos.md](requisitos.md) y [arquitectura.md](arquitectura.md).
 

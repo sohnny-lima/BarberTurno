@@ -1,6 +1,7 @@
 package pe.barberturno.scheduling;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Collection;
 import jakarta.persistence.LockModeType;
@@ -10,32 +11,40 @@ import org.springframework.data.repository.query.Param;
 
 /**
  * Consulta perfiles de atención y toma el bloqueo ② ordenado de disponibilidad (arquitectura §8).
+ * Las consultas declaradas abren una transacción de lectura con contexto de negocio;
+ * RepositorioTransaccional declara las escrituras heredadas para evitar que sean de solo lectura.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
-public interface BarberoRepository extends JpaRepository<Barbero, Long> {
+@Transactional(readOnly = true)
+public interface BarberoRepository extends RepositorioTransaccional<Barbero, Long> {
 
     /**
-     * Serializa altas y cambios de estado RN-19 hasta fin de transacción; clave global 141414 reservada a T-14.
+     * Serializa altas y cambios de estado RN-19 del negocio hasta fin de transacción (V2-DA-30).
      * Se toma antes de usuario y barbero. La función en FROM evita mapear el tipo PostgreSQL void.
-     * @return centinela 1 después de adquirir pg_advisory_xact_lock
+     * @param negocioId ámbito que cabe en int4 según negocio_id_rango
+     * @return centinela 1 después de adquirir pg_advisory_xact_lock de dos claves
      */
-    @Query(value = "select 1 from pg_advisory_xact_lock(141414)", nativeQuery = true)
-    int bloquearLimiteActivos();
+    @Transactional
+    @Query(value = "select 1 from pg_advisory_xact_lock(141414, cast(:negocioId as integer))", nativeQuery = true)
+    int bloquearLimiteActivos(@Param("negocioId") long negocioId);
 
     /**
-     * Cuenta perfiles habilitados después del bloqueo global RN-19, sin depender del rol vinculado.
+     * Cuenta perfiles habilitados del contexto RLS después del bloqueo RN-19, sin depender del rol vinculado.
+     * @param negocioId ámbito explícito del conteo, adicional a RLS
      * @return cantidad actual de perfiles activos
      */
-    long countByActivoTrue();
+    @Query("select count(b) from Barbero b where b.negocioId = :negocioId and b.activo = true")
+    long countByActivoTrue(@Param("negocioId") long negocioId);
 
     /**
      * Carga perfiles y usuarios para la proyección RF-05, ordenados por nombre sin distinguir mayúsculas e id.
      * @param incluirInactivos permiso concedido solo a ADMIN por el controlador
+     * @param negocioId ámbito explícito de los perfiles, adicional a RLS
      * @return perfiles ordenados con usuario disponible
      */
-    @Query("select b from Barbero b join fetch b.usuario u where :incluirInactivos = true or b.activo = true order by lower(u.nombre), b.id")
-    List<Barbero> listar(@Param("incluirInactivos") boolean incluirInactivos);
+    @Query("select b from Barbero b join fetch b.usuario u where b.negocioId = :negocioId and (:incluirInactivos = true or b.activo = true) order by lower(b.nombreVisible), b.id")
+    List<Barbero> listar(@Param("negocioId") long negocioId, @Param("incluirInactivos") boolean incluirInactivos);
 
     /**
      * Obtiene solo la identidad vinculada para bloquear usuario antes que perfil, sin cargar entidades obsoletas.
@@ -59,13 +68,16 @@ public interface BarberoRepository extends JpaRepository<Barbero, Long> {
      * @param ids identificadores no nulos de perfiles; la consulta impone orden ascendente
      * @return resultados con el orden descrito, sin comprobación adicional de permisos
      */
+    @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Barbero b where b.id in :ids order by b.id")
     List<Barbero> bloquearPorIds(@Param("ids") Collection<Long> ids);
 
     /**
      * Selecciona perfiles habilitados RF-21 sin cargar cuentas ni datos personales.
+     * @param negocioId ámbito explícito de la disponibilidad pública
      * @return perfiles activos ordenados por identidad
      */
-    List<Barbero> findByActivoTrueOrderByIdAsc();
+    @Query("select b from Barbero b where b.negocioId = :negocioId and b.activo = true order by b.id")
+    List<Barbero> findByActivoTrueOrderByIdAsc(@Param("negocioId") long negocioId);
 }

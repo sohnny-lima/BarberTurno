@@ -13,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
@@ -21,6 +22,8 @@ import org.springframework.security.web.authentication.session.NullAuthenticated
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import pe.barberturno.common.error.ErrorCodigo;
+import pe.barberturno.common.tenancy.*;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 /**
  * Autenticación JWT por cookie, CSRF SPA estable durante la sesión (DA-26) y permisos de rutas implementadas.
@@ -34,6 +37,19 @@ public class SecurityConfig {
      * Spring crea esta configuración al arrancar el contexto para registrar la cadena de filtros.
      */
     public SecurityConfig() {
+    }
+
+    /**
+     * Conserva el cortafuegos estricto y expresa sus rechazos como el resto de errores de la API.
+     * Las barras, puntos o porcentajes codificados pueden rechazarse antes de ResolutorNegocio.
+     * @param respuestas escritor común de ProblemDetail sin trazas ni detalles del cortafuegos
+     * @return personalización del error, sin relajar ninguna protección del cortafuegos
+     */
+    @Bean
+    public WebSecurityCustomizer erroresDeRuta(RespuestaSeguridad respuestas) {
+        return web -> web.requestRejectedHandler((request, response, excepcion) ->
+                respuestas.escribir(request, response, ErrorCodigo.VALIDACION,
+                        "La ruta de la petición no es válida."));
     }
 
     /**
@@ -58,9 +74,22 @@ public class SecurityConfig {
      * Permite transiciones RF-12 solo a BARBERO o ADMIN; el servicio comprueba asignación y RN-12.
      * Permite auditoría RF-17 y avisos RF-16 con sesión; el servicio impone propiedad y asignación.
      * Autoriza el resumen RF-14, su exportación Excel DA-29 y gestión de usuarios RF-19 exclusivamente a ADMIN.
+     * GET/PATCH de fichas admite solo el equivalente ADMIN de PROPIETARIO/ENCARGADO, con ámbito en el servicio.
+     * Normaliza el prefijo antes de CSRF/autenticación. Registro de negocio es público; alta propia y
+     * mis-negocios exigen identidad. RolNegocioFilter impone 403 sin papel local en operaciones protegidas.
+     * Plataforma exige su rol global independiente; la suspensión conserva lecturas y rechaza escrituras.
+     * Solo con twilio permite y exime de CSRF los POST exactos /api/twilio/webhook y /api/twilio/estado;
+     * las variantes y rutas de negocio nunca heredan la exención.
+     * Invitaciones: consulta y registro por token públicos, aceptación autenticada y gestión local solo ADMIN efectivo.
+     * Equipo permite gestión ADMIN y salida propia del personal; el servicio distingue propietario y encargado.
+     * Vínculo profesional exige sesión; el servicio impone perfil y membresía activos con 404, y conserva CSRF.
+     * Configuración admite ADMIN efectivo y exige propietario vigente también en el servicio.
+     * La proyección pública GET de negocio expone solo los parámetros aprobados en V2-DA-44.
      * Añade filtro de contraseña temporal y errores RFC 9457; borra BT_SESION ante fallos del token (DA-22).
      * Sirve GET/HEAD de la SPA fuera de prefijos técnicos, sin abrir API. Impone CSP sin scripts en línea,
      * estilos Angular/Material en línea y HSTS en HTTPS o prod (TLS terminado por el proxy).
+     * @param contexto holder del negocio de cada petición
+     * @param directorio resolución transaccional del slug antes de autenticar
      * @param entorno perfiles activos usados para imponer HSTS también detrás del proxy en prod
      * @param http constructor de la seguridad HTTP
      * @param converter revalidación de identidad
@@ -74,6 +103,7 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, Environment entorno, UsuarioJwtConverter converter,
+            ContextoNegocio contexto, DirectorioNegocios directorio,
             RespuestaSeguridad respuestas, CookieSesion cookies, CookieCsrfTokenRepository csrf,
             @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsHabilitada,
             @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerHabilitado) throws Exception {
@@ -111,7 +141,10 @@ public class SecurityConfig {
                             public <O extends CsrfFilter> O postProcess(O filtro) {
                                 // El resource server excluye bearer de CSRF por defecto.
                                 // Con JWT en cookie toda escritura sigue necesitando CSRF.
-                                filtro.setRequireCsrfProtectionMatcher(CsrfFilter.DEFAULT_CSRF_MATCHER);
+                                // Los webhooks se autentican por firma; Twilio solo existe en su perfil.
+                                filtro.setRequireCsrfProtectionMatcher(peticion -> CsrfFilter.DEFAULT_CSRF_MATCHER.matches(peticion)
+                                        && !esWebhookWhatsApp(peticion)
+                                        && !(entorno.acceptsProfiles(Profiles.of("twilio")) && esWebhookTwilio(peticion)));
                                 return filtro;
                             }
                         }))
@@ -124,25 +157,49 @@ public class SecurityConfig {
                         .bearerTokenResolver(new CookieBearerTokenResolver())
                         .authenticationEntryPoint(entryPoint).accessDeniedHandler(denegado)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+                .addFilterBefore(new ResolutorNegocio(contexto, directorio, respuestas,
+                        entorno.acceptsProfiles(Profiles.of("twilio"))), SecurityContextHolderFilter.class)
                 .addFilterAfter(new PasswordTemporalFilter(respuestas), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new RolNegocioFilter(contexto, respuestas, directorio), PasswordTemporalFilter.class)
                 .addFilterAfter(new SpaForwardFilter(), AuthorizationFilter.class)
                 .authorizeHttpRequests(permisos -> {
+                    permisos.requestMatchers("/api/plataforma", "/api/plataforma/**").hasRole("ADMIN_PLATAFORMA");
                     permisos.requestMatchers(SpaForwardFilter::esRecursoPublico).permitAll();
                     permisos.requestMatchers(HttpMethod.GET, "/actuator/health").permitAll();
                     permisos.requestMatchers(HttpMethod.HEAD, "/actuator/health").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/whatsapp/webhook").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/whatsapp/webhook").permitAll();
+                    if (entorno.acceptsProfiles(Profiles.of("twilio"))) {
+                        permisos.requestMatchers(SecurityConfig::esWebhookTwilio).permitAll();
+                    }
                     if (apiDocsHabilitada) {
                         permisos.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**").permitAll();
                     }
                     if (swaggerHabilitado) {
                         permisos.requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     }
-                    permisos.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login",
+                    permisos.requestMatchers(HttpMethod.POST, "/api/registro", "/api/auth/login",
                             "/api/auth/logout").permitAll();
-                    permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/auth/sesion", "/api/sesion").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/mis-negocios").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones/{token}").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/registro").permitAll();
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones/{token}/aceptacion").authenticated();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/invitaciones").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/equipo").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/configuracion").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PUT, "/api/configuracion").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PATCH, "/api/equipo/{id}/rol").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/equipo/{id}/revocacion").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/equipo/salida").hasAnyRole("ADMIN", "BARBERO");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/invitaciones").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.DELETE, "/api/invitaciones/{id}").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/clientes/alta").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.PUT, "/api/perfil").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/servicios").permitAll();
+                    permisos.requestMatchers(HttpMethod.GET, "/api/negocio").permitAll();
                     permisos.requestMatchers(HttpMethod.POST, "/api/servicios").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PUT, "/api/servicios/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PATCH, "/api/servicios/{id}/estado").hasRole("ADMIN");
@@ -167,10 +224,25 @@ public class SecurityConfig {
                     permisos.requestMatchers(HttpMethod.POST, "/api/notificaciones/{id}/lectura", "/api/notificaciones/lectura").authenticated();
                     permisos.requestMatchers(HttpMethod.GET, "/api/reportes/resumen", "/api/reportes/resumen.xlsx").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole("ADMIN");
+                    permisos.requestMatchers("/api/whatsapp/vinculo-profesional").authenticated();
+                    permisos.requestMatchers("/api/whatsapp/conversaciones", "/api/whatsapp/conversaciones/**").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.POST, "/api/clientes/{id}/anonimizar").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.GET, "/api/clientes/{id}").hasRole("ADMIN");
+                    permisos.requestMatchers(HttpMethod.PATCH, "/api/clientes/{id}").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.POST, "/api/usuarios/{id}/restablecer-password").hasRole("ADMIN");
                     permisos.requestMatchers(HttpMethod.PATCH, "/api/usuarios/{id}/estado").hasRole("ADMIN");
                     permisos.anyRequest().denyAll();
                 });
         return http.build();
+    }
+
+    private static boolean esWebhookTwilio(jakarta.servlet.http.HttpServletRequest peticion) {
+        return "POST".equals(peticion.getMethod()) && ("/api/twilio/webhook".equals(peticion.getServletPath())
+                || "/api/twilio/estado".equals(peticion.getServletPath()));
+    }
+
+    /** Notificación de Meta con autenticación propia, cuya exención permanece exacta. */
+    static boolean esWebhookWhatsApp(jakarta.servlet.http.HttpServletRequest peticion) {
+        return "POST".equals(peticion.getMethod()) && "/api/whatsapp/webhook".equals(peticion.getServletPath());
     }
 }

@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../../core/negocio/negocio-prueba';
 import { registerLocaleData } from '@angular/common';
 import localeEsPe from '@angular/common/locales/es-PE';
 import { provideHttpClient } from '@angular/common/http';
@@ -42,11 +43,12 @@ describe('Mis citas y filtros', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => http.verify());
   function crear() {
     const fixture = TestBed.createComponent(MisCitas);
-    const inicial = http.expectOne((r) => r.url === '/api/reservas/mias');
+    const inicial = http.expectOne((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(inicial.request.params.get('desde')).toBe(fechaHoyLima());
     inicial.flush({
       contenido: [RESERVA_PRUEBA],
@@ -61,12 +63,12 @@ describe('Mis citas y filtros', () => {
     const fixture = crear();
     fixture.detectChanges();
     http
-      .expectOne((r) => r.url === '/api/notificaciones')
+      .expectOne((r) => r.url === '/api/n/prueba/notificaciones')
       .flush({ contenido: [], totalElementos: 0 });
     fixture.componentInstance.formulario.patchValue({ desde: '2026-10-08', hasta: '2026-10-07' });
     fixture.componentInstance.filtrar();
     fixture.detectChanges();
-    http.expectNone((r) => r.url === '/api/reservas/mias');
+    http.expectNone((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(fixture.nativeElement.textContent).toContain(
       'La fecha Desde no puede ser posterior a Hasta.',
     );
@@ -74,12 +76,12 @@ describe('Mis citas y filtros', () => {
   it('historial termina ayer en Lima y pagina por servidor', () => {
     const fixture = crear();
     fixture.componentInstance.cambiarTab(1);
-    const solicitud = http.expectOne((r) => r.url === '/api/reservas/mias');
+    const solicitud = http.expectOne((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(solicitud.request.params.get('hasta')).toBe(fechaHoyLima(-1));
     expect(solicitud.request.params.has('desde')).toBe(false);
     solicitud.flush({ contenido: [], totalElementos: 21 });
     fixture.componentInstance.paginar({ pageIndex: 2, pageSize: 10, length: 21 });
-    const pagina = http.expectOne((r) => r.url === '/api/reservas/mias');
+    const pagina = http.expectOne((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(pagina.request.params.get('pagina')).toBe('2');
     pagina.flush({ contenido: [], totalElementos: 21 });
   });
@@ -93,7 +95,7 @@ describe('Mis citas y filtros', () => {
     });
     fixture.componentInstance.pagina.set(3);
     fixture.componentInstance.filtrar();
-    const solicitud = http.expectOne((r) => r.url === '/api/reservas/mias');
+    const solicitud = http.expectOne((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(solicitud.request.params.get('desde')).toBe(fecha);
     expect(solicitud.request.params.get('hasta')).toBe(fecha);
     expect(solicitud.request.params.get('estado')).toBe('CONFIRMADA');
@@ -104,7 +106,7 @@ describe('Mis citas y filtros', () => {
     const fixture = crear();
     fixture.componentInstance.formulario.patchValue({ hasta: fechaHoyLima(-1) });
     fixture.componentInstance.filtrar();
-    http.expectNone((r) => r.url === '/api/reservas/mias');
+    http.expectNone((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(fixture.componentInstance.filas()).toEqual([]);
   });
   it.each(['actualizada', 'cancelada'] as const)(
@@ -114,7 +116,7 @@ describe('Mis citas y filtros', () => {
       fixture.componentInstance.cancelar(RESERVA_PRUEBA);
       resultado.next(valor);
       http
-        .expectOne((r) => r.url === '/api/reservas/mias')
+        .expectOne((r) => r.url === '/api/n/prueba/reservas/mias')
         .flush({ contenido: [], totalElementos: 0 });
       expect(actualizar).toHaveBeenCalledOnce();
       expect(fixture.componentInstance.revisionAvisos()).toBe(1);
@@ -129,18 +131,18 @@ describe('Mis citas y filtros', () => {
     const fixture = crear();
     fixture.componentInstance.cancelar(RESERVA_PRUEBA);
     resultado.next(undefined);
-    http.expectNone((r) => r.url === '/api/reservas/mias');
+    http.expectNone((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(actualizar).not.toHaveBeenCalled();
   });
   it('cancela una consulta anterior cuando cambian los filtros', () => {
     const fixture = crear();
     fixture.componentInstance.filtrar();
-    const anterior = http.expectOne((r) => r.url === '/api/reservas/mias');
+    const anterior = http.expectOne((r) => r.url === '/api/n/prueba/reservas/mias');
     fixture.componentInstance.formulario.controls.estado.setValue('CANCELADA');
     fixture.componentInstance.filtrar();
     expect(anterior.cancelled).toBe(true);
     http
-      .expectOne((r) => r.url === '/api/reservas/mias')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas/mias')
       .flush({ contenido: [], totalElementos: 0 });
   });
   it('muestra vacío con foto decorativa y enlace, sin paginador ni avisos incrustados en móvil', () => {
@@ -154,10 +156,12 @@ describe('Mis citas y filtros', () => {
     expect(imagen.getAttribute('alt')).toBe('');
     expect(imagen.getAttribute('loading')).toBe('lazy');
     expect(fixture.nativeElement.textContent).toContain('No tiene citas próximas');
-    expect(fixture.nativeElement.querySelector('.vacio a').getAttribute('href')).toBe('/reservar');
+    expect(fixture.nativeElement.querySelector('.vacio a').getAttribute('href')).toBe(
+      '/n/prueba/reservar',
+    );
     expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
     expect(fixture.nativeElement.querySelector('app-avisos-panel')).toBeNull();
-    http.expectNone((r) => r.url === '/api/notificaciones');
+    http.expectNone((r) => r.url === '/api/n/prueba/notificaciones');
   });
   it('pagina solo cuando el total supera el tamaño y no ofrece selector de tamaño', () => {
     movil.next({ matches: true });
@@ -188,7 +192,7 @@ describe('Mis citas y filtros', () => {
     fixture.detectChanges();
     expect(boton.getAttribute('aria-expanded')).toBe('false');
     expect(fixture.componentInstance.formulario.controls.estado.value).toBe('CONFIRMADA');
-    http.expectNone((r) => r.url === '/api/reservas/mias');
+    http.expectNone((r) => r.url === '/api/n/prueba/reservas/mias');
   });
   it('registra un título único, lo limpia y muestra tique solo en Próximas', () => {
     movil.next({ matches: true });
@@ -214,7 +218,7 @@ describe('Mis citas y filtros', () => {
     expect(fixture.nativeElement.querySelector('app-reserva-esqueleto')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('article')).toBeNull();
     http
-      .expectOne((r) => r.url === '/api/reservas/mias')
+      .expectOne((r) => r.url === '/api/n/prueba/reservas/mias')
       .flush({ detail: 'Intente nuevamente.' }, { status: 503, statusText: 'Service Unavailable' });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain(
@@ -222,7 +226,7 @@ describe('Mis citas y filtros', () => {
     );
     expect(fixture.nativeElement.querySelector('.vacio')).toBeNull();
     (fixture.nativeElement.querySelector('.alerta button') as HTMLButtonElement).click();
-    const reintento = http.expectOne((r) => r.url === '/api/reservas/mias');
+    const reintento = http.expectOne((r) => r.url === '/api/n/prueba/reservas/mias');
     expect(reintento.request.params.get('estado')).toBe('CONFIRMADA');
     reintento.flush({ contenido: [], totalElementos: 0 });
   });

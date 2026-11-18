@@ -1,4 +1,6 @@
 package pe.barberturno.reservations;
+
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
 import jakarta.servlet.http.Cookie;
 import java.util.*;
 import java.util.concurrent.*;
@@ -23,23 +25,40 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(RelojAjustable.Configuracion.class)
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class UsuarioAdminIT extends ReservaPruebaBase {
+    @Test void perfilProfesionalLocal_noCambiaLaCuentaGestionadaPorUsuarios() throws Exception {
+        var antes = jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId());
+        mvc.perform(conCsrf(put(negocio("/api/barberos/") + barbero.getId()).contentType("application/json")
+                .content("{\"nombre\":\"Nombre profesional local\",\"telefono\":\"999000009\",\"especialidad\":\"Barba\"}"), sesion(admin)))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(antes);
+        for (boolean activo : List.of(false, true)) {
+            mvc.perform(conCsrf(patch(negocio("/api/barberos/") + barbero.getId() + "/estado").contentType("application/json")
+                    .content("{\"activo\":" + activo + "}"), sesion(admin))).andExpect(status().isOk());
+            assertThat(jdbc.queryForMap("select * from usuario where id=?", barbero.getUsuario().getId())).isEqualTo(antes);
+        }
+        // La operación explícita sobre la cuenta conserva su efecto global y revoca su JWT.
+        mvc.perform(conCsrf(cambio(barbero.getUsuario().getId(), false), sesion(admin))).andExpect(status().isOk());
+        var cuenta = usuarios.findById(barbero.getUsuario().getId()).orElseThrow();
+        assertThat(cuenta.isActivo()).isFalse();
+        assertThat(cuenta.getTokenVersion()).isEqualTo(barbero.getUsuario().getTokenVersion() + 1);
+    }
     @Autowired PasswordEncoder passwords;
     @Autowired UsuarioAdminService gestion;
     Usuario admin;
     @BeforeEach void administrador() { admin = admin("primero"); }
-    Usuario admin(String nombre) { return usuarios.saveAndFlush(new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
-    String estado(long id) { return "/api/usuarios/" + id + "/estado"; }
-    String reset(long id) { return "/api/usuarios/" + id + "/restablecer-password"; }
+    Usuario admin(String nombre) { return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("ADMIN " + nombre, nombre + "@ejemplo.test", null, passwords.encode("ClaveFicticia123"), Rol.ADMIN, null, reloj.instant())); }
+    String estado(long id) { return negocio("/api/usuarios/") + id + "/estado"; }
+    String reset(long id) { return negocio("/api/usuarios/") + id + "/restablecer-password"; }
     org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cambio(long id, boolean activo) { return patch(estado(id)).contentType("application/json").content(json.writeValueAsString(Map.of("activo", activo))); }
     @Test void buscaNombreCorreoSinMayusculas_filtraRolPaginaYSinDatosInternos() throws Exception {
-        mvc.perform(get("/api/usuarios").param("q", "CLIENTE FICT").param("rol", "CLIENTE").param("tamano", "1").cookie(sesion(admin))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1)).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId())).andExpect(jsonPath("$.contenido[0].passwordHash").doesNotExist()).andExpect(jsonPath("$.contenido[0].tokenVersion").doesNotExist()).andExpect(jsonPath("$.contenido[0].intentosFallidos").doesNotExist()).andExpect(jsonPath("$.contenido[0].bloqueadoHasta").doesNotExist());
-        mvc.perform(get("/api/usuarios").param("q", "PRIMERO@EJEMPLO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].id").value(admin.getId()));
-        mvc.perform(get("/api/usuarios").param("q", "%").cookie(sesion(admin))).andExpect(jsonPath("$.totalElementos").value(0));
-        mvc.perform(get("/api/usuarios").param("rol", "BARBERO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].barberoId").value(barbero.getId()));
-        mvc.perform(get("/api/usuarios").param("pagina", "1").param("tamano", "1").cookie(sesion(admin))).andExpect(jsonPath("$.pagina").value(1)).andExpect(jsonPath("$.totalElementos").value(3));
+        mvc.perform(get(negocio("/api/usuarios")).param("q", "CLIENTE FICT").param("rol", "CLIENTE").param("tamano", "1").cookie(sesion(admin))).andExpect(status().isOk()).andExpect(jsonPath("$.totalElementos").value(1)).andExpect(jsonPath("$.contenido[0].id").value(cliente.getId())).andExpect(jsonPath("$.contenido[0].passwordHash").doesNotExist()).andExpect(jsonPath("$.contenido[0].tokenVersion").doesNotExist()).andExpect(jsonPath("$.contenido[0].intentosFallidos").doesNotExist()).andExpect(jsonPath("$.contenido[0].bloqueadoHasta").doesNotExist());
+        mvc.perform(get(negocio("/api/usuarios")).param("q", "PRIMERO@EJEMPLO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].id").value(admin.getId()));
+        mvc.perform(get(negocio("/api/usuarios")).param("q", "%").cookie(sesion(admin))).andExpect(jsonPath("$.totalElementos").value(0));
+        mvc.perform(get(negocio("/api/usuarios")).param("rol", "BARBERO").cookie(sesion(admin))).andExpect(jsonPath("$.contenido[0].barberoId").value(barbero.getId()));
+        mvc.perform(get(negocio("/api/usuarios")).param("pagina", "1").param("tamano", "1").cookie(sesion(admin))).andExpect(jsonPath("$.pagina").value(1)).andExpect(jsonPath("$.totalElementos").value(3));
     }
     @ParameterizedTest @ValueSource(strings = {"pagina=-1", "tamano=0", "tamano=101", "rol=OTRO"}) void consultaInvalida400(String parametro) throws Exception {
-        var par=parametro.split("="); mvc.perform(get("/api/usuarios").param(par[0],par[1]).cookie(sesion(admin))).andExpect(status().isBadRequest());
+        var par=parametro.split("="); mvc.perform(get(negocio("/api/usuarios")).param(par[0],par[1]).cookie(sesion(admin))).andExpect(status().isBadRequest());
     }
     @Test void cp17_temporalRevocaSesionAnterior_exigeCambioYDesbloqueaAcceso() throws Exception {
         var anterior=sesion(cliente); cliente.registrarIntentoFallido(reloj.instant().plusSeconds(900), reloj.instant()); usuarios.saveAndFlush(cliente);
@@ -49,7 +68,7 @@ class UsuarioAdminIT extends ReservaPruebaBase {
         var actualizado=usuarios.findById(cliente.getId()).orElseThrow(); assertThat(passwords.matches(temporal,actualizado.getPasswordHash())).isTrue(); assertThat(actualizado.isDebeCambiarPassword()).isTrue(); assertThat(actualizado.getTokenVersion()).isEqualTo(cliente.getTokenVersion()+1); assertThat(actualizado.getBloqueadoHasta()).isNull();
         mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
         var login=mvc.perform(conCsrf(post("/api/auth/login").contentType("application/json").content(json.writeValueAsString(Map.of("correo",cliente.getCorreo(),"password",temporal))),sesion(admin))).andExpect(status().isOk()).andExpect(jsonPath("$.debeCambiarPassword").value(true)).andReturn();
-        mvc.perform(get("/api/notificaciones").cookie(login.getResponse().getCookie("BT_SESION"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
+        mvc.perform(get(negocio("/api/notificaciones")).cookie(login.getResponse().getCookie("BT_SESION"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         assertThat(new pe.barberturno.users.dto.PasswordTemporalDto(temporal).toString()).doesNotContain(temporal);
     }
     @Test void desactivarRevoca_reactivarNoResucitaSesion_idempotente() throws Exception {
@@ -60,8 +79,8 @@ class UsuarioAdminIT extends ReservaPruebaBase {
         mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
     }
     @Test void ultimoAdmin_yPropiaCuenta_noSeDesactivan409() throws Exception {
-        mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(usuarios.countByRolAndActivoTrue(Rol.ADMIN)).isEqualTo(1);
-        admin("segundo"); mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(usuarios.countByRolAndActivoTrue(Rol.ADMIN)).isEqualTo(2);
+        mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(membresias.contarPropietariosActivos(1L)).isEqualTo(1);
+        admin("segundo"); mvc.perform(conCsrf(cambio(admin.getId(),false),sesion(admin))).andExpect(status().isConflict()); assertThat(membresias.contarPropietariosActivos(1L)).isEqualTo(2);
     }
     @RepeatedTest(10) void dosAdmin_desactivacionCruzada_exactamenteUn200_yQuedaUnoActivo() throws Exception {
         var otro=admin("segundo"); var csrf=mvc.perform(get("/api/auth/sesion")).andReturn().getResponse().getCookie("XSRF-TOKEN"); var cookieUno=sesion(admin); var cookieDos=sesion(otro); var salida=new CyclicBarrier(2);
@@ -70,14 +89,14 @@ class UsuarioAdminIT extends ReservaPruebaBase {
             var dos=hilos.submit(()->{salida.await(10,TimeUnit.SECONDS);return mvc.perform(cambio(admin.getId(),false).cookie(cookieDos,csrf).header("X-XSRF-TOKEN",csrf.getValue())).andReturn().getResponse().getStatus();});
             var resultados=List.of(uno.get(20,TimeUnit.SECONDS),dos.get(20,TimeUnit.SECONDS)); assertThat(resultados.stream().filter(c->c==200)).hasSize(1); assertThat(resultados).allMatch(c->c==200||c==401||c==403||c==409);
         }
-        assertThat(usuarios.countByRolAndActivoTrue(Rol.ADMIN)).isEqualTo(1);
+        assertThat(membresias.contarPropietariosActivos(1L)).isEqualTo(1);
     }
     @ParameterizedTest @ValueSource(strings={"reset","estado"}) void escrituras_sesionValidaSinCsrfOCsrfIncorrecto403(String operacion) throws Exception {
         for(boolean incorrecto:List.of(false,true)) {var p=operacion.equals("reset")?post(reset(cliente.getId())):cambio(cliente.getId(),false);p.cookie(sesion(admin));if(incorrecto)p.cookie(new Cookie("XSRF-TOKEN","valido")).header("X-XSRF-TOKEN","incorrecto");mvc.perform(p).andExpect(status().isForbidden());}
         assertThat(usuarios.findById(cliente.getId()).orElseThrow().getTokenVersion()).isZero();
     }
     @ParameterizedTest @EnumSource(value=Rol.class,names={"CLIENTE","BARBERO"}) void rolNoAutorizado403_enTodasLasRutas(Rol rol) throws Exception {
-        var u=rol==Rol.CLIENTE?cliente:barbero.getUsuario(); mvc.perform(get("/api/usuarios").cookie(sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(post(reset(cliente.getId())),sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(cambio(cliente.getId(),false),sesion(u))).andExpect(status().isForbidden());
+        var u=rol==Rol.CLIENTE?cliente:barbero.getUsuario(); mvc.perform(get(negocio("/api/usuarios")).cookie(sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(post(reset(cliente.getId())),sesion(u))).andExpect(status().isForbidden());mvc.perform(conCsrf(cambio(cliente.getId(),false),sesion(u))).andExpect(status().isForbidden());
         assertThatThrownBy(()->gestion.restablecer(cliente.getId(),actor(u))).isInstanceOf(NegocioException.class);assertThatThrownBy(()->gestion.cambiarEstado(cliente.getId(),false,actor(u))).isInstanceOf(NegocioException.class);
     }
     @Test void inexistente404_estadoOmitido400() throws Exception {

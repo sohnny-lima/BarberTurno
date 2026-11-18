@@ -4,7 +4,7 @@ import { ReservaDto } from '../core/modelos/reservas';
 export const RESERVA_PRUEBA: ReservaDto = {
   id: 101,
   codigo: 'BT-101',
-  cliente: { id: 1, nombre: 'Cliente ficticio' },
+  cliente: { id: 1, fichaId: 1, nombre: 'Cliente ficticio' },
   servicio: { id: 2, nombre: 'Corte clásico' },
   barbero: { id: 3, nombre: 'Profesional ficticio' },
   inicio: '2026-10-05T10:00:00-05:00',

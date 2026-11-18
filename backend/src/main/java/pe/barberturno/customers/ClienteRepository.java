@@ -1,0 +1,92 @@
+package pe.barberturno.customers;
+
+import jakarta.persistence.LockModeType;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+import pe.barberturno.common.tenancy.RepositorioTransaccional;
+
+/**
+ * Acceso a fichas limitado al negocio de cada transacción por RLS FORCE.
+ * @author Sohnny Walter Lima Infanzón
+ * @version 2.0
+ */
+@Transactional(readOnly = true)
+public interface ClienteRepository extends RepositorioTransaccional<Cliente, Long> {
+    /**
+     * Busca exclusivamente el remitente verificado dentro del negocio del número receptor.
+     * No deduce vínculos del teléfono ni crea fichas (V2-RN-09).
+     * @param negocioId negocio resuelto por el canal de WhatsApp
+     * @param waId identificador exacto del remitente, formado por dígitos
+     * @return ficha de ese negocio o vacío si aún no tiene vínculo con WhatsApp
+     */
+    Optional<Cliente> findByNegocioIdAndWaId(long negocioId, String waId);
+
+    /**
+     * Obtiene una ficha con el negocio explícito además de RLS.
+     * @param negocioId ámbito resuelto por el servidor
+     * @param id identificador de ficha solicitado
+     * @return ficha local o vacío para ids ajenos
+     */
+    Optional<Cliente> findByNegocioIdAndId(long negocioId, long id);
+
+    /**
+     * Busca la ficha propia antes del alta, sin mezclar las de la misma cuenta en otros negocios.
+     * @param negocioId ámbito resuelto por el servidor
+     * @param usuarioId identidad de la sesión
+     * @return ficha propia, incluso inactiva
+     */
+    Optional<Cliente> findByNegocioIdAndUsuarioId(long negocioId, long usuarioId);
+
+    /**
+     * Bloquea la ficha local para su edición por personal autorizado.
+     * @param negocioId ámbito resuelto por el servidor
+     * @param id identificador de ficha solicitado
+     * @return ficha bloqueada o vacío si no pertenece al negocio
+     */
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Cliente c where c.negocioId = :negocioId and c.id = :id")
+    Optional<Cliente> bloquearEnNegocio(@Param("negocioId") long negocioId, @Param("id") long id);
+    /**
+     * Traduce el id de cuenta del contrato web a su ficha local.
+     * @param usuarioId identidad global buscada
+     * @return ficha visible, si existe
+     */
+    Optional<Cliente> findByUsuarioId(long usuarioId);
+
+    /**
+     * Traduce la cuenta sin precargar la entidad que deberá revalidarse tras esperar por ①.
+     * @param usuarioId identidad global del contrato web
+     * @return id escalar de la ficha del negocio actual, si existe
+     */
+    @Query("select c.id from Cliente c where c.usuario.id = :usuarioId")
+    Optional<Long> buscarIdPorUsuario(@Param("usuarioId") long usuarioId);
+
+    /**
+     * Revalida el papel de cliente en cada petición.
+     * @param usuarioId identidad global autenticada
+     * @return si tiene una ficha activa en el negocio actual
+     */
+    boolean existsByUsuarioIdAndActivoTrue(long usuarioId);
+
+    /**
+     * Toma el bloqueo ① por ficha antes de los profesionales ② y la reserva ③.
+     * @param id identificador de ficha visible
+     * @return ficha bloqueada, si pertenece al negocio actual
+     */
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Cliente c where c.id = :id")
+    Optional<Cliente> bloquearPorId(@Param("id") Long id);
+    /**
+     * Localiza solo la identidad de ficha para no conservar una entidad obsoleta antes del bloqueo ①.
+     * @param negocioId negocio receptor
+     * @param waId remitente verificado
+     * @return identidad escalar o vacío
+     */
+    @Query("select c.id from Cliente c where c.negocioId = :negocioId and c.waId = :waId")
+    Optional<Long> buscarIdPorWaId(@Param("negocioId") long negocioId, @Param("waId") String waId);
+}

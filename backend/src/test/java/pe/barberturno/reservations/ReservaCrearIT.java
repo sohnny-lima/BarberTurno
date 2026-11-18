@@ -1,5 +1,7 @@
 package pe.barberturno.reservations;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -40,7 +42,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
     @Test void crear_valida_referenciasAuditoriaAvisosLocationYPermisos() throws Exception {
         SqlPruebas.limpiar();
         var resultado = mvc.perform(conCsrf(peticion(cmd(barbero, "10:00")), sesion(cliente)))
-                .andExpect(status().isCreated()).andExpect(header().string("Location", "/api/reservas/100"))
+                .andExpect(status().isCreated()).andExpect(header().string("Location", negocio("/api/reservas/100")))
                 .andExpect(jsonPath("$.cliente.telefono").doesNotExist())
                 .andExpect(jsonPath("$.inicio").value("2026-10-01T10:00:00-05:00"))
                 .andReturn();
@@ -75,11 +77,11 @@ class ReservaCrearIT extends ReservaPruebaBase {
                         barbero.getUsuario().getNombre(), "01/10/2026 10:00", "Lima"));
         assertThat(jdbc.queryForObject("select count(*) from notificacion where tipo='CREAR' and not leida", Integer.class)).isEqualTo(2);
         var sql = SqlPruebas.sentencias();
-        int usuario = indice(sql, "from usuario", "for no key update");
+        int ficha = indice(sql, "from cliente", "for no key update");
         int perfil = indice(sql, "from barbero", "for no key update");
         int agenda = indice(sql, "from jornada", "");
-        assertThat(usuario).isGreaterThanOrEqualTo(0);
-        assertThat(perfil).isGreaterThan(usuario);
+        assertThat(ficha).isGreaterThanOrEqualTo(0);
+        assertThat(perfil).isGreaterThan(ficha);
         assertThat(agenda).isGreaterThan(perfil);
         servicio.editar("Corte modificado", "", (short) 60, new BigDecimal("55.00"), reloj.instant());
         servicios.saveAndFlush(servicio);
@@ -115,14 +117,14 @@ class ReservaCrearIT extends ReservaPruebaBase {
 
     @ParameterizedTest @ValueSource(strings = {"PENDIENTE", "CONFIRMADA", "EN_ATENCION", "COMPLETADA", "NO_ASISTIO"})
     void todosLosEstadosOcupantes_impidenNuevaReserva(String estado) throws Exception {
-        reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, instante("10:00"),
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante("10:00"),
                 EstadoReserva.valueOf(estado), cliente, reloj.instant()));
         rechazar(datos.cliente("otro"), cmd(barbero, "10:00"), 409, "FRANJA_NO_DISPONIBLE");
     }
 
     @Test void cancelada_noCuentaNiSolapa() throws Exception {
         for (String hora : List.of("10:00", "11:00", "12:00")) {
-            reservas.saveAndFlush(new Reserva(cliente, barbero, servicio, instante(hora),
+            reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), barbero, servicio, instante(hora),
                     EstadoReserva.CANCELADA, cliente, reloj.instant()));
         }
         crearHttp(cliente, cmd(barbero, "10:00"));
@@ -183,7 +185,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
 
     @ParameterizedTest @EnumSource(value = Rol.class, names = {"BARBERO"})
     void rolNoAutorizado_403(Rol rol) throws Exception {
-        var usuario = usuarios.saveAndFlush(new Usuario("Personal ficticio", rol.name().toLowerCase()+"@ejemplo.test",
+        var usuario = pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario("Personal ficticio", rol.name().toLowerCase()+"@ejemplo.test",
                 null, "hash-ficticio", rol, null, reloj.instant()));
         rechazar(usuario, cmd(barbero, "10:00"), 403, "PROHIBIDO");
         assertThatThrownBy(() -> servicioReservas.crear(cmd(barbero, "10:00"), actor(usuario)))
@@ -214,7 +216,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
         "{\"servicioId\":1,\"barberoId\":1,\"inicio\":\"2026-10-01T10:00\"}",
         "{\"servicioId\":1,\"barberoId\":1,\"inicio\":\"ilegible\"}"})
     void cuerpoInvalido_400(String cuerpo) throws Exception {
-        mvc.perform(conCsrf(post("/api/reservas").contentType("application/json").content(cuerpo), sesion(cliente)))
+        mvc.perform(conCsrf(post(negocio("/api/reservas")).contentType("application/json").content(cuerpo), sesion(cliente)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
 
@@ -223,7 +225,7 @@ class ReservaCrearIT extends ReservaPruebaBase {
         "POST /api/reservas/100/reprogramacion", "POST /api/reservas/100/transiciones", "GET /api/reservas/100"})
     void rutasPendientesYConsultasSinPermiso_rechazan(String ruta) throws Exception {
         var partes = ruta.split(" ");
-        var resultado = mvc.perform(conCsrf(request(org.springframework.http.HttpMethod.valueOf(partes[0]), partes[1]).contentType("application/json").content("{\"version\":0,\"inicio\":\"2026-10-01T11:00:00-05:00\"}"), sesion(cliente)));
+        var resultado = mvc.perform(conCsrf(request(org.springframework.http.HttpMethod.valueOf(partes[0]), negocio(partes[1])).contentType("application/json").content("{\"version\":0,\"inicio\":\"2026-10-01T11:00:00-05:00\"}"), sesion(cliente)));
         if (ruta.equals("GET /api/reservas/100") || ruta.equals("POST /api/reservas/100/cancelacion") || ruta.equals("POST /api/reservas/100/reprogramacion")) {
             // T-21/T-22/T-23 abren detalle, cancelación y reprogramación: recurso inexistente y ajeno comparten 404 (CP-02).
             resultado.andExpect(status().isNotFound()).andExpect(jsonPath("$.codigo").value("NO_ENCONTRADO"));

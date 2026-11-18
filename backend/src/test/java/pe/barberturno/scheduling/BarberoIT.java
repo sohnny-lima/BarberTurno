@@ -1,5 +1,7 @@
 package pe.barberturno.scheduling;
 
+import static pe.barberturno.support.RutasNegocioPruebas.negocio;
+
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.util.*;
@@ -13,7 +15,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
+import pe.barberturno.support.JdbcNegocioPruebas;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -26,15 +28,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = {
         "barberturno.admin.correo=", "barberturno.admin.password=", "barberturno.admin.nombre=",
         "barberturno.seguridad.cookie-secure=false"})
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import(RelojAjustable.Configuracion.class)
 class BarberoIT {
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.customers.ClienteRepository clientes;
+    @org.springframework.beans.factory.annotation.Autowired pe.barberturno.platform.MembresiaRepository membresias;
     private static final String PASSWORD = "ClavePersonal123";
     @Autowired MockMvc mvc;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired JdbcNegocioPruebas jdbc;
     @Autowired JsonMapper json;
     @Autowired BarberoRepository barberos;
     @Autowired UsuarioRepository usuarios;
@@ -62,6 +67,8 @@ class BarberoIT {
                 .andExpect(jsonPath("$.activo").value(true)).andReturn());
         Usuario u = usuarios.findByCorreo("nuevo@ejemplo.test").orElseThrow();
         assertThat(u.getRol()).isEqualTo(Rol.BARBERO);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().getRol())
+                .isEqualTo(pe.barberturno.platform.RolNegocio.BARBERO);
         assertThat(u.isDebeCambiarPassword()).isTrue();
         assertThat(u.getPrivacidadAceptadaEn()).isNull();
         assertThat(u.getPasswordHash()).startsWith("$2a$12$");
@@ -69,9 +76,13 @@ class BarberoIT {
         assertThat(u.getCreadoEn()).isEqualTo(reloj.instant());
         Cookie temporal = login(u);
         mvc.perform(get("/api/auth/sesion").cookie(temporal)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.barberoId").value(id))
+                .andExpect(jsonPath("$.barberoId").isEmpty())
+                .andExpect(jsonPath("$.rol").isEmpty())
+                .andExpect(jsonPath("$.rolNegocio").isEmpty())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(true));
-        mvc.perform(get("/api/barberos").cookie(temporal)).andExpect(status().isForbidden())
+        mvc.perform(get(negocio("/api/sesion")).cookie(temporal)).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
+        mvc.perform(get(negocio("/api/barberos")).cookie(temporal)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("CAMBIO_PASSWORD_REQUERIDO"));
         var cambio = mvc.perform(conCsrf(put("/api/auth/password"), temporal)
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
@@ -81,43 +92,57 @@ class BarberoIT {
         mvc.perform(get("/api/auth/sesion").cookie(temporal)).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/auth/sesion").cookie(nueva)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.debeCambiarPassword").value(false));
-        mvc.perform(get("/api/barberos").cookie(nueva)).andExpect(status().isOk());
+        mvc.perform(get(negocio("/api/sesion")).cookie(nueva)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.barberoId").value(id));
+        mvc.perform(get(negocio("/api/barberos")).cookie(nueva)).andExpect(status().isOk());
     }
 
-    @Test void editar_desactivarYReactivar_conservaCuentaEHistorialYRevocaSesion() throws Exception {
+    @Test void editar_desactivarYReactivar_conservaCuentaEHistorialYRevocaSoloMembresia() throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
         Barbero b = guardar("profesional");
         Usuario u = usuarios.findByCorreo("profesional@ejemplo.test").orElseThrow();
         Cookie anterior = login(u);
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", u.getId());
+        var fechaCuentaAntes = usuarios.findById(u.getId()).orElseThrow().getActualizadoEn();
         reloj.adelantar(Duration.ofMinutes(1));
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Nombre editado", "telefono", "987654321", "especialidad", "Barba"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.nombre").value("Nombre editado"))
                 .andExpect(jsonPath("$.especialidad").value("Barba"));
         Usuario editado = usuarios.findById(u.getId()).orElseThrow();
-        assertThat(editado.getNombre()).isEqualTo("Nombre editado");
-        assertThat(editado.getTelefono()).isEqualTo("987654321");
+        assertThat(editado.getNombre()).isEqualTo(u.getNombre());
+        assertThat(editado.getTelefono()).isEqualTo(u.getTelefono());
+        assertThat(barberos.findById(b.getId()).orElseThrow().getNombreVisible()).isEqualTo("Nombre editado");
+        assertThat(barberos.findById(b.getId()).orElseThrow().getTelefonoContacto()).isEqualTo("987654321");
         assertThat(editado.getCorreo()).isEqualTo(u.getCorreo());
-        assertThat(editado.getActualizadoEn()).isEqualTo(reloj.instant());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
+        assertThat(editado.getActualizadoEn()).isEqualTo(fechaCuentaAntes);
         assertThat(barberos.findById(b.getId()).orElseThrow().getActualizadoEn()).isEqualTo(reloj.instant());
         escribir("PATCH", b.getId(), admin, Map.of("activo", false)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barbero.activo").value(false))
                 .andExpect(jsonPath("$.reservasFuturasVigentes").value(0));
         Usuario inactivo = usuarios.findById(u.getId()).orElseThrow();
-        assertThat(inactivo.isActivo()).isFalse();
-        assertThat(inactivo.getTokenVersion()).isEqualTo(u.getTokenVersion() + 1);
-        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
-        solicitarLogin(u.getCorreo(), PASSWORD).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/barberos")).andExpect(jsonPath("$.length()").value(0));
+        assertThat(inactivo.isActivo()).isTrue();
+        assertThat(inactivo.getTokenVersion()).isEqualTo(u.getTokenVersion());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().isActiva()).isFalse();
+        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isOk()).andExpect(jsonPath("$.rol").isEmpty());
+        mvc.perform(get(negocio("/api/reservas")).cookie(anterior)).andExpect(status().isForbidden());
+        solicitarLogin(u.getCorreo(), PASSWORD).andExpect(status().isOk());
+        cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", u.getId());
+        mvc.perform(get(negocio("/api/barberos"))).andExpect(jsonPath("$.length()").value(0));
         escribir("PATCH", b.getId(), admin, Map.of("activo", false)).andExpect(status().isOk());
         assertThat(usuarios.findById(u.getId()).orElseThrow().getTokenVersion()).isEqualTo(inactivo.getTokenVersion());
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Perfil inactivo", "especialidad", "Cortes"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.activo").value(false));
-        assertThat(usuarios.findById(u.getId()).orElseThrow().getTelefono()).isNull();
+        assertThat(usuarios.findById(u.getId()).orElseThrow().getTelefono()).isEqualTo(u.getTelefono());
+        assertThat(barberos.findById(b.getId()).orElseThrow().getTelefonoContacto()).isNull();
         escribir("PATCH", b.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
         assertThat(usuarios.findById(u.getId()).orElseThrow().isActivo()).isTrue();
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", u.getId())).isEqualTo(cuentaAntes);
+        assertThat(membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow().isActiva()).isTrue();
         Cookie restaurada = login(u);
         mvc.perform(get("/api/auth/sesion").cookie(restaurada)).andExpect(status().isOk());
-        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/sesion").cookie(anterior)).andExpect(status().isOk());
         assertThat(barberos.count()).isEqualTo(1);
         assertThat(usuarios.count()).isEqualTo(2);
     }
@@ -125,16 +150,18 @@ class BarberoIT {
     @Test void vincular_adminSesionExistente_muestraPerfilYConservaAccesoAlDesactivar() throws Exception {
         Usuario admin = crearUsuario("admin", Rol.ADMIN);
         Cookie sesion = login(admin);
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", admin.getId());
         long id = id(escribir("POST", 0, sesion, Map.of("usuarioId", admin.getId(), "especialidad", "Cortes"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.nombre").value(admin.getNombre())).andReturn());
         assertThat(usuarios.count()).isEqualTo(1);
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.rol").value("ADMIN")).andExpect(jsonPath("$.barberoId").value(id));
         escribir("PATCH", id, sesion, Map.of("activo", false)).andExpect(status().isOk());
         Usuario conservado = usuarios.findById(admin.getId()).orElseThrow();
         assertThat(conservado.isActivo()).isTrue();
         assertThat(conservado.getTokenVersion()).isEqualTo(admin.getTokenVersion());
-        mvc.perform(get("/api/auth/sesion").cookie(sesion)).andExpect(status().isOk())
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", admin.getId())).isEqualTo(cuentaAntes);
+        mvc.perform(get(negocio("/api/sesion")).cookie(sesion)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.barberoId").value(id));
         login(admin);
         escribir("PATCH", id, sesion, Map.of("activo", true)).andExpect(status().isOk());
@@ -149,7 +176,7 @@ class BarberoIT {
         barberos.saveAndFlush(z);
         Cookie sesion = actor.equals("PUBLICO") ? null : login(crearUsuario("actor", Rol.valueOf(actor)));
         for (boolean incluir : List.of(false, true)) {
-            var solicitud = get("/api/barberos").param("incluirInactivos", Boolean.toString(incluir));
+            var solicitud = get(negocio("/api/barberos")).param("incluirInactivos", Boolean.toString(incluir));
             if (sesion != null) solicitud.cookie(sesion);
             var resultado = mvc.perform(solicitud).andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(incluir && actor.equals("ADMIN") ? 3 : 2))
@@ -167,6 +194,7 @@ class BarberoIT {
     @Test void limite_onceActivos_rechazaAltaYReactivacionPeroPermiteRepetirActivo() throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
         Barbero inactivo = guardar("inactivo");
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", false)).andExpect(status().isOk());
         for (int i = 0; i < 10; i++) guardar("activo" + i);
         escribir("POST", 0, admin, datos("Nuevo ficticio", "nuevo@ejemplo.test"))
@@ -174,13 +202,16 @@ class BarberoIT {
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true))
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.codigo").value("LIMITE_BARBEROS_ACTIVOS"));
         assertThat(usuarios.findByCorreo("nuevo@ejemplo.test")).isEmpty();
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
-        assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isFalse();
-        long activo = barberos.listar(false).getFirst().getId();
+        assertThat(jdbc.<Long>enTransaccion(() -> barberos.countByActivoTrue(1L))).isEqualTo(10);
+        assertThat(usuarios.findByCorreo("inactivo@ejemplo.test").orElseThrow().isActivo()).isTrue();
+        assertThat(barberos.findById(inactivo.getId()).orElseThrow().isActivo()).isFalse();
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId())).isEqualTo(cuentaAntes);
+        long activo = jdbc.enTransaccion(() -> barberos.listar(1L, false).getFirst().getId());
         escribir("PATCH", activo, admin, Map.of("activo", true)).andExpect(status().isOk());
         escribir("PATCH", activo, admin, Map.of("activo", false)).andExpect(status().isOk());
         escribir("PATCH", inactivo.getId(), admin, Map.of("activo", true)).andExpect(status().isOk());
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.<Long>enTransaccion(() -> barberos.countByActivoTrue(1L))).isEqualTo(10);
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", inactivo.getUsuario().getId())).isEqualTo(cuentaAntes);
     }
 
     @ParameterizedTest @ValueSource(strings = {"altas", "reactivaciones", "mixto"})
@@ -202,7 +233,7 @@ class BarberoIT {
                     preparados.countDown();
                     if (!salida.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("No se liberó la carrera.");
                     boolean alta = caso.equals("altas") || (caso.equals("mixto") && indice == 0);
-                    var solicitud = alta ? post("/api/barberos") : patch("/api/barberos/{id}/estado", indice == 0 ? a.getId() : b.getId());
+                    var solicitud = alta ? post(negocio("/api/barberos")) : patch(negocio("/api/barberos/{id}/estado"), indice == 0 ? a.getId() : b.getId());
                     Cookie token = indice == 0 ? csrfA : csrfB;
                     Object cuerpo = alta ? datos("Concurrente ficticio", "concurrente" + indice + "@ejemplo.test") : Map.of("activo", true);
                     return mvc.perform(solicitud.cookie(admin, token).header("X-XSRF-TOKEN", token.getValue())
@@ -223,12 +254,12 @@ class BarberoIT {
             assertThat(estados.stream().filter(s -> s == 200 || s == 201).count()).isEqualTo(1);
             assertThat(estados.stream().filter(s -> s == 422).count()).isEqualTo(1);
         }
-        assertThat(barberos.countByActivoTrue()).isEqualTo(10);
+        assertThat(jdbc.<Long>enTransaccion(() -> barberos.countByActivoTrue(1L))).isEqualTo(10);
         assertThat(usuarios.count()).isEqualTo(barberos.count() + 1);
     }
 
     @Test void cp08_reservasFuturasVigentes_contadorCorrectoYFilasIntactas() throws Exception {
-        var fabrica = new DatosPrueba(usuarios, barberos, servicios);
+        var fabrica = new DatosPrueba(usuarios, barberos, servicios, membresias, clientes);
         Usuario cliente = fabrica.cliente("cliente");
         Barbero b = guardar("profesional");
         var servicio = fabrica.servicio();
@@ -236,17 +267,19 @@ class BarberoIT {
             EstadoReserva estado = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CANCELADA,
                     EstadoReserva.CONFIRMADA, EstadoReserva.NO_ASISTIO, EstadoReserva.COMPLETADA).get(i);
             var inicio = reloj.instant().plus(Duration.ofDays(i == 2 ? -1 : i + 1));
-            reservas.saveAndFlush(new Reserva(cliente, b, servicio, inicio, estado, cliente, reloj.instant()));
+            reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), b, servicio, inicio, estado, cliente, reloj.instant()));
         }
-        reservas.saveAndFlush(new Reserva(cliente, b, servicio, reloj.instant(), EstadoReserva.EN_ATENCION, cliente, reloj.instant()));
+        reservas.saveAndFlush(new Reserva(clientes.findByUsuarioId(cliente.getId()).orElseThrow(), b, servicio, reloj.instant(), EstadoReserva.EN_ATENCION, cliente, reloj.instant()));
         var antes = jdbc.queryForList("select * from reserva order by id");
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
+        var cuentaAntes = jdbc.queryForMap("select * from usuario where id=?", b.getUsuario().getId());
         escribir("PUT", b.getId(), admin, Map.of("nombre", "Nuevo nombre", "especialidad", "Barbas"))
                 .andExpect(status().isOk());
         for (boolean activo : List.of(false, true)) {
             escribir("PATCH", b.getId(), admin, Map.of("activo", activo)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.reservasFuturasVigentes").value(3));
             assertThat(jdbc.queryForList("select * from reserva order by id")).isEqualTo(antes);
+            assertThat(jdbc.queryForMap("select * from usuario where id=?", b.getUsuario().getId())).isEqualTo(cuentaAntes);
         }
     }
 
@@ -303,10 +336,15 @@ class BarberoIT {
         assertThat(usuarios.count()).isEqualTo(2);
     }
 
-    @ParameterizedTest @ValueSource(strings = {"CLIENTE", "BARBERO", "ADMIN_INACTIVO", "ADMIN_VINCULADO", "ADMIN_VINCULADO_INACTIVO"})
-    void vincular_usuarioIncompatible_devuelve409(String caso) throws Exception {
+    @ParameterizedTest @ValueSource(strings = {"CLIENTE", "BARBERO_SIN_MEMBRESIA", "ADMIN_INACTIVO", "ADMIN_VINCULADO", "ADMIN_VINCULADO_INACTIVO"})
+    void vincular_usuarioIncompatible_devuelve404SinMembresiaActivaO409SiIncompatible(String caso) throws Exception {
         Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
-        Usuario u = crearUsuario("vinculo", caso.startsWith("ADMIN") ? Rol.ADMIN : Rol.valueOf(caso));
+        Usuario u = crearUsuario("vinculo", caso.startsWith("ADMIN") ? Rol.ADMIN : caso.startsWith("BARBERO") ? Rol.BARBERO : Rol.CLIENTE);
+        if (caso.equals("BARBERO_SIN_MEMBRESIA")) {
+            var membresia = membresias.findByNegocioIdAndUsuarioId(1L, u.getId()).orElseThrow();
+            membresia.revocar(pe.barberturno.platform.MotivoRevocacion.DECISION_GESTOR, reloj.instant());
+            membresias.save(membresia);
+        }
         if (caso.equals("ADMIN_INACTIVO")) { u.desactivar(reloj.instant()); usuarios.saveAndFlush(u); }
         if (caso.startsWith("ADMIN_VINCULADO")) {
             Barbero perfil = new Barbero(u, "Cortes", reloj.instant());
@@ -314,9 +352,25 @@ class BarberoIT {
             barberos.saveAndFlush(perfil);
         }
         long cantidad = barberos.count();
+        boolean sinGestion = caso.equals("CLIENTE") || caso.equals("BARBERO_SIN_MEMBRESIA");
         escribir("POST", 0, admin, Map.of("usuarioId", u.getId(), "especialidad", "Cortes"))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CONFLICTO"));
+                .andExpect(status().is(sinGestion ? 404 : 409))
+                .andExpect(jsonPath("$.codigo").value(sinGestion ? "NO_ENCONTRADO" : "CONFLICTO"));
         assertThat(barberos.count()).isEqualTo(cantidad);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"BARBERO", "ENCARGADO", "PROPIETARIO"})
+    void vincular_membresiaActivaSinPerfil_admiteLosTresRolesSinCambiarCuenta(String rol) throws Exception {
+        Cookie actor = login(crearUsuario("gestor", Rol.ADMIN));
+        Usuario usuario = crearUsuario("invitado", Rol.CLIENTE);
+        membresias.save(new pe.barberturno.platform.Membresia(1L, usuario.getId(),
+                pe.barberturno.platform.RolNegocio.valueOf(rol), reloj.instant()));
+        var antes = jdbc.queryForMap("select * from usuario where id=?", usuario.getId());
+        escribir("POST", 0, actor, Map.of("usuarioId", usuario.getId(), "especialidad", "Cortes"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.correo").value(usuario.getCorreo()));
+        assertThat(jdbc.queryForObject("select usuario_id from barbero", Long.class)).isEqualTo(usuario.getId());
+        assertThat(jdbc.queryForMap("select * from usuario where id=?", usuario.getId())).isEqualTo(antes);
+        assertThat(barberos.count()).isEqualTo(1);
     }
 
     @Test void vincular_usuarioInexistente_devuelve404() throws Exception {
@@ -370,19 +424,19 @@ class BarberoIT {
     @ParameterizedTest @ValueSource(strings = {"{}", "{\"activo\":null}"})
     void estado_ausenteONulo_rechaza400(String cuerpo) throws Exception {
         Barbero b = guardar("objetivo"); Cookie admin = login(crearUsuario("admin", Rol.ADMIN));
-        mvc.perform(conCsrf(patch("/api/barberos/{id}/estado", b.getId()), admin).contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(conCsrf(patch(negocio("/api/barberos/{id}/estado"), b.getId()), admin).contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errores[0].campo").value("activo"));
     }
 
     @ParameterizedTest @ValueSource(strings = {"GET /api/barberos/1", "DELETE /api/barberos/1", "POST /api/barberos/1/estado", "PUT /api/barberos/1/estado", "PATCH /api/barberos/1", "POST /api/disponibilidad"})
     void rutasNoImplementadas_permanecenCerradas(String caso) throws Exception {
         String[] partes = caso.split(" ");
-        mvc.perform(conCsrf(request(HttpMethod.valueOf(partes[0]), partes[1]), login(crearUsuario("admin", Rol.ADMIN))))
+        mvc.perform(conCsrf(request(HttpMethod.valueOf(partes[0]), negocio(partes[1])), login(crearUsuario("admin", Rol.ADMIN))))
                 .andExpect(status().isForbidden());
     }
 
     private Usuario crearUsuario(String identificador, Rol rol) {
-        return usuarios.saveAndFlush(new Usuario(identificador, identificador.toLowerCase(Locale.ROOT) + "@ejemplo.test", "999111222",
+        return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, new Usuario(identificador, identificador.toLowerCase(Locale.ROOT) + "@ejemplo.test", "999111222",
                 hash, rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant()));
     }
     private Barbero guardar(String identificador) {
@@ -406,9 +460,9 @@ class BarberoIT {
     }
     private MockHttpServletRequestBuilder solicitud(String metodo, long id) {
         return switch (metodo) {
-            case "POST" -> post("/api/barberos");
-            case "PUT" -> put("/api/barberos/{id}", id);
-            case "PATCH" -> patch("/api/barberos/{id}/estado", id);
+            case "POST" -> post(negocio("/api/barberos"));
+            case "PUT" -> put(negocio("/api/barberos/{id}"), id);
+            case "PATCH" -> patch(negocio("/api/barberos/{id}/estado"), id);
             default -> throw new IllegalArgumentException("Método no previsto.");
         };
     }

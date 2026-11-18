@@ -6,16 +6,19 @@ process.env['PLAYWRIGHT_BROWSERS_PATH'] ??= resolve('tmp/navegadores');
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: '**/recorrido.spec.ts',
+  testMatch: ['**/recorrido.spec.ts', '**/v2-11-bandeja.spec.ts'],
   globalSetup: './e2e/preparacion.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },
-  reporter: [['list'], ['html', { outputFolder: '../docs/pruebas/t-55/e2e', open: 'never' }]],
+  reporter: [['list'], ['html', { outputFolder: 'tmp/e2e/informe', open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:18034',
+    baseURL: 'http://localhost:8081',
+    // V2-18: el build de producción registra un service worker y page.route no intercepta lo que pasa
+    // por él. Esta batería prueba la aplicación, no la PWA (cubierta por playwright.pwa.config.ts).
+    serviceWorkers: 'block',
     timezoneId: 'Europe/Madrid',
     locale: 'es-PE',
     trace: 'off',

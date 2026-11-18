@@ -1,3 +1,4 @@
+import { prepararNegocio } from '../core/negocio/negocio-prueba';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -20,6 +21,7 @@ describe('Autocompletado de clientes', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
+    prepararNegocio();
   });
   afterEach(() => {
     http.verify();
@@ -33,9 +35,9 @@ describe('Autocompletado de clientes', () => {
     f.detectChanges();
     s.control.setValue(' Cli ');
     expect(elegido).toHaveBeenLastCalledWith(null);
-    http.expectNone((r) => r.url === '/api/usuarios');
+    http.expectNone((r) => r.url === '/api/n/prueba/usuarios');
     vi.advanceTimersByTime(250);
-    const req = http.expectOne((r) => r.url === '/api/usuarios');
+    const req = http.expectOne((r) => r.url === '/api/n/prueba/usuarios');
     expect(req.request.params.get('rol')).toBe('CLIENTE');
     expect(req.request.params.get('q')).toBe('Cli');
     expect(req.request.params.get('pagina')).toBe('0');
@@ -53,15 +55,17 @@ describe('Autocompletado de clientes', () => {
     const s = TestBed.createComponent(SelectorCliente).componentInstance;
     s.control.setValue('primero');
     vi.advanceTimersByTime(250);
-    const vieja = http.expectOne((r) => r.url === '/api/usuarios');
+    const vieja = http.expectOne((r) => r.url === '/api/n/prueba/usuarios');
     s.control.setValue('segundo');
     expect(vieja.cancelled).toBe(true);
     vi.advanceTimersByTime(250);
-    http.expectOne((r) => r.url === '/api/usuarios').flush({ contenido: [], totalElementos: 0 });
+    http
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
+      .flush({ contenido: [], totalElementos: 0 });
     expect(s.mensaje()).toContain('No se encontraron');
     s.control.setValue(' ');
     vi.advanceTimersByTime(250);
-    http.expectNone((r) => r.url === '/api/usuarios');
+    http.expectNone((r) => r.url === '/api/n/prueba/usuarios');
     expect(s.mensaje()).toBe('');
   });
   it('presenta errores y más resultados sin interpretar reglas de acceso', () => {
@@ -69,14 +73,14 @@ describe('Autocompletado de clientes', () => {
     s.control.setValue('cli');
     vi.advanceTimersByTime(250);
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ detail: 'Intente otra vez.' }, { status: 503, statusText: 'Service Unavailable' });
     expect(s.mensaje()).toBe('No pudimos completar la solicitud. Intente nuevamente.');
     expect(s.cargando()).toBe(false);
     s.control.setValue('cli2');
     vi.advanceTimersByTime(250);
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ contenido: [{ ...clientePrueba, activo: false }], totalElementos: 30 });
     expect(s.total()).toBe(30);
     expect(s.resultados()[0].activo).toBe(false);
@@ -97,7 +101,7 @@ describe('Autocompletado de clientes', () => {
     s.control.setValue('cliente');
     vi.advanceTimersByTime(250);
     http
-      .expectOne((r) => r.url === '/api/usuarios')
+      .expectOne((r) => r.url === '/api/n/prueba/usuarios')
       .flush({ contenido: [clientePrueba], totalElementos: 1 });
     f.detectChanges();
     expect(f.nativeElement.querySelector('label[for=busqueda-cliente]').textContent).toContain(

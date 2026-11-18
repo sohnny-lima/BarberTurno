@@ -23,6 +23,10 @@ public class Servicio {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Solo lectura: el INSERT conserva DEFAULT app_negocio_actual() y RLS WITH CHECK.
+    @jakarta.persistence.Column(name = "negocio_id", insertable = false, updatable = false, nullable = false)
+    private Long negocioId;
+
     @Column(name = "nombre", nullable = false, length = 80)
     private String nombre;
 
