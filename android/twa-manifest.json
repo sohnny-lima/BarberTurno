@@ -21,7 +21,7 @@
     "path": "D:\\Proyectos\\BarberTurno\\.local\\android\\distribucion\\barberturno-distribucion.keystore",
     "alias": "barberturno"
   },
-  "appVersionName": "1.0.0",
+  "appVersion": "1.0.0",
   "appVersionCode": 1,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
