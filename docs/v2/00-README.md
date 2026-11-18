@@ -22,6 +22,7 @@ Una plataforma para varias barberías independientes, con datos separados por ne
 | 11 | [V2-08 · Entrada de WhatsApp](11-v2-08-whatsapp-entrada.md) | Alcance, estado de P2-05, contrato de datos e interfaces, reparto Claude/Codex por archivos y criterios CH-1…CH-9 |
 | 18 | [V2-18 · PWA y TWA](18-v2-18-pwa-twa.md) | PWA (caché segura, sin conexión, actualizaciones, Atrás, móvil) y preparación de Android con TWA; reparto y criterios CP-1…CP-10 |
 | 21 | [V2-CONS · Consolidación en `main`](21-v2-consolidacion.md) | Integración de la V2 en `main`, correcciones finales, auditoría de permisos y de producción, firma de distribución de Android, despliegue y vuelta atrás |
+| 22 | [V2-REAL · Uso real](22-v2-uso-real.md) | Administrador sin negocio inicial, limpieza de la demostración en producción, CP-5, aviso de privacidad real y estado de WhatsApp |
 | — | [Incidencias de v1](incidencias-v1.md) | Defectos de `main`/Azure detectados al trabajar en v2, registrados aparte y sin corregir desde v2 (INC-V1-01) |
 
 ## 3. Reglas de trabajo en v2
