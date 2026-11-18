@@ -53,7 +53,7 @@ Gemini construyó la matriz comportamiento → pruebas → brecha a partir de un
 |---|---|---|
 | HTTPS | `httpsOnly`, TLS ≥ 1.2 (sitio y SCM), FTPS obligatorio, credenciales básicas de publicación desactivadas, `BT_COOKIE_SECURE=true` | — |
 | Salud | *Health check* en `/actuator/health`, Always On, `WEBSITE_HEALTHCHECK_MAXPINGFAILURES=10` | — |
-| Registros | Registro de aplicación y HTTP del sistema de archivos **apagados**; la salida estándar del contenedor sigue disponible en el *log stream* | Pendiente del responsable: activar si se quiere retención (sin coste adicional en el plan) |
+| Registros | Estaban apagados. **Activado** el registro del contenedor en el sistema de archivos al desplegar (3 días, 100 MB; sin coste adicional) | — |
 | Base de datos | PostgreSQL 18 B1ms, TLS obligatorio, copia automática **7 días** (restauración a un instante), sin redundancia geográfica ni alta disponibilidad, crecimiento automático apagado (32 GB) | Ampliar retención o geo: decisión de coste del responsable |
 | Cortafuegos | 57 reglas por IP (salidas de App Service y del responsable), ninguna abierta a todo Internet | — |
 | Secretos | En la configuración de App Service (JWT, BD, Flyway, administrador); fuera de Git | Rotar las contraseñas de las cuentas de prueba si se comparten |
@@ -83,11 +83,33 @@ Producción sirve la base `barberturno_v2_demo`: todas sus cuentas son ficticias
 ### 8.2 Defecto previo encontrado: CP-5 (Atrás con el cajón)
 `e2e/pwa/nucleo.spec.ts` CP-5 falla **7 de 10** veces en `chromium-360` con `--repeat-each=10`, **igual en `v2` sin cambios** (`c22dc32`, 7/10): no lo introduce V2-CONS y ya está en producción. Tras cerrar los avisos con Atrás y abrir el menú lateral, otro Atrás navega a `/negocios` en lugar de cerrar el menú. Diagnóstico de la causa: §8.3. No bloquea la versión (no empeora con ella), pero queda como pendiente real.
 
-### 8.3 Diagnóstico de CP-5
-Pendiente del encargo de Codex 163 (solo lectura).
+### 8.3 Diagnóstico de CP-5 (Codex 163, solo lectura)
+Angular Material 22.2.1 emite `openedStart` del cajón con un `setTimeout`: el cajón ya se ve abierto, pero `Shell.cambioCajon()` aún no ha registrado su entrada en el historial (`HistorialSuperposiciones.abrir()`). Un Atrás en esa ventana recorre el historial real hasta la ruta anterior (`/negocios`) porque no hay entrada del cajón que consumir. Playwright pulsa Atrás de inmediato; para una persona la ventana es de milisegundos, así que el impacto real es muy bajo. **Corrección propuesta (no aplicada; pendiente):** registrar la entrada en el mismo clic del botón, antes de `menu.toggle()`, y hacer idempotente el registro para que el `openedStart` diferido no lo duplique; prueba unitaria determinista en `shell.spec.ts` con temporizadores controlados. Riesgo bajo a moderado (cierre por Atrás, botón, Escape, fondo y navegación desde el cajón).
 
 ### 8.4 Integración y despliegue
-Se completa al cerrar la tarea (§9).
+- **Integración:** PR #2 con CI verde en `dd4e3ce` (backend **4013/0**, 18,7 min; frontend correcto) → merge `--no-ff` **`7729d3f`** en `main` (árbol idéntico al de `dd4e3ce`); `v2` avanzada a `7729d3f`.
+- **Respaldo previo (18/11, 01:4x):** volcado lógico del esquema y de los datos de cada negocio (`--enable-row-security`, RLS forzada) de `barberturno_v2_demo`, guardado fuera de Git; ajustes completos de App Service guardados; JAR anterior `3737d04` (SHA-256 `02727FD1…`) disponible. Copias automáticas de Azure: 7 días.
+- **Despliegue:** JAR de `7729d3f` con frontend (SHA-256 `E4163DA2…4BA2F0`); ajustes `BT_TWA_PAQUETE=pe.barberturno.app` y `BT_TWA_HUELLAS` = huella de distribución.
+- **Incidencia (≈29 min sin servicio, 02:23–02:52 hora de Lima):** `az webapp deploy` devolvió 504 de la pasarela de Kudu; el reinicio arrancó con un `app.jar` inconsistente (`ClassNotFoundException: org.springframework.boot.SpringApplication`) y la plataforma detuvo el contenedor; el despliegue de Kudu terminó en error (estado 3). Se comprobó que el JAR local estaba íntegro, se subió con `PUT /api/vfs/site/wwwroot/app.jar` de Kudu (204, tamaño exacto, 130 s) y se reinició: salud **UP** a las 02:52. Sin pérdida de datos. **Lección:** para este JAR (~140 MB) en B1, subir por la API de archivos de Kudu y reiniciar, en lugar de `az webapp deploy` síncrono.
+- **Verificación posterior:** todas las comprobaciones críticas pasan (salud, HTTPS, PWA, inicio de sesión con cookie `Secure`, agenda, bandeja, 403 al cliente, 404 del vínculo con WhatsApp apagado, webhook de Twilio no expuesto, CSRF, pie nuevo, `favicon` de la marca y `assetlinks` de distribución). Datos: Flyway 118, 10 cuentas, 18 reservas en `barberturno`, **BT-118 CONFIRMADA** en `sur`. V1 `barberturno_prod`: Flyway 1, intacta.
+- **Vuelta atrás preparada:** restaurar los ajustes de la TWA anteriores y el JAR `3737d04` (sin migraciones que revertir); a la V1, con su procedimiento del 11/11/2026. La regla temporal del cortafuegos usada para el respaldo se retiró.
 
 ## 9. Cierre
-Pendiente.
+| Comprobado | Cómo |
+|---|---|
+| `main` = V2 estable, publicada | `7729d3f` en `origin/main`, CI verde en su árbol |
+| Producción = `main` | Verificación HTTPS completa tras el despliegue |
+| Aviso «No se encontró el perfil profesional» corregido | Prueba unitaria (404 sin snackbar); 404 del vínculo en producción confirmado como estado esperado |
+| Pie y privacidad multinegocio; favicon de la marca | Producción sirve el bundle y el favicon nuevos |
+| Permisos y aislamiento | g136 + verificación del coordinador; 4013 pruebas de backend; E2E 88/88 |
+| Flujo BT-118 en Android real | Comprobado por el responsable; la base confirma BT-118 CONFIRMADA en Barbería Sur |
+| Asociación de dominio para `pe.barberturno.app` | `/.well-known/assetlinks.json` en producción con el paquete y la huella de la clave de distribución |
+
+| Pendiente de prueba manual o de decisión | Motivo |
+|---|---|
+| Instalar la **APK de distribución** en el teléfono y comprobar pantalla completa (sin barra de dirección) | La validación de Digital Asset Links solo se ve en el dispositivo; desinstalar antes la APK de prueba (`pe.barberturno.prueba.twa`, ahora sin asociación) |
+| Reprogramar y cancelar desde el teléfono | Cubiertas por pruebas automáticas, no probadas a mano en el Android |
+| CP-5 (Atrás inmediato con el cajón) | Defecto previo de impacto muy bajo; corrección propuesta en §8.3 |
+| Copia de la clave de distribución fuera del equipo | Si se pierde, no se puede actualizar la app |
+| Uso real (§7), retención de copias o redundancia geográfica, Play Store | Decisiones y costes del responsable |
+| Copilot | No instalado en el equipo; requiere instalación e inicio de sesión del responsable |
