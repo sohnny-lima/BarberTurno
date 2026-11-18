@@ -9,10 +9,15 @@ describe('Aviso de privacidad', () => {
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
     expect(f.nativeElement.querySelector('h1').textContent).toBe('Aviso de privacidad');
-    expect(f.nativeElement.querySelectorAll('p')).toHaveLength(3);
+    expect(f.nativeElement.querySelectorAll('p')).toHaveLength(5);
+    expect(f.nativeElement.textContent).toContain('Responsable del tratamiento: Sohnny Lima');
     expect(f.nativeElement.textContent).toContain('Ley 29733');
-    expect(f.nativeElement.textContent).toContain('No ingrese datos personales reales.');
-    const enlace = f.nativeElement.querySelector('a');
+    const correo = f.nativeElement.querySelector('a[href^="mailto:"]');
+    expect(correo.getAttribute('href')).toBe('mailto:limasoin.sli@gmail.com');
+    expect(correo.textContent).toBe('limasoin.sli@gmail.com');
+    const enlace = [...f.nativeElement.querySelectorAll('a')].find(
+      (elemento: HTMLAnchorElement) => elemento.getAttribute('href') === '/registro',
+    );
     expect(enlace.textContent.trim()).toBe('Volver al registro');
     expect(enlace.getAttribute('href')).toBe('/registro');
     expect(enlace.hasAttribute('mat-button')).toBe(true);

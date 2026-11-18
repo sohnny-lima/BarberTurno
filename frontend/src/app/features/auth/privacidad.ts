@@ -8,19 +8,28 @@ import { RouterLink } from '@angular/router';
   template: `<section class="lectura">
     <h1>Aviso de privacidad</h1>
     <p>
-      BarberTurno es un proyecto académico de reservas para barberías ficticias. Este entorno
-      utiliza únicamente datos de demostración. No ingrese datos personales reales.
+      Responsable del tratamiento: Sohnny Lima. Contacto para consultas y solicitudes sobre sus
+      datos: <a href="mailto:limasoin.sli@gmail.com">limasoin.sli@gmail.com</a>.
     </p>
     <p>
-      El registro solicita nombre, correo, teléfono y contraseña para identificar la cuenta,
-      gestionar sus citas y permitir el acceso. El consentimiento se registra al crear la cuenta. No
-      se ofrecen comunicaciones comerciales ni se envían mensajes a servicios externos.
+      Al crear su cuenta, BarberTurno trata su nombre, correo, teléfono y contraseña (la contraseña
+      se guarda de forma irreversible). Al reservar, registra la barbería, el servicio, el
+      profesional, la fecha y el estado de sus citas.
     </p>
     <p>
-      Este aviso de ejemplo toma como referencia la Ley 29733 de protección de datos personales del
-      Perú. La información del responsable, los plazos de conservación y el canal para ejercer los
-      derechos de acceso, rectificación, cancelación y oposición deberán completarse y validarse
-      antes de un uso real.
+      Los datos se usan para identificar su cuenta, gestionar sus reservas y permitir que la
+      barbería elegida atienda sus citas. Solo acceden a ellos la barbería donde reserva y la
+      administración de la plataforma. No se usan con fines publicitarios ni se venden.
+    </p>
+    <p>
+      Los datos se alojan en Microsoft Azure (Estados Unidos). La aplicación usa solo una cookie
+      técnica para mantener la sesión iniciada.
+    </p>
+    <p>
+      Se conservan mientras la cuenta esté activa o hasta que solicite su cancelación. Puede ejercer
+      sus derechos de acceso, rectificación, cancelación y oposición (Ley 29733 de Protección de
+      Datos Personales del Perú) escribiendo al correo de contacto. El consentimiento se registra al
+      crear la cuenta.
     </p>
     <a mat-button routerLink="/registro">Volver al registro</a>
   </section>`,
