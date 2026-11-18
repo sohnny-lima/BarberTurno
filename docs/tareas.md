@@ -1,5 +1,33 @@
 # BarberTurno — Plan de tareas de implementación
 
+> V2-REAL · Encargo 164: **Hecha en local; pendiente de revisión** (18/11/2026),
+> en `tarea/V2-REAL-uso-real`, base `716d260`. Administrador global con ámbito
+> vacío explícito cuando no hay slug, sin membresías ni negocio; comportamiento
+> anterior con slug conservado. IA sin sede de relleno; limpieza demo con RLS
+> forzada, descubrimiento de las 22 tablas, protección de usuarios reales,
+> ensayo reversible, conservación de otros negocios e identidades referenciadas.
+> Commits: `f18bc9e4149162e0100ea3f06abee73a0cecdf6f` y
+> `a437ab46566bc7158e6f35d96ee698f1fc354f40`. Focal inicial: 1863 pruebas,
+> 1 fallo/4 errores corregidos de fixtures y ámbito implícito del arnés; focal
+> corregida 36/36 (verify rojo por cobertura parcial, umbrales intactos).
+> **Verify completo: 4028/4028, cero fallos, errores y omitidas, 47:57 min;
+> JaCoCo aprobado y Javadoc sin avisos**, bajo el cerrojo común.
+> Evidencia, comandos, incidencias y operación psql/JDBC:
+> [v2-real-164.md](pruebas/v2-real-164.md).
+> Notas de cierre: `ejecutarSinNegocio` restaura el contexto y rechaza una
+> transacción abierta; se preparan fichas/mensajes/turnos demo dentro de la
+> transacción para cumplir las políticas de retención existentes. Segunda
+> limpieza de slugs borrados aborta sin cambios. Sin cambios de API, RN, DDL,
+> dependencias o umbrales; sin deuda nueva de producto. Hallazgo operativo:
+> una instalación recién migrada sigue creando la fila inicial de V100;
+> esta corrección permite arrancar tras retirarla, sin cambiar migraciones.
+> Cierre documental por asunto `docs: cerrar verificación del backend para uso real [V2-REAL]`
+> (hash propio en informe final). **Merge: ninguno**, por instrucción expresa.
+> Sin frontend/Android, documentos protegidos, coordinación, secretos expuestos,
+> push, publicación, etiquetas, cambios de ramas/remotos/ACL ni ejecución del
+> script fuera de `barberturno_v2_test`. Cero procesos propios y escuchas de las
+> JVM de prueba; cerrojo liberado. Producción no intervenida.
+
 > V2-CONS · Encargo 161: **Hecha en local; pendiente de revisión** (18/11/2026),
 > en `tarea/V2-CONS-consolidacion`. Frontend: 404 del vínculo profesional silencioso
 > en GET/POST/DELETE; 500 junto a la acción sin snackbar duplicado; pie multinegocio;
