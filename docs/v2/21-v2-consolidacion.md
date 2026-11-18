@@ -32,7 +32,8 @@ El pie y el aviso de privacidad dejan de hablar de «una sede en Huamanga»: el 
 | `0daa443` | Codex 161 | Pie multinegocio, `favicon.ico` de tijeras (16/32/48 px) y descripción del manifest. |
 | `b824461` | Codex 161 | Formato Prettier de tres archivos de la demo (el CI lo exige). |
 | `a44519c` | Codex 161 | Evidencia `pruebas/v2-cons-161.md`. |
-| (este commit y siguientes) | Claude | Aviso de privacidad multinegocio, `android/` de distribución, este documento, matriz de roles (§5) y registro de cierre. |
+| `757865a`, `3417551`, `bd7993b` | Claude | Aviso de privacidad multinegocio, `android/` de distribución, este documento, matriz de roles (§4) y registro de cierre. |
+| (siguiente) | Claude | Correcciones de la revisión de Codex 162 a `android/generar.ps1`: carpeta de claves restringida antes de crear secretos y ACL exclusiva exigida también al reutilizarlos; `-Clave prueba` adapta su propia copia del manifiesto; verificación del AAB con `jarsigner -verify -strict` contra el almacén y el alias. |
 
 ## 4. Revisión de permisos y aislamiento (g136 + verificación del coordinador)
 Gemini construyó la matriz comportamiento → pruebas → brecha a partir de un extracto (reglas HTTP, mapeos de controladores y nombres de 1 455 pruebas de backend y de las de frontend). Áreas: permisos por rol, aislamiento entre barberías (RLS, 404 ajeno), ciclo de reserva y concurrencia, avisos, actualización de la agenda y usuario multirol. **Veredicto: sin brechas altas.** Verificación de sus hallazgos en el código:
@@ -69,6 +70,23 @@ Producción sirve la base `barberturno_v2_demo`: todas sus cuentas son ficticias
 6. Copia de seguridad de la clave de distribución fuera del equipo (si se pierde, no se puede actualizar la app instalada).
 
 ## 8. Pruebas, CI, integración y despliegue
+### 8.1 Pruebas
+| Prueba | Dónde | Resultado |
+|---|---|---|
+| Frontend: lint, Prettier, unitarias, build | Codex 161 y Claude (tras `757865a`) | Correcto; **652/652** (56 archivos); build 509,09 kB |
+| E2E de regresión (`recorrido` + `v2-11-bandeja`, Chromium y Firefox, 1440 y 360 px) contra `barberturno_v2_test` | Claude, JAR de `bd7993b` | **88/88** (13,7 min) |
+| E2E de la PWA (`playwright.pwa.config.ts`) | Claude | **29/30**: falla CP-5 en `chromium-360` (§8.2) |
+| Backend `verify` completo (PostgreSQL real, JaCoCo, Javadoc) | CI de GitHub sobre `bd7993b` (ejecuciones 44251192675 y 44251217734) | **4013 pruebas, 0 fallos, 0 errores**, BUILD SUCCESS; frontend de CI correcto |
+| Revisión independiente | Codex 162 (cambios de Claude) | 3 hallazgos en `android/generar.ps1` (1 alta, 2 medias), corregidos |
+| APK y AAB de distribución con el generador corregido | Claude | Firmados; `apksigner verify` y `jarsigner -verify -strict` correctos; huella `3F:D9:3D:82:…:6E:23:83` |
+
+### 8.2 Defecto previo encontrado: CP-5 (Atrás con el cajón)
+`e2e/pwa/nucleo.spec.ts` CP-5 falla **7 de 10** veces en `chromium-360` con `--repeat-each=10`, **igual en `v2` sin cambios** (`c22dc32`, 7/10): no lo introduce V2-CONS y ya está en producción. Tras cerrar los avisos con Atrás y abrir el menú lateral, otro Atrás navega a `/negocios` en lugar de cerrar el menú. Diagnóstico de la causa: §8.3. No bloquea la versión (no empeora con ella), pero queda como pendiente real.
+
+### 8.3 Diagnóstico de CP-5
+Pendiente del encargo de Codex 163 (solo lectura).
+
+### 8.4 Integración y despliegue
 Se completa al cerrar la tarea (§9).
 
 ## 9. Cierre

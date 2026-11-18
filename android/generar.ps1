@@ -9,8 +9,10 @@
 #   - distribucion (predeterminada): distribucion\barberturno-distribucion.keystore, alias barberturno, PKCS12 RSA 4096,
 #     validez 10 000 días (Play exige que venza después de 2033). Es la clave de subida/firma de la app real:
 #     si se pierde no se puede actualizar la app instalada; guarde una copia fuera de este equipo (docs/v2/21).
-#   - prueba: barberturno-prueba.keystore (V2-18), solo para pruebas locales; su paquete es otro.
-#   La contraseña es aleatoria, se guarda junto a la clave (.secreto, con ACL solo del usuario) y nunca se muestra:
+#   - prueba: barberturno-prueba.keystore (V2-18), solo para pruebas locales; adapta la copia del manifiesto al
+#     paquete pe.barberturno.prueba.twa, de modo que nunca firma el paquete real con la clave de prueba.
+#   La carpeta de claves se restringe al usuario actual antes de crear nada y se rechaza cualquier clave o contraseña
+#   con permisos ajenos. La contraseña es aleatoria, se guarda junto a la clave (.secreto) y nunca se muestra:
 #   keytool, apksigner y jarsigner la leen de la variable de entorno BT_CLAVE.
 # Qué hace:
 #   1. Sirve <Publico> en http://127.0.0.1:8790 solo durante la generación (iconos y manifest que Bubblewrap descarga).
@@ -42,9 +44,16 @@ if ($Clave -eq 'distribucion') {
   $bits = 2048; $dias = 3650
   if (-not $Salida) { $Salida = 'D:\Android\barberturno-twa' }
 }
+# El manifiesto versionado es el de distribución; la modalidad de prueba lo adapta en la copia de <Salida>
+# (paquete, nombre y clave), de modo que nunca se mezclan la clave de prueba y el paquete real.
 $manifiesto = Get-Content (Join-Path $PSScriptRoot 'twa-manifest.json') -Raw | ConvertFrom-Json
-if ($manifiesto.signingKey.path -ne $almacen -or $manifiesto.signingKey.alias -ne $alias) {
-  throw "twa-manifest.json declara la clave $($manifiesto.signingKey.path) ($($manifiesto.signingKey.alias)), distinta de la elegida ($Clave)."
+if ($Clave -eq 'prueba') {
+  $manifiesto.packageId = 'pe.barberturno.prueba.twa'
+  $manifiesto.name = 'BarberTurno (prueba)'
+  $manifiesto.signingKey.path = $almacen
+  $manifiesto.signingKey.alias = $alias
+} elseif ($manifiesto.signingKey.path -ne $almacen -or $manifiesto.signingKey.alias -ne $alias -or $manifiesto.packageId -ne 'pe.barberturno.app') {
+  throw "twa-manifest.json no coincide con la distribución (paquete $($manifiesto.packageId), clave $($manifiesto.signingKey.path) / $($manifiesto.signingKey.alias))."
 }
 $jdk17 = 'C:\Program Files\Java\jdk-17'
 $keytool = Join-Path $jdk17 'bin\keytool.exe'
@@ -69,11 +78,21 @@ foreach ($paquete in @(@('build-tools;36.1.0', 'build-tools\36.1.0\apksigner.bat
   }
 }
 
-# Deja un archivo legible solo por el usuario actual (sin herencia), para la clave y su contraseña.
-function Restringir([string]$ruta) {
-  & icacls $ruta /inheritance:r /grant:r "$($env:USERNAME):F" *> $null
-  if ($LASTEXITCODE -ne 0) { throw "No se pudo restringir el acceso a $ruta." }
+# La carpeta de claves se restringe ANTES de crear secretos (los archivos nuevos heredan su ACL) y cada archivo,
+# nuevo o reutilizado, debe tener solo entradas del usuario actual; si no, se rechaza (no se reutiliza ni se firma).
+$yo = [Security.Principal.WindowsIdentity]::GetCurrent().User
+function ExigirSoloUsuario([string]$ruta) {
+  $ajenas = (Get-Acl -LiteralPath $ruta).Access | Where-Object {
+    try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]) -ne $yo } catch { $true }
+  }
+  if ($ajenas) { throw "El acceso a $ruta no es exclusivo del usuario actual: revise sus permisos antes de continuar." }
 }
+function ProtegerCarpeta([string]$ruta) {
+  & icacls $ruta /inheritance:r /grant:r "*$($yo.Value):(OI)(CI)F" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "No se pudo restringir el acceso a $ruta." }
+  ExigirSoloUsuario $ruta
+}
+ProtegerCarpeta $claves
 
 # 1. Servidor estático temporal, solo en 127.0.0.1.
 $servidorJs = @'
@@ -92,8 +111,8 @@ $archivoServidor = Join-Path $Salida 'servidor-iconos.cjs'
 $servidor = Start-Process node -ArgumentList $archivoServidor, (Resolve-Path $Publico).Path, $Puerto -PassThru -WindowStyle Hidden
 try {
   Start-Sleep -Seconds 2
-  # 2. Proyecto Gradle regenerado desde el manifiesto versionado.
-  Copy-Item (Join-Path $PSScriptRoot 'twa-manifest.json') (Join-Path $Salida 'twa-manifest.json') -Force
+  # 2. Proyecto Gradle regenerado desde el manifiesto versionado (adaptado si la modalidad es de prueba).
+  [IO.File]::WriteAllText((Join-Path $Salida 'twa-manifest.json'), ($manifiesto | ConvertTo-Json -Depth 10))
   Push-Location $Salida
   try {
     & npx --prefix $bubblewrap bubblewrap update --skipVersionUpgrade --manifest="$Salida\twa-manifest.json" --directory="$Salida"
@@ -108,15 +127,15 @@ try {
       if (Test-Path $almacen) { throw "Existe $almacen sin su contraseña: no se regenera ni se sobrescribe." }
       $bytes = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
       [IO.File]::WriteAllText($secreto, [Convert]::ToHexString($bytes))
-      Restringir $secreto
     }
+    ExigirSoloUsuario $secreto
     $env:BT_CLAVE = [IO.File]::ReadAllText($secreto).Trim()
     if (-not (Test-Path $almacen)) {
       & $keytool -genkeypair -storetype PKCS12 -keystore $almacen -alias $alias -keyalg RSA -keysize $bits -validity $dias `
         -dname $nombre -storepass:env BT_CLAVE -keypass:env BT_CLAVE -noprompt 2>&1 | Out-Null
       if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear la clave.' }
-      Restringir $almacen
     }
+    ExigirSoloUsuario $almacen
 
     # 4. Compilación y firma. Bubblewrap llama a `gradlew.bat` sin ruta: cmd debe buscar en la carpeta actual
     #    (solo en este proceso; algunos entornos fijan NoDefaultCurrentDirectoryInExePath).
@@ -143,8 +162,10 @@ try {
       & $jarsigner -keystore $almacen -storepass:env BT_CLAVE -keypass:env BT_CLAVE -sigalg SHA256withRSA -digestalg SHA-256 `
         -signedjar $paqueteFirmado $paquete $alias *> $null
       if ($LASTEXITCODE -ne 0) { throw "jarsigner falló con el AAB ($LASTEXITCODE)" }
-      & $jarsigner -verify $paqueteFirmado *> $null
-      if ($LASTEXITCODE -ne 0) { throw "La firma del AAB no se verifica ($LASTEXITCODE)" }
+      # -strict convierte las advertencias graves (entradas sin firmar, cadena no válida, firmante distinto
+      # del alias del almacén) en errores; además se exige el mensaje final de verificación.
+      $verificacion = & $jarsigner -verify -strict -keystore $almacen -storepass:env BT_CLAVE $paqueteFirmado $alias 2>&1
+      if ($LASTEXITCODE -ne 0 -or -not ($verificacion -contains 'jar verified.')) { throw "La firma del AAB no se verifica ($LASTEXITCODE)" }
     }
   } finally {
     Pop-Location
