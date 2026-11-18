@@ -9,7 +9,8 @@ describe('Aviso de privacidad', () => {
     f.detectChanges();
     expect(f.nativeElement.querySelectorAll('h1')).toHaveLength(1);
     expect(f.nativeElement.querySelector('h1').textContent).toBe('Aviso de privacidad');
-    expect(f.nativeElement.querySelectorAll('p')).toHaveLength(5);
+    expect(f.nativeElement.querySelectorAll('p')).toHaveLength(6);
+    expect(f.nativeElement.textContent).toContain('Twilio y Meta (WhatsApp)');
     expect(f.nativeElement.textContent).toContain('Responsable del tratamiento: Sohnny Lima');
     expect(f.nativeElement.textContent).toContain('Ley 29733');
     const correo = f.nativeElement.querySelector('a[href^="mailto:"]');

@@ -17,6 +17,11 @@ import { RouterLink } from '@angular/router';
       profesional, la fecha y el estado de sus citas.
     </p>
     <p>
+      Si reserva por WhatsApp, también se registran su nombre de perfil y su número o identificador
+      de WhatsApp, y los mensajes necesarios para gestionar la reserva. Esos mensajes se transmiten
+      a través de los proveedores de mensajería Twilio y Meta (WhatsApp).
+    </p>
+    <p>
       Los datos se usan para identificar su cuenta, gestionar sus reservas y permitir que la
       barbería elegida atienda sus citas. Solo acceden a ellos la barbería donde reserva y la
       administración de la plataforma. No se usan con fines publicitarios ni se venden.
