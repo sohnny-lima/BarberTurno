@@ -1,31 +1,54 @@
-# Genera y firma la APK de PRUEBA del TWA de BarberTurno a partir de android/twa-manifest.json (V2-18, V2-DA-95).
+# Genera y firma la APK (y el AAB) del TWA de BarberTurno a partir de android/twa-manifest.json (V2-18, V2-DA-95; V2-CONS).
 # Uso (PowerShell 7):
-#   pwsh -File android/generar.ps1 [-Salida D:\Android\barberturno-twa] [-Publico <carpeta public del frontend>]
+#   pwsh -File android/generar.ps1 [-Clave distribucion|prueba] [-Salida D:\Android\barberturno-twa-dist] [-Publico <carpeta public del frontend>]
 # Requisitos (ver docs/v2/pruebas/v2-18-android.md):
 #   - Bubblewrap CLI 1.27.0 en D:\Android\bubblewrap (npm local, sin instalación global) y
 #     %USERPROFILE%\.bubblewrap\config.json con jdkPath = JDK 17 y androidSdkPath = D:\Android\bubblewrap\sdk.
 #   - Node 24.21.0 con fnm.
+# Claves (siempre fuera de Git, en D:\Proyectos\BarberTurno\.local\android\):
+#   - distribucion (predeterminada): distribucion\barberturno-distribucion.keystore, alias barberturno, PKCS12 RSA 4096,
+#     validez 10 000 días (Play exige que venza después de 2033). Es la clave de subida/firma de la app real:
+#     si se pierde no se puede actualizar la app instalada; guarde una copia fuera de este equipo (docs/v2/21).
+#   - prueba: barberturno-prueba.keystore (V2-18), solo para pruebas locales; su paquete es otro.
+#   La contraseña es aleatoria, se guarda junto a la clave (.secreto, con ACL solo del usuario) y nunca se muestra:
+#   keytool, apksigner y jarsigner la leen de la variable de entorno BT_CLAVE.
 # Qué hace:
 #   1. Sirve <Publico> en http://127.0.0.1:8790 solo durante la generación (iconos y manifest que Bubblewrap descarga).
 #   2. Copia twa-manifest.json a <Salida> y regenera el proyecto Gradle con `bubblewrap update` (fuera de Git).
-#   3. Crea, si falta, la clave de PRUEBA en D:\Proyectos\BarberTurno\.local\android\ (fuera de Git) con una
-#      contraseña aleatoria guardada allí mismo; nunca la muestra.
-#   4. Compila SIN firmar con `bubblewrap build --skipPwaValidation --skipSigning`, alinea con zipalign y firma
-#      con apksigner leyendo la contraseña de una variable de entorno (nunca como argumento: un fallo de
-#      Bubblewrap al firmar podía imprimir la orden con la contraseña; hallazgo T1 de Codex 145).
+#   3. Crea la clave si falta.
+#   4. Compila sin firmar, alinea con zipalign, firma la APK con apksigner y el AAB con jarsigner, y verifica ambas firmas.
 #      Imprime la huella SHA-256 del certificado (dato público, necesario para BT_TWA_HUELLAS).
-# No publica nada ni usa cuentas: el host del manifiesto es el de la demo v2 en Azure (*.azurewebsites.net), con clave de PRUEBA.
-# El puerto del servidor temporal es fijo (8790) porque así figura en twa-manifest.json (hallazgo T2).
-param([string]$Salida = 'D:\Android\barberturno-twa',
+# No publica nada ni usa cuentas. El puerto del servidor temporal es fijo (8790) porque así figura en twa-manifest.json.
+param([ValidateSet('distribucion', 'prueba')][string]$Clave = 'distribucion',
+      [string]$Salida = '',
       [string]$Publico = (Join-Path $PSScriptRoot '..\frontend\public'))
 $Puerto = 8790
 $ErrorActionPreference = 'Stop'
-$claves = 'D:\Proyectos\BarberTurno\.local\android'
-$almacen = Join-Path $claves 'barberturno-prueba.keystore'
-$secreto = Join-Path $claves 'barberturno-prueba.secreto'
-$alias = 'barberturno-prueba'
+$raizClaves = 'D:\Proyectos\BarberTurno\.local\android'
+if ($Clave -eq 'distribucion') {
+  $claves = Join-Path $raizClaves 'distribucion'
+  $almacen = Join-Path $claves 'barberturno-distribucion.keystore'
+  $secreto = Join-Path $claves 'barberturno-distribucion.secreto'
+  $alias = 'barberturno'
+  $nombre = 'CN=BarberTurno, O=BarberTurno, L=Huamanga, ST=Ayacucho, C=PE'
+  $bits = 4096; $dias = 10000
+  if (-not $Salida) { $Salida = 'D:\Android\barberturno-twa-dist' }
+} else {
+  $claves = $raizClaves
+  $almacen = Join-Path $claves 'barberturno-prueba.keystore'
+  $secreto = Join-Path $claves 'barberturno-prueba.secreto'
+  $alias = 'barberturno-prueba'
+  $nombre = 'CN=BarberTurno prueba local, O=BarberTurno (prueba), C=PE'
+  $bits = 2048; $dias = 3650
+  if (-not $Salida) { $Salida = 'D:\Android\barberturno-twa' }
+}
+$manifiesto = Get-Content (Join-Path $PSScriptRoot 'twa-manifest.json') -Raw | ConvertFrom-Json
+if ($manifiesto.signingKey.path -ne $almacen -or $manifiesto.signingKey.alias -ne $alias) {
+  throw "twa-manifest.json declara la clave $($manifiesto.signingKey.path) ($($manifiesto.signingKey.alias)), distinta de la elegida ($Clave)."
+}
 $jdk17 = 'C:\Program Files\Java\jdk-17'
 $keytool = Join-Path $jdk17 'bin\keytool.exe'
+$jarsigner = Join-Path $jdk17 'bin\jarsigner.exe'
 $bubblewrap = 'D:\Android\bubblewrap'
 $sdkBubblewrap = Join-Path $bubblewrap 'sdk'
 
@@ -44,6 +67,12 @@ foreach ($paquete in @(@('build-tools;36.1.0', 'build-tools\36.1.0\apksigner.bat
     cmd /c ('"' + (Join-Path $sdkBubblewrap 'bin\sdkmanager.bat') + '" --sdk_root=' + $sdkBubblewrap + ' --install "' + $paquete[0] + '"')
     if ($LASTEXITCODE -ne 0) { throw "No se pudo instalar $($paquete[0])." }
   }
+}
+
+# Deja un archivo legible solo por el usuario actual (sin herencia), para la clave y su contraseña.
+function Restringir([string]$ruta) {
+  & icacls $ruta /inheritance:r /grant:r "$($env:USERNAME):F" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "No se pudo restringir el acceso a $ruta." }
 }
 
 # 1. Servidor estático temporal, solo en 127.0.0.1.
@@ -74,18 +103,19 @@ try {
     # Bubblewrap sigue usando su SDK para zipalign y apksigner.
     [IO.File]::WriteAllText((Join-Path $Salida 'local.properties'), 'sdk.dir=D\:\\Android\\Sdk' + "`n")
 
-    # 3. Clave de prueba (fuera de Git; la contraseña no se muestra).
+    # 3. Clave (fuera de Git; la contraseña no se muestra).
     if (-not (Test-Path $secreto)) {
-      $bytes = [byte[]]::new(24); [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+      if (Test-Path $almacen) { throw "Existe $almacen sin su contraseña: no se regenera ni se sobrescribe." }
+      $bytes = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
       [IO.File]::WriteAllText($secreto, [Convert]::ToHexString($bytes))
+      Restringir $secreto
     }
-    $clave = [IO.File]::ReadAllText($secreto).Trim()
-    $env:BT_CLAVE = $clave
+    $env:BT_CLAVE = [IO.File]::ReadAllText($secreto).Trim()
     if (-not (Test-Path $almacen)) {
-      & $keytool -genkeypair -keystore $almacen -alias $alias -keyalg RSA -keysize 2048 -validity 3650 `
-        -dname 'CN=BarberTurno prueba local, O=BarberTurno (prueba), C=PE' -storepass:env BT_CLAVE -keypass:env BT_CLAVE `
-        -noprompt 2>&1 | Out-Null
-      if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear la clave de prueba.' }
+      & $keytool -genkeypair -storetype PKCS12 -keystore $almacen -alias $alias -keyalg RSA -keysize $bits -validity $dias `
+        -dname $nombre -storepass:env BT_CLAVE -keypass:env BT_CLAVE -noprompt 2>&1 | Out-Null
+      if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear la clave.' }
+      Restringir $almacen
     }
 
     # 4. Compilación y firma. Bubblewrap llama a `gradlew.bat` sin ruta: cmd debe buscar en la carpeta actual
@@ -97,21 +127,31 @@ try {
     $sinFirma = Join-Path $Salida 'app\build\outputs\apk\release\app-release-unsigned.apk'
     $alineada = Join-Path $Salida 'app-release-alineada.apk'
     $firmada = Join-Path $Salida 'app-release-signed.apk'
-    Remove-Item $alineada, $firmada -ErrorAction SilentlyContinue
+    $paquete = Join-Path $Salida 'app\build\outputs\bundle\release\app-release.aab'
+    $paqueteFirmado = Join-Path $Salida 'app-release-bundle.aab'
+    Remove-Item $alineada, $firmada, $paqueteFirmado -ErrorAction SilentlyContinue
     & (Join-Path $herramientas 'zipalign.exe') -p -f 4 $sinFirma $alineada
     if ($LASTEXITCODE -ne 0) { throw "zipalign falló ($LASTEXITCODE)" }
     $env:JAVA_HOME = $jdk17
-    # apksigner lee la contraseña de BT_CLAVE: no aparece en la línea de órdenes ni en los mensajes de error.
+    # apksigner y jarsigner leen la contraseña de BT_CLAVE: no aparece en la línea de órdenes ni en los errores.
     & (Join-Path $herramientas 'apksigner.bat') sign --ks $almacen --ks-key-alias $alias `
       --ks-pass env:BT_CLAVE --key-pass env:BT_CLAVE --out $firmada $alineada
     if ($LASTEXITCODE -ne 0) { throw "apksigner falló ($LASTEXITCODE)" }
     & (Join-Path $herramientas 'apksigner.bat') verify $firmada
     if ($LASTEXITCODE -ne 0) { throw "La firma de la APK no se verifica ($LASTEXITCODE)" }
+    if (Test-Path $paquete) {
+      & $jarsigner -keystore $almacen -storepass:env BT_CLAVE -keypass:env BT_CLAVE -sigalg SHA256withRSA -digestalg SHA-256 `
+        -signedjar $paqueteFirmado $paquete $alias *> $null
+      if ($LASTEXITCODE -ne 0) { throw "jarsigner falló con el AAB ($LASTEXITCODE)" }
+      & $jarsigner -verify $paqueteFirmado *> $null
+      if ($LASTEXITCODE -ne 0) { throw "La firma del AAB no se verifica ($LASTEXITCODE)" }
+    }
   } finally {
     Pop-Location
   }
   $huella = (& $keytool -list -v -keystore $almacen -alias $alias -storepass:env BT_CLAVE | Select-String 'SHA256:').Line.Split('SHA256:')[1].Trim()
-  "APK: $Salida\app-release-signed.apk"
+  "APK: $firmada"
+  if (Test-Path $paqueteFirmado) { "AAB: $paqueteFirmado" }
   "Huella SHA-256 (BT_TWA_HUELLAS): $huella"
 } finally {
   Stop-Process -Id $servidor.Id -ErrorAction SilentlyContinue

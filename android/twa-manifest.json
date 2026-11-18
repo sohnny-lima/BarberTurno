@@ -1,7 +1,7 @@
 {
-  "packageId": "pe.barberturno.prueba.twa",
-  "host": "barberturno-v2-demo-202611.azurewebsites.net",
-  "name": "BarberTurno (demo)",
+  "packageId": "pe.barberturno.app",
+  "host": "barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net",
+  "name": "BarberTurno",
   "launcherName": "BarberTurno",
   "display": "standalone",
   "orientation": "default",
@@ -18,11 +18,11 @@
   "maskableIconUrl": "http://127.0.0.1:8790/iconos/icono-maskable-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "D:\\Proyectos\\BarberTurno\\.local\\android\\barberturno-prueba.keystore",
-    "alias": "barberturno-prueba"
+    "path": "D:\\Proyectos\\BarberTurno\\.local\\android\\distribucion\\barberturno-distribucion.keystore",
+    "alias": "barberturno"
   },
-  "appVersionName": "0.2.0-demo",
-  "appVersionCode": 2,
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "http://127.0.0.1:8790/manifest.webmanifest",
@@ -34,7 +34,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://barberturno-v2-demo-202611.azurewebsites.net/",
+  "fullScopeUrl": "https://barberturno-web-202610-bvbacecef3hpcga6.westus-01.azurewebsites.net/",
   "minSdkVersion": 24,
   "fingerprints": [],
   "additionalTrustedOrigins": [],
