@@ -246,6 +246,100 @@ describe('Shell adaptable', () => {
       '(max-width: 767.98px)',
     );
   });
+  it('abre el cajón móvil en el historial antes de los temporizadores de Material', () => {
+    vi.useFakeTimers();
+    let estado: Record<string, unknown> = { navigationId: 8 };
+    vi.spyOn(history, 'state', 'get').mockImplementation(() => estado);
+    vi.spyOn(history, 'pushState').mockImplementation((nuevo) => {
+      estado = nuevo as Record<string, unknown>;
+    });
+    const retroceder = vi.spyOn(history, 'back').mockImplementation(() => undefined);
+    try {
+      entrar('ADMIN');
+      movil.next({ matches: true });
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      const router = TestBed.inject(Router);
+      const ruta = router.url;
+      const boton = fixture.nativeElement.querySelector(
+        '[aria-label="Abrir menú"]',
+      ) as HTMLButtonElement;
+
+      boton.click();
+      fixture.detectChanges();
+
+      expect(history.pushState).toHaveBeenCalledTimes(1);
+      expect(history.pushState).toHaveBeenCalledWith(
+        expect.objectContaining({ barberturnoSuperposicion: expect.any(Number) }),
+        '',
+      );
+
+      window.dispatchEvent(
+        new PopStateEvent('popstate', { state: history.state as Record<string, unknown> }),
+      );
+      fixture.detectChanges();
+
+      expect(
+        (fixture.debugElement.query(By.directive(MatSidenav)).componentInstance as MatSidenav)
+          .opened,
+      ).toBe(false);
+      expect(router.url).toBe(ruta);
+      expect(retroceder).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(0);
+      fixture.detectChanges();
+
+      expect(history.pushState).toHaveBeenCalledTimes(1);
+      expect(retroceder).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
+  });
+  it('permite cerrar y reaperturar inmediatamente el cajón móvil sin duplicar su entrada', () => {
+    vi.useFakeTimers();
+    let estado: Record<string, unknown> = { navigationId: 8 };
+    vi.spyOn(history, 'state', 'get').mockImplementation(() => estado);
+    vi.spyOn(history, 'pushState').mockImplementation((nuevo) => {
+      estado = nuevo as Record<string, unknown>;
+    });
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      estado = { navigationId: 8 };
+      window.dispatchEvent(new PopStateEvent('popstate', { state: estado }));
+    });
+    try {
+      entrar('ADMIN');
+      movil.next({ matches: true });
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      const boton = fixture.nativeElement.querySelector(
+        '[aria-label="Abrir menú"]',
+      ) as HTMLButtonElement;
+      const menu = fixture.debugElement.query(By.directive(MatSidenav))
+        .componentInstance as MatSidenav;
+
+      boton.click();
+      fixture.detectChanges();
+      expect(history.pushState).toHaveBeenCalledTimes(1);
+
+      (fixture.nativeElement.querySelector('.cerrar-menu') as HTMLButtonElement).click();
+      vi.advanceTimersByTime(0);
+      fixture.detectChanges();
+      expect(menu.opened).toBe(false);
+
+      boton.click();
+      fixture.detectChanges();
+      expect(menu.opened).toBe(true);
+      expect(history.pushState).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(0);
+      fixture.detectChanges();
+      expect(history.pushState).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
+  });
   it('muestra la actualización de Agenda solo en la barra móvil y respeta su estado desactivado', () => {
     entrar('BARBERO');
     const ejecutar = vi.fn();

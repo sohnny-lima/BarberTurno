@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.core.annotation.Order;
 
 /**
- * Completa la cuenta configurada como ADMIN_PLATAFORMA y PROPIETARIO del negocio único antes de la demo.
+ * Completa la cuenta configurada como ADMIN_PLATAFORMA antes de la demo.
+ * Solo acredita propiedad cuando se configura explícitamente un negocio inicial.
  * No admite claves predeterminadas (arquitectura §7.1, V2-DA-25).
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
@@ -25,7 +26,7 @@ public class AdminInicialRunner implements ApplicationRunner {
     /**
      * Recibe servicio y configuración externa de la cuenta inicial, sin incluir sus valores en logs.
      * @param ejecutor delimita el negocio antes de la transacción de alta
-     * @param slug negocio inicial configurado explícitamente
+     * @param slug negocio inicial explícito; vacío crea solo la identidad global
      * @param auth servicio no nulo de identidad y revalidación
      * @param correo correo inicial configurado; vacío indica configuración incompleta
      * @param password contraseña inicial configurada; vacía omite la cuenta, nunca se registra
@@ -46,13 +47,17 @@ public class AdminInicialRunner implements ApplicationRunner {
 
     /**
      * Solicita la creación o acreditación idempotente de la cuenta inicial; omite si faltan valores
-     * configurados.
+     * configurados. Sin slug no consulta negocios ni crea membresías.
      * @param args argumentos no nulos de arranque proporcionados por Spring
-     * @throws IllegalStateException si la cuenta está configurada pero su negocio explícito no existe
+     * @throws IllegalStateException si hay una transacción abierta o no existe el negocio explícito
      */
     @Override
     public void run(ApplicationArguments args) {
         if (correo.isBlank() || password.isBlank() || nombre.isBlank()) return;
+        if (slug.isBlank()) {
+            ejecutor.ejecutarSinNegocio(() -> { auth.crearAdminInicial(correo, password, nombre); return null; });
+            return;
+        }
         ejecutor.ejecutar(slug, () -> { auth.crearAdminInicial(correo, password, nombre); return null; });
     }
 }

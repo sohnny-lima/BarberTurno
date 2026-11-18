@@ -1,0 +1,10 @@
+-- psql -X -v ON_ERROR_STOP=1 -v slugs='["barberturno","sur"]'
+--   -v admin='cuenta@ejemplo.test' -v nombre='Administración' -v modo=ensayo
+--   -f tools/v2/limpiar-demo.psql
+-- Conexión por opciones/PGSERVICE/PGPASSFILE. No usar --single-transaction.
+\set ON_ERROR_STOP on
+SELECT set_config('bt.limpieza_slugs', :'slugs', false) AS slugs,
+       set_config('bt.limpieza_admin', :'admin', false) AS admin,
+       set_config('bt.limpieza_nombre', :'nombre', false) AS nombre,
+       set_config('bt.limpieza_modo', :'modo', false) AS modo \gset limpieza_
+\ir limpiar-demo.sql

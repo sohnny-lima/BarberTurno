@@ -65,4 +65,30 @@ class EjecutorEnNegocioTest {
             assertThat(contexto.delimitado()).isFalse();
         } finally { TransactionSynchronizationManager.setActualTransactionActive(false); }
     }
+
+    @Test void sinNegocio_delimitaVacioYRestauraInclusoConError() {
+        ejecutor.ejecutar(7L, () -> {
+            assertThat(ejecutor.ejecutarSinNegocio(() -> {
+                assertThat(contexto.delimitado()).isTrue();
+                return contexto.negocioActual();
+            })).isEmpty();
+            assertThat(contexto.negocioActual()).hasValue(7);
+            assertThatThrownBy(() -> ejecutor.ejecutarSinNegocio(() -> {
+                throw new IllegalStateException("Fallo ficticio");
+            })).hasMessage("Fallo ficticio");
+            assertThat(contexto.negocioActual()).hasValue(7);
+            return null;
+        });
+        assertThat(contexto.delimitado()).isFalse();
+        verifyNoInteractions(directorio);
+    }
+
+    @Test void sinNegocio_conTransaccionAbierta_rechazaSinCambiarElAmbito() {
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            assertThatThrownBy(() -> ejecutor.ejecutarSinNegocio(() -> fail("No debe ejecutar")))
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("antes de abrir la transacción");
+            assertThat(contexto.delimitado()).isFalse();
+        } finally { TransactionSynchronizationManager.setActualTransactionActive(false); }
+    }
 }

@@ -247,13 +247,16 @@ export class Shell {
     if (this.movil() && menu?.opened) void menu.close().then(enfocar);
     else enfocar();
   }
+  /** Sincroniza el cajón móvil con una entrada propia del historial sin depender de Material. */
   cambioCajon(abierto: boolean) {
-    this.retirarCajon?.();
-    this.retirarCajon = undefined;
     if (abierto && this.movil()) {
-      this.retirarCajon = this.historial.abrir(() => {
+      this.retirarCajon ??= this.historial.abrir(() => {
+        this.retirarCajon = undefined;
         void this.menu()?.close();
       });
+    } else {
+      this.retirarCajon?.();
+      this.retirarCajon = undefined;
     }
   }
   async abrirAvisos() {

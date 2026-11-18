@@ -78,6 +78,13 @@ class ConfiguracionProduccionTest {
         assertThatCode(() -> validar(entornoValido())).doesNotThrowAnyException();
     }
 
+    @Test
+    void validar_sinNegocioInicial_aceptaElAdministradorGlobal() {
+        assertThatCode(() -> validar(entornoValido()
+                .withProperty("barberturno.tenancy.negocio-inicial-slug", "")))
+                .doesNotThrowAnyException();
+    }
+
     private void validar(MockEnvironment entorno) {
         ConfiguracionProduccion.validarVariablesProduccion(entorno)
                 .postProcessBeanFactory(new DefaultListableBeanFactory());

@@ -58,6 +58,21 @@ public class EjecutorEnNegocio {
         return delimitar(OptionalLong.of(negocioId), accion);
     }
 
+    /**
+     * Delimita una operación global sin acceso por RLS a filas de negocio y restaura el ámbito anterior.
+     * Se usa para acreditar el administrador sin asignarle una barbería implícita.
+     * @param accion trabajo que abre sus propias transacciones de servicio
+     * @param <T> tipo del resultado del trabajo
+     * @return resultado de la operación global
+     * @throws IllegalStateException si ya existe una transacción abierta
+     */
+    public <T> T ejecutarSinNegocio(Supplier<T> accion) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("El ámbito debe fijarse antes de abrir la transacción.");
+        }
+        return delimitar(OptionalLong.empty(), accion);
+    }
+
     private <T> T delimitar(OptionalLong id, Supplier<T> accion) {
         boolean delimitado = contexto.delimitado();
         var anterior = contexto.negocioActual();
