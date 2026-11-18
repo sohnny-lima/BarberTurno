@@ -56,7 +56,7 @@ Leyenda: ✔ permitido · **P** solo lo propio (la ficha de cliente del actor) �
 | Invitar o revocar BARBERO; desactivar el perfil de profesional (no la cuenta global); restablecer su contraseña solo si su cuenta no tiene relación con otros negocios (V2-RN-16) | — | — | — | N | N |
 | Invitar, revocar o restablecer a un ENCARGADO (con la misma condición de V2-RN-16) | — | — | — | — | N |
 | Invitar o revocar PROPIETARIO; cambiar roles (p. ej., ENCARGADO ↔ PROPIETARIO) | — | — | — | — | N (no puede dejar 0 propietarios) |
-| Conectar, reconectar o desconectar el número de WhatsApp; ver su estado | — | — | — | — (solo ver estado) | N |
+| Conectar, reconectar o desconectar el número de WhatsApp; ver su estado | — | — | — | — | — (lo hace `ADMIN_PLATAFORMA` en `/api/plataforma/negocios/{id}/canal-whatsapp`: V2-DA-56, 28/10/2026; matriz corregida en V2-CONS, 18/11/2026) |
 | Configuración del negocio (nombre, parámetros de reserva, horario de atención humana) | — | — | — | — | N |
 | Salir del negocio (renunciar a la propia membresía) | — | — | ✔ | ✔ | ✔ (si queda otro propietario) |
 

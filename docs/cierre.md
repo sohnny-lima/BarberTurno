@@ -2,6 +2,8 @@
 
 Estado verificable del cierre del proyecto. Se actualiza en cada hito; el detalle está en las evidencias enlazadas. Última actualización: **21/10/2026** (punto final del APF3). Freeze vigente (AGENTS.md §5).
 
+> **Actualización 18/11/2026 (V2-CONS):** `main` integra la V2 y Azure ejecuta la V2 desde el 11/11/2026 (base `barberturno_v2_demo`); este registro conserva el estado del cierre de la V1 y del APF3. Estado vigente, pruebas, despliegue y reversión: `docs/v2/21-v2-consolidacion.md`.
+
 ## 0. Punto final del APF3 (21/10/2026)
 | Elemento | Valor |
 |---|---|
