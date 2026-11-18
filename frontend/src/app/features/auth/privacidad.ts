@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router';
   template: `<section class="lectura">
     <h1>Aviso de privacidad</h1>
     <p>
-      BarberTurno es un proyecto académico de una barbería ficticia de Huamanga. Este entorno
+      BarberTurno es un proyecto académico de reservas para barberías ficticias. Este entorno
       utiliza únicamente datos de demostración. No ingrese datos personales reales.
     </p>
     <p>
