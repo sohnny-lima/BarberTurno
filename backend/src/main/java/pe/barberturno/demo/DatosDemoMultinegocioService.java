@@ -81,7 +81,7 @@ public class DatosDemoMultinegocioService {
         String hash = passwords.encode(password);
         cuenta("plataforma", "Plataforma de demostración", hash, true);
         cuenta("multirol", "Personal de dos barberías", hash, false);
-        cuenta("personal-cliente", "Personal y cliente de demostración", hash, false);
+        cuenta("personal-cliente", "Jorge", hash, false);
         cuenta("encargado", "Encargado de demostración", hash, false);
         cuenta("cliente", "Cliente de demostración", hash, false);
     }

@@ -26,7 +26,7 @@ import pe.barberturno.whatsapp.VentanaWhatsApp;
  * Transiciones atómicas de atención humana con la conversación como primer bloqueo (V2-DA-65/71/76).
  * El retorno programado abre contexto antes de su transacción y limita cada negocio a un lote.
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Service
 public class DerivacionConversacionService implements DerivacionConversacion {
@@ -77,7 +77,8 @@ public class DerivacionConversacionService implements DerivacionConversacion {
         String nombre = (String) entidades.createNativeQuery("""
                 SELECT n.nombre FROM negocio n JOIN conversacion c ON c.negocio_id=n.id WHERE c.id=:id
                 """, String.class).setParameter("id", conversacionId).getSingleResult();
-        salida.encolarTexto(conversacionId, textos.derivada(nombre), OrigenMensaje.SISTEMA, OptionalLong.empty());
+        salida.encolarTexto(conversacionId, textos.derivada(nombre, propiedades.retornoAutomatico()),
+                OrigenMensaje.SISTEMA, OptionalLong.empty());
         var destinatarios = entidades.createNativeQuery("""
                 SELECT m.usuario_id FROM membresia m JOIN usuario u ON u.id=m.usuario_id
                 JOIN conversacion c ON c.negocio_id=m.negocio_id

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -16,10 +17,10 @@ import pe.barberturno.reservations.EstadoReserva;
 /**
  * Textos del servidor para la conversación guiada (V2-RN-11; 13-v2-10 §3.2). Fechas y horas siempre en
  * Lima con {@code TiempoNegocio}; precio en soles con coma decimal. Los textos de resultado se componen
- * solo a partir de {@link ResultadoOperacion}. Sin textos de privacidad propios: llegan de la
- * configuración. Implementación: Gemini (bloque G).
+ * a partir de {@link ResultadoOperacion} y del nombre del negocio del canal. Los textos de privacidad
+ * llegan de la configuración. Implementación inicial: Gemini (bloque G).
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Component
 public class TextosConversacion {
@@ -219,35 +220,24 @@ public class TextosConversacion {
     }
 
     /**
-     * Texto de resultado compuesto solo con el resultado confirmado en la base (V2-RN-11). Una reserva
-     * {@code PENDIENTE} se presenta como pendiente de confirmación por la barbería.
+     * Resultado confirmado en la base (V2-RN-11), identificado con la barbería del canal y el estado
+     * legible de la instantánea. Una repetición conserva los datos de la operación ejecutada.
      * @param resultado resultado de confirmar o rechazar
+     * @param negocio nombre de la barbería resuelto por el servidor para el canal actual
      * @return texto
      */
-    public String resultado(ResultadoOperacion resultado) {
+    public String resultado(ResultadoOperacion resultado, String negocio) {
         return switch (resultado) {
             case ResultadoOperacion.Ejecutada ejec -> {
                 CitaOpcion cita = ejec.cita();
-                yield switch (ejec.tipo()) {
-                    case CREAR -> {
-                        String txt = "Listo: " + cita.codigo() + " el " + fecha(cita.inicio()) + " a las "
-                                + hora(cita.inicio()) + " con " + cita.profesional() + ".";
-                        if (cita.estado() == EstadoReserva.PENDIENTE) {
-                            txt += " Tu cita queda pendiente de confirmación por la barbería.";
-                        }
-                        yield txt;
-                    }
-                    case REPROGRAMAR -> {
-                        String txt = "Cambiamos tu cita " + cita.codigo() + " para el " + fecha(cita.inicio())
-                                + " a las " + hora(cita.inicio()) + " con " + cita.profesional() + ".";
-                        if (cita.estado() == EstadoReserva.PENDIENTE) {
-                            txt += " Tu cita queda pendiente de confirmación por la barbería.";
-                        }
-                        yield txt;
-                    }
-                    case CANCELAR -> "Cancelamos tu cita " + cita.codigo() + " del " + fecha(cita.inicio())
-                            + " a las " + hora(cita.inicio()) + " con " + cita.profesional() + ".";
+                String accion = switch (ejec.tipo()) {
+                    case CREAR -> "Listo, tu cita en ";
+                    case REPROGRAMAR -> "Reprogramamos tu cita en ";
+                    case CANCELAR -> "Cancelamos tu cita en ";
                 };
+                yield accion + negocio + ": " + cita.codigo() + " · " + fecha(cita.inicio()) + " · "
+                        + hora(cita.inicio()) + " · con " + cita.profesional() + " · Estado: "
+                        + estadoLegible(cita.estado()) + ".";
             }
             case ResultadoOperacion.Rechazada rech -> rechazo(rech.codigo());
             case ResultadoOperacion.NoVigente noVig -> {
@@ -257,6 +247,17 @@ public class TextosConversacion {
                 yield "Esa propuesta ya no es válida.";
             }
             case ResultadoOperacion.Anulada a -> "De acuerdo, no hice ningún cambio.";
+        };
+    }
+
+    private String estadoLegible(EstadoReserva estado) {
+        return switch (estado) {
+            case PENDIENTE -> "Pendiente de confirmación por la barbería";
+            case CONFIRMADA -> "Confirmada";
+            case CANCELADA -> "Cancelada";
+            case EN_ATENCION -> "En atención";
+            case COMPLETADA -> "Completada";
+            case NO_ASISTIO -> "No asistió";
         };
     }
 
@@ -310,14 +311,33 @@ public class TextosConversacion {
     }
 
     /**
-     * Acuse de la derivación (06-flujos.md §9.2), origen {@code SISTEMA}: el equipo responderá por aquí.
-     * Implementación: Gemini (G11).
+     * Acuse de la derivación, origen {@code SISTEMA}: bandeja del equipo, canal de respuesta y retorno
+     * al asistente (V2-DA-76/105). El plazo limita la inactividad, sin prometer una respuesta del personal.
      * @param negocio nombre del negocio
+     * @param retornoAutomatico plazo configurado sin actividad del personal antes del retorno automático
      * @return texto
      */
-    public String derivada(String negocio) {
+    public String derivada(String negocio, Duration retornoAutomatico) {
         String nombre = (negocio != null && !negocio.isBlank()) ? negocio.strip() : "la barbería";
-        return "Te paso con el equipo de " + nombre + ". Te responderán por aquí en cuanto puedan.";
+        return "El equipo de " + nombre + " verá tu conversación en su bandeja y podrá responderte por este chat. "
+                + "Tras " + plazoRetorno(retornoAutomatico) + " sin respuesta del equipo, "
+                + "el asistente retomará la conversación automáticamente. "
+                + "Puedes volver antes al asistente escribiendo «menu».";
+    }
+
+    private String plazoRetorno(Duration plazo) {
+        long segundos = plazo.getSeconds();
+        if (plazo.getNano() == 0 && segundos % 3600 == 0) {
+            long horas = segundos / 3600;
+            return horas + (horas == 1 ? " hora" : " horas");
+        }
+        if (plazo.getNano() == 0 && segundos % 60 == 0) {
+            long minutos = segundos / 60;
+            return minutos + (minutos == 1 ? " minuto" : " minutos");
+        }
+        String cantidad = BigDecimal.valueOf(segundos).add(BigDecimal.valueOf(plazo.getNano(), 9))
+                .stripTrailingZeros().toPlainString().replace('.', ',');
+        return cantidad + (plazo.equals(Duration.ofSeconds(1)) ? " segundo" : " segundos");
     }
 
     /**

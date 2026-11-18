@@ -78,6 +78,13 @@ class DerivacionConversacionIT extends WhatsAppSalidaPruebaBase {
         assertThat(avisosDerivacion()).isPositive();
         var acuse = ConversacionPruebas.leerUltimoMensajeSaliente(ejecutor, sql, mapper, a, WA);
         assertThat(acuse.origen()).isEqualTo("SISTEMA");
+        assertThat(acuse.texto()).contains("Negocio ficticio a", "bandeja", "por este chat",
+                "24 horas sin respuesta del equipo", "escribiendo «menu»");
+
+        texto("menu");
+        assertThat(conversacion().get("modo")).isEqualTo("ASISTENTE");
+        assertThat(ConversacionPruebas.leerUltimoMensajeSaliente(ejecutor, sql, mapper, a, WA).idsSeleccion())
+                .contains("m:RESERVAR", "m:MIS_CITAS", "m:PERSONA");
     }
 
     @Test

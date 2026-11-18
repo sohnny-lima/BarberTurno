@@ -209,9 +209,9 @@ class MenusConversacionTest {
         esperado.put("type", "button");
         esperado.putObject("body").put("text", "Detalle de tu cita:");
         ArrayNode btns = esperado.putObject("action").putArray("buttons");
-        btns.addObject().put("type", "reply").putObject("reply").put("id", "a:50:C").put("title", "Cancelar");
         btns.addObject().put("type", "reply").putObject("reply").put("id", "a:50:R").put("title", "Reprogramar");
-        btns.addObject().put("type", "reply").putObject("reply").put("id", "m:INICIO").put("title", "Menú");
+        btns.addObject().put("type", "reply").putObject("reply").put("id", "a:50:C").put("title", "Cancelar");
+        btns.addObject().put("type", "reply").putObject("reply").put("id", "m:INICIO").put("title", "Menú principal");
 
         ObjectNode actual = menus.accionesCita("Detalle de tu cita:", cita);
 
@@ -446,7 +446,7 @@ class MenusConversacionTest {
             String title = b.path("reply").path("title").asString();
             if ("Cancelar".equals(title)) tieneCancelar = true;
             if ("Reprogramar".equals(title)) tieneReprogramar = true;
-            if ("Menú".equals(title)) tieneMenu = true;
+            if ("Menú principal".equals(title)) tieneMenu = true;
         }
 
         assertThat(tieneCancelar).isEqualTo(puedeCancelar);

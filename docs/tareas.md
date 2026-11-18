@@ -1,5 +1,11 @@
 # BarberTurno — Plan de tareas de implementación
 
+> V2-REAL · Encargo 165: **En curso** (18/11/2026), en
+> `tarea/V2-REAL-bot-mensajes`, base `a75ef1e` de `tarea/V2-REAL-apk-version`.
+> Alcance autorizado: resultados completos del bot, acciones sobre la cita recién
+> creada o reprogramada, explicación de la derivación y nombre ficticio del
+> profesional de dev. Sin merge ni push por instrucción expresa del encargo.
+
 > V2-REAL · Encargo 164: **Hecha en local; pendiente de revisión** (18/11/2026),
 > en `tarea/V2-REAL-uso-real`, base `716d260`. Administrador global con ámbito
 > vacío explícito cuando no hay slug, sin membresías ni negocio; comportamiento

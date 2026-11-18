@@ -51,7 +51,7 @@ import tools.jackson.databind.node.ObjectNode;
  * <p>Desde V2-12 (17-v2-12 §2): un texto libre no reconocido va a un turno de IA si {@link LimitesIA} la da por
  * disponible; la entrega no responde y el turno se resuelve fuera de esta transacción (V2-DA-77).</p>
  * @author Sohnny Walter Lima Infanzón
- * @version 1.2
+ * @version 1.3
  */
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
@@ -551,21 +551,37 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         }
 
         /**
-         * Responde al resultado de una confirmación. {@code Ejecutada} (también repetida) muestra el menú y,
-         * como todo menú, anula cualquier otra vigente (revisión 120-1). {@code NoVigente} responde solo con
-         * texto y no toca la vigente: una pulsación inválida o antigua no cambia nada (CJ-5; revisión 120-2).
+         * Responde desde la instantánea ejecutada. Tras crear o reprogramar muestra acciones de esa cita
+         * con permisos consultados de nuevo; guarda la vista para repetirla sin ejecutar otra operación.
+         * Anula cualquier otra vigente (revisión 120-1), también en una repetición. {@code NoVigente}
+         * responde solo con texto y conserva la vigente (CJ-5; revisión 120-2).
          */
         private void resultado(ResultadoOperacion resultado) {
             switch (resultado) {
                 case ResultadoOperacion.Ejecutada ejecutada -> {
                     operaciones.anularVigente(conversacion.id());
                     conversaciones.vaciar(conversacion.id());
-                    salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.resultado(resultado)),
+                    String cuerpo = textos.resultado(resultado, consultas.nombreNegocio());
+                    ObjectNode respuesta;
+                    if (ejecutada.tipo() == TipoOperacion.CANCELAR) {
+                        respuesta = menus.menuPrincipal(cuerpo);
+                    } else {
+                        long reservaId = ejecutada.cita().reservaId();
+                        var actual = consultas.cita(ficha(), reservaId).orElse(null);
+                        respuesta = menus.accionesCita(cuerpo, actual);
+                        if (actual != null) {
+                            var estado = conversaciones.bloquear(conversacion.id()).estado();
+                            estado.put(ConversacionesWhatsApp.PASO, "CITA");
+                            estado.put("vista", new Cita(reservaId).codificar());
+                            conversaciones.guardar(conversacion.id(), estado);
+                        }
+                    }
+                    salida.encolarInteractivo(conversacion.id(), respuesta,
                             OrigenMensaje.SISTEMA, OptionalLong.of(ejecutada.cita().reservaId()));
                 }
                 case ResultadoOperacion.NoVigente ignorada -> salida.encolarTexto(conversacion.id(),
-                        textos.resultado(resultado), OrigenMensaje.ASISTENTE, OptionalLong.empty());
-                default -> menu(textos.resultado(resultado));
+                        textos.resultado(resultado, consultas.nombreNegocio()), OrigenMensaje.ASISTENTE, OptionalLong.empty());
+                default -> menu(textos.resultado(resultado, consultas.nombreNegocio()));
             }
         }
 

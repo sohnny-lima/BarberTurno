@@ -554,6 +554,68 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
     }
 
     @Test
+    void trasCrearYReprogramar_accionesDeLaMismaCita_conConfirmacionYCancelacion() {
+        String confirmarCreacion = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", confirmarCreacion);
+        var creada = ultimoMensaje(a, WA_CLIENTE);
+        long reservaId = creada.reservaId();
+        assertThat(creada.texto()).contains("Negocio ficticio a", "BT-" + reservaId, "Estado: Confirmada");
+        assertThat(creada.idsSeleccion()).containsExactly("a:" + reservaId + ":R", "a:" + reservaId + ":C", "m:INICIO");
+
+        // Una entrada no reconocida repite las acciones y mantiene una sola reserva.
+        enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", "qwerty");
+        assertThat(ultimoMensaje(a, WA_CLIENTE).idsSeleccion()).isEqualTo(creada.idsSeleccion());
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", "a:" + reservaId + ":R");
+        var dias = ultimoMensaje(a, WA_CLIENTE);
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", dias.idsSeleccion().get(2));
+        String franja = ultimoMensaje(a, WA_CLIENTE).primerIdQueEmpieceCon("rf:");
+        Instant nuevoInicio = Instant.ofEpochSecond(((CodigoSeleccion.FranjaCambio)
+                CodigoSeleccion.decodificar(franja).orElseThrow()).inicioEpochSeg());
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", franja);
+        assertThat(((Timestamp) sqlReserva(a, reservaId).get("inicio")).toInstant()).isNotEqualTo(nuevoInicio);
+        String confirmarCambio = ultimoMensaje(a, WA_CLIENTE).primerIdQueTermineCon(":S");
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", confirmarCambio);
+        var cambiada = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(cambiada.reservaId()).isEqualTo(reservaId);
+        assertThat(cambiada.texto()).startsWith("Reprogramamos tu cita en Negocio ficticio a: BT-" + reservaId)
+                .contains(new TextosConversacion().fecha(nuevoInicio), new TextosConversacion().hora(nuevoInicio), "Estado: Confirmada");
+        assertThat(cambiada.idsSeleccion()).isEqualTo(creada.idsSeleccion());
+        assertThat(((Timestamp) sqlReserva(a, reservaId).get("inicio")).toInstant()).isEqualTo(nuevoInicio);
+
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", "a:" + reservaId + ":C");
+        assertThat(sqlReserva(a, reservaId).get("estado")).isEqualTo("CONFIRMADA");
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", ultimoMensaje(a, WA_CLIENTE).primerIdQueTermineCon(":S"));
+        assertThat(sqlReserva(a, reservaId).get("estado")).isEqualTo("CANCELADA");
+        assertThat(ultimoMensaje(a, WA_CLIENTE).texto()).contains("Negocio ficticio a", "BT-" + reservaId, "Estado: Cancelada");
+        assertThat(ultimoMensaje(a, WA_CLIENTE).idsSeleccion()).containsExactly("m:RESERVAR", "m:MIS_CITAS", "m:PERSONA");
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isOne();
+
+        // La repetición conserva la instantánea original, pero consulta los permisos actuales de la cancelada.
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", confirmarCreacion);
+        assertThat(ultimoMensaje(a, WA_CLIENTE).texto()).isEqualTo(creada.texto());
+        assertThat(ultimoMensaje(a, WA_CLIENTE).idsSeleccion()).containsExactly("m:INICIO");
+        assertThat(sqlReserva(a, reservaId).get("estado")).isEqualTo("CANCELADA");
+        assertThat(sqlAuditoriasReserva(a, reservaId)).hasSize(3);
+    }
+
+    @Test
+    void trasCrearPendiente_soloOfreceCancelarYVolverAlMenu_segunPermisosServidor() {
+        sql.update("UPDATE negocio SET confirmacion_manual=true WHERE id=?", a);
+        String confirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", confirmar);
+        var creada = ultimoMensaje(a, WA_CLIENTE);
+        long reservaId = creada.reservaId();
+        assertThat(creada.texto()).contains("Negocio ficticio a", "BT-" + reservaId,
+                "Estado: Pendiente de confirmación por la barbería");
+        assertThat(creada.idsSeleccion()).containsExactly("a:" + reservaId + ":C", "m:INICIO");
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", creada.idExacto("m:INICIO"));
+        assertThat(ultimoMensaje(a, WA_CLIENTE).texto()).contains("Negocio ficticio a");
+        assertThat(ultimoMensaje(a, WA_CLIENTE).idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
+        assertThat(sqlReserva(a, reservaId).get("estado")).isEqualTo("PENDIENTE");
+        assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isOne();
+    }
+
+    @Test
     void escenario9_negocioSuspendido_entrePropuestaYConfirmacion_descartaSinReservaNiMensaje() {
         String idConfirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
         long convId = sqlConversacionId(a, WA_CLIENTE);

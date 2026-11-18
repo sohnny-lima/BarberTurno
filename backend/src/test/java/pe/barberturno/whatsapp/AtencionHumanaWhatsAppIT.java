@@ -41,7 +41,7 @@ class AtencionHumanaWhatsAppIT extends WhatsAppSalidaPruebaBase {
     long c;
 
     @BeforeEach void prepararAtencion() {
-        when(textos.derivada(anyString())).thenReturn("El equipo le atenderá por aquí.");
+        when(textos.derivada(anyString(), org.mockito.ArgumentMatchers.eq(Duration.ofHours(24)))).thenReturn("El equipo le atenderá por aquí.");
         when(textos.devuelta()).thenReturn("Puede continuar con el asistente.");
         ficha = ficha(a, WA_CLIENTE);
         c = crearConversacion(a, WA_CLIENTE);

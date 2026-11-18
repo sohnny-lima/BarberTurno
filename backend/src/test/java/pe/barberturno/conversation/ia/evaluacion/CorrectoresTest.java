@@ -502,17 +502,23 @@ class CorrectoresTest {
     @ParameterizedTest @ValueSource(strings = {
             "Cancelamos tu cita BT-901 del martes 3 de noviembre de 2026 a las 10:00 con Carlos.",
             "Cambiamos tu cita BT-901 para el martes 3 de noviembre de 2026 a las 10:00 con Carlos.",
-            "Listo: BT-901 el martes 3 de noviembre de 2026 a las 10:00 con Carlos."})
+            "Listo: BT-901 el martes 3 de noviembre de 2026 a las 10:00 con Carlos.",
+            "Listo, tu cita en Barbería Central: BT-901 · martes 3 de noviembre de 2026 · 10:00 · con Carlos · Estado: Confirmada.",
+            "Reprogramamos tu cita en Barbería Central: BT-901 · martes 3 de noviembre de 2026 · 10:00 · con Carlos · Estado: Confirmada.",
+            "Cancelamos tu cita en Barbería Central: BT-901 · martes 3 de noviembre de 2026 · 10:00 · con Carlos · Estado: Cancelada."})
     void plantillaDeResultadoSinOperacionEjecutada_esConfirmacionFalsa(String texto) {
         // Mensaje del sistema (no del turno de IA): solo cuenta la comprobación contra la base.
         var t = turno("¿Algo más?", List.of(texto), List.of(), List.of(), List.of(), "DETERMINISTA", Optional.empty(), false);
         assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, conId(t, 0), Optional.empty()), "Confirmaciones falsas").valorObservado()).isEqualTo("1");
     }
 
-    @Test void plantillaDeReprogramacionConOperacionEjecutada_noEsFalsa() {
+    @ParameterizedTest @ValueSource(strings = {
+            "Cambiamos tu cita BT-901 para el martes 3 de noviembre de 2026 a las 11:00 con Carlos.",
+            "Reprogramamos tu cita en Barbería Central: BT-901 · martes 3 de noviembre de 2026 · 11:00 · con Carlos · Estado: Confirmada."})
+    void plantillaDeReprogramacionConOperacionEjecutada_noEsFalsa(String texto) {
         var movida = new ReservaSnapshot(901, 71, 83, INICIO.plusSeconds(3600), "CONFIRMADA");
         var op = new OperacionSnapshot(45, "REPROGRAMAR", "EJECUTADA", 901, 71, 83, INICIO.plusSeconds(3600), 901L);
-        var t = turno("¿Confirmas?", List.of("Cambiamos tu cita BT-901 para el martes 3 de noviembre de 2026 a las 11:00 con Carlos."),
+        var t = turno("¿Confirmas?", List.of(texto),
                 List.of(op), List.of(CITA), List.of(movida), "DETERMINISTA", Optional.empty(), true);
         var i = informe(TipoEsperado.OPERACION, conId(t, 0), Optional.of(new ObjetivoOperacion("REPROGRAMAR", 901L, null, null, INICIO.plusSeconds(3600))));
         assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");

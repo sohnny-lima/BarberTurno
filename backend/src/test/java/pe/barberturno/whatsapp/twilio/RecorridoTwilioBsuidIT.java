@@ -313,7 +313,7 @@ class RecorridoTwilioBsuidIT {
     }
 
     @Test
-    void recorridoCompleto_bsuidConRespuestasTwiml_reservaYCancelacion() throws Exception {
+    void recorridoCompleto_bsuidConRespuestasTwiml_reservaReprogramacionYCancelacion() throws Exception {
         String waIdSintetico = direcciones.identificar(null, BSUID_CLIENTE).orElseThrow();
         assertThat(waIdSintetico).hasSize(20).startsWith("9");
 
@@ -339,7 +339,7 @@ class RecorridoTwilioBsuidIT {
             else if (tieneOpcion(texto, "Confirmar")) { resumen = texto; eleccion = opcion(texto, "Confirmar"); }
             else if (tieneOpcion(texto, "Reservar")) eleccion = opcion(texto, "Reservar");
             else if (tieneOpcion(texto, "Corte clásico")) eleccion = opcion(texto, "Corte clásico");
-            else if (tieneOpcion(texto, "Barbero Carlos")) eleccion = opcion(texto, "Barbero Carlos");
+            else if (tieneOpcion(texto, "Profesional Carlos")) eleccion = opcion(texto, "Profesional Carlos");
             else eleccion = opcion(texto, "");
             simularMensajeEntranteTwiml("SM_IN_R%02d".formatted(paso++), eleccion);
             List<String> nodosPaso = ultimosNodos();
@@ -367,6 +367,12 @@ class RecorridoTwilioBsuidIT {
         assertThat(listaReservas).hasSize(1);
         Reserva reservaCreada = listaReservas.getFirst();
         assertThat(reservaCreada.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
+        String nombreNegocio = sql.queryForObject("SELECT nombre FROM negocio WHERE id=?", String.class, negocioId);
+        var textos = new pe.barberturno.conversation.TextosConversacion();
+        assertThat(ultimoTexto()).contains(nombreNegocio, "BT-" + reservaCreada.getId(),
+                textos.fecha(reservaCreada.getInicio()), textos.hora(reservaCreada.getInicio()),
+                "Profesional Carlos", "Estado: Confirmada", "1. Reprogramar", "2. Cancelar", "3. Menú principal");
+        assertThat(tieneOpcion(ultimoTexto(), "Reservar")).isFalse();
 
         Cliente fichaCliente = ejecutor.ejecutar(negocioId, () ->
                 clientes.findById(reservaCreada.getCliente().getId()).orElseThrow());
@@ -383,23 +389,21 @@ class RecorridoTwilioBsuidIT {
         assertThat(respuestaAgenda.statusCode()).isEqualTo(200);
         assertThat(respuestaAgenda.body()).contains("\"id\":" + reservaCreada.getId());
 
-        // 5. Cancelación: «hola» devuelve el menú principal; Mis citas → la cita → Cancelar → confirmación → Confirmar
-        simularMensajeEntranteTwiml("SM_IN_C00", "hola");
-        List<String> nodosC0 = ultimosNodos();
-        assertThat(nodosC0).as("menú inicial de cancelación en <Message>").hasSize(1);
-        assertThat(nodosC0.getFirst()).contains("Mis citas").contains("Reservar");
-
-        paso = 1;
-        while (!tieneOpcion(ultimoTexto(), "Cancelar")) {
-            assertThat(paso).as("pasos para llegar a Cancelar").isLessThanOrEqualTo(8);
-            String texto = ultimoTexto();
-            String eleccion;
-            if (tieneOpcion(texto, "Mis citas")) eleccion = opcion(texto, "Mis citas");
-            else if (tieneOpcion(texto, "Corte clásico")) eleccion = opcion(texto, "Corte clásico");
-            else eleccion = opcion(texto, "");
-            simularMensajeEntranteTwiml("SM_IN_C%02d".formatted(paso++), eleccion);
-            assertThat(ultimosNodos()).as("cada respuesta en camino a cancelación debe tener <Message>").isNotEmpty();
-        }
+        // 5. Reprogramación directa desde el resultado mediante la correspondencia numérica vigente.
+        simularMensajeEntranteTwiml("SM_IN_REPRO_0", opcion(ultimoTexto(), "Reprogramar"));
+        simularMensajeEntranteTwiml("SM_IN_REPRO_1", opcion(ultimoTexto(), "Mañana"));
+        simularMensajeEntranteTwiml("SM_IN_REPRO_2", opcion(ultimoTexto(), ""));
+        assertThat(reservasDelNegocio().getFirst().getInicio()).isEqualTo(reservaCreada.getInicio());
+        simularMensajeEntranteTwiml("SM_IN_REPRO_3", opcion(ultimoTexto(), "Confirmar"));
+        var reprogramada = reservasDelNegocio().getFirst();
+        assertThat(reservasDelNegocio()).hasSize(1);
+        assertThat(reprogramada.getId()).isEqualTo(reservaCreada.getId());
+        assertThat(reprogramada.getInicio()).isNotEqualTo(reservaCreada.getInicio());
+        assertThat(ultimosNodos()).hasSize(1);
+        assertThat(ultimoTexto()).startsWith("Reprogramamos tu cita en ")
+                .contains(nombreNegocio, "BT-" + reprogramada.getId(), textos.fecha(reprogramada.getInicio()),
+                        textos.hora(reprogramada.getInicio()), "Profesional Carlos", "Estado: Confirmada",
+                        "1. Reprogramar", "2. Cancelar", "3. Menú principal");
 
         // Elegir opción «Cancelar»
         String textoConCancelar = ultimoTexto();
@@ -432,6 +436,8 @@ class RecorridoTwilioBsuidIT {
         assertThat(nodosCancelado.getFirst())
                 .as("el mensaje debe confirmar la cancelación de la cita")
                 .contains("Cancelamos tu cita")
+                .contains(nombreNegocio, "BT-" + reprogramada.getId(), textos.fecha(reprogramada.getInicio()),
+                        textos.hora(reprogramada.getInicio()), "Profesional Carlos", "Estado: Cancelada")
                 .contains("Reservar");
 
         // 6. Sin REST: verificar que el servidor Twilio simulado no recibió NINGUNA petición HTTP
