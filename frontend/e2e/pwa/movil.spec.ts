@@ -206,7 +206,7 @@ test.describe('CP-7 · Instalabilidad y Manifest PWA', () => {
     expect(manifest.scope).toBe('/');
     expect(manifest.name).toBe('BarberTurno');
     expect(manifest.short_name).toBe('BarberTurno');
-    expect(manifest.description).toBe('Reservas y turnos para barberías');
+    expect(manifest.description).toBe('BarberTurno · Reservas y turnos para barberías');
     expect(manifest.display).toBe('standalone');
     expect(manifest.orientation).toBe('any');
     expect(manifest.lang).toBe('es-PE');
@@ -447,7 +447,10 @@ test.describe('CP-8 · Reflujo, formularios y accesibilidad móvil', () => {
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
 
-    const accionPrincipal = page.getByRole('button', { name: 'Actualizar conversaciones', exact: true });
+    const accionPrincipal = page.getByRole('button', {
+      name: 'Actualizar conversaciones',
+      exact: true,
+    });
 
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });

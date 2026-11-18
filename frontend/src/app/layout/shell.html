@@ -219,7 +219,9 @@
       >
     }
     <main #contenido id="contenido" tabindex="-1"><router-outlet /></main>
-    <footer>BarberTurno · Una sede en Huamanga · Proyecto académico con datos ficticios</footer>
+    <footer>
+      BarberTurno · Reservas y turnos para barberías · Proyecto académico con datos ficticios
+    </footer>
     @if (tieneBarraInferior()) {
       <nav class="barra-inferior" aria-label="Navegación principal">
         @for (enlace of enlaces(); track enlace.ruta) {

@@ -4,7 +4,7 @@
   "scope": "/",
   "name": "BarberTurno",
   "short_name": "BarberTurno",
-  "description": "Reservas y turnos para barberías",
+  "description": "BarberTurno · Reservas y turnos para barberías",
   "display": "standalone",
   "orientation": "any",
   "lang": "es-PE",
