@@ -616,6 +616,24 @@ class ConversacionGuiadaEscenariosIT extends WhatsAppSalidaPruebaBase {
     }
 
     @Test
+    void citaAMenosDeDosHoras_explicaPoliticaYOfreceContacto_sinCambiarLaReserva() {
+        String confirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", confirmar);
+        long reservaId = ultimoMensaje(a, WA_CLIENTE).reservaId();
+        var antes = sqlReserva(a, reservaId);
+        reloj.fijar(((Timestamp) antes.get("inicio")).toInstant().minus(Duration.ofMinutes(59)));
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", "c:" + reservaId);
+        var detalle = ultimoMensaje(a, WA_CLIENTE);
+        assertThat(detalle.texto()).contains("Negocio ficticio a", "BT-" + reservaId, "Corte clásico",
+                "Estado: Confirmada", "Faltan menos de 2 horas para tu cita: ya no se puede cambiar ni cancelar por este medio");
+        assertThat(detalle.idsSeleccion()).containsExactly("m:PERSONA", "m:INICIO");
+        assertThat(sqlReserva(a, reservaId)).isEqualTo(antes);
+        enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente WhatsApp", "m:PERSONA");
+        assertThat(ejecutor.ejecutar(a, () -> sql.queryForObject("SELECT modo FROM conversacion WHERE wa_id=?",
+                String.class, WA_CLIENTE))).isEqualTo("HUMANO");
+    }
+
+    @Test
     void escenario9_negocioSuspendido_entrePropuestaYConfirmacion_descartaSinReservaNiMensaje() {
         String idConfirmar = alcanzarResumen(a, NUMERO_A, WA_CLIENTE);
         long convId = sqlConversacionId(a, WA_CLIENTE);

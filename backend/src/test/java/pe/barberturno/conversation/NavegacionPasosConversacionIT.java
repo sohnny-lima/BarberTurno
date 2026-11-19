@@ -3,6 +3,8 @@ package pe.barberturno.conversation;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import pe.barberturno.conversation.ConversacionPruebas.MensajeSalientePrueba;
 import pe.barberturno.scheduling.JornadaRepository;
@@ -148,8 +150,9 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
         assertThat(ConversacionPruebas.contarFichasConWa(ejecutor, sql, a, WA_CLIENTE)).isZero();
     }
 
-    @Test
-    void menu_desdePasoResumenPendiente_anulaOperacionPendienteYVuelveABienvenida_sinConfirmar() {
+    @ParameterizedTest
+    @ValueSource(strings = {"menu", "menú", "volver", "ayuda"})
+    void menu_desdePasoResumenPendiente_anulaOperacionPendienteYVuelveABienvenida_sinConfirmar(String palabra) {
         enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", "hola");
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente CT15", ultimoMensaje(a, WA_CLIENTE).idExacto("m:RESERVAR"));
         enviarSeleccion(NUMERO_A, WA_CLIENTE, "Cliente CT15", ultimoMensaje(a, WA_CLIENTE).primerIdQueEmpieceCon("s:"));
@@ -165,14 +168,15 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
         long opId = Long.parseLong(idConfirmar.split(":")[1]);
         assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("VIGENTE");
 
-        // Enviar «menu» desde resumen
-        enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", "menu");
+        // Las palabras de navegación descartan el resumen con aviso, sin confirmar.
+        enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", palabra);
 
         // 1. Vuelve a la bienvenida
         var msgVuelta = ultimoMensaje(a, WA_CLIENTE);
         assertThat(msgVuelta.idsSeleccion()).contains("m:RESERVAR", "m:MIS_CITAS");
 
         // 2. La operación pendiente NO se confirma: queda ANULADA
+        assertThat(msgVuelta.texto()).contains("Descarté la propuesta pendiente sin guardar cambios");
         assertThat(sqlOperacion(a, opId).get("estado")).isEqualTo("ANULADA");
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
 
@@ -181,8 +185,9 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
         assertThat(ConversacionPruebas.contarReservas(ejecutor, sql, a)).isZero();
     }
 
-    @Test
-    void menu_desdeConversacionDerivada_vuelveAlAsistente_citaConfirmadaPreviaSigueIgual() {
+    @ParameterizedTest
+    @ValueSource(strings = {"menu", "menú", "volver", "ayuda"})
+    void menu_desdeConversacionDerivada_vuelveAlAsistente_citaConfirmadaPreviaSigueIgual(String palabra) {
         // Crear cliente con cita previa CONFIRMADA
         long reservaPreviaId = crearReserva(a, WA_CLIENTE, INICIO_RESERVA_BASE);
 
@@ -196,8 +201,11 @@ class NavegacionPasosConversacionIT extends WhatsAppSalidaPruebaBase {
                 "SELECT modo FROM conversacion WHERE negocio_id=? AND wa_id=?", String.class, a, WA_CLIENTE));
         assertThat(modo).isEqualTo("HUMANO");
 
-        // Enviar «menu» desde modo humano
-        enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", "menu");
+        long conversacionId = ejecutor.ejecutar(a, () -> sql.queryForObject(
+                "SELECT id FROM conversacion WHERE wa_id=?", Long.class, WA_CLIENTE));
+        int antes = ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, conversacionId);
+        enviarTexto(NUMERO_A, WA_CLIENTE, "Cliente CT15", palabra);
+        assertThat(ConversacionPruebas.contarMensajesSalientes(ejecutor, sql, a, conversacionId)).isEqualTo(antes + 1);
 
         // Vuelve al asistente
         String modoDevuelto = ejecutor.ejecutar(a, () -> sql.queryForObject(

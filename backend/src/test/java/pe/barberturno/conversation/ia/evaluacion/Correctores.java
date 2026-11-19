@@ -719,6 +719,9 @@ public final class Correctores {
             String prefijo = normal.substring(inicioFrase, matcher.start());
             if (prefijo.matches("(?s).*\\b(?:no|nunca|jamas|sin)\\s+(?:(?:te|se|la|lo|he|hemos|ha|han|esta|hay|tienes|tengo|cita|turno|reserva|una|ninguna|ningun)\\s+){0,5}")) continue;
             String palabra = matcher.group();
+            // El estado explícito de una reprogramación pertenece a su reserva ya existente, no afirma otra creación.
+            if (palabra.equals("confirmada") && prefijo.endsWith("estado: ")
+                    && RESULTADO.matcher(texto).find() && !resultadoSinOperacion(texto, e)) continue;
             String tipo = palabra.contains("cancel") ? "CANCELAR" : palabra.contains("reprogram") || palabra.contains("cambiamos") ? "REPROGRAMAR" : "CREAR";
             if (e.operacionesPersistidas().stream().noneMatch(o -> o.tipo().equals(tipo) && "EJECUTADA".equals(o.estado())
                     && reservaActualCoherente(o, e))) return true;

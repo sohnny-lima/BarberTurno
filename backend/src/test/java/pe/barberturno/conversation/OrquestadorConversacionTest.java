@@ -90,6 +90,7 @@ class OrquestadorConversacionTest {
         when(textos.noDisponible()).thenReturn("no disponible");
         when(menus.menuPrincipal(anyString())).thenReturn(interactivo);
         when(menus.accionesCita(anyString(), any())).thenReturn(interactivo);
+        when(textos.avisoSinAcciones(any(), any())).thenReturn("");
     }
 
     private void entrada(Optional<Instant> anterior, OptionalLong ficha, ObjectNode estado, Entrada interpretada) {
@@ -179,7 +180,7 @@ class OrquestadorConversacionTest {
                 new BigDecimal("25.00"), Optional.empty());
         when(operaciones.proponerCreacion(CONVERSACION, FICHA, 3, 4, Instant.ofEpochSecond(franja.inicioEpochSeg())))
                 .thenReturn(new Propuesta.Creada(99, "AAAAAAAAAAAAAAAAAAAAAA", resumen));
-        when(textos.resumen(resumen)).thenReturn("resumen");
+        when(textos.resumen(resumen, "Barbería Norte")).thenReturn("resumen");
         when(menus.confirmacion("resumen", 99, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(interactivo);
         recibir();
         verify(consentimiento).aceptar(any(), eq("Ana Pérez"));
@@ -409,7 +410,7 @@ class OrquestadorConversacionTest {
     }
 
     @Test
-    void modoHumano_conPalabraInicio_anulaOperacionDevuelveAlAsistenteYEnviaBienvenida() {
+    void modoHumano_conPalabraInicio_delegaUnUnicoMenuDeRetornoSinOtraSalida() {
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
                 new Entrada.Texto(PalabraClave.MENU), ModoConversacion.HUMANO);
         when(textos.bienvenida("Barbería Norte")).thenReturn("bienvenida");
@@ -418,7 +419,7 @@ class OrquestadorConversacionTest {
         verify(registro).guardarEntrante(eq(CONVERSACION), any());
         verify(operaciones).anularVigente(CONVERSACION);
         verify(derivacion).devolver(CONVERSACION, OptionalLong.empty());
-        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.empty());
+        verifyNoInteractions(salida);
     }
 
     @Test

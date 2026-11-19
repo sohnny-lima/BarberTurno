@@ -28,7 +28,7 @@ public interface DerivacionConversacion {
      * Devuelve la conversación al asistente. Exige la transacción del llamante ({@code Propagation.MANDATORY});
      * bloquea la conversación si el llamante no lo hizo. Si no está en {@code HUMANO}, no cambia nada. Si no:
      * modo {@code ASISTENTE}, datos de la derivación a nulo y estado vacío; si la ventana efectiva está
-     * abierta, encola el aviso de vuelta y el menú principal (origen {@code SISTEMA}).
+     * abierta, encola un único menú principal con el aviso de vuelta integrado (origen {@code SISTEMA}).
      * @param conversacionId conversación del negocio actual
      * @param usuarioId miembro que la devuelve desde la bandeja, o vacío en el retorno automático
      * @return verdadero si la devolvió; falso si ya estaba con el asistente

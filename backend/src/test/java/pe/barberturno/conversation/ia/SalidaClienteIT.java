@@ -420,7 +420,8 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
         // La cita de las 10:00 se crea a las 09:00: RN-07 no permite ya cambios del cliente.
         assertThat(java.time.Duration.between(reloj.instant(), inicioReal)).isLessThan(java.time.Duration.ofHours(2));
         String textoResultadoEsperado = textos.resultado(
-                new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, citaCreada, false), "Negocio ficticio a");
+                new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, citaCreada, false), "Negocio ficticio a")
+                + textos.avisoSinAcciones(citaCreada, reloj.instant());
         ObjectNode menuResultadoEsperado = menus.accionesCita(textoResultadoEsperado, citaCreada);
 
         List<Map<String, Object>> salientesConfirmacion = consultarSalientesNuevos(
@@ -744,7 +745,7 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 precio,
                 Optional.empty()
         );
-        return menus.confirmacion(textos.resumen(resumen), operacionId, nonce);
+        return menus.confirmacion(textos.resumen(resumen, "Negocio ficticio a"), operacionId, nonce);
     }
 
     private void verificarAusenciaDeTextoProveedorEnContenido(

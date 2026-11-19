@@ -104,8 +104,10 @@ public class DerivacionConversacionService implements DerivacionConversacion {
                 WHERE id=:id
                 """).setParameter("id", conversacionId).setParameter("ahora", reloj.instant()).executeUpdate();
         if (ventana.abierta(entrada, reloj.instant())) {
-            String texto = textos.devuelta();
-            salida.encolarTexto(conversacionId, texto, OrigenMensaje.SISTEMA, OptionalLong.empty());
+            String nombre = entidades.createNativeQuery("""
+                    SELECT n.nombre FROM negocio n JOIN conversacion c ON c.negocio_id=n.id WHERE c.id=:id
+                    """, String.class).setParameter("id", conversacionId).getSingleResult().toString();
+            String texto = textos.devuelta(nombre);
             salida.encolarInteractivo(conversacionId, menus.menuPrincipal(texto),
                     OrigenMensaje.SISTEMA, OptionalLong.empty());
         }

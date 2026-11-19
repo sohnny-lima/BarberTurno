@@ -171,21 +171,44 @@ public class TextosConversacion {
     /**
      * Detalle de una cita con las acciones que permite.
      * @param cita cita de la ficha
+     * @param negocio barbería del canal actual
      * @return texto con código, servicio, profesional, fecha completa y hora
      */
-    public String detalleCita(CitaOpcion cita) {
-        return "Tu cita " + cita.codigo() + ":\n"
+    public String detalleCita(CitaOpcion cita, String negocio) {
+        return "Tu cita en " + negocio + ": " + cita.codigo() + "\n"
                 + cita.servicio() + " con " + cita.profesional() + "\n"
-                + fecha(cita.inicio()) + " a las " + hora(cita.inicio()) + ".";
+                + fecha(cita.inicio()) + " · " + hora(cita.inicio()) + " a " + hora(cita.fin())
+                + "\nEstado: " + estadoLegible(cita.estado()) + ".";
+    }
+
+    /**
+     * Explica la ausencia de acciones sin habilitar excepciones a los permisos del servidor (RN-07).
+     * @param cita cita con permisos actuales calculados por el servidor
+     * @param ahora instante del reloj inyectado en el orquestador
+     * @return aviso con el motivo y contacto, o vacío si hay acciones o la cita terminó
+     */
+    public String avisoSinAcciones(CitaOpcion cita, Instant ahora) {
+        if (cita.puedeCancelar() || cita.puedeReprogramar()
+                || cita.estado() != EstadoReserva.CONFIRMADA && cita.estado() != EstadoReserva.PENDIENTE) return "";
+        String motivo = cita.inicio().isAfter(ahora)
+                && Duration.between(ahora, cita.inicio()).compareTo(Duration.ofHours(2)) < 0
+                ? "Faltan menos de 2 horas para tu cita: ya no se puede cambiar ni cancelar por este medio."
+                : "Esta cita ya no permite cambios ni cancelaciones por este medio según la política de la barbería.";
+        return "\n\n" + motivo + " Puedes elegir «Hablar con alguien» para contactar con el equipo.";
     }
 
     /**
      * Resumen que se confirma: fecha completa, hora de inicio y fin, profesional, servicio, duración y
      * precio; al reprogramar, antes y después (V2-RF-11).
      * @param resumen datos de la propuesta
+     * @param negocio barbería del canal actual
      * @return texto del resumen
      */
-    public String resumen(ResumenOperacion resumen) {
+    public String resumen(ResumenOperacion resumen, String negocio) {
+        String identificacion = "Barbería: " + negocio + "\nCódigo: "
+                + resumen.antes().map(CitaOpcion::codigo).orElse("se asignará al confirmar") + "\n";
+        String estado = "\nEstado: " + resumen.antes().map(c -> estadoLegible(c.estado()))
+                .orElse("Propuesta sin confirmar") + ". Aún no se ha aplicado ningún cambio.";
         if (resumen.tipo() == TipoOperacion.REPROGRAMAR) {
             StringBuilder sb = new StringBuilder();
             if (resumen.antes().isPresent()) {
@@ -201,22 +224,22 @@ public class TextosConversacion {
                     .append(fecha(resumen.inicio())).append(", ").append(hora(resumen.inicio())).append(" a ").append(hora(resumen.fin()))
                     .append(" (").append(resumen.duracionMin()).append(" min)\n")
                     .append("Precio: ").append(precio(resumen.precio()));
-            return sb.toString();
+            return identificacion + sb + estado;
         }
 
         if (resumen.tipo() == TipoOperacion.CANCELAR) {
             String cod = resumen.antes().map(CitaOpcion::codigo).orElse("");
             String pre = cod.isBlank() ? "Cancelación de cita:\n" : "Cancelación de tu cita " + cod + ":\n";
-            return pre + resumen.servicio() + " con " + resumen.profesional() + "\n"
-                    + fecha(resumen.inicio()) + " a las " + hora(resumen.inicio()) + " a " + hora(resumen.fin())
+            return identificacion + pre + resumen.servicio() + " con " + resumen.profesional() + "\n"
+                    + fecha(resumen.inicio()) + ", " + hora(resumen.inicio()) + " a " + hora(resumen.fin())
                     + " (" + resumen.duracionMin() + " min)\n"
-                    + "Precio: " + precio(resumen.precio());
+                    + "Precio: " + precio(resumen.precio()) + estado;
         }
 
-        return resumen.servicio() + " con " + resumen.profesional() + "\n"
+        return identificacion + resumen.servicio() + " con " + resumen.profesional() + "\n"
                 + fecha(resumen.inicio()) + ", " + hora(resumen.inicio()) + " a " + hora(resumen.fin())
                 + " (" + resumen.duracionMin() + " min)\n"
-                + "Precio: " + precio(resumen.precio());
+                + "Precio: " + precio(resumen.precio()) + estado;
     }
 
     /**
@@ -235,8 +258,8 @@ public class TextosConversacion {
                     case REPROGRAMAR -> "Reprogramamos tu cita en ";
                     case CANCELAR -> "Cancelamos tu cita en ";
                 };
-                yield accion + negocio + ": " + cita.codigo() + " · " + fecha(cita.inicio()) + " · "
-                        + hora(cita.inicio()) + " · con " + cita.profesional() + " · Estado: "
+                yield accion + negocio + ": " + cita.codigo() + " · " + cita.servicio() + " · " + fecha(cita.inicio()) + " · "
+                        + hora(cita.inicio()) + " a " + hora(cita.fin()) + " · con " + cita.profesional() + " · Estado: "
                         + estadoLegible(cita.estado()) + ".";
             }
             case ResultadoOperacion.Rechazada rech -> rechazo(rech.codigo());
@@ -343,10 +366,21 @@ public class TextosConversacion {
     /**
      * Aviso de que la conversación vuelve al asistente (por el personal o por el retorno automático), que
      * acompaña al menú principal. Implementación: Gemini (G11).
-     * @return texto
+     * @param negocio barbería que vuelve a atender el asistente
+     * @return texto del único menú de retorno, sin otro saludo
      */
-    public String devuelta() {
-        return "Hola de nuevo. Tu conversación ha vuelto al asistente virtual. ¿En qué te puedo ayudar?";
+    public String devuelta(String negocio) {
+        String nombre = (negocio != null && !negocio.isBlank()) ? negocio.strip() : "la barbería";
+        return "Tu conversación en " + nombre + " ha vuelto al asistente virtual. "
+                + "Puedes reservar, consultar tus citas o hablar con el equipo. ¿En qué te puedo ayudar?";
+    }
+
+    /**
+     * Avisa al abandonar un resumen pendiente mediante el menú, sin confirmar su operación.
+     * @return aviso de descarte sin cambios en la cita
+     */
+    public String propuestaDescartada() {
+        return "Descarté la propuesta pendiente sin guardar cambios.";
     }
 
     /**

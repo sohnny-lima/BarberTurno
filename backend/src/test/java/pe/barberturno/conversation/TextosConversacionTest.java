@@ -101,7 +101,7 @@ class TextosConversacionTest {
         // CREAR + CONFIRMADA
         ResultadoOperacion resCrearConf = new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, citaConfirmada, false);
         String txtCrearConf = textos.resultado(resCrearConf, "Barbería Central");
-        assertThat(txtCrearConf).isEqualTo("Listo, tu cita en Barbería Central: BT-245 · viernes 23 de octubre de 2026 · 18:00 · con Carlos · Estado: Confirmada.")
+        assertThat(txtCrearConf).isEqualTo("Listo, tu cita en Barbería Central: BT-245 · Corte clásico · viernes 23 de octubre de 2026 · 18:00 a 18:30 · con Carlos · Estado: Confirmada.")
                 .contains("viernes 23 de octubre de 2026")
                 .contains("18:00")
                 .contains("Carlos")
@@ -114,26 +114,26 @@ class TextosConversacionTest {
         // CREAR + PENDIENTE
         ResultadoOperacion resCrearPend = new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, citaPendiente, false);
         String txtCrearPend = textos.resultado(resCrearPend, "Barbería Central");
-        assertThat(txtCrearPend).isEqualTo("Listo, tu cita en Barbería Central: BT-245 · viernes 23 de octubre de 2026 · 18:00 · con Carlos · Estado: Pendiente de confirmación por la barbería.");
+        assertThat(txtCrearPend).isEqualTo("Listo, tu cita en Barbería Central: BT-245 · Corte clásico · viernes 23 de octubre de 2026 · 18:00 a 18:30 · con Carlos · Estado: Pendiente de confirmación por la barbería.");
 
         // REPROGRAMAR + CONFIRMADA
         ResultadoOperacion resRepConf = new ResultadoOperacion.Ejecutada(TipoOperacion.REPROGRAMAR, citaConfirmada, false);
         String txtRepConf = textos.resultado(resRepConf, "Barbería Central");
-        assertThat(txtRepConf).isEqualTo("Reprogramamos tu cita en Barbería Central: BT-245 · viernes 23 de octubre de 2026 · 18:00 · con Carlos · Estado: Confirmada.")
+        assertThat(txtRepConf).isEqualTo("Reprogramamos tu cita en Barbería Central: BT-245 · Corte clásico · viernes 23 de octubre de 2026 · 18:00 a 18:30 · con Carlos · Estado: Confirmada.")
                 .contains("viernes 23 de octubre de 2026")
                 .contains("18:00")
                 .contains("Carlos");
 
         // REPROGRAMAR + PENDIENTE
         ResultadoOperacion resRepPend = new ResultadoOperacion.Ejecutada(TipoOperacion.REPROGRAMAR, citaPendiente, false);
-        assertThat(textos.resultado(resRepPend, "Barbería Central")).isEqualTo("Reprogramamos tu cita en Barbería Central: BT-245 · viernes 23 de octubre de 2026 · 18:00 · con Carlos · Estado: Pendiente de confirmación por la barbería.");
+        assertThat(textos.resultado(resRepPend, "Barbería Central")).isEqualTo("Reprogramamos tu cita en Barbería Central: BT-245 · Corte clásico · viernes 23 de octubre de 2026 · 18:00 a 18:30 · con Carlos · Estado: Pendiente de confirmación por la barbería.");
 
         // CANCELAR
         CitaOpcion citaCancelada = new CitaOpcion(1L, "BT-245", 10L, "Corte clásico", 20L, "Carlos",
                 inicio, fin, new BigDecimal("25.00"), EstadoReserva.CANCELADA, 2, false, false);
         ResultadoOperacion resCanc = new ResultadoOperacion.Ejecutada(TipoOperacion.CANCELAR, citaCancelada, false);
         String txtCanc = textos.resultado(resCanc, "Barbería Central");
-        assertThat(txtCanc).isEqualTo("Cancelamos tu cita en Barbería Central: BT-245 · viernes 23 de octubre de 2026 · 18:00 · con Carlos · Estado: Cancelada.")
+        assertThat(txtCanc).isEqualTo("Cancelamos tu cita en Barbería Central: BT-245 · Corte clásico · viernes 23 de octubre de 2026 · 18:00 a 18:30 · con Carlos · Estado: Cancelada.")
                 .contains("viernes 23 de octubre de 2026")
                 .contains("18:00");
     }
@@ -187,8 +187,9 @@ class TextosConversacionTest {
                 new BigDecimal("25.00"),
                 Optional.empty()
         );
-        String txtCrear = textos.resumen(resumenCrear);
+        String txtCrear = textos.resumen(resumenCrear, "Barbería Central");
         assertThat(txtCrear)
+                .contains("Barbería: Barbería Central", "Código: se asignará al confirmar", "Estado: Propuesta sin confirmar")
                 .contains("Corte de cabello")
                 .contains("Carlos")
                 .contains("viernes 23 de octubre de 2026")
@@ -212,8 +213,9 @@ class TextosConversacionTest {
                 new BigDecimal("25.00"),
                 Optional.of(antes)
         );
-        String txtReprog = textos.resumen(resumenReprog);
+        String txtReprog = textos.resumen(resumenReprog, "Barbería Central");
         assertThat(txtReprog)
+                .contains("Barbería: Barbería Central", "Código: BT-99", "Estado: Confirmada")
                 .contains("Reprogramación de tu cita BT-99")
                 .contains("Antes:")
                 .contains("Nueva cita:")
@@ -223,6 +225,13 @@ class TextosConversacionTest {
                 .contains("18:00 a 18:30")
                 .contains("30 min")
                 .contains("S/ 25,00");
+        var cancelar = new ResumenOperacion(TipoOperacion.CANCELAR, antes.servicio(), antes.profesional(),
+                antes.inicio(), antes.fin(), 30, antes.precio(), Optional.of(antes));
+        assertThat(textos.resumen(cancelar, "Barbería Central"))
+                .contains("Barbería: Barbería Central", "Código: BT-99", "Corte de cabello con Mateo",
+                        "martes 20 de octubre de 2026", "10:00 a 10:30", "Estado: Confirmada",
+                        "Aún no se ha aplicado ningún cambio")
+                .doesNotContain("a las 10:00 a 10:30");
     }
 
     @Test
@@ -281,12 +290,15 @@ class TextosConversacionTest {
     @Test
     @DisplayName("devuelta: aviso cordial de retorno al asistente menor a 1024 caracteres")
     void devuelta_avisoCordial_menorA1024() {
-        String texto = textos.devuelta();
+        String texto = textos.devuelta("Barbería Central");
         assertThat(texto)
                 .isNotBlank()
                 .contains("asistente")
                 .contains("ayudar");
         assertThat(texto.length()).isLessThanOrEqualTo(1024);
+        assertThat(textos.devuelta(null)).contains("en la barbería").doesNotContain("null", "Hola");
+        assertThat(textos.devuelta("   ")).contains("en la barbería");
+        assertThat(textos.devuelta("  Barbería Central  ")).contains("en Barbería Central ha vuelto");
     }
 
     @Test

@@ -164,8 +164,6 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             registro.guardarEntrante(conversacion.id(), mensaje);
             operaciones.anularVigente(conversacion.id());
             derivacion.devolver(conversacion.id(), OptionalLong.empty());
-            salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.bienvenida(consultas.nombreNegocio())),
-                    OrigenMensaje.SISTEMA, OptionalLong.empty());
             return;
         }
         if (conversacion.modo() == ModoConversacion.HUMANO) {
@@ -497,7 +495,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             vista = new Cita(reservaId);
             var cita = conversacion.clienteId().isEmpty() ? null : consultas.cita(ficha(), reservaId).orElse(null);
             if (cita == null) menu(textos.noDisponible());
-            else enviar(menus.accionesCita(textos.detalleCita(cita), cita), "CITA");
+            else enviar(menus.accionesCita(textos.detalleCita(cita, consultas.nombreNegocio())
+                    + textos.avisoSinAcciones(cita, reloj.instant()), cita), "CITA");
         }
 
         private void accionCita(long reservaId, boolean cancelar) {
@@ -544,8 +543,12 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         private void propuesta(Propuesta propuesta) {
             switch (propuesta) {
                 case null -> menu(textos.noDisponible());
-                case Propuesta.Creada creada -> enviar(menus.confirmacion(textos.resumen(creada.resumen()),
-                        creada.operacionId(), creada.nonce()), "CONFIRMACION");
+                case Propuesta.Creada creada -> {
+                    String resumen = textos.resumen(creada.resumen(), consultas.nombreNegocio());
+                    enviar(creada.resumen().tipo() == TipoOperacion.CANCELAR
+                            ? menus.confirmacionCancelacion(resumen, creada.operacionId(), creada.nonce())
+                            : menus.confirmacion(resumen, creada.operacionId(), creada.nonce()), "CONFIRMACION");
+                }
                 case Propuesta.Rechazada rechazada -> menu(textos.rechazo(rechazada.codigo()));
             }
         }
@@ -567,7 +570,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
                         respuesta = menus.menuPrincipal(cuerpo);
                     } else {
                         long reservaId = ejecutada.cita().reservaId();
-                        var actual = consultas.cita(ficha(), reservaId).orElse(null);
+                        var actual = conversacion.clienteId().isEmpty() ? null : consultas.cita(ficha(), reservaId).orElse(null);
+                        if (actual != null) cuerpo += textos.avisoSinAcciones(actual, reloj.instant());
                         respuesta = menus.accionesCita(cuerpo, actual);
                         if (actual != null) {
                             var estado = conversaciones.bloquear(conversacion.id()).estado();
@@ -590,7 +594,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
          * la operación vigente y vacía el estado, así un «sí» posterior no confirma un resumen anterior.
          */
         private void menu(String cuerpo) {
-            operaciones.anularVigente(conversacion.id());
+            if (operaciones.anularVigente(conversacion.id())) cuerpo = textos.propuestaDescartada() + "\n\n" + cuerpo;
             conversaciones.vaciar(conversacion.id());
             enviar(menus.menuPrincipal(cuerpo), null);
         }

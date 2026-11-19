@@ -10,7 +10,7 @@ import java.util.Locale;
  * @version 1.0
  */
 public enum PalabraClave {
-    /** «menu», «hola», «inicio» o «0»: vuelve al menú principal y anula la operación vigente. */
+    /** «menu», «menú», «volver», «ayuda», «hola», «inicio» o «0»: menú principal; descarta la propuesta abierta. */
     MENU,
     /** «si», «confirmar» o «confirmo»: confirma la única operación vigente (V2-RN-10). */
     SI,
@@ -18,7 +18,7 @@ public enum PalabraClave {
     NO,
     /**
      * Petición de una persona (V2-11, 16-v2-11 §3.1): frases exactas tras normalizar —«hablar con alguien»,
-     * «hablar con una persona», «persona», «humano», «asesor», «agente», «ayuda»—, sin buscar subcadenas.
+     * «hablar con una persona», «persona», «humano», «asesor», «agente»—, sin buscar subcadenas.
      */
     PERSONA,
     /** Cualquier otro texto: se responde con el menú. */
@@ -43,10 +43,10 @@ public enum PalabraClave {
             return OTRA;
         }
         return switch (normalizado) {
-            case "menu", "hola", "inicio", "0" -> MENU;
+            case "menu", "volver", "ayuda", "hola", "inicio", "0" -> MENU;
             case "si", "confirmar", "confirmo" -> SI;
             case "no" -> NO;
-            case "hablar con alguien", "hablar con una persona", "persona", "humano", "asesor", "agente", "ayuda" -> PERSONA;
+            case "hablar con alguien", "hablar con una persona", "persona", "humano", "asesor", "agente" -> PERSONA;
             default -> OTRA;
         };
     }

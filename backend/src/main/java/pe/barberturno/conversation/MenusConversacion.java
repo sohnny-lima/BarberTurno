@@ -273,6 +273,11 @@ public class MenusConversacion {
         if (cita != null && cita.puedeCancelar()) {
             botones.add(new BotonDef(new CodigoSeleccion.AccionCita(cita.reservaId(), true).codificar(), "Cancelar"));
         }
+        if (cita != null && !cita.puedeCancelar() && !cita.puedeReprogramar()
+                && (cita.estado() == pe.barberturno.reservations.EstadoReserva.CONFIRMADA
+                    || cita.estado() == pe.barberturno.reservations.EstadoReserva.PENDIENTE)) {
+            botones.add(new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.PERSONA).codificar(), "Hablar con alguien"));
+        }
         botones.add(new BotonDef(new CodigoSeleccion.Menu(OpcionMenu.INICIO).codificar(), "Menú principal"));
         return crearBotones(cuerpo, botones);
     }
@@ -355,6 +360,19 @@ public class MenusConversacion {
                 new BotonDef(new CodigoSeleccion.Confirmacion(operacionId, nonce, true).codificar(), "Confirmar"),
                 new BotonDef(new CodigoSeleccion.Confirmacion(operacionId, nonce, false).codificar(), "Cambiar")
         ));
+    }
+
+    /**
+     * Confirmación de cancelación con decisiones explícitas; conserva los códigos y el nonce de la propuesta.
+     * @param cuerpo resumen completo de la cita que aún se mantiene
+     * @param operacionId operación de cancelación vigente
+     * @param nonce credencial opaca de confirmación, con la caducidad existente
+     * @return botones Sí, cancelar y Mantener cita, sin ejecutar cambios
+     */
+    public ObjectNode confirmacionCancelacion(String cuerpo, long operacionId, String nonce) {
+        return crearBotones(cuerpo, List.of(
+                new BotonDef(new CodigoSeleccion.Confirmacion(operacionId, nonce, true).codificar(), "Sí, cancelar"),
+                new BotonDef(new CodigoSeleccion.Confirmacion(operacionId, nonce, false).codificar(), "Mantener cita")));
     }
 
     private ObjectNode crearBotones(String cuerpo, List<BotonDef> botones) {
