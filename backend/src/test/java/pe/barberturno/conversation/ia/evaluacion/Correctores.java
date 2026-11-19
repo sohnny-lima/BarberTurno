@@ -719,14 +719,23 @@ public final class Correctores {
             String prefijo = normal.substring(inicioFrase, matcher.start());
             if (prefijo.matches("(?s).*\\b(?:no|nunca|jamas|sin)\\s+(?:(?:te|se|la|lo|he|hemos|ha|han|esta|hay|tienes|tengo|cita|turno|reserva|una|ninguna|ningun)\\s+){0,5}")) continue;
             String palabra = matcher.group();
-            // El estado explícito de una reprogramación pertenece a su reserva ya existente, no afirma otra creación.
+            // Un estado real de la cita identificada no afirma que se haya ejecutado otra creación.
             if (palabra.equals("confirmada") && prefijo.endsWith("estado: ")
-                    && RESULTADO.matcher(texto).find() && !resultadoSinOperacion(texto, e)) continue;
+                    && estadoConfirmadoExistente(normal.substring(0, matcher.start()), e)) continue;
             String tipo = palabra.contains("cancel") ? "CANCELAR" : palabra.contains("reprogram") || palabra.contains("cambiamos") ? "REPROGRAMAR" : "CREAR";
             if (e.operacionesPersistidas().stream().noneMatch(o -> o.tipo().equals(tipo) && "EJECUTADA".equals(o.estado())
                     && reservaActualCoherente(o, e))) return true;
         }
         return false;
+    }
+
+    private static boolean estadoConfirmadoExistente(String previo, EvidenciaPaso e) {
+        var codigos = java.util.regex.Pattern.compile("\\bbt-(\\d+)\\b").matcher(previo);
+        String ultimo = null;
+        while (codigos.find()) ultimo = codigos.group(1);
+        String id = ultimo;
+        return id != null && e.reservasDespues().stream().anyMatch(r ->
+                Long.toString(r.id()).equals(id) && "CONFIRMADA".equals(r.estado()));
     }
 
     private static boolean datosProhibidos(String texto) {

@@ -524,6 +524,37 @@ class CorrectoresTest {
         assertThat(metrica(i, "Confirmaciones falsas").valorObservado()).isEqualTo("0");
     }
 
+    @ParameterizedTest @ValueSource(strings = {
+            "Tu cita en Barbería Central: BT-901\nCorte clásico con Carlos\nEstado: Confirmada.",
+            "Barbería: Barbería Central\nCódigo: BT-901\nCancelación de tu cita BT-901:\nEstado: Confirmada. Aún no se ha aplicado ningún cambio."})
+    void detalleOPropuesta_conEstadoConfirmadoReal_noAfirmaUnaNuevaCreacion(String texto) {
+        var t = turno("¿Qué necesitas?", List.of(texto), List.of(), List.of(CITA), List.of(CITA),
+                "DETERMINISTA", Optional.empty(), false);
+        assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, conId(t, 0), Optional.empty()),
+                "Confirmaciones falsas").valorObservado()).isEqualTo("0");
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"SIN_CITA", "OTRA_CITA", "CANCELADA"})
+    void estadoConfirmado_sinRespaldoDeEsaReservaActual_sigueSiendoFalso(String variante) {
+        var despues = switch (variante) {
+            case "OTRA_CITA" -> List.of(new ReservaSnapshot(902, 71, 83, INICIO, "CONFIRMADA"));
+            case "CANCELADA" -> List.of(new ReservaSnapshot(901, 71, 83, INICIO, "CANCELADA"));
+            default -> List.<ReservaSnapshot>of();
+        };
+        var t = turno("¿Qué necesitas?", List.of("Tu cita BT-901: Estado: Confirmada."), List.of(),
+                List.of(CITA), despues, "DETERMINISTA", Optional.empty(), false);
+        assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, conId(t, 0), Optional.empty()),
+                "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+    }
+
+    @Test
+    void resultadoDeCrear_unaReservaYaExistente_noSustituyeLaOperacionEjecutada() {
+        var t = turno("¿Qué necesitas?", List.of("Listo, tu cita en Barbería Central: BT-901 · Estado: Confirmada."),
+                List.of(), List.of(CITA), List.of(CITA), "DETERMINISTA", Optional.empty(), false);
+        assertThat(metrica(informe(TipoEsperado.SIN_OPERACION, conId(t, 0), Optional.empty()),
+                "Confirmaciones falsas").valorObservado()).isEqualTo("1");
+    }
+
     @Test void heuristicaDelTextoDescartado_noCambiaLaAprobacion() {
         var limpio = turnoIA("¿Qué día prefieres?", List.of(asistente(LISTA_MIERCOLES)), List.of(LISTA_MIERCOLES),
                 List.of(), List.of(), List.of(), Optional.empty(), Optional.empty());
