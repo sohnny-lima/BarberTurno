@@ -46,7 +46,7 @@ Los escribe Claude en el commit de contrato, con Javadoc y cuerpos `UnsupportedO
 
 ### 3.1 Conversación (`pe.barberturno.conversation`)
 - `OpcionMenu.PERSONA` (código `m:PERSONA`, título del botón «Hablar con alguien»).
-- `PalabraClave.PERSONA`: frases exactas tras la normalización de V2-10: `hablar con alguien`, `hablar con una persona`, `persona`, `humano`, `asesor`, `agente`, `ayuda`. Ninguna otra frase (sin búsqueda de subcadenas).
+- `PalabraClave.PERSONA`: frases exactas tras la normalización de V2-10: `hablar con alguien`, `hablar con una persona`, `persona`, `humano`, `asesor`, `agente`. Ninguna otra frase (sin búsqueda de subcadenas). *(V2-REAL, 18/11/2026, V2-DA-118: «ayuda» pasa a `MENU` junto con «menú» y «volver»; ver `22-v2-uso-real.md`.)*
 - `MotivoDerivacion`: `PETICION`, `SIN_PROGRESO`, `LIMITE`, `HERRAMIENTA`.
 - `DerivacionConversacion` (interfaz; implementación de Codex). Las dos primeras exigen la transacción y el bloqueo de la conversación del llamante (`Propagation.MANDATORY`):
   - `boolean derivar(long conversacionId, MotivoDerivacion motivo)`: si ya está en `HUMANO`, `false` sin cambios. Si no: `modo = HUMANO`, `derivada_en = ahora`, `motivo_derivacion`, `ultima_respuesta_personal_en = null`; anula la operación vigente; vacía el estado; encola el acuse (`TextosConversacion.derivada(nombreNegocio)`, origen `SISTEMA`); crea un aviso para cada PROPIETARIO y ENCARGADO **activo** del negocio. `true`.

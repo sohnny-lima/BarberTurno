@@ -77,5 +77,85 @@ Datos que dio el responsable (18/11/2026):
 | CP-5 repetida 10 veces en `chromium-360` | **10/10** (antes fallaba 7 de cada 10) |
 | E2E de regresión | 86/88: el test 20 agotó el tiempo en `firefox-1440`. Repetición: ver §7 |
 
-## 7. Integración, despliegue y limpieza
-(Se completa al cerrar.)
+## 7. Integración, despliegue y limpieza (18/11/2026)
+- **Integración.** El PR #3 se integró en `main` como `bec6816`, con la CI en verde (backend y frontend).
+- **E2E test 20.** El test 20 (alta de barbería desde la plataforma) falló 2 de 12 veces en la rama y 0 de 12 en `main`. Las instantáneas muestran dos carreras del propio test:
+  - en Firefox, el diálogo recupera el foco y el correo acaba escrito en «Nombre»;
+  - en Chromium, el cuerpo del POST se pierde al cerrarse el diálogo, porque se recorre el historial.
+
+  En ambos casos la barbería se crea bien. Queda como fragilidad de la E2E, que no está en la CI.
+- **Respaldo previo.** Está en `.local/respaldo-v2-real-20261118/`, fuera de Git:
+  - volcado del esquema;
+  - datos por negocio con RLS;
+  - ajustes de App Service.
+
+  La auditoría dio 2 negocios demo y 10 cuentas `@ejemplo.test`, **0 cuentas reales**. Flyway V2 estaba en 118 y la V1 (`barberturno_prod`) intacta. Además quedan las copias automáticas de Azure de 7 días.
+- **Ventana de mantenimiento.** De **10:18:52 a 10:26:04** (hora de Lima), con la aplicación detenida:
+  1. **Limpieza:** primero en modo `ensayo` (`ROLLBACK`, verificado sin cambios) y después en `aplicar`. Resultado: 0 negocios y 1 usuario, el administrador con el nombre «Administración». Flyway sigue en 118.
+  2. **JAR:** `bec6816` (el mismo artefacto probado en las E2E), subido por la API VFS de Kudu. Se evita `az webapp deploy`, que el 18/11 dio 504.
+  3. **Ajustes:**
+     - se elimina `BARBERTURNO_TENANCY_NEGOCIOINICIALSLUG`;
+     - `BT_ADMIN_NOMBRE=Administración`;
+     - el texto de privacidad de WhatsApp pasa a ser el definitivo y el enlace apunta a `/privacidad` de la aplicación.
+- **Verificación posterior.** `verificar-v2-real.ps1` pasa todas las comprobaciones críticas:
+  - salud y redirección de HTTP a HTTPS;
+  - PWA (manifest, service worker y `ngsw.json` sin `/api`);
+  - `assetlinks` de distribución;
+  - ningún texto académico en los 77 JS;
+  - el aviso real, comprobado además renderizando `/privacidad`;
+  - 401 y 403 sin sesión ni CSRF;
+  - el webhook de Twilio no está expuesto;
+  - el administrador entra y es ADMIN_PLATAFORMA;
+  - 0 barberías;
+  - las cuentas y los negocios demo dan 401 y 404.
+
+  La regla temporal del cortafuegos se retiró después.
+- **APK** (PR #4, `f2af695`). Bubblewrap 1.27 lee `appVersion`, no `appVersionName`, y la APK salía sin versión. Se regeneró con la clave de distribución: versión 1.0.0 y la misma huella `3F:D9:…:23:83`. La APK anterior queda en `D:Androidarberturno-twa-dist-anterior-20261118`.
+
+## 8. WhatsApp: prueba real en local con Twilio Sandbox (responsable, 18/11/2026)
+**Entorno:** la aplicación en este equipo con los perfiles `dev,demo,twilio` y la base `barberturno_v2_test`, expuesta solo en `/api/twilio/*` mediante ngrok y un proxy. **No es Azure.**
+
+**Funcionó:**
+- reserva BT-105 y su reprogramación;
+- reserva BT-106 y su cancelación, comprobadas en la base: CANCELADA;
+- consentimiento con el texto definitivo;
+- rechazo de las firmas inválidas (401);
+- el túnel no expone otras rutas (404).
+
+**Defectos comprobados con la base y los registros.** Ningún MessageSid se procesó dos veces y no hubo reintentos de Twilio. Evidencias fuera de Git, en `.local/coordinacion/evidencias-whatsapp-20261118/`.
+1. **Triple respuesta a un solo «menu».** La conversación estaba en modo HUMANO y, al volver, el código enviaba el aviso de retorno dos veces (texto e interactivo) más el menú de bienvenida.
+2. **Selecciones rápidas aplicadas a otro menú.** Varios «1» seguidos se interpretaban contra el menú guardado al procesarse, no contra el que veía el cliente, y así se llegó a una reserva no deseada.
+3. **RN-07 sin explicación.** BT-105, a menos de 2 h, solo ofrecía «1. Menú».
+4. **«del 1 al 1».** Ese texto aparecía cuando el menú tenía una sola opción.
+
+**Mejoras pedidas por el responsable:**
+- datos completos en los resúmenes;
+- acciones sobre la cita recién creada;
+- «Sí, cancelar» / «Mantener cita»;
+- barbería identificada;
+- palabras clave coherentes;
+- derivación veraz.
+
+Las implementa Codex en 165/165b/165c (revisión de Gemini g138: dos hallazgos válidos de severidad alta o media, ya devueltos al implementador).
+
+### V2-DA-118 · «ayuda», «menú» y «volver» llevan al menú principal
+«ayuda» deja de derivar a una persona: el responsable pidió que «menu», «menú», «volver» y «ayuda» sean coherentes. Para hablar con el equipo siguen «hablar con alguien», «persona», «humano», «asesor», «agente» y el botón del menú. Si hay una propuesta abierta, se descarta con aviso.
+
+### V2-DA-119 · Una selección solo vale para el menú que el cliente pudo ver
+- **Cuándo se publica el menú de Twilio:** cuando su TwiML se entrega de verdad, no al encolarlo.
+- **Selecciones que no se ejecutan:** las que llegan con la respuesta anterior aún pendiente, o dentro de una ventana mínima de reacción tras publicar el menú. En su lugar se envía «Recibí varios mensajes seguidos; para evitar errores, elige de nuevo:» seguido del menú vigente.
+- **Reintentos:** un reintento con el mismo MessageSid devuelve la misma traducción.
+
+## 9. Estado de WhatsApp para producción
+- **Producción (Azure):** WhatsApp está **apagado** (procesador y salida en `false`) y sin el perfil `twilio`. No se ha probado contra Azure.
+- **Para probarlo en Azure con el Sandbox** (decisión del responsable):
+  1. dar de alta una barbería real con servicios y personal;
+  2. cargar las credenciales del Sandbox en App Service y añadir el perfil `twilio`;
+  3. activar el procesador y la salida;
+  4. apuntar el webhook del Sandbox a la URL de Azure en la consola de Twilio.
+
+  Un resultado correcto seguiría sin confirmar el uso en producción, porque depende del Sandbox: la membresía caduca a las 72 h y los remitentes BSUID rechazan los envíos REST.
+- **Para producción real hace falta:**
+  1. un remitente de WhatsApp de pago, de Twilio o de Meta (contratación);
+  2. plantillas aprobadas;
+  3. los avisos proactivos al confirmar, reprogramar o cancelar desde la web, que corresponden a V2-14 y no están autorizados.
