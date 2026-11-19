@@ -1,10 +1,12 @@
 # BarberTurno — Plan de tareas de implementación
 
-> V2-REAL · Encargo 165: **En curso** (18/11/2026), en
+> V2-REAL · Encargos 165/165b/165c: **En curso** (18/11/2026), en
 > `tarea/V2-REAL-bot-mensajes`, base `a75ef1e` de `tarea/V2-REAL-apk-version`.
-> Alcance autorizado: resultados completos del bot, acciones sobre la cita recién
-> creada o reprogramada, explicación de la derivación y nombre ficticio del
-> profesional de dev. Sin merge ni push por instrucción expresa del encargo.
+> Alcance autorizado: resultados/resúmenes completos, acciones sobre esa cita,
+> retorno HUMANO con un solo mensaje, palabras de navegación, explicación de
+> RN-07 y contacto; protección Twilio de ráfagas con pendiente de 20 s y mínimo
+> de reacción configurable; nombre ficticio del profesional de dev. Se conserva
+> `b110b2f`. Sin merge ni push por instrucción expresa del encargo.
 
 > V2-REAL · Encargo 164: **Hecha en local; pendiente de revisión** (18/11/2026),
 > en `tarea/V2-REAL-uso-real`, base `716d260`. Administrador global con ámbito

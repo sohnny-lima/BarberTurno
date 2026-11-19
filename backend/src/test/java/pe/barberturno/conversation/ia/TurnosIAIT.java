@@ -678,7 +678,9 @@ class TurnosIAIT extends WhatsAppSalidaPruebaBase {
         assertThat(estado(a, t)).isEqualTo("HECHO");
         assertThat(modelo.cantidadPeticiones()).isEqualTo(1);
         assertThat(operaciones(a)).isEqualTo(1);
-        assertThat(contenido(a, c)).contains("Confirmar");
+        assertThat(contenido(a, c)).contains("Sí, cancelar", "Mantener cita", "Barbería: Negocio ficticio a",
+                "Código: BT-", "Corte clásico", "Profesional ficticio", "viernes 6 de noviembre de 2026",
+                "10:00 a 10:30", "Estado: Confirmada");
         assertThat(observador.buscarTurno(t).orElseThrow().herramientas()).hasSize(2);
         assertThat(borrador(a, c).path("ultima").asString()).isEqualTo("PROPUESTA");
     }

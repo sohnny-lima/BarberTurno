@@ -358,6 +358,7 @@ public class SalidaClienteIT extends WhatsAppSalidaPruebaBase {
                 .doesNotContain("¡Ya quedó confirmada!")
                 .doesNotContain("confirmada")
                 .doesNotContain("Listo:")
+                .doesNotContain("Listo, tu cita en")
                 .doesNotContain("BT-");
 
         verificarAusenciaDeTextoProveedorEnContenido(
