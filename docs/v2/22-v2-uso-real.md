@@ -144,7 +144,13 @@ Las implementó Codex en 165/165b/165c (`b110b2f`, `60d1ba1`, `df2122d`, `108359
 
 `verify` completo: **4083/4083**, sin fallos (`docs/pruebas/v2-real-165.md`).
 
-**Pendiente:** que el responsable valide los mensajes corregidos con su teléfono. Hasta entonces, el flujo **no** se da por aprobado.
+**Integración y validación (19/11/2026):**
+- [PR #5](https://github.com/sohnny-lima/BarberTurno/pull/5): CI en verde, con el backend en 10 min.
+- Integrado en `main` con el merge `740ee71`.
+- Desplegado en Azure: `verificar-v2-real.ps1` pasa las 20 comprobaciones críticas.
+- **El responsable validó con su teléfono los mensajes corregidos** en el entorno local, con Twilio Sandbox, sin incidencias: retorno del modo humano, ráfagas, resúmenes, cancelación, RN-07 y palabras clave.
+
+**Alcance de la validación:** se hizo en el entorno local con el Sandbox. No se probó contra Azure, donde WhatsApp sigue apagado (§9).
 
 ### V2-DA-118 · «ayuda», «menú» y «volver» llevan al menú principal
 «ayuda» deja de derivar a una persona: el responsable pidió que «menu», «menú», «volver» y «ayuda» sean coherentes. Para hablar con el equipo siguen «hablar con alguien», «persona», «humano», «asesor», «agente» y el botón del menú. Si hay una propuesta abierta, se descarta con aviso.
