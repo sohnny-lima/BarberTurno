@@ -7,6 +7,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
@@ -46,6 +47,8 @@ class PerfilIT {
     @Autowired JwtDecoder decoder;
     @Autowired JwtService jwt;
     @Autowired AuthService auth;
+    @Value("${barberturno.seguridad.bcrypt-coste}")
+    int costeBcrypt;
 
     @BeforeEach void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
@@ -216,7 +219,8 @@ class PerfilIT {
         assertThat(token.getIssuedAt()).isEqualTo(reloj.instant());
         assertThat(token.getExpiresAt()).isEqualTo(reloj.instant().plus(Duration.ofHours(8)));
         Usuario guardado = vigente();
-        assertThat(guardado.getPasswordHash()).startsWith("$2a$12$").isNotEqualTo(usuario.getPasswordHash());
+        assertThat(guardado.getPasswordHash()).startsWith(String.format("$2a$%02d$", costeBcrypt))
+                .isNotEqualTo(usuario.getPasswordHash());
         assertThat(passwords.matches(NUEVA, guardado.getPasswordHash())).isTrue();
         assertThat(passwords.matches(PASSWORD, guardado.getPasswordHash())).isFalse();
         assertThat(guardado.getActualizadoEn()).isEqualTo(reloj.instant());

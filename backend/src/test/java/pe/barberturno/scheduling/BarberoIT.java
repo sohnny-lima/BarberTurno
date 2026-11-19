@@ -10,6 +10,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
 import org.springframework.context.annotation.Import;
@@ -47,6 +48,8 @@ class BarberoIT {
     @Autowired ServicioRepository servicios;
     @Autowired PasswordEncoder passwords;
     @Autowired RelojAjustable reloj;
+    @Value("${barberturno.seguridad.bcrypt-coste}")
+    int costeBcrypt;
     private String hash;
 
     @BeforeEach void preparar() {
@@ -71,7 +74,7 @@ class BarberoIT {
                 .isEqualTo(pe.barberturno.platform.RolNegocio.BARBERO);
         assertThat(u.isDebeCambiarPassword()).isTrue();
         assertThat(u.getPrivacidadAceptadaEn()).isNull();
-        assertThat(u.getPasswordHash()).startsWith("$2a$12$");
+        assertThat(u.getPasswordHash()).startsWith(String.format("$2a$%02d$", costeBcrypt));
         assertThat(passwords.matches(PASSWORD, u.getPasswordHash())).isTrue();
         assertThat(u.getCreadoEn()).isEqualTo(reloj.instant());
         Cookie temporal = login(u);

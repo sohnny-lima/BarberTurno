@@ -9,6 +9,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.*;
@@ -48,6 +49,8 @@ class AuthIT {
     @Autowired JwtDecoder decoder;
     @Autowired JwtService jwt;
     @Autowired AuthService auth;
+    @Value("${barberturno.seguridad.bcrypt-coste}")
+    int costeBcrypt;
 
     @BeforeEach void preparar() {
         LimpiezaBaseDatos.limpiar(jdbc);
@@ -80,7 +83,7 @@ class AuthIT {
                 .andExpect(jsonPath("$.bloqueadoHasta").doesNotExist()).andReturn();
         Usuario u = usuarios.findByCorreo(CORREO).orElseThrow();
         assertThat(u.getPrivacidadAceptadaEn()).isEqualTo(reloj.instant());
-        assertThat(u.getPasswordHash()).startsWith("$2a$12$");
+        assertThat(u.getPasswordHash()).startsWith(prefijoBcrypt());
         assertThat(passwords.matches(PASSWORD, u.getPasswordHash())).isTrue();
         var token = decoder.decode(cookieSesion(r).getValue());
         assertThat(token.getSubject()).isEqualTo(u.getId().toString());
@@ -418,7 +421,7 @@ class AuthIT {
                 .isEqualTo(pe.barberturno.platform.RolNegocio.PROPIETARIO);
         assertThat(admin.getTelefono()).isNull();
         assertThat(admin.isDebeCambiarPassword()).isFalse();
-        assertThat(admin.getPasswordHash()).startsWith("$2a$12$");
+        assertThat(admin.getPasswordHash()).startsWith(prefijoBcrypt());
         assertThat(passwords.matches("ClaveAdmin123", admin.getPasswordHash())).isTrue();
     }
 
@@ -626,6 +629,9 @@ class AuthIT {
                 passwords.encode(PASSWORD), rol, rol == Rol.CLIENTE ? reloj.instant() : null, reloj.instant());
         if (temporal) u.cambiarPassword(u.getPasswordHash(), true, reloj.instant());
         return pe.barberturno.support.DatosPrueba.guardarPersonalV1(usuarios, membresias, clientes, u);
+    }
+    private String prefijoBcrypt() {
+        return String.format("$2a$%02d$", costeBcrypt);
     }
     private String detalle(ResultActions solicitud) throws Exception {
         var r = solicitud.andExpect(status().isUnauthorized())

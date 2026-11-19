@@ -14,6 +14,7 @@ barberturno:
   seguridad:
     jwt-secret: ${BT_JWT_SECRET:}
     cookie-secure: ${BT_COOKIE_SECURE:false}
+    bcrypt-coste: 4 # solo pruebas; producción 12, RNF-03
   # Las pruebas del procesador y del enviador llaman al lote directamente (V2-DA-08). La salida apunta
   # a un origen inexistente y sin token: cada prueba que envía fija su servidor Graph falso y un token ficticio.
   whatsapp:
