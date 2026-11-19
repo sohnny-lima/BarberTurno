@@ -136,7 +136,15 @@ Datos que dio el responsable (18/11/2026):
 - palabras clave coherentes;
 - derivación veraz.
 
-Las implementa Codex en 165/165b/165c (revisión de Gemini g138: dos hallazgos válidos de severidad alta o media, ya devueltos al implementador).
+Las implementó Codex en 165/165b/165c (`b110b2f`, `60d1ba1`, `df2122d`, `1083596`). El coordinador ajustó las pruebas (`af20b6c`).
+
+**Revisiones:**
+- **Gemini g138:** dos hallazgos válidos, uno alto y otro medio, más tres menores. Se devolvieron a Codex.
+- **Gemini g139b:** los da todos por corregidos. Su único hallazgo nuevo es un falso positivo, porque leyó `main` en lugar de la rama.
+
+`verify` completo: **4083/4083**, sin fallos (`docs/pruebas/v2-real-165.md`).
+
+**Pendiente:** que el responsable valide los mensajes corregidos con su teléfono. Hasta entonces, el flujo **no** se da por aprobado.
 
 ### V2-DA-118 · «ayuda», «menú» y «volver» llevan al menú principal
 «ayuda» deja de derivar a una persona: el responsable pidió que «menu», «menú», «volver» y «ayuda» sean coherentes. Para hablar con el equipo siguen «hablar con alguien», «persona», «humano», «asesor», «agente» y el botón del menú. Si hay una propuesta abierta, se descarta con aviso.
@@ -145,6 +153,14 @@ Las implementa Codex en 165/165b/165c (revisión de Gemini g138: dos hallazgos v
 - **Cuándo se publica el menú de Twilio:** cuando su TwiML se entrega de verdad, no al encolarlo.
 - **Selecciones que no se ejecutan:** las que llegan con la respuesta anterior aún pendiente, o dentro de una ventana mínima de reacción tras publicar el menú. En su lugar se envía «Recibí varios mensajes seguidos; para evitar errores, elige de nuevo:» seguido del menú vigente.
 - **Reintentos:** un reintento con el mismo MessageSid devuelve la misma traducción.
+- **Parámetros:**
+  - la marca de respuesta pendiente caduca a los 20 s y se libera al entregarse cualquier respuesta, también una sin opciones;
+  - la ventana de reacción es `barberturno.whatsapp.twilio.reaccion-minima`, de 1,5 s por defecto (entre 0,5 y 5 s).
+
+### V2-DA-120 · BCrypt de coste 4 solo en el perfil de pruebas
+- **Cambio:** `barberturno.seguridad.bcrypt-coste` vale 12 por defecto y está fijado a 12 de forma explícita en `prod` (RNF-03), con una prueba que lo comprueba. El perfil `test` usa 4.
+- **Motivo, medido:** 513 ms frente a 2 ms por cada cifrado y comprobación. La suite pasa de 43 a 28 min en las mismas clases.
+- **Efecto en los datos:** ninguno. Cada hash guarda su propio coste, así que las contraseñas existentes siguen siendo válidas.
 
 ## 9. Estado de WhatsApp para producción
 - **Producción (Azure):** WhatsApp está **apagado** (procesador y salida en `false`) y sin el perfil `twilio`. No se ha probado contra Azure.
