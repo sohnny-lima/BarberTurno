@@ -75,7 +75,7 @@ class RegistrosSeguridadTwilioIT extends WhatsAppSalidaPruebaBase {
                         new TwilioPropiedades.Canal("+" + NUMERO_A, "barberturno")
                 ));
         direcciones = new CorrespondenciaDireccionesTwilio();
-        CorrespondenciaMenusTwilio menus = new CorrespondenciaMenusTwilio(reloj);
+        CorrespondenciaMenusTwilio menus = SoporteMenusTwilio.crear(reloj);
         FirmaTwilio firma = new FirmaTwilio(propiedades);
         BuzonRespuestasTwilio buzon = new BuzonRespuestasTwilio(propiedades, reloj);
         TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, direcciones);

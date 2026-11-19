@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * Configuración exclusiva del Sandbox (20-v2-twilio-sandbox.md §4.1). Las credenciales vacías dejan
@@ -20,6 +21,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param respuestaEspera plazo para el primer mensaje, entre uno y doce segundos
  * @param respuestaSilencio plazo entre mensajes, desde cien milisegundos hasta la espera inicial
  * @param canales pares de número y negocio; vacío conserva la configuración de un solo canal
+ * @param reaccionMinima tiempo mínimo tras publicar un menú antes de admitir otra selección (500 ms a 5 s)
  * @author Sohnny Walter Lima Infanzón
  * @version 2.0
  */
@@ -29,7 +31,8 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
         @DefaultValue("barberturno") String negocioSlug, @DefaultValue("3s") Duration intervaloEnvio,
         @DefaultValue("https://api.twilio.com") String apiBase,
         @DefaultValue("true") boolean respuestaTwiml, @DefaultValue("10s") Duration respuestaEspera,
-        @DefaultValue("1500ms") Duration respuestaSilencio, List<Canal> canales) {
+        @DefaultValue("1500ms") Duration respuestaSilencio, List<Canal> canales,
+        @DefaultValue("1500ms") Duration reaccionMinima) {
 
     /**
      * Rechaza configuraciones ambiguas y evita filtrar secretos en errores de validación.
@@ -44,8 +47,10 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
      * @param respuestaEspera máximo para el primer mensaje desde la apertura
      * @param respuestaSilencio silencio máximo desde la última respuesta aceptada
      * @param canales canales explícitos, sin números ni slugs repetidos
+     * @param reaccionMinima mínimo de reacción tras publicar el menú, de 500 ms a 5 s
      * @throws IllegalArgumentException si un formato o intervalo no cumple el contrato
      */
+    @ConstructorBinding
     public TwilioPropiedades {
         canales = canales == null ? List.of() : List.copyOf(canales);
         if (canales.stream().map(Canal::numero).distinct().count() != canales.size()
@@ -65,9 +70,33 @@ public record TwilioPropiedades(@DefaultValue("") String accountSid, @DefaultVal
                 || respuestaEspera == null || respuestaEspera.compareTo(Duration.ofSeconds(1)) < 0
                 || respuestaEspera.compareTo(Duration.ofSeconds(12)) > 0
                 || respuestaSilencio == null || respuestaSilencio.compareTo(Duration.ofMillis(100)) < 0
-                || respuestaSilencio.compareTo(respuestaEspera) > 0) {
+                || respuestaSilencio.compareTo(respuestaEspera) > 0
+                || reaccionMinima == null || reaccionMinima.compareTo(Duration.ofMillis(500)) < 0
+                || reaccionMinima.compareTo(Duration.ofSeconds(5)) > 0) {
             throw new IllegalArgumentException("Configuración de Twilio Sandbox fuera de rango.");
         }
+    }
+
+    /**
+     * Conserva la construcción explícita anterior con el mínimo de reacción predeterminado de 1,5 s.
+     * @param accountSid cuenta externa o vacío
+     * @param authToken credencial del Sandbox o vacío
+     * @param numero emisor en E.164
+     * @param urlPublica origen HTTPS firmado
+     * @param negocioSlug negocio ficticio del canal histórico
+     * @param intervaloEnvio separación mínima entre envíos REST
+     * @param apiBase origen de Twilio o del servidor falso local
+     * @param respuestaTwiml si se recogen respuestas en el webhook
+     * @param respuestaEspera espera máxima para la primera respuesta
+     * @param respuestaSilencio silencio máximo entre respuestas
+     * @param canales canales explícitos o vacíos para el histórico
+     * @throws IllegalArgumentException si algún formato o intervalo es inválido
+     */
+    public TwilioPropiedades(String accountSid, String authToken, String numero, String urlPublica,
+            String negocioSlug, Duration intervaloEnvio, String apiBase, boolean respuestaTwiml,
+            Duration respuestaEspera, Duration respuestaSilencio, List<Canal> canales) {
+        this(accountSid, authToken, numero, urlPublica, negocioSlug, intervaloEnvio, apiBase, respuestaTwiml,
+                respuestaEspera, respuestaSilencio, canales, Duration.ofMillis(1500));
     }
 
     /**

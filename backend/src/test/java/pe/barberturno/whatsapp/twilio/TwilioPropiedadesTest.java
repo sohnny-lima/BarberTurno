@@ -44,6 +44,26 @@ class TwilioPropiedadesTest {
 
     private static final String MENSAJE_ERROR_ESPERADO = "Configuración de Twilio Sandbox fuera de rango.";
 
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(longs = {-1, 0, 499, 5001, 20000})
+    void reaccionMinima_invalida_rechazaSinExponerValores(Long millis) {
+        Duration reaccion = millis == null ? null : Duration.ofMillis(millis);
+        assertThatThrownBy(() -> new TwilioPropiedades("", "", "+14155238886", "", "barberturno",
+                Duration.ofSeconds(3), "https://api.twilio.com", true, Duration.ofSeconds(10),
+                Duration.ofMillis(1500), java.util.List.of(), reaccion))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(MENSAJE_ERROR_ESPERADO);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {500, 1500, 5000})
+    void reaccionMinima_limitesValidos_conservaElValor(long millis) {
+        var propiedades = new TwilioPropiedades("", "", "+14155238886", "", "barberturno",
+                Duration.ofSeconds(3), "https://api.twilio.com", true, Duration.ofSeconds(10),
+                Duration.ofMillis(1500), java.util.List.of(), Duration.ofMillis(millis));
+        assertThat(propiedades.reaccionMinima()).isEqualTo(Duration.ofMillis(millis));
+    }
+
     @Test
     void constructor_valoresValidos_construyeCorrectamente() {
         assertThatCode(() -> new TwilioPropiedades(
@@ -155,7 +175,7 @@ class TwilioPropiedadesTest {
         try {
             JsonMapper mapper = JsonMapper.builder().build();
             Clock reloj = Clock.fixed(Instant.parse("2026-11-12T10:00:00Z"), ZoneOffset.UTC);
-            CorrespondenciaMenusTwilio menus = new CorrespondenciaMenusTwilio(reloj);
+            CorrespondenciaMenusTwilio menus = SoporteMenusTwilio.crear(reloj);
 
             // 1. Entrada por Webhook con BSUID y texto confidencial
             TwilioPropiedades propControlador = new TwilioPropiedades(

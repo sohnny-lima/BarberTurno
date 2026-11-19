@@ -186,7 +186,9 @@ class VariosNumerosTwilioIT {
     @Autowired private ProcesadorEventosWhatsApp procesador;
     @Autowired private EnviadorSalidaWhatsApp enviador;
     @Autowired private JwtService jwt;
-    @Autowired private CorrespondenciaMenusTwilio menus;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private CorrespondenciaMenusTwilio menus;
+    private final java.util.concurrent.atomic.AtomicLong nanos = new java.util.concurrent.atomic.AtomicLong();
     @Autowired private CorrespondenciaDireccionesTwilio direcciones;
     @Autowired private BuzonRespuestasTwilio buzon;
     @Autowired private JsonMapper mapper;
@@ -204,6 +206,9 @@ class VariosNumerosTwilioIT {
 
     @BeforeEach
     void preparar() {
+        nanos.set(0);
+        org.mockito.Mockito.doAnswer(inv -> nanos.getAndAdd(Duration.ofSeconds(2).toNanos()))
+                .when(menus).ahoraNano();
         if (!servidorTwilio.estaIniciado()) servidorTwilio.iniciar();
         servidorTwilio.reiniciar();
         ejecutorHilos = Executors.newCachedThreadPool();

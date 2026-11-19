@@ -136,6 +136,9 @@ class RecorridoTwilioIT {
     @Autowired private JwtService jwt;
     @Autowired private PlatformTransactionManager gestor;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private CorrespondenciaMenusTwilio menus;
+    private final java.util.concurrent.atomic.AtomicLong nanos = new java.util.concurrent.atomic.AtomicLong();
     private HttpClient clienteHttp;
     private long negocioId;
     private Usuario titular;
@@ -143,6 +146,9 @@ class RecorridoTwilioIT {
 
     @BeforeEach
     void prepararDatos() {
+        nanos.set(0);
+        org.mockito.Mockito.doAnswer(inv -> nanos.getAndAdd(Duration.ofSeconds(2).toNanos()))
+                .when(menus).ahoraNano();
         clienteHttp = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NEVER)
@@ -331,11 +337,11 @@ class RecorridoTwilioIT {
 
         // 3. Exigir que el mensaje recibido pida confirmación explícita con la opción Confirmar
         String textoConfirmacion = ultimoTexto();
-        assertThat(textoConfirmacion).as("resumen o aviso de confirmación de cancelación").contains("Confirmar");
-        assertThat(tieneOpcion(textoConfirmacion, "Confirmar")).as("opción Confirmar presente").isTrue();
+        assertThat(textoConfirmacion).as("decisión explícita de cancelar o mantener").contains("Sí, cancelar", "Mantener cita");
+        assertThat(tieneOpcion(textoConfirmacion, "Sí, cancelar")).isTrue();
 
         // 4. Enviar explícitamente Confirmar
-        simularMensajeEntrante("SM_IN_C_CONF", opcion(textoConfirmacion, "Confirmar"));
+        simularMensajeEntrante("SM_IN_C_CONF", opcion(textoConfirmacion, "Sí, cancelar"));
 
         // 5. Ahora sí la reserva debe quedar CANCELADA
         assertThat(estadoDe(reservaCreada.getId()))

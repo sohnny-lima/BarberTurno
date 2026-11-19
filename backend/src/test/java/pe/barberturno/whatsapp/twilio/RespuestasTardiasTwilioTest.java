@@ -52,7 +52,7 @@ class RespuestasTardiasTwilioTest {
         reloj = new RelojAjustable();
         reloj.fijar(Instant.parse("2026-11-12T12:00:00Z"));
         mapper = JsonMapper.builder().build();
-        menus = new CorrespondenciaMenusTwilio(reloj);
+        menus = SoporteMenusTwilio.crear(reloj);
         direcciones = new CorrespondenciaDireccionesTwilio();
 
         TwilioPropiedades propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,

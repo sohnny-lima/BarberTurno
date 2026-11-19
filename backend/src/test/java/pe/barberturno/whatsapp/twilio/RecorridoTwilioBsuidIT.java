@@ -152,6 +152,9 @@ class RecorridoTwilioBsuidIT {
     @Autowired private JwtService jwt;
     @Autowired private PlatformTransactionManager gestor;
     @Autowired private CorrespondenciaDireccionesTwilio direcciones;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private CorrespondenciaMenusTwilio menus;
+    private final java.util.concurrent.atomic.AtomicLong nanos = new java.util.concurrent.atomic.AtomicLong();
 
     private HttpClient clienteHttp;
     private ExecutorService ejecutorHilos;
@@ -163,6 +166,9 @@ class RecorridoTwilioBsuidIT {
 
     @BeforeEach
     void prepararDatos() {
+        nanos.set(0);
+        org.mockito.Mockito.doAnswer(inv -> nanos.getAndAdd(Duration.ofSeconds(2).toNanos()))
+                .when(menus).ahoraNano();
         clienteHttp = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NEVER)
@@ -270,14 +276,12 @@ class RecorridoTwilioBsuidIT {
     }
 
     /**
-     * Envía un mensaje POST firmado en otro hilo asíncrono para no bloquear la ejecución mientras
-     * el webhook espera respuestas por TwiML. El hilo principal llama a procesarLote() y enviarLote()
-     * hasta que la respuesta HTTP se completa.
+     * Prepara un formulario ficticio con BSUID, sin WaId, compartido por el recorrido y la ráfaga.
      * @param sid MessageSid del mensaje entrante
      * @param cuerpo texto enviado por la persona
-     * @return cuerpo XML devuelto por el webhook de Twilio
+     * @return formulario que se firma antes de enviarlo al servidor local
      */
-    private HttpResponse<String> simularMensajeEntranteTwiml(String sid, String cuerpo) throws Exception {
+    private Map<String, String> datosMensaje(String sid, String cuerpo) {
         Map<String, String> datos = new LinkedHashMap<>();
         datos.put("AccountSid", ACCOUNT_SID);
         datos.put("MessageSid", sid);
@@ -286,6 +290,43 @@ class RecorridoTwilioBsuidIT {
         // Omitir WaId intencionadamente para acreditar el flujo por BSUID
         datos.put("ProfileName", "Carlos Bsuid");
         datos.put("Body", cuerpo);
+        return datos;
+    }
+
+    private void elegirConRafagaYReintento(String sid, String cuerpo) throws Exception {
+        var datos = datosMensaje(sid, cuerpo);
+        var futuro = CompletableFuture.supplyAsync(() -> {
+            try { return postTwilio("/api/twilio/webhook", datos); }
+            catch (Exception fallo) { throw new IllegalStateException(fallo); }
+        }, ejecutorHilos);
+        long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (sql.queryForObject("SELECT count(*) FROM evento_whatsapp_entrante WHERE clave_idempotencia=?",
+                Integer.class, "m:" + sid) == 0 && System.nanoTime() < limite) {
+            TimeUnit.MILLISECONDS.sleep(15);
+        }
+        assertThat(sql.queryForObject("SELECT count(*) FROM evento_whatsapp_entrante WHERE clave_idempotencia=?",
+                Integer.class, "m:" + sid)).isOne();
+        var repetido = postTwilio("/api/twilio/webhook", datos);
+        assertThat(repetido.body()).isEqualTo("<Response/>");
+        var segundo = postTwilio("/api/twilio/webhook", datosMensaje(sid + "_OTRO", cuerpo));
+        assertThat(segundo.body()).contains("Recibí varios mensajes seguidos; para evitar errores, elige de nuevo:");
+        assertThat(sql.queryForObject("SELECT count(*) FROM evento_whatsapp_entrante WHERE clave_idempotencia=?",
+                Integer.class, "m:" + sid + "_OTRO")).isZero();
+        limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(12);
+        while (!futuro.isDone() && System.nanoTime() < limite) {
+            procesador.procesarLote();
+            enviador.enviarLote();
+            TimeUnit.MILLISECONDS.sleep(15);
+        }
+        var respuesta = futuro.get(5, TimeUnit.SECONDS);
+        assertThat(respuesta.statusCode()).isEqualTo(200);
+        ultimosNodosRecibidos = extraerMensajesTwiml(respuesta.body());
+        ultimoTextoRecibido = desescaparTwiml(respuesta.body());
+        assertThat(ultimosNodosRecibidos).hasSize(1);
+    }
+
+    private HttpResponse<String> simularMensajeEntranteTwiml(String sid, String cuerpo) throws Exception {
+        var datos = datosMensaje(sid, cuerpo);
 
         CompletableFuture<HttpResponse<String>> futuro = CompletableFuture.supplyAsync(() -> {
             try {
@@ -359,8 +400,8 @@ class RecorridoTwilioBsuidIT {
                 .hasSize(1);
         assertThat(nodosConfirmacion.getFirst())
                 .as("el nodo <Message> posterior a confirmar debe contener la confirmación de la cita y el menú")
-                .contains("Listo:")
-                .contains("Reservar");
+                .contains("Listo, tu cita en ")
+                .contains("Reprogramar", "Cancelar", "Menú principal");
 
         // 3. Verificación en la base de datos: la reserva existe y tiene la ficha con el wa_id sintético
         var listaReservas = reservasDelNegocio();
@@ -390,7 +431,7 @@ class RecorridoTwilioBsuidIT {
         assertThat(respuestaAgenda.body()).contains("\"id\":" + reservaCreada.getId());
 
         // 5. Reprogramación directa desde el resultado mediante la correspondencia numérica vigente.
-        simularMensajeEntranteTwiml("SM_IN_REPRO_0", opcion(ultimoTexto(), "Reprogramar"));
+        elegirConRafagaYReintento("SM_IN_REPRO_0", opcion(ultimoTexto(), "Reprogramar"));
         simularMensajeEntranteTwiml("SM_IN_REPRO_1", opcion(ultimoTexto(), "Mañana"));
         simularMensajeEntranteTwiml("SM_IN_REPRO_2", opcion(ultimoTexto(), ""));
         assertThat(reservasDelNegocio().getFirst().getInicio()).isEqualTo(reservaCreada.getInicio());
@@ -419,11 +460,11 @@ class RecorridoTwilioBsuidIT {
         List<String> nodosPideConfirmar = ultimosNodos();
         assertThat(nodosPideConfirmar).hasSize(1);
         String textoConfirmacion = nodosPideConfirmar.getFirst();
-        assertThat(textoConfirmacion).as("resumen o aviso de confirmación de cancelación").contains("Confirmar");
-        assertThat(tieneOpcion(textoConfirmacion, "Confirmar")).as("opción Confirmar presente").isTrue();
+        assertThat(textoConfirmacion).as("decisión explícita de cancelar o mantener").contains("Sí, cancelar", "Mantener cita");
+        assertThat(tieneOpcion(textoConfirmacion, "Sí, cancelar")).isTrue();
 
         // Enviar explícitamente Confirmar
-        simularMensajeEntranteTwiml("SM_IN_C_CONF", opcion(textoConfirmacion, "Confirmar"));
+        simularMensajeEntranteTwiml("SM_IN_C_CONF", opcion(textoConfirmacion, "Sí, cancelar"));
 
         // Ahora sí la reserva debe quedar CANCELADA
         assertThat(estadoDe(reservaCreada.getId()))
