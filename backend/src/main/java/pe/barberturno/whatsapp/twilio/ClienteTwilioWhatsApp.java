@@ -93,14 +93,17 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
                 || mensaje.texto().isBlank() || mensaje.texto().length() > 1600) {
             return permanente(MotivoFallo.SOLICITUD_RECHAZADA);
         }
-        if (propiedades.respuestaTwiml() && buzon.entregar(phoneNumberId, waId, mensaje.texto())) {
+        if (propiedades.respuestaTwiml() && buzon.entregar(phoneNumberId, waId, mensaje.texto(), () -> {
             if (!mensaje.opciones().isEmpty()) menus.guardar(phoneNumberId, waId, mensaje.opciones(), mensaje.texto());
+            else menus.entregadoSinOpciones(phoneNumberId, waId);
+        })) {
             LOG.info("Twilio Sandbox: respuesta aceptada por TwiML.");
             return new ResultadoEnvio.Aceptado("twiml:" + UUID.randomUUID());
         }
         if (waId.matches("9[0-9]{19}")) {
             boolean retenida = buzon.retener(phoneNumberId, waId, mensaje.texto(), () -> {
                 if (!mensaje.opciones().isEmpty()) menus.guardar(phoneNumberId, waId, mensaje.opciones(), mensaje.texto());
+                else menus.entregadoSinOpciones(phoneNumberId, waId);
             });
             LOG.info("Twilio Sandbox: respuesta diferida {}.", retenida ? "retenida" : "descartada");
             return new ResultadoEnvio.Aceptado("twiml-pendiente:" + UUID.randomUUID());
@@ -152,6 +155,9 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
                 && (resultado instanceof ResultadoEnvio.Aceptado || resultado instanceof ResultadoEnvio.Desconocido)) {
             menus.guardar(phoneNumberId, waId, mensaje.opciones(), mensaje.texto());
         }
+        if (mensaje.opciones().isEmpty() && resultado instanceof ResultadoEnvio.Aceptado) {
+            menus.entregadoSinOpciones(phoneNumberId, waId);
+        }
         LOG.info("Twilio Sandbox: resultado {}.", resultado.getClass().getSimpleName());
         return resultado;
     }
@@ -191,6 +197,20 @@ public class ClienteTwilioWhatsApp implements ClienteGraphWhatsApp {
             default -> throw new IllegalArgumentException();
         }
         if (opciones.isEmpty()) throw new IllegalArgumentException();
+        var codigo = java.util.regex.Pattern.compile("\\bBT-\\d+\\b")
+                .matcher(interactivo.path("body").path("text").asString(""));
+        if (codigo.find()) {
+            String cita = codigo.group();
+            for (int i = 0; i < opciones.size(); i++) {
+                var opcion = opciones.get(i);
+                if (opcion.id().startsWith("a:") || opcion.id().startsWith("o:")) {
+                    String titulo = opcion.titulo() + " " + cita;
+                    texto = new StringBuilder(texto.toString().replace(
+                            (i + 1) + ". " + opcion.titulo() + "\n", (i + 1) + ". " + titulo + "\n"));
+                    opciones.set(i, new CorrespondenciaMenusTwilio.Seleccion(opcion.tipo(), opcion.id(), titulo));
+                }
+            }
+        }
         texto.append("Responde con el número o escribe «menu» para volver al inicio.");
         return new Mensaje(texto.toString(), List.copyOf(opciones));
     }

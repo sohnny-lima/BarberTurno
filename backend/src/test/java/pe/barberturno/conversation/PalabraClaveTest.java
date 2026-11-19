@@ -19,7 +19,8 @@ class PalabraClaveTest {
             "menu", "Menú", "MENU", " menù ", "¿menú?", "¡Menú!",
             "hola", "Hola", "HOLA", "¡Hola!", "¿Hola?", "  hola. ",
             "inicio", "Inicio", "INICIO", "  inicio.  ",
-            "0", "0.", " 0 ", " ¡0! "
+            "0", "0.", " 0 ", " ¡0! ", "volver", "Volver", "¡Volver!",
+            "ayuda", "Ayuda", "AYUDA", "¡Ayuda!", "¿Ayuda?", "  ayuda. "
     })
     @DisplayName("Reconoce conjunto MENU con variantes de mayúsculas, tildes y signos")
     void de_variantesMenu_reconoceMenu(String entrada) {
@@ -53,8 +54,7 @@ class PalabraClaveTest {
             "persona", "Persona", "PERSONA", "¿persona?", "¡Persona!",
             "humano", "Humano", "HUMANO", " humano ", "¡Humano!",
             "asesor", "Asesor", "ASESOR", " asesor. ",
-            "agente", "Agente", "AGENTE", " ¡agente! ",
-            "ayuda", "Ayuda", "AYUDA", "¡Ayuda!", "¿Ayuda?", "  ayuda. "
+            "agente", "Agente", "AGENTE", " ¡agente! "
     })
     @DisplayName("Reconoce conjunto PERSONA para frases exactas con variantes de mayúsculas, tildes y signos")
     void de_variantesPersona_reconocePersona(String entrada) {

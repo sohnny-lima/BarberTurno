@@ -71,7 +71,7 @@ class NavegacionMenusTwilioTest {
     void preparar() {
         mapper = JsonMapper.builder().build();
         Clock reloj = Clock.fixed(AHORA, ZoneOffset.UTC);
-        menus = new CorrespondenciaMenusTwilio(reloj);
+        menus = SoporteMenusTwilio.crear(reloj);
         direcciones = new CorrespondenciaDireccionesTwilio();
 
         propiedades = new TwilioPropiedades(ACCOUNT_SID, AUTH_TOKEN, NUMERO_SANDBOX, URL_PUBLICA,
@@ -201,6 +201,44 @@ class NavegacionMenusTwilioTest {
                 .path("entry").path(0).path("changes").path(0).path("value").path("messages").path(0);
         assertThat(msgMenu.path("type").asText()).isEqualTo("text");
         assertThat(msgMenu.path("text").path("body").asText()).isEqualTo("menu");
+    }
+
+    @Test
+    void respuestasRapidas_noAplicanDosNumerosAlMenuSiguiente_yElReintentoConservaSeleccion() {
+        long llegada = menus.ahoraNano();
+        var primera = menus.decidir(PHONE_NUMBER_ID, WA_ID, "1", "SM_RAPIDA_1", false, llegada);
+        assertThat(primera.seleccion()).get().extracting(CorrespondenciaMenusTwilio.Seleccion::id).isEqualTo("s:1");
+        long llegadaSegunda = menus.ahoraNano();
+        var segunda = menus.decidir(PHONE_NUMBER_ID, WA_ID, "1", "SM_RAPIDA_2", false, llegadaSegunda);
+        assertThat(segunda.seleccion()).isEmpty();
+        assertThat(segunda.aviso()).get().asString().startsWith("Recibí varios mensajes seguidos; para evitar errores, elige de nuevo:")
+                .contains(TEXTO_MENU_SERVICIOS);
+        menus.guardar(PHONE_NUMBER_ID, WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar")), "1. Reservar");
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "1", "SM_RAPIDA_1", false, menus.ahoraNano())).isEqualTo(primera);
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "1", "SM_RAPIDA_2", false, menus.ahoraNano())).isEqualTo(segunda);
+        // Otra petición ya recibida antes de publicarse este menú tampoco puede consumirlo, aunque se evalúe después.
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "1", "SM_RAPIDA_3", false, llegadaSegunda).seleccion()).isEmpty();
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "1", "SM_POSTERIOR", false, menus.ahoraNano()).seleccion())
+                .get().extracting(CorrespondenciaMenusTwilio.Seleccion::id).isEqualTo("m:RESERVAR");
+    }
+
+    @Test
+    void botonRapidoODeOtroMenu_noSeConvierteEnUnaAccion() {
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "s:1", "SM_BTN_1", true, menus.ahoraNano()).seleccion()).isPresent();
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "s:2", "SM_BTN_2", true, menus.ahoraNano()).seleccion()).isEmpty();
+        menus.guardar(PHONE_NUMBER_ID, WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:INICIO", "Menú principal")), "1. Menú principal");
+        assertThat(menus.decidir(PHONE_NUMBER_ID, WA_ID, "s:1", "SM_BTN_ANTERIOR", true, menus.ahoraNano()).seleccion()).isEmpty();
+    }
+
+    @Test
+    void menuConUnaOpcion_avisoNatural_sinRangoDelUnoAlUno() {
+        menus.guardar(PHONE_NUMBER_ID, WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:INICIO", "Menú principal")), "1. Menú principal");
+        assertThat(menus.respuestaInvalida(PHONE_NUMBER_ID, WA_ID, "7", "SM_UNA_OPCION")).get().asString()
+                .startsWith("Solo hay una opción en este menú. Responde con 1")
+                .doesNotContain("del 1 al 1");
     }
 
     @Test

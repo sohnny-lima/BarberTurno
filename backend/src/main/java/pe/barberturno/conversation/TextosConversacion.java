@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -16,10 +17,10 @@ import pe.barberturno.reservations.EstadoReserva;
 /**
  * Textos del servidor para la conversación guiada (V2-RN-11; 13-v2-10 §3.2). Fechas y horas siempre en
  * Lima con {@code TiempoNegocio}; precio en soles con coma decimal. Los textos de resultado se componen
- * solo a partir de {@link ResultadoOperacion}. Sin textos de privacidad propios: llegan de la
- * configuración. Implementación: Gemini (bloque G).
+ * a partir de {@link ResultadoOperacion} y del nombre del negocio del canal. Los textos de privacidad
+ * llegan de la configuración. Implementación inicial: Gemini (bloque G).
  * @author Sohnny Walter Lima Infanzón
- * @version 1.0
+ * @version 1.1
  */
 @Component
 public class TextosConversacion {
@@ -170,21 +171,44 @@ public class TextosConversacion {
     /**
      * Detalle de una cita con las acciones que permite.
      * @param cita cita de la ficha
+     * @param negocio barbería del canal actual
      * @return texto con código, servicio, profesional, fecha completa y hora
      */
-    public String detalleCita(CitaOpcion cita) {
-        return "Tu cita " + cita.codigo() + ":\n"
+    public String detalleCita(CitaOpcion cita, String negocio) {
+        return "Tu cita en " + negocio + ": " + cita.codigo() + "\n"
                 + cita.servicio() + " con " + cita.profesional() + "\n"
-                + fecha(cita.inicio()) + " a las " + hora(cita.inicio()) + ".";
+                + fecha(cita.inicio()) + " · " + hora(cita.inicio()) + " a " + hora(cita.fin())
+                + "\nEstado: " + estadoLegible(cita.estado()) + ".";
+    }
+
+    /**
+     * Explica la ausencia de acciones sin habilitar excepciones a los permisos del servidor (RN-07).
+     * @param cita cita con permisos actuales calculados por el servidor
+     * @param ahora instante del reloj inyectado en el orquestador
+     * @return aviso con el motivo y contacto, o vacío si hay acciones o la cita terminó
+     */
+    public String avisoSinAcciones(CitaOpcion cita, Instant ahora) {
+        if (cita.puedeCancelar() || cita.puedeReprogramar()
+                || cita.estado() != EstadoReserva.CONFIRMADA && cita.estado() != EstadoReserva.PENDIENTE) return "";
+        String motivo = cita.inicio().isAfter(ahora)
+                && Duration.between(ahora, cita.inicio()).compareTo(Duration.ofHours(2)) < 0
+                ? "Faltan menos de 2 horas para tu cita: ya no se puede cambiar ni cancelar por este medio."
+                : "Esta cita ya no permite cambios ni cancelaciones por este medio según la política de la barbería.";
+        return "\n\n" + motivo + " Puedes elegir «Hablar con alguien» para contactar con el equipo.";
     }
 
     /**
      * Resumen que se confirma: fecha completa, hora de inicio y fin, profesional, servicio, duración y
      * precio; al reprogramar, antes y después (V2-RF-11).
      * @param resumen datos de la propuesta
+     * @param negocio barbería del canal actual
      * @return texto del resumen
      */
-    public String resumen(ResumenOperacion resumen) {
+    public String resumen(ResumenOperacion resumen, String negocio) {
+        String identificacion = "Barbería: " + negocio + "\nCódigo: "
+                + resumen.antes().map(CitaOpcion::codigo).orElse("se asignará al confirmar") + "\n";
+        String estado = "\nEstado: " + resumen.antes().map(c -> estadoLegible(c.estado()))
+                .orElse("Propuesta sin confirmar") + ". Aún no se ha aplicado ningún cambio.";
         if (resumen.tipo() == TipoOperacion.REPROGRAMAR) {
             StringBuilder sb = new StringBuilder();
             if (resumen.antes().isPresent()) {
@@ -200,54 +224,43 @@ public class TextosConversacion {
                     .append(fecha(resumen.inicio())).append(", ").append(hora(resumen.inicio())).append(" a ").append(hora(resumen.fin()))
                     .append(" (").append(resumen.duracionMin()).append(" min)\n")
                     .append("Precio: ").append(precio(resumen.precio()));
-            return sb.toString();
+            return identificacion + sb + estado;
         }
 
         if (resumen.tipo() == TipoOperacion.CANCELAR) {
             String cod = resumen.antes().map(CitaOpcion::codigo).orElse("");
             String pre = cod.isBlank() ? "Cancelación de cita:\n" : "Cancelación de tu cita " + cod + ":\n";
-            return pre + resumen.servicio() + " con " + resumen.profesional() + "\n"
-                    + fecha(resumen.inicio()) + " a las " + hora(resumen.inicio()) + " a " + hora(resumen.fin())
+            return identificacion + pre + resumen.servicio() + " con " + resumen.profesional() + "\n"
+                    + fecha(resumen.inicio()) + ", " + hora(resumen.inicio()) + " a " + hora(resumen.fin())
                     + " (" + resumen.duracionMin() + " min)\n"
-                    + "Precio: " + precio(resumen.precio());
+                    + "Precio: " + precio(resumen.precio()) + estado;
         }
 
-        return resumen.servicio() + " con " + resumen.profesional() + "\n"
+        return identificacion + resumen.servicio() + " con " + resumen.profesional() + "\n"
                 + fecha(resumen.inicio()) + ", " + hora(resumen.inicio()) + " a " + hora(resumen.fin())
                 + " (" + resumen.duracionMin() + " min)\n"
-                + "Precio: " + precio(resumen.precio());
+                + "Precio: " + precio(resumen.precio()) + estado;
     }
 
     /**
-     * Texto de resultado compuesto solo con el resultado confirmado en la base (V2-RN-11). Una reserva
-     * {@code PENDIENTE} se presenta como pendiente de confirmación por la barbería.
+     * Resultado confirmado en la base (V2-RN-11), identificado con la barbería del canal y el estado
+     * legible de la instantánea. Una repetición conserva los datos de la operación ejecutada.
      * @param resultado resultado de confirmar o rechazar
+     * @param negocio nombre de la barbería resuelto por el servidor para el canal actual
      * @return texto
      */
-    public String resultado(ResultadoOperacion resultado) {
+    public String resultado(ResultadoOperacion resultado, String negocio) {
         return switch (resultado) {
             case ResultadoOperacion.Ejecutada ejec -> {
                 CitaOpcion cita = ejec.cita();
-                yield switch (ejec.tipo()) {
-                    case CREAR -> {
-                        String txt = "Listo: " + cita.codigo() + " el " + fecha(cita.inicio()) + " a las "
-                                + hora(cita.inicio()) + " con " + cita.profesional() + ".";
-                        if (cita.estado() == EstadoReserva.PENDIENTE) {
-                            txt += " Tu cita queda pendiente de confirmación por la barbería.";
-                        }
-                        yield txt;
-                    }
-                    case REPROGRAMAR -> {
-                        String txt = "Cambiamos tu cita " + cita.codigo() + " para el " + fecha(cita.inicio())
-                                + " a las " + hora(cita.inicio()) + " con " + cita.profesional() + ".";
-                        if (cita.estado() == EstadoReserva.PENDIENTE) {
-                            txt += " Tu cita queda pendiente de confirmación por la barbería.";
-                        }
-                        yield txt;
-                    }
-                    case CANCELAR -> "Cancelamos tu cita " + cita.codigo() + " del " + fecha(cita.inicio())
-                            + " a las " + hora(cita.inicio()) + " con " + cita.profesional() + ".";
+                String accion = switch (ejec.tipo()) {
+                    case CREAR -> "Listo, tu cita en ";
+                    case REPROGRAMAR -> "Reprogramamos tu cita en ";
+                    case CANCELAR -> "Cancelamos tu cita en ";
                 };
+                yield accion + negocio + ": " + cita.codigo() + " · " + cita.servicio() + " · " + fecha(cita.inicio()) + " · "
+                        + hora(cita.inicio()) + " a " + hora(cita.fin()) + " · con " + cita.profesional() + " · Estado: "
+                        + estadoLegible(cita.estado()) + ".";
             }
             case ResultadoOperacion.Rechazada rech -> rechazo(rech.codigo());
             case ResultadoOperacion.NoVigente noVig -> {
@@ -257,6 +270,17 @@ public class TextosConversacion {
                 yield "Esa propuesta ya no es válida.";
             }
             case ResultadoOperacion.Anulada a -> "De acuerdo, no hice ningún cambio.";
+        };
+    }
+
+    private String estadoLegible(EstadoReserva estado) {
+        return switch (estado) {
+            case PENDIENTE -> "Pendiente de confirmación por la barbería";
+            case CONFIRMADA -> "Confirmada";
+            case CANCELADA -> "Cancelada";
+            case EN_ATENCION -> "En atención";
+            case COMPLETADA -> "Completada";
+            case NO_ASISTIO -> "No asistió";
         };
     }
 
@@ -310,23 +334,53 @@ public class TextosConversacion {
     }
 
     /**
-     * Acuse de la derivación (06-flujos.md §9.2), origen {@code SISTEMA}: el equipo responderá por aquí.
-     * Implementación: Gemini (G11).
+     * Acuse de la derivación, origen {@code SISTEMA}: bandeja del equipo, canal de respuesta y retorno
+     * al asistente (V2-DA-76/105). El plazo limita la inactividad, sin prometer una respuesta del personal.
      * @param negocio nombre del negocio
+     * @param retornoAutomatico plazo configurado sin actividad del personal antes del retorno automático
      * @return texto
      */
-    public String derivada(String negocio) {
+    public String derivada(String negocio, Duration retornoAutomatico) {
         String nombre = (negocio != null && !negocio.isBlank()) ? negocio.strip() : "la barbería";
-        return "Te paso con el equipo de " + nombre + ". Te responderán por aquí en cuanto puedan.";
+        return "El equipo de " + nombre + " verá tu conversación en su bandeja y podrá responderte por este chat. "
+                + "Tras " + plazoRetorno(retornoAutomatico) + " sin respuesta del equipo, "
+                + "el asistente retomará la conversación automáticamente. "
+                + "Puedes volver antes al asistente escribiendo «menu».";
+    }
+
+    private String plazoRetorno(Duration plazo) {
+        long segundos = plazo.getSeconds();
+        if (plazo.getNano() == 0 && segundos % 3600 == 0) {
+            long horas = segundos / 3600;
+            return horas + (horas == 1 ? " hora" : " horas");
+        }
+        if (plazo.getNano() == 0 && segundos % 60 == 0) {
+            long minutos = segundos / 60;
+            return minutos + (minutos == 1 ? " minuto" : " minutos");
+        }
+        String cantidad = BigDecimal.valueOf(segundos).add(BigDecimal.valueOf(plazo.getNano(), 9))
+                .stripTrailingZeros().toPlainString().replace('.', ',');
+        return cantidad + (plazo.equals(Duration.ofSeconds(1)) ? " segundo" : " segundos");
     }
 
     /**
      * Aviso de que la conversación vuelve al asistente (por el personal o por el retorno automático), que
      * acompaña al menú principal. Implementación: Gemini (G11).
-     * @return texto
+     * @param negocio barbería que vuelve a atender el asistente
+     * @return texto del único menú de retorno, sin otro saludo
      */
-    public String devuelta() {
-        return "Hola de nuevo. Tu conversación ha vuelto al asistente virtual. ¿En qué te puedo ayudar?";
+    public String devuelta(String negocio) {
+        String nombre = (negocio != null && !negocio.isBlank()) ? negocio.strip() : "la barbería";
+        return "Tu conversación en " + nombre + " ha vuelto al asistente virtual. "
+                + "Puedes reservar, consultar tus citas o hablar con el equipo. ¿En qué te puedo ayudar?";
+    }
+
+    /**
+     * Avisa al abandonar un resumen pendiente mediante el menú, sin confirmar su operación.
+     * @return aviso de descarte sin cambios en la cita
+     */
+    public String propuestaDescartada() {
+        return "Descarté la propuesta pendiente sin guardar cambios.";
     }
 
     /**

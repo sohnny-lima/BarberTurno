@@ -34,8 +34,8 @@ class BandejaWhatsAppIT extends PeticionNegocioPruebaBase {
     long conversacion;
 
     @BeforeEach void prepararBandeja() {
-        when(textos.derivada(anyString())).thenReturn("El equipo le atenderá por aquí.");
-        when(textos.devuelta()).thenReturn("Puede continuar con el asistente.");
+        when(textos.derivada(anyString(), org.mockito.ArgumentMatchers.eq(Duration.ofHours(24)))).thenReturn("El equipo le atenderá por aquí.");
+        when(textos.devuelta(anyString())).thenReturn("Puede continuar con el asistente.");
         titular = personal("titular", "a", RolNegocio.PROPIETARIO);
         encargado = personal("encargado", "a", RolNegocio.ENCARGADO);
         en("a", () -> jdbc.update("""

@@ -42,7 +42,7 @@ class TraduccionTwilioTest {
         mapper = JsonMapper.builder().build();
         reloj = new RelojAjustable();
         reloj.fijar(T0);
-        menus = new CorrespondenciaMenusTwilio(reloj);
+        menus = SoporteMenusTwilio.crear(reloj);
         direcciones = new CorrespondenciaDireccionesTwilio();
         TwilioPropiedades propiedades = new TwilioPropiedades("AC0123456789abcdef0123456789abcdef",
                 "token-ficticio", NUMERO_SANDBOX, "https://pruebas.barberturno.test",
@@ -90,6 +90,8 @@ class TraduccionTwilioTest {
 
     @Test
     void mensaje_conButtonPayload_traduceAInteractivoButtonReply() throws Exception {
+        menus.guardar("14155238886", WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:RESERVAR", "Reservar")), "1. Reservar");
         Map<String, String> datos = baseMensaje("SM_BTN_1", "Reservar");
         datos.put("ButtonPayload", "m:RESERVAR");
         datos.put("ButtonText", "Reservar");
@@ -129,14 +131,12 @@ class TraduccionTwilioTest {
         assertThat(interactivo.path("list_reply").path("id").asText()).isEqualTo("s:2");
         assertThat(interactivo.path("list_reply").path("title").asText()).isEqualTo("Barba y bigote");
 
-        // El menú fue consumido: una segunda respuesta con "1" llega como texto plano
+        // Otra entrada antes del siguiente menú no llega al dominio como texto ni selección.
         Map<String, String> posterior = baseMensaje("SM_NUM_LISTA_2", "1");
         Optional<byte[]> resPosterior = traductor.mensaje(posterior);
-        assertThat(resPosterior).isPresent();
-        JsonNode mensajePosterior = mapper.readTree(resPosterior.get())
-                .path("entry").path(0).path("changes").path(0).path("value").path("messages").path(0);
-        assertThat(mensajePosterior.path("type").asText()).isEqualTo("text");
-        assertThat(mensajePosterior.path("text").path("body").asText()).isEqualTo("1");
+        assertThat(resPosterior).isEmpty();
+        assertThat(traductor.respuestaInvalida(posterior)).get().asString()
+                .startsWith("Recibí varios mensajes seguidos");
     }
 
     @Test

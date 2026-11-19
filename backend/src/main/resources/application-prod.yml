@@ -8,6 +8,7 @@ barberturno:
   seguridad:
     jwt-secret: ${BT_JWT_SECRET}
     cookie-secure: ${BT_COOKIE_SECURE}
+    bcrypt-coste: 12
   admin:
     correo: ${BT_ADMIN_CORREO}
     password: ${BT_ADMIN_PASSWORD}

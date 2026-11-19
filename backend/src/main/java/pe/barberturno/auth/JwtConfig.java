@@ -19,7 +19,9 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 
 /**
- * Configura firma HS256, caducidad estricta y BCrypt de coste 12 para RNF-03 y arquitectura §7.1.
+ * Configura firma HS256, caducidad estricta y BCrypt configurable para RNF-03 y arquitectura §7.1.
+ * El coste predeterminado es 12; el perfil test lo baja solo para acelerar las pruebas. Los hashes guardan
+ * su propio coste, así que cambiar la configuración no invalida contraseñas existentes.
  * @author Sohnny Walter Lima Infanzón
  * @version 1.0
  */
@@ -101,8 +103,17 @@ public class JwtConfig {
     }
 
     /**
-     * {@return codificador BCrypt de coste 12 para proteger las credenciales según RNF-03}
+     * Crea el codificador BCrypt con el coste configurado.
+     * @param coste número de rondas entre 4 y 31; 12 es el valor predeterminado según RNF-03
+     * @return codificador BCrypt configurado
+     * @throws IllegalStateException si el coste está fuera del intervalo admitido
      */
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
+    public PasswordEncoder passwordEncoder(
+            @Value("${barberturno.seguridad.bcrypt-coste:12}") int coste) {
+        if (coste < 4 || coste > 31) {
+            throw new IllegalStateException("El coste BCrypt debe estar entre 4 y 31.");
+        }
+        return new BCryptPasswordEncoder(coste);
+    }
 }

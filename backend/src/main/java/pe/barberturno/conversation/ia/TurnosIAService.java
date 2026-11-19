@@ -311,8 +311,11 @@ public class TurnosIAService implements TurnosIA {
                     default -> throw new IllegalStateException();
                 };
                 if (propuesta instanceof Propuesta.Creada p) {
+                    String resumen = textos.resumen(p.resumen(), consultas.nombreNegocio());
                     enviar(r, new MensajeAsistente.Interactivo(
-                            menus.confirmacion(textos.resumen(p.resumen()), p.operacionId(), p.nonce())));
+                            p.resumen().tipo() == TipoOperacion.CANCELAR
+                                    ? menus.confirmacionCancelacion(resumen, p.operacionId(), p.nonce())
+                                    : menus.confirmacion(resumen, p.operacionId(), p.nonce())));
                     ultima = "PROPUESTA";
                     conservarSelecciones = true;
                 } else {

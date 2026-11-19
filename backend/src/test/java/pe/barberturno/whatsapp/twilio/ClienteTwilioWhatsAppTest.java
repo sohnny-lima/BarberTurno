@@ -15,6 +15,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import pe.barberturno.conversation.FranjaOpcion;
 import pe.barberturno.conversation.MenusConversacion;
 import pe.barberturno.conversation.ServicioOpcion;
@@ -65,7 +67,7 @@ class ClienteTwilioWhatsAppTest {
         mapper = JsonMapper.builder().build();
         reloj = new RelojAjustable();
         reloj.fijar(Instant.parse("2026-11-11T12:00:00Z"));
-        menus = new CorrespondenciaMenusTwilio(reloj);
+        menus = SoporteMenusTwilio.crear(reloj);
         menusConversacion = new MenusConversacion();
 
         direcciones = new CorrespondenciaDireccionesTwilio();
@@ -518,12 +520,41 @@ class ClienteTwilioWhatsAppTest {
         assertThat(((ResultadoEnvio.Aceptado) resultado).wamid()).startsWith("twiml:");
         assertThat(servidor.peticiones()).isEmpty();
 
-        // El menú queda guardado en la correspondencia
+        // El menú aún no es elegible hasta tomar el TwiML que lo presenta.
+        assertThat(menus.consumir("14155238886", WA_ID, "1", "SM_ANTES_DE_ENTREGAR")).isEmpty();
+        buzonConTwiml.tomar(espera.orElseThrow());
+        // Al devolver el cuerpo HTTP quedan publicadas sus opciones.
         var seleccion1 = menus.consumir("14155238886", WA_ID, "1", "SM_IN_1");
         assertThat(seleccion1).isPresent();
         assertThat(seleccion1.get().titulo()).isEqualTo("Reservar");
 
         buzonConTwiml.cerrar(espera.get());
+    }
+
+    @Test
+    void derivacionPorTwiml_liberaPendienteSoloAlEntregarElTextoSinOpciones() {
+        menus.guardar(PHONE_NUMBER_ID, WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:INICIO", "Menú")), "1. Menú");
+        menus.decidir(PHONE_NUMBER_ID, WA_ID, "persona", "SM_PERSONA", false, menus.ahoraNano());
+        var espera = buzonConTwiml.abrir(PHONE_NUMBER_ID, WA_ID).orElseThrow();
+        assertThat(clienteTwiml.enviar(PHONE_NUMBER_ID,
+                crearMensajeTexto(WA_ID, "El equipo verá tu conversación en su bandeja.")))
+                .isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(menus.consumir(PHONE_NUMBER_ID, WA_ID, "1", "SM_ANTES_DEL_TEXTO")).isEmpty();
+        assertThat(buzonConTwiml.tomar(espera)).hasSize(1);
+        assertThat(menus.consumir(PHONE_NUMBER_ID, WA_ID, "1", "SM_DESPUES_DEL_TEXTO")).isPresent();
+        assertThat(servidor.peticiones()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"El equipo verá tu conversación en su bandeja.", "Esa propuesta ya no es válida."})
+    void textoPorRest_derivacionONoVigente_liberaPendienteSinOpciones(String texto) {
+        menus.guardar(PHONE_NUMBER_ID, WA_ID, List.of(
+                new CorrespondenciaMenusTwilio.Seleccion("button_reply", "m:INICIO", "Menú")), "1. Menú");
+        menus.decidir(PHONE_NUMBER_ID, WA_ID, "persona", "SM_ENTRADA", false, menus.ahoraNano());
+        assertThat(cliente.enviar(PHONE_NUMBER_ID, crearMensajeTexto(WA_ID, texto)))
+                .isInstanceOf(ResultadoEnvio.Aceptado.class);
+        assertThat(menus.consumir(PHONE_NUMBER_ID, WA_ID, "1", "SM_TRAS_EL_TEXTO")).isPresent();
     }
 
     @Test

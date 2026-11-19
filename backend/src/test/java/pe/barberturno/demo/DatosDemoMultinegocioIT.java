@@ -64,6 +64,11 @@ class DatosDemoMultinegocioIT {
                 }
                 assertThat(usuarios.findByCorreo("plataforma@ejemplo.test").orElseThrow().getRolPlataforma())
                         .isEqualTo(pe.barberturno.platform.RolPlataforma.ADMIN_PLATAFORMA);
+                assertThat(usuarios.findByCorreo("personal-cliente@ejemplo.test").orElseThrow().getNombre())
+                        .isEqualTo("Jorge");
+                assertThat(ejecutor.<String>ejecutar("barberturno", () -> sql.queryForObject(
+                        "select b.nombre_visible from barbero b join usuario u on u.id=b.usuario_id where u.correo='personal-cliente@ejemplo.test'",
+                        String.class))).isEqualTo("Jorge");
                 assertThat(sql.queryForObject("select count(*) from usuario where correo not like '%@ejemplo.test'", Long.class)).isZero();
                 assertThat(ejecutor.<Long>ejecutar("barberturno", () -> sql.queryForObject("select count(*) from cliente where usuario_id=(select id from usuario where correo='personal-cliente@ejemplo.test') and activo", Long.class))).isOne();
                 for (String slug : List.of("barberturno", "sur")) {

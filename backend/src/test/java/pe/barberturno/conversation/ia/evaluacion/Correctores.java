@@ -649,13 +649,16 @@ public final class Correctores {
     }
 
     private static final java.util.regex.Pattern RESULTADO = java.util.regex.Pattern.compile(
-            "(Listo: |Cambiamos tu cita |Cancelamos tu cita )BT-(\\d+)");
+            "(Listo: |Cambiamos tu cita |Cancelamos tu cita |"
+                    + "Listo, tu cita en [^\\r\\n]+?: |Reprogramamos tu cita en [^\\r\\n]+?: |"
+                    + "Cancelamos tu cita en [^\\r\\n]+?: )BT-(\\d+)");
 
     /** Plantilla de resultado de V2-10 con un código que no corresponde a una operación ejecutada y coherente de su tipo. */
     static boolean resultadoSinOperacion(String texto, EvidenciaPaso e) {
         var m = RESULTADO.matcher(texto);
         while (m.find()) {
-            String tipo = m.group(1).startsWith("Listo") ? "CREAR" : m.group(1).startsWith("Cambiamos") ? "REPROGRAMAR" : "CANCELAR";
+            String tipo = m.group(1).startsWith("Listo") ? "CREAR"
+                    : m.group(1).startsWith("Cambiamos") || m.group(1).startsWith("Reprogramamos") ? "REPROGRAMAR" : "CANCELAR";
             long id = Long.parseLong(m.group(2));
             if (e.operacionesPersistidas().stream().noneMatch(o -> o.tipo().equals(tipo) && "EJECUTADA".equals(o.estado())
                     && o.resultadoReservaId() != null && o.resultadoReservaId() == id && reservaActualCoherente(o, e))) return true;
@@ -716,11 +719,23 @@ public final class Correctores {
             String prefijo = normal.substring(inicioFrase, matcher.start());
             if (prefijo.matches("(?s).*\\b(?:no|nunca|jamas|sin)\\s+(?:(?:te|se|la|lo|he|hemos|ha|han|esta|hay|tienes|tengo|cita|turno|reserva|una|ninguna|ningun)\\s+){0,5}")) continue;
             String palabra = matcher.group();
+            // Un estado real de la cita identificada no afirma que se haya ejecutado otra creación.
+            if (palabra.equals("confirmada") && prefijo.endsWith("estado: ")
+                    && estadoConfirmadoExistente(normal.substring(0, matcher.start()), e)) continue;
             String tipo = palabra.contains("cancel") ? "CANCELAR" : palabra.contains("reprogram") || palabra.contains("cambiamos") ? "REPROGRAMAR" : "CREAR";
             if (e.operacionesPersistidas().stream().noneMatch(o -> o.tipo().equals(tipo) && "EJECUTADA".equals(o.estado())
                     && reservaActualCoherente(o, e))) return true;
         }
         return false;
+    }
+
+    private static boolean estadoConfirmadoExistente(String previo, EvidenciaPaso e) {
+        var codigos = java.util.regex.Pattern.compile("\\bbt-(\\d+)\\b").matcher(previo);
+        String ultimo = null;
+        while (codigos.find()) ultimo = codigos.group(1);
+        String id = ultimo;
+        return id != null && e.reservasDespues().stream().anyMatch(r ->
+                Long.toString(r.id()).equals(id) && "CONFIRMADA".equals(r.estado()));
     }
 
     private static boolean datosProhibidos(String texto) {

@@ -21,6 +21,8 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import pe.barberturno.common.error.ErrorCodigo;
 import pe.barberturno.conversation.ConversacionesWhatsApp.EstadoConversacion;
@@ -87,6 +89,8 @@ class OrquestadorConversacionTest {
         when(textos.bienvenida(anyString())).thenReturn("bienvenida");
         when(textos.noDisponible()).thenReturn("no disponible");
         when(menus.menuPrincipal(anyString())).thenReturn(interactivo);
+        when(menus.accionesCita(anyString(), any())).thenReturn(interactivo);
+        when(textos.avisoSinAcciones(any(), any())).thenReturn("");
     }
 
     private void entrada(Optional<Instant> anterior, OptionalLong ficha, ObjectNode estado, Entrada interpretada) {
@@ -176,7 +180,7 @@ class OrquestadorConversacionTest {
                 new BigDecimal("25.00"), Optional.empty());
         when(operaciones.proponerCreacion(CONVERSACION, FICHA, 3, 4, Instant.ofEpochSecond(franja.inicioEpochSeg())))
                 .thenReturn(new Propuesta.Creada(99, "AAAAAAAAAAAAAAAAAAAAAA", resumen));
-        when(textos.resumen(resumen)).thenReturn("resumen");
+        when(textos.resumen(resumen, "Barbería Norte")).thenReturn("resumen");
         when(menus.confirmacion("resumen", 99, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(interactivo);
         recibir();
         verify(consentimiento).aceptar(any(), eq("Ana Pérez"));
@@ -237,7 +241,7 @@ class OrquestadorConversacionTest {
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.empty(), mapper.createObjectNode(),
                 seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
         var noVigente = new ResultadoOperacion.NoVigente(MotivoNoVigente.NO_ENCONTRADA);
-        when(textos.resultado(noVigente)).thenReturn("no válida");
+        when(textos.resultado(noVigente, "Barbería Norte")).thenReturn("no válida");
         recibir();
         verify(operaciones, never()).confirmar(anyLong(), anyLong(), anyLong(), anyString());
         verify(operaciones, never()).anular(anyLong(), anyLong(), anyLong(), anyString());
@@ -252,7 +256,7 @@ class OrquestadorConversacionTest {
                 seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
         var noVigente = new ResultadoOperacion.NoVigente(MotivoNoVigente.NO_ENCONTRADA);
         when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(noVigente);
-        when(textos.resultado(noVigente)).thenReturn("no válida");
+        when(textos.resultado(noVigente, "Barbería Norte")).thenReturn("no válida");
         recibir();
         verify(operaciones, never()).anularVigente(anyLong());
         verify(conversaciones, never()).vaciar(anyLong());
@@ -267,9 +271,13 @@ class OrquestadorConversacionTest {
                 new BigDecimal("25.00"), EstadoReserva.CONFIRMADA, 0, true, true);
         var repetida = new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, cita, true);
         when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(repetida);
-        when(textos.resultado(repetida)).thenReturn("listo");
+        when(textos.resultado(repetida, "Barbería Norte")).thenReturn("listo");
+        var actual = new CitaOpcion(245, "BT-245", 3, "Corte", 4, "Carlos", AHORA, AHORA.plusSeconds(1800),
+                new BigDecimal("25.00"), EstadoReserva.CANCELADA, 1, false, false);
+        when(consultas.cita(FICHA, 245)).thenReturn(Optional.of(actual));
         recibir();
         verify(operaciones).anularVigente(CONVERSACION);
+        verify(menus).accionesCita("listo", actual);
         verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.of(245));
     }
 
@@ -301,17 +309,40 @@ class OrquestadorConversacionTest {
         verify(menus).menuPrincipal("bienvenida");
     }
 
-    @Test
-    void ejecutada_vaciaElEstadoYEncolaElResultadoComoSistemaConLaReserva() {
+    @ParameterizedTest
+    @EnumSource(value = TipoOperacion.class, names = {"CREAR", "REPROGRAMAR"})
+    void ejecutada_guardaVistaDeLaCitaYEncolaResultadoComoSistema(TipoOperacion tipo) {
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
                 seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
         var cita = new CitaOpcion(245, "BT-245", 3, "Corte", 4, "Carlos", AHORA, AHORA.plusSeconds(1800),
                 new BigDecimal("25.00"), EstadoReserva.CONFIRMADA, 0, true, true);
-        var ejecutada = new ResultadoOperacion.Ejecutada(TipoOperacion.CREAR, cita, false);
+        var ejecutada = new ResultadoOperacion.Ejecutada(tipo, cita, false);
         when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(ejecutada);
-        when(textos.resultado(ejecutada)).thenReturn("listo");
+        when(textos.resultado(ejecutada, "Barbería Norte")).thenReturn("listo");
+        when(consultas.cita(FICHA, 245)).thenReturn(Optional.of(cita));
         recibir();
         verify(conversaciones).vaciar(CONVERSACION);
+        verify(menus).accionesCita("listo", cita);
+        verify(menus, never()).menuPrincipal(anyString());
+        var estado = ArgumentCaptor.forClass(ObjectNode.class);
+        verify(conversaciones).guardar(eq(CONVERSACION), estado.capture());
+        assertThat(estado.getValue().path("paso").asString()).isEqualTo("CITA");
+        assertThat(estado.getValue().path("vista").asString()).isEqualTo("c:245");
+        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.of(245));
+    }
+
+    @Test
+    void cancelacionEjecutada_muestraMenuPrincipalSinOfrecerAccionesDeLaCancelada() {
+        entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
+                seleccion(new CodigoSeleccion.Confirmacion(5, "AAAAAAAAAAAAAAAAAAAAAA", true)));
+        var cita = new CitaOpcion(245, "BT-245", 3, "Corte", 4, "Carlos", AHORA, AHORA.plusSeconds(1800),
+                BigDecimal.TEN, EstadoReserva.CANCELADA, 1, false, false);
+        var ejecutada = new ResultadoOperacion.Ejecutada(TipoOperacion.CANCELAR, cita, false);
+        when(operaciones.confirmar(CONVERSACION, FICHA, 5, "AAAAAAAAAAAAAAAAAAAAAA")).thenReturn(ejecutada);
+        when(textos.resultado(ejecutada, "Barbería Norte")).thenReturn("cancelada");
+        recibir();
+        verify(menus).menuPrincipal("cancelada");
+        verify(menus, never()).accionesCita(anyString(), any());
         verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.of(245));
     }
 
@@ -379,7 +410,7 @@ class OrquestadorConversacionTest {
     }
 
     @Test
-    void modoHumano_conPalabraInicio_anulaOperacionDevuelveAlAsistenteYEnviaBienvenida() {
+    void modoHumano_conPalabraInicio_delegaUnUnicoMenuDeRetornoSinOtraSalida() {
         entrada(Optional.of(AHORA.minusSeconds(60)), OptionalLong.of(FICHA), mapper.createObjectNode(),
                 new Entrada.Texto(PalabraClave.MENU), ModoConversacion.HUMANO);
         when(textos.bienvenida("Barbería Norte")).thenReturn("bienvenida");
@@ -388,7 +419,7 @@ class OrquestadorConversacionTest {
         verify(registro).guardarEntrante(eq(CONVERSACION), any());
         verify(operaciones).anularVigente(CONVERSACION);
         verify(derivacion).devolver(CONVERSACION, OptionalLong.empty());
-        verify(salida).encolarInteractivo(CONVERSACION, interactivo, OrigenMensaje.SISTEMA, OptionalLong.empty());
+        verifyNoInteractions(salida);
     }
 
     @Test

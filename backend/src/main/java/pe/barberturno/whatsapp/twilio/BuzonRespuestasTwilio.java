@@ -58,7 +58,7 @@ public class BuzonRespuestasTwilio {
         if (pendientes != null) {
             pendientes.forEach(r -> {
                 espera.mensajes.add(r.texto());
-                r.alEntregar().run();
+                espera.alEntregar.add(r.alEntregar());
             });
             espera.ultimoNano = System.nanoTime();
         }
@@ -74,6 +74,18 @@ public class BuzonRespuestasTwilio {
      * @return true solo si la espera abierta admite el mensaje dentro del plazo y del cupo
      */
     public synchronized boolean entregar(String numero, String waId, String texto) {
+        return entregar(numero, waId, texto, () -> { });
+    }
+
+    /**
+     * Acepta una respuesta sin publicar aún sus opciones; el callback se ejecuta al tomar el TwiML.
+     * @param numero canal del negocio
+     * @param waId destinatario de la respuesta
+     * @param texto mensaje íntegro convertido a texto numerado
+     * @param alEntregar publicación del menú al devolver el cuerpo HTTP, nunca al encolar
+     * @return verdadero si esta espera admite la respuesta
+     */
+    public synchronized boolean entregar(String numero, String waId, String texto, Runnable alEntregar) {
         Espera espera = esperas.get(new Persona(numero, waId));
         if (espera == null) return false;
         synchronized (espera) {
@@ -84,6 +96,7 @@ public class BuzonRespuestasTwilio {
                 return false;
             }
             espera.mensajes.add(texto);
+            espera.alEntregar.add(alEntregar);
             espera.ultimoNano = ahora;
             espera.notifyAll();
             return true;
@@ -109,6 +122,7 @@ public class BuzonRespuestasTwilio {
                         break;
                     }
                 }
+                publicar(espera);
                 return List.copyOf(espera.mensajes);
             } finally {
                 cerrar(espera);
@@ -124,7 +138,7 @@ public class BuzonRespuestasTwilio {
      */
     public List<String> tomar(Espera espera) {
         synchronized (espera) {
-            try { return List.copyOf(espera.mensajes); }
+            try { publicar(espera); return List.copyOf(espera.mensajes); }
             finally { cerrar(espera); }
         }
     }
@@ -151,8 +165,7 @@ public class BuzonRespuestasTwilio {
      * @return verdadero si se entregó o retuvo; falso si se descartó por desbordamiento
      */
     public synchronized boolean retener(String numero, String waId, String texto, Runnable alEntregar) {
-        if (entregar(numero, waId, texto)) {
-            alEntregar.run();
+        if (entregar(numero, waId, texto, alEntregar)) {
             return true;
         }
         purgar();
@@ -179,6 +192,12 @@ public class BuzonRespuestasTwilio {
     private record Persona(String numero, String waId) { }
     private record Retenida(String texto, Instant caduca, Runnable alEntregar) { }
 
+    private void publicar(Espera espera) {
+        if (espera.publicada) return;
+        espera.publicada = true;
+        espera.alEntregar.forEach(Runnable::run);
+    }
+
     private long restante(Espera espera, long ahora) {
         long total = TOPE_NANOS - (ahora - espera.inicioNano);
         long fase = espera.mensajes.isEmpty() ? esperaNanos - (ahora - espera.inicioNano)
@@ -195,6 +214,8 @@ public class BuzonRespuestasTwilio {
         private final Persona persona;
         private final long inicioNano = System.nanoTime();
         private final List<String> mensajes = new ArrayList<>(LIMITE_MENSAJES);
+        private final List<Runnable> alEntregar = new ArrayList<>(LIMITE_MENSAJES);
+        private boolean publicada;
         private long ultimoNano;
         private boolean abierta = true;
 

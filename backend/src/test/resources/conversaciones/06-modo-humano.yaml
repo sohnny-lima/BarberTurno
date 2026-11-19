@@ -10,7 +10,7 @@ pasos:
     espera:
       mensajes:
         - tipo: "TEXTO"
-          contiene: ["Te paso con el equipo", "Te responderán por aquí"]
+          contiene: ["El equipo de Negocio ficticio a", "verá tu conversación en su bandeja", "podrá responderte por este chat", "Tras 24 horas sin respuesta del equipo", "escribiendo «menu»"]
       modoConversacion: "HUMANO"
   - cliente:
       texto: "Hola, ¿hay alguien allí?"

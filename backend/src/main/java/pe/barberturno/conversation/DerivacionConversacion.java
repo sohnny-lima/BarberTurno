@@ -15,7 +15,8 @@ public interface DerivacionConversacion {
      * bloqueada ({@code Propagation.MANDATORY}) y una ficha enlazada. Si ya está en {@code HUMANO}, no cambia
      * nada. Si no: modo {@code HUMANO}, fecha y motivo de la derivación, operación vigente anulada, estado
      * vacío, acuse de origen {@code SISTEMA} en la outbox (si la ventana efectiva está abierta) y un aviso a
-     * cada PROPIETARIO y ENCARGADO activo del negocio.
+     * cada PROPIETARIO y ENCARGADO activo del negocio. El acuse explica la bandeja, el plazo configurado
+     * de retorno automático y cómo volver antes con {@code menu} (V2-DA-105).
      * @param conversacionId conversación bloqueada del negocio actual, con ficha
      * @param motivo motivo que verá el personal
      * @return verdadero si la derivó; falso si ya estaba derivada
@@ -27,7 +28,7 @@ public interface DerivacionConversacion {
      * Devuelve la conversación al asistente. Exige la transacción del llamante ({@code Propagation.MANDATORY});
      * bloquea la conversación si el llamante no lo hizo. Si no está en {@code HUMANO}, no cambia nada. Si no:
      * modo {@code ASISTENTE}, datos de la derivación a nulo y estado vacío; si la ventana efectiva está
-     * abierta, encola el aviso de vuelta y el menú principal (origen {@code SISTEMA}).
+     * abierta, encola un único menú principal con el aviso de vuelta integrado (origen {@code SISTEMA}).
      * @param conversacionId conversación del negocio actual
      * @param usuarioId miembro que la devuelve desde la bandeja, o vacío en el retorno automático
      * @return verdadero si la devolvió; falso si ya estaba con el asistente

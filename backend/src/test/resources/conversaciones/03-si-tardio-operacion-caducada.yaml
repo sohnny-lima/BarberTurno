@@ -37,6 +37,6 @@ pasos:
       mensajes:
         - tipo: "TEXTO"
           contiene: ["Esa propuesta ya no es válida"]
-          noContiene: ["Listo:"]
+          noContiene: ["Listo:", "Listo, tu cita en"]
       reservasCreadas: 0
       operacionVigente: false

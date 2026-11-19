@@ -45,6 +45,16 @@ public class TraductorEntradaTwilio {
      * @return JSON de Meta, o vacío si la notificación debe ignorarse
      */
     public Optional<byte[]> mensaje(Map<String, String> datos) {
+        return mensaje(datos, instanteRecepcion());
+    }
+
+    /**
+     * Traduce contra el menú que ya podía entregarse cuando llegó el webhook.
+     * @param datos formulario autenticado
+     * @param recibidoNano instante monotónico al empezar a leer la entrada
+     * @return evento fijado a ese menú, o vacío ante una selección bloqueada
+     */
+    public Optional<byte[]> mensaje(Map<String, String> datos, long recibidoNano) {
         String id = datos.getOrDefault("MessageSid", "");
         if (numeroEntrada(datos).isEmpty()
                 || !datos.getOrDefault("From", "").startsWith("whatsapp:") || id.isBlank()) return Optional.empty();
@@ -59,13 +69,13 @@ public class TraductorEntradaTwilio {
                 .put("timestamp", Long.toString(reloj.instant().getEpochSecond()));
         String cuerpo = datos.getOrDefault("Body", "");
         String boton = datos.getOrDefault("ButtonPayload", "");
-        if (!boton.isEmpty()) {
-            interactivo(mensaje, new CorrespondenciaMenusTwilio.Seleccion("button_reply", boton,
-                    datos.getOrDefault("ButtonText", "")));
-        } else {
-            var seleccion = menus.consumir(numeroEntrada(datos).orElseThrow(), waId, cuerpo, id);
-            if (seleccion.isPresent()) interactivo(mensaje, seleccion.get());
-            else if (cuerpo.isBlank() && contieneMedia(datos.getOrDefault("NumMedia", "0"))) {
+        var decision = menus.decidir(numeroEntrada(datos).orElseThrow(), waId,
+                boton.isEmpty() ? cuerpo : boton, id, !boton.isEmpty(), recibidoNano);
+        if (decision.aviso().isPresent() && (propiedades.respuestaTwiml() || !boton.isEmpty()
+                || decision.aviso().get().startsWith("Recibí varios"))) return Optional.empty();
+        if (decision.seleccion().isPresent()) interactivo(mensaje, decision.seleccion().get());
+        else {
+            if (cuerpo.isBlank() && contieneMedia(datos.getOrDefault("NumMedia", "0"))) {
                 mensaje.put("type", "unsupported");
             } else {
                 mensaje.put("type", "text").putObject("text").put("body", cuerpo);
@@ -141,11 +151,25 @@ public class TraductorEntradaTwilio {
      * @return aviso idempotente del menú actual, si la opción no existe
      */
     public Optional<String> respuestaInvalida(Map<String, String> datos) {
-        if (!propiedades.respuestaTwiml() || datos.getOrDefault("MessageSid", "").isBlank()
-                || !datos.getOrDefault("From", "").startsWith("whatsapp:")
-                || !datos.getOrDefault("ButtonPayload", "").isEmpty()) return Optional.empty();
+        return respuestaInvalida(datos, instanteRecepcion());
+    }
+
+    long instanteRecepcion() { return menus.ahoraNano(); }
+
+    /**
+     * Decide una sola vez por MessageSid y rechaza respuestas anteriores a la publicación del menú.
+     * @param datos formulario autenticado, sin guardar contenido crudo
+     * @param recibidoNano instante monotónico de recepción del webhook
+     * @return aviso del menú actual sin encolar un evento, si la elección se bloquea
+     */
+    public Optional<String> respuestaInvalida(Map<String, String> datos, long recibidoNano) {
+        if (datos.getOrDefault("MessageSid", "").isBlank()
+                || !datos.getOrDefault("From", "").startsWith("whatsapp:")) return Optional.empty();
+        String boton = datos.getOrDefault("ButtonPayload", "");
         return numeroEntrada(datos).flatMap(numero -> identidad(datos).flatMap(wa ->
-                menus.respuestaInvalida(numero, wa, datos.getOrDefault("Body", ""), datos.get("MessageSid"))));
+                menus.decidir(numero, wa, boton.isEmpty() ? datos.getOrDefault("Body", "") : boton,
+                        datos.get("MessageSid"), !boton.isEmpty(), recibidoNano).aviso()))
+                .filter(aviso -> propiedades.respuestaTwiml() || !boton.isEmpty() || aviso.startsWith("Recibí varios"));
     }
 
     private ObjectNode sobre(String numero) {

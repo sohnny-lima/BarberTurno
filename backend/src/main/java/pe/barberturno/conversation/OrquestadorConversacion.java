@@ -51,7 +51,7 @@ import tools.jackson.databind.node.ObjectNode;
  * <p>Desde V2-12 (17-v2-12 §2): un texto libre no reconocido va a un turno de IA si {@link LimitesIA} la da por
  * disponible; la entrega no responde y el turno se resuelve fuera de esta transacción (V2-DA-77).</p>
  * @author Sohnny Walter Lima Infanzón
- * @version 1.2
+ * @version 1.3
  */
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
@@ -164,8 +164,6 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             registro.guardarEntrante(conversacion.id(), mensaje);
             operaciones.anularVigente(conversacion.id());
             derivacion.devolver(conversacion.id(), OptionalLong.empty());
-            salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.bienvenida(consultas.nombreNegocio())),
-                    OrigenMensaje.SISTEMA, OptionalLong.empty());
             return;
         }
         if (conversacion.modo() == ModoConversacion.HUMANO) {
@@ -497,7 +495,8 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
             vista = new Cita(reservaId);
             var cita = conversacion.clienteId().isEmpty() ? null : consultas.cita(ficha(), reservaId).orElse(null);
             if (cita == null) menu(textos.noDisponible());
-            else enviar(menus.accionesCita(textos.detalleCita(cita), cita), "CITA");
+            else enviar(menus.accionesCita(textos.detalleCita(cita, consultas.nombreNegocio())
+                    + textos.avisoSinAcciones(cita, reloj.instant()), cita), "CITA");
         }
 
         private void accionCita(long reservaId, boolean cancelar) {
@@ -544,28 +543,49 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
         private void propuesta(Propuesta propuesta) {
             switch (propuesta) {
                 case null -> menu(textos.noDisponible());
-                case Propuesta.Creada creada -> enviar(menus.confirmacion(textos.resumen(creada.resumen()),
-                        creada.operacionId(), creada.nonce()), "CONFIRMACION");
+                case Propuesta.Creada creada -> {
+                    String resumen = textos.resumen(creada.resumen(), consultas.nombreNegocio());
+                    enviar(creada.resumen().tipo() == TipoOperacion.CANCELAR
+                            ? menus.confirmacionCancelacion(resumen, creada.operacionId(), creada.nonce())
+                            : menus.confirmacion(resumen, creada.operacionId(), creada.nonce()), "CONFIRMACION");
+                }
                 case Propuesta.Rechazada rechazada -> menu(textos.rechazo(rechazada.codigo()));
             }
         }
 
         /**
-         * Responde al resultado de una confirmación. {@code Ejecutada} (también repetida) muestra el menú y,
-         * como todo menú, anula cualquier otra vigente (revisión 120-1). {@code NoVigente} responde solo con
-         * texto y no toca la vigente: una pulsación inválida o antigua no cambia nada (CJ-5; revisión 120-2).
+         * Responde desde la instantánea ejecutada. Tras crear o reprogramar muestra acciones de esa cita
+         * con permisos consultados de nuevo; guarda la vista para repetirla sin ejecutar otra operación.
+         * Anula cualquier otra vigente (revisión 120-1), también en una repetición. {@code NoVigente}
+         * responde solo con texto y conserva la vigente (CJ-5; revisión 120-2).
          */
         private void resultado(ResultadoOperacion resultado) {
             switch (resultado) {
                 case ResultadoOperacion.Ejecutada ejecutada -> {
                     operaciones.anularVigente(conversacion.id());
                     conversaciones.vaciar(conversacion.id());
-                    salida.encolarInteractivo(conversacion.id(), menus.menuPrincipal(textos.resultado(resultado)),
+                    String cuerpo = textos.resultado(resultado, consultas.nombreNegocio());
+                    ObjectNode respuesta;
+                    if (ejecutada.tipo() == TipoOperacion.CANCELAR) {
+                        respuesta = menus.menuPrincipal(cuerpo);
+                    } else {
+                        long reservaId = ejecutada.cita().reservaId();
+                        var actual = conversacion.clienteId().isEmpty() ? null : consultas.cita(ficha(), reservaId).orElse(null);
+                        if (actual != null) cuerpo += textos.avisoSinAcciones(actual, reloj.instant());
+                        respuesta = menus.accionesCita(cuerpo, actual);
+                        if (actual != null) {
+                            var estado = conversaciones.bloquear(conversacion.id()).estado();
+                            estado.put(ConversacionesWhatsApp.PASO, "CITA");
+                            estado.put("vista", new Cita(reservaId).codificar());
+                            conversaciones.guardar(conversacion.id(), estado);
+                        }
+                    }
+                    salida.encolarInteractivo(conversacion.id(), respuesta,
                             OrigenMensaje.SISTEMA, OptionalLong.of(ejecutada.cita().reservaId()));
                 }
                 case ResultadoOperacion.NoVigente ignorada -> salida.encolarTexto(conversacion.id(),
-                        textos.resultado(resultado), OrigenMensaje.ASISTENTE, OptionalLong.empty());
-                default -> menu(textos.resultado(resultado));
+                        textos.resultado(resultado, consultas.nombreNegocio()), OrigenMensaje.ASISTENTE, OptionalLong.empty());
+                default -> menu(textos.resultado(resultado, consultas.nombreNegocio()));
             }
         }
 
@@ -574,7 +594,7 @@ public class OrquestadorConversacion implements ReceptorMensajesWhatsApp {
          * la operación vigente y vacía el estado, así un «sí» posterior no confirma un resumen anterior.
          */
         private void menu(String cuerpo) {
-            operaciones.anularVigente(conversacion.id());
+            if (operaciones.anularVigente(conversacion.id())) cuerpo = textos.propuestaDescartada() + "\n\n" + cuerpo;
             conversaciones.vaciar(conversacion.id());
             enviar(menus.menuPrincipal(cuerpo), null);
         }

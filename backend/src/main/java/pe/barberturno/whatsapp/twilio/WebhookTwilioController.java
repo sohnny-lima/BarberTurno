@@ -74,6 +74,7 @@ public class WebhookTwilioController {
 
     private ResponseEntity<String> procesar(HttpServletRequest peticion, String cabecera, String ruta,
             boolean estado) throws IOException {
+        long recibidoNano = traductor.instanteRecepcion();
         if (peticion.getContentLengthLong() > LIMITE_BYTES) return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).build();
         byte[] crudo = peticion.getInputStream().readNBytes(LIMITE_BYTES + 1);
         if (crudo.length > LIMITE_BYTES) return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).build();
@@ -84,7 +85,7 @@ public class WebhookTwilioController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         if (!estado) {
-            var aviso = traductor.respuestaInvalida(datos);
+            var aviso = traductor.respuestaInvalida(datos, recibidoNano);
             if (aviso.isPresent()) {
                 var propia = traductor.numeroEntrada(datos).flatMap(numero ->
                         traductor.identidad(datos).flatMap(wa -> buzon.abrir(numero, wa)));
@@ -94,7 +95,7 @@ public class WebhookTwilioController {
                 return respuesta(twiml(mensajes));
             }
         }
-        var cuerpo = estado ? traductor.estado(datos) : traductor.mensaje(datos);
+        var cuerpo = estado ? traductor.estado(datos) : traductor.mensaje(datos, recibidoNano);
         if (cuerpo.isEmpty()) return respuesta("<Response/>");
         if (estado) {
             recepcion.recibir(cuerpo.get());

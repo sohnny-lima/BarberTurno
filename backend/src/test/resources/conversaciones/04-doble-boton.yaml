@@ -26,7 +26,7 @@ pasos:
     espera:
       mensajes:
         - tipo: "INTERACTIVO"
-          contiene: ["Precio"]
+          contiene: ["Precio", "Barbería: Negocio ficticio a", "Código: se asignará al confirmar", "Corte clásico", "Profesional ficticio", "10:10 a 10:40", "Estado: Propuesta sin confirmar", "Aún no se ha aplicado ningún cambio"]
       operacionVigente: true
       reservasCreadas: 0
       estadoTurno: "HECHO"
@@ -36,7 +36,7 @@ pasos:
     espera:
       mensajes:
         - tipo: "INTERACTIVO"
-          contiene: ["Listo:"]
+          contiene: ["Listo, tu cita en Negocio ficticio a: BT-", "Corte clásico", "Profesional ficticio", "miércoles 4 de noviembre de 2026", "10:10 a 10:40", "Estado: Confirmada"]
       reservasCreadas: 1
   - cliente:
       repetirSeleccion: true
@@ -44,5 +44,5 @@ pasos:
     espera:
       mensajes:
         - tipo: "INTERACTIVO"
-          contiene: ["Listo:"]
+          contiene: ["Listo, tu cita en Negocio ficticio a: BT-", "Corte clásico", "Profesional ficticio", "miércoles 4 de noviembre de 2026", "10:10 a 10:40", "Estado: Confirmada"]
       reservasCreadas: 1

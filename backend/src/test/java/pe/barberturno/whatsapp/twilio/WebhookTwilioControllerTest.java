@@ -61,7 +61,7 @@ class WebhookTwilioControllerTest {
                 "barberturno", Duration.ofSeconds(3), "https://api.twilio.com", false, Duration.ofSeconds(10), Duration.ofMillis(1500), java.util.List.of());
         FirmaTwilio firma = new FirmaTwilio(propiedades);
         Clock reloj = Clock.fixed(AHORA, ZoneOffset.UTC);
-        menus = new CorrespondenciaMenusTwilio(reloj);
+        menus = SoporteMenusTwilio.crear(reloj);
         JsonMapper mapper = JsonMapper.builder().build();
         TraductorEntradaTwilio traductor = new TraductorEntradaTwilio(mapper, reloj, menus, propiedades, new CorrespondenciaDireccionesTwilio());
         controlador = new WebhookTwilioController(firma, traductor, recepcion, propiedades, new BuzonRespuestasTwilio(propiedades, java.time.Clock.systemUTC()));

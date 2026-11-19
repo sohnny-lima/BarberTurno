@@ -209,9 +209,9 @@ class MenusConversacionTest {
         esperado.put("type", "button");
         esperado.putObject("body").put("text", "Detalle de tu cita:");
         ArrayNode btns = esperado.putObject("action").putArray("buttons");
-        btns.addObject().put("type", "reply").putObject("reply").put("id", "a:50:C").put("title", "Cancelar");
         btns.addObject().put("type", "reply").putObject("reply").put("id", "a:50:R").put("title", "Reprogramar");
-        btns.addObject().put("type", "reply").putObject("reply").put("id", "m:INICIO").put("title", "Menú");
+        btns.addObject().put("type", "reply").putObject("reply").put("id", "a:50:C").put("title", "Cancelar");
+        btns.addObject().put("type", "reply").putObject("reply").put("id", "m:INICIO").put("title", "Menú principal");
 
         ObjectNode actual = menus.accionesCita("Detalle de tu cita:", cita);
 
@@ -281,6 +281,16 @@ class MenusConversacionTest {
         ObjectNode actual = menus.confirmacion("Resumen de la cita", 88L, "AAAAAAAAAAAAAAAAAAAAAA");
 
         assertThat(actual).isEqualTo(esperado);
+    }
+
+    @Test
+    void confirmacionCancelacion_nombraLaAccionYConservaNonceYCodigoDeDecision() {
+        var respuesta = menus.confirmacionCancelacion("Cancelar BT-106", 88, "AAAAAAAAAAAAAAAAAAAAAA");
+        var botones = respuesta.path("action").path("buttons");
+        assertThat(botones.get(0).path("reply").path("title").asString()).isEqualTo("Sí, cancelar");
+        assertThat(botones.get(1).path("reply").path("title").asString()).isEqualTo("Mantener cita");
+        assertThat(botones.get(0).path("reply").path("id").asString()).isEqualTo("o:88:AAAAAAAAAAAAAAAAAAAAAA:S");
+        assertThat(botones.get(1).path("reply").path("id").asString()).isEqualTo("o:88:AAAAAAAAAAAAAAAAAAAAAA:N");
     }
 
     @Test
@@ -427,7 +437,7 @@ class MenusConversacionTest {
             "true, true, 3",
             "true, false, 2",
             "false, true, 2",
-            "false, false, 1"
+            "false, false, 2"
     })
     @DisplayName("accionesCita: botones según combinaciones de permisos, máximo 3 botones")
     void accionesCita_combinacionesPermisos_generaBotonesCorrectos(boolean puedeCancelar, boolean puedeReprogramar, int esperadoBotones) {
@@ -446,7 +456,7 @@ class MenusConversacionTest {
             String title = b.path("reply").path("title").asString();
             if ("Cancelar".equals(title)) tieneCancelar = true;
             if ("Reprogramar".equals(title)) tieneReprogramar = true;
-            if ("Menú".equals(title)) tieneMenu = true;
+            if ("Menú principal".equals(title)) tieneMenu = true;
         }
 
         assertThat(tieneCancelar).isEqualTo(puedeCancelar);
